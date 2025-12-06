@@ -53,3 +53,10 @@ export function generateRoomCode(): string {
 
   return code;
 }
+
+/**
+ * List all rooms (useful for debugging)
+ */
+export function listRooms(): RoomState[] {
+  return Array.from(rooms.values());
+}
