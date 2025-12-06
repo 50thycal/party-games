@@ -1,0 +1,350 @@
+
+---
+
+# **SPEC.md — Party Shell Engine (party-001)**
+
+### *A Jackbox-style, game-plugin framework for fast iteration and mobile play.*
+
+---
+
+## **1. Purpose & Vision**
+
+The Party Shell Engine is a **web-based, modular multiplayer game framework** inspired by Jackbox.
+It enables the creator (you) to:
+
+* Rapidly build new games by defining a small **game template** (state, phases, actions, views).
+* Reuse shared infrastructure for lobby, room management, networking, routing, and UI shell.
+* Let friends join instantly using a **room code** from their phones.
+* Iterate on game rules and UI without touching the engine once it’s stable.
+
+This framework prioritizes **developer speed, clarity, and extensibility** over native app deployment or heavy real-time graphics.
+
+---
+
+## **2. Guiding Principles**
+
+1. **Games are plugins**
+   Adding a new game should feel like adding a new folder with a few functions and views.
+
+2. **Pure game logic, impure engine**
+   All game rules are pure `(state, action) => newState`.
+   Engine handles side effects (timing, randomness, networking).
+
+3. **Move fast while staying safe**
+   v1 uses simple polling.
+   Upgrading to websockets later requires zero changes to game code.
+
+4. **Phone-friendly first**
+   Player clients are optimized for mobile browsers.
+   Host view works well on phone, tablet, laptop, or mirrored TV.
+
+5. **Reusable shell**
+   Lobby, HUD, room flow, and routing are provided once by the engine.
+   Games supply only their custom views and rules.
+
+---
+
+## **3. Target Use Case**
+
+* Host opens a URL → picks a game → gets a room code
+* Friends enter room code on their phones
+* Everyone plays without installs, accounts, or friction
+* Creator can add/modify games easily and deploy instantly via Vercel
+
+Not intended (v1):
+
+* Native app store publish
+* Fully real-time physics
+* Persistent accounts or long-running async games
+
+These can be added later without rewriting games.
+
+---
+
+## **4. Architecture Overview**
+
+### **4.1 Technology Stack**
+
+* **Next.js + React + TypeScript** (Vercel deployment)
+* **API routes** for room state + action dispatch
+* **Polling** for real-time updates in Phase 1
+* Optional **WebSockets layer** in Phase 2
+* **In-memory store** initially → upgrade to Supabase/Postgres later
+
+This stack maximizes ease-of-iteration and Claude/Cursor support.
+
+---
+
+## **5. Core Engine Concepts**
+
+Below are the abstractions every game uses.
+
+### **5.1 Game Template**
+
+Each game defines:
+
+* Metadata
+* Initial state
+* Allowed actions
+* Reducer (pure game logic)
+* Phase derivation
+* Host & Player views
+
+This gives consistent structure across all games.
+
+### **5.2 Room**
+
+A room is an instance of one game:
+
+```ts
+type Room = {
+  roomCode: string;
+  gameId: string;
+  hostId: string;
+  players: Player[];
+  createdAt: number;
+};
+```
+
+Managed entirely by the engine.
+
+### **5.3 Player**
+
+```ts
+type Player = {
+  id: string;      // random UUID stored in localStorage
+  name: string;
+  role: "host" | "player";
+};
+```
+
+### **5.4 Actions**
+
+Actions are the “moves” players make.
+They are always small JSON events:
+
+```ts
+type BaseAction = {
+  type: string;
+  playerId: string;
+};
+```
+
+Each game defines its own extension.
+
+### **5.5 State**
+
+Game-specific state, shaped by each game’s template (`S` generic).
+Stored server-side.
+
+### **5.6 Reducer**
+
+The heart of the game logic:
+
+```ts
+(state: S, action: A, ctx: GameContext) => S
+```
+
+Pure, deterministic, testable.
+
+### **5.7 Views**
+
+Each game provides:
+
+```ts
+HostView: React.FC<ViewProps<S, A>>
+PlayerView: React.FC<ViewProps<S, A>>
+```
+
+The engine renders the correct view based on role + phase + state.
+
+---
+
+## **6. Game Template Interface**
+
+This is the core contract games must satisfy:
+
+```ts
+export interface GameTemplate<S, A> {
+  id: string;
+  name: string;
+  minPlayers: number;
+  maxPlayers: number;
+
+  initialState(players: Player[]): S;
+
+  reducer(state: S, action: A, ctx: GameContext): S;
+
+  getPhase(state: S): GamePhase;
+
+  isActionAllowed?(
+    state: S,
+    action: A,
+    ctx: GameContext
+  ): boolean;
+
+  views: {
+    HostView: React.FC<ViewProps<S, A>>;
+    PlayerView: React.FC<ViewProps<S, A>>;
+  };
+}
+```
+
+### **GameContext**
+
+```ts
+type GameContext = {
+  now: () => number;
+  random: () => number;
+  room: Room;
+  playerId: string;
+};
+```
+
+---
+
+## **7. Repo Structure**
+
+```
+/app
+  /page.tsx
+  /join
+  /rooms/[roomCode]
+    /host
+    /player
+  /api
+    createRoom.ts
+    joinRoom.ts
+    getRoom.ts
+    postAction.ts
+
+/engine
+  gameRegistry.ts
+  defineGame.ts
+  stateStore.ts (in-memory)
+  types.ts
+
+/games
+  /number-guess
+    config.ts
+    HostView.tsx
+    PlayerView.tsx
+    rules.md
+
+  /future-game-1
+  /future-game-2
+```
+
+This keeps games clean and isolated.
+
+---
+
+## **8. Networking Model**
+
+### **Phase 1 (MVP)** — Polling
+
+* `POST /api/action` for submissions
+* `GET /api/room?roomCode=xxxx` every second
+  Advantages: zero complexity, great for early playtesting.
+
+### **Phase 2 (Upgrade)** — WebSockets
+
+* Keep reducer logic identical
+* Replace polling with push-based updates
+* No need to change game code
+
+---
+
+## **9. Initial Game Example — Number Guess**
+
+A minimal demo game that validates the engine.
+
+### Actions:
+
+* `START_GAME`
+* `SUBMIT_GUESS`
+* `REVEAL`
+
+### State:
+
+```ts
+{
+  phase: "lobby" | "guessing" | "results";
+  secret: number | null;
+  guesses: Record<string, number>;
+  winnerId: string | null;
+}
+```
+
+### Reducer flow:
+
+* `START_GAME` → sets secret number, moves to `"guessing"`
+* `SUBMIT_GUESS` → stores guesses
+* `REVEAL` → computes winner, moves to `"results"`
+
+This game is intentionally tiny and structured so you can clone its pattern for future games.
+
+---
+
+## **10. Developer Workflow (How You Add a New Game)**
+
+1. Create folder:
+   `/games/my-new-game/`
+
+2. Create `config.ts` with template:
+
+```ts
+export const myGame = defineGame({
+  id: "my-game",
+  name: "My Game",
+  minPlayers: 2,
+  maxPlayers: 6,
+  initialState: (...),
+  reducer: (...),
+  getPhase: (...),
+  views: {
+    HostView,
+    PlayerView,
+  },
+});
+```
+
+3. Define state + actions + flow
+4. Implement HostView/PlayerView components
+5. Register in `/engine/gameRegistry.ts`
+
+Done.
+
+Engine, routing, lobby, and networking are untouched.
+
+---
+
+## **11. Future Extensions (Non-blocking)**
+
+* WebSocket transport
+* Database persistence (Supabase/Postgres)
+* Replay logs / audit trails
+* Timers for round phases
+* Spectator mode
+* Game packs
+* User accounts / long-term stats
+* Native app shell (Capacitor/Expo)
+* AI-powered content generation inside games
+
+These are *intentionally decoupled* from game logic.
+
+---
+
+## **12. Completed Definition of Done**
+
+* One engine capable of running multiple games
+* One demo game (Number Guess)
+* Ability to join rooms, dispatch actions, update views
+* Clear folder structure for adding games
+* Reducer-based logic verified by tests
+* Mobile-friendly UI
+* Runnable on Vercel in production mode
+
+---
+
+# **SPEC.md v1 Complete**
