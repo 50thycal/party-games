@@ -3,3 +3,4 @@ export * from "./types";
 export * from "./defineGame";
 export * from "./gameRegistry";
 export * from "./stateStore";
+export * from "./applyActionToRoom";

@@ -19,16 +19,27 @@ type RoomDto = {
   createdAt: number;
 };
 
+type GameState = {
+  phase: string;
+  [key: string]: unknown;
+};
+
 type GetRoomResponse =
-  | { ok: true; data: { room: RoomDto; gameState: unknown } }
+  | { ok: true; data: { room: RoomDto; gameState: GameState | null } }
+  | { ok: false; errorCode: string; message?: string };
+
+type GameActionResponse =
+  | { ok: true; data: { room: RoomDto; gameState: GameState } }
   | { ok: false; errorCode: string; message?: string };
 
 export default function RoomPage() {
   const params = useParams<{ roomCode: string }>();
   const roomCode = params.roomCode?.toUpperCase();
   const [room, setRoom] = useState<RoomDto | null>(null);
+  const [gameState, setGameState] = useState<GameState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [currentPlayerId, setCurrentPlayerId] = useState<string | null>(null);
+  const [isStarting, setIsStarting] = useState(false);
 
   // Load current player identity
   useEffect(() => {
@@ -54,10 +65,12 @@ export default function RoomPage() {
         if (!json.ok) {
           setError(json.message ?? "Room not found.");
           setRoom(null);
+          setGameState(null);
           return;
         }
 
         setRoom(json.data.room);
+        setGameState(json.data.gameState);
         setError(null);
       } catch (err) {
         console.error(err);
@@ -78,6 +91,36 @@ export default function RoomPage() {
       clearInterval(intervalId);
     };
   }, [roomCode]);
+
+  // Handle Start Game action
+  async function handleStartGame() {
+    if (!room || !currentPlayerId) return;
+    setIsStarting(true);
+
+    try {
+      const res = await fetch("/api/game-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          roomCode: room.roomCode,
+          playerId: currentPlayerId,
+          type: "START_GAME",
+        }),
+      });
+
+      const json = (await res.json()) as GameActionResponse;
+      if (!json.ok) {
+        console.error("Failed to start game:", json.message);
+      } else {
+        setRoom(json.data.room);
+        setGameState(json.data.gameState);
+      }
+    } catch (err) {
+      console.error("Error starting game:", err);
+    } finally {
+      setIsStarting(false);
+    }
+  }
 
   if (!roomCode) {
     return (
@@ -113,6 +156,8 @@ export default function RoomPage() {
   }
 
   const isHost = currentPlayerId === room.hostId;
+  const phase = gameState?.phase ?? "lobby";
+  const isInLobby = phase === "lobby";
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8">
@@ -125,6 +170,17 @@ export default function RoomPage() {
           </p>
         </header>
 
+        {/* Phase indicator */}
+        <section className="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-6 text-center">
+          <p className="text-sm text-gray-400">
+            Phase:{" "}
+            <span className="font-mono text-white bg-gray-700 px-2 py-1 rounded">
+              {phase}
+            </span>
+          </p>
+        </section>
+
+        {/* Players list */}
         <section className="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-6">
           <h2 className="font-semibold mb-4">
             Players ({room.players.length})
@@ -156,21 +212,26 @@ export default function RoomPage() {
           )}
         </section>
 
+        {/* Start Game button (host only, lobby phase only) */}
         {isHost && (
           <section className="mb-6">
             <button
-              disabled
+              onClick={handleStartGame}
+              disabled={isStarting || !isInLobby}
               className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
             >
-              Start Game (Coming in Phase 3)
+              {!isInLobby
+                ? "Game Started"
+                : isStarting
+                ? "Starting..."
+                : "Start Game"}
             </button>
           </section>
         )}
 
+        {/* Game info */}
         <p className="text-xs text-gray-500 text-center mb-6">
           Game: <code className="bg-gray-800 px-2 py-1 rounded">{room.gameId}</code>
-          <br />
-          <span className="text-gray-600">(Game logic will be wired in later phases)</span>
         </p>
 
         <Link

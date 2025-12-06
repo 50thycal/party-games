@@ -1,9 +1,13 @@
 import type { GameTemplate, BaseAction } from "./types";
+import { numberGuessGame } from "@/games/number-guess/config";
 
 // Registry of all available games
 // Games are registered here after being defined
 // Using 'any' here because games have heterogeneous state/action types
 const games = new Map<string, GameTemplate<any, any>>();
+
+// Register built-in games
+games.set(numberGuessGame.id, numberGuessGame);
 
 /**
  * Register a game template with the engine
