@@ -2,7 +2,7 @@ import type { GameTemplate, BaseAction } from "./types";
 
 // Registry of all available games
 // Games are registered here after being defined
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// Using 'any' here because games have heterogeneous state/action types
 const games = new Map<string, GameTemplate<any, any>>();
 
 /**
