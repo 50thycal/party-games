@@ -1,0 +1,319 @@
+
+
+# **PLAN.md — Party Shell Engine (party-001)**
+
+### *Execution roadmap for building the Jackbox-style game framework.*
+
+---
+
+# **0. Project Meta**
+
+* **Thread Name:** `party-001`
+* **Primary Files:** `SPEC.md`, `PLAN.md`
+* **Build Philosophy:**
+
+  * Small PRs
+  * Clear separation between engine, shell UI, and game plugins
+  * Each phase delivers something testable
+* **Goal:**
+  A reusable multiplayer game engine with one working demo game and clear path for adding new games.
+
+---
+
+# **1. High-Level Phases**
+
+### **Phase 1 — Project Setup & Engine Skeleton**
+
+Create the basic directory structure, minimal types, game registry, and empty starter pages.
+
+### **Phase 2 — Rooms, Players, Lobby Flow**
+
+Implement room creation, joining, lobby display, and player identity.
+
+### **Phase 3 — Action-Based State Engine**
+
+Implement reducer pipeline, action dispatch, state updates, and polling networking.
+
+### **Phase 4 — Game Plugin System**
+
+Implement per-game folders, template API, view injection, and rendering logic.
+
+### **Phase 5 — Demo Game ("Number Guess")**
+
+Implement a minimal, working game from lobby → play → results.
+
+### **Phase 6 — Polish Shell UI & Test With Friends**
+
+Make everything smooth, mobile-friendly, and ready for fast iteration.
+
+### **Phase 7 — (Optional) WebSocket Transport Layer**
+
+Swap polling with websocket push updates without touching game logic.
+
+---
+
+# **2. Detailed Tasks Per Phase**
+
+---
+
+## **Phase 1 — Project Setup & Engine Skeleton**
+
+### Goals
+
+* Repo initialized
+* File structure scaffolded
+* Base types defined
+* Game registry created
+
+### Tasks
+
+1. Create Next.js + TS repo on GitHub
+2. Add `/engine` folder containing:
+
+   * `types.ts` (Room, Player, GameTemplate generics)
+   * `defineGame.ts` helper
+   * `gameRegistry.ts` (empty registry)
+3. Add `/games` folder with placeholder
+4. Add `/app` folder with:
+
+   * `page.tsx`
+   * `/join`
+   * `/rooms/[roomCode]`
+5. Add README linking to SPEC.md
+
+### Acceptance Criteria
+
+* `npm run dev` starts the skeleton app
+* No games implemented, but engine compiles
+* Opening `/` loads a blank home page with placeholder navigation
+
+---
+
+## **Phase 2 — Rooms, Players, Lobby Flow**
+
+### Goals
+
+Implement shared multiplayer foundation:
+
+* Create room
+* Join room
+* Display players in lobby
+* Track role (host/player)
+* Store playerId in localStorage
+
+### Tasks
+
+1. `/api/createRoom` — generates roomCode, stores new room
+2. `/api/joinRoom` — adds player to room
+3. `/api/getRoom` — returns room state
+4. Build Lobby UI:
+
+   * Shows roomCode
+   * Shows player list
+   * Host sees "Start Game" button placeholder
+5. Local player identity persistence via localStorage
+
+### Acceptance Criteria
+
+* User can create a room, get a code, join from a second device
+* Lobby updates via polling to show new players
+* Host/player roles work
+
+---
+
+## **Phase 3 — Action-Based State Engine**
+
+### Goals
+
+Implement the core action reducer pipeline that all games will use.
+
+### Tasks
+
+1. Define `Action` shape in `types.ts`
+2. Implement `POST /api/action` endpoint:
+
+   * Validate action
+   * Run reducer
+   * Update state
+3. Implement in-memory `stateStore.ts`:
+
+   * Map roomCode → gameState
+4. Modify `/api/getRoom` to return:
+
+   * Room metadata
+   * Game-specific state
+5. Add engine function to:
+
+   * Fetch correct game template
+   * Route action → reducer → new state
+
+### Acceptance Criteria
+
+* Sending an action modifies state
+* State visible on next poll
+* No game-specific logic exists yet
+
+---
+
+## **Phase 4 — Game Plugin System**
+
+### Goals
+
+Engine becomes capable of supporting multiple pluggable games.
+
+### Tasks
+
+1. Define final `GameTemplate<S, A>` interface
+2. Implement `defineGame()` helper to wrap templates
+3. Expand `gameRegistry.ts` to load registered games
+4. Implement phase system:
+
+   * `getPhase(state)`
+   * Shell uses this to render correct view
+5. Add dynamic view injection:
+
+   * HostView
+   * PlayerView
+6. Create placeholder game as example ("demo-game")
+
+### Acceptance Criteria
+
+* Shell renders correct view based on active game
+* Registry loads one placeholder game
+* Views render and receive state + dispatch function
+
+---
+
+## **Phase 5 — Demo Game: Number Guess**
+
+### Goals
+
+Ship the first real game end-to-end.
+
+### Tasks
+
+1. Create `/games/number-guess/` folder
+2. Define:
+
+   * State
+   * Actions
+   * Reducer
+   * Phases (`lobby`, `guessing`, `results`)
+3. Build `HostView.tsx` with:
+
+   * Start button
+   * Reveal button
+   * List of player guesses
+4. Build `PlayerView.tsx` with:
+
+   * Input for submitting guess
+   * Results screen
+5. Register game inside `gameRegistry.ts`
+6. Add home page "Pick a Game" UI component
+
+### Acceptance Criteria
+
+* Full loop: create room → join → play → results
+* Testable on two phones
+* No console errors
+* All state transitions work
+
+---
+
+## **Phase 6 — Shell UI & Game Iteration Polish**
+
+### Goals
+
+Make engine pleasant to use for future games.
+
+### Tasks
+
+1. Add shared HUD component (room code, game name)
+2. Improve mobile layout for PlayerView
+3. Improve host layout for screensharing/TV use
+4. Add devtools toggle to inspect:
+
+   * State
+   * Actions
+   * Context
+5. Add a template folder for future games to copy/paste from
+
+### Acceptance Criteria
+
+* You can create a new game in ~5 minutes via copy/paste
+* Host and player UIs feel visually stable and predictable
+
+---
+
+## **Phase 7 — Future: WebSocket Transport Layer (Optional)**
+
+### Goals
+
+Upgrade networking to real-time push events.
+
+### Tasks
+
+1. Add WebSocket server (Next.js or service like Pusher/Ably)
+2. Replace polling with live updates
+3. Keep reducer and templates unchanged
+4. Add reconnect logic
+5. Optimize for 6–12 players (typical party size)
+
+### Acceptance Criteria
+
+* Game state updates instantly across all clients
+* No more polling
+* Number Guess still works without modifications
+
+---
+
+# **3. Deliverables per Phase**
+
+| Phase | Deliverable                        |
+| ----- | ---------------------------------- |
+| 1     | File structure, engine types       |
+| 2     | Working lobby with rooms & players |
+| 3     | Action reducer engine              |
+| 4     | Game plugin system                 |
+| 5     | Full demo game                     |
+| 6     | Polished shell UI, dev-friendly    |
+| 7     | Optional websocket upgrade         |
+
+---
+
+# **4. Phase Order Validation**
+
+* **Phases 1–3** build the engine skeleton
+* **Phase 4** enables adding games
+* **Phase 5** proves it works
+* **Phase 6** optimizes your future iteration speed
+* **Phase 7** is optional & non-disruptive
+
+This is the Build Whenever rhythm: small steps, each deployable, each meaningful.
+
+---
+
+# **5. PR Briefing Template (for Claude/Cursor)**
+
+When you're ready to generate PR briefs:
+
+```
+Title: Phase X – <Feature Name>
+
+Goal:
+<what this PR implements>
+
+Scope:
+- bullet points of what files, functions, components to add
+
+Out of Scope:
+- what NOT to implement
+
+Acceptance Criteria:
+- list of tests the reviewer can perform
+
+References:
+- SPEC.md sections
+```
+
+---
