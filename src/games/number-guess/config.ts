@@ -2,23 +2,32 @@ import { defineGame } from "@/engine/defineGame";
 import type { BaseAction, GamePhase, GameContext, Player } from "@/engine/types";
 
 // Game phases
-type NumberGuessPhase = "lobby" | "playing";
+type NumberGuessPhase = "lobby" | "guessing" | "results";
 
 // Game state
 type NumberGuessState = {
   phase: NumberGuessPhase;
+  secret: number | null;
+  guesses: Record<string, number>; // playerId -> guess
+  winnerId: string | null;
 };
 
 // Action types
-type NumberGuessActionType = "START_GAME";
+type NumberGuessActionType = "START_GAME" | "SUBMIT_GUESS" | "REVEAL_RESULTS";
 
 interface NumberGuessAction extends BaseAction {
   type: NumberGuessActionType;
+  payload?: {
+    value?: number;
+  };
 }
 
 function initialState(_players: Player[]): NumberGuessState {
   return {
     phase: "lobby",
+    secret: null,
+    guesses: {},
+    winnerId: null,
   };
 }
 
@@ -33,16 +42,68 @@ function reducer(
 ): NumberGuessState {
   switch (action.type) {
     case "START_GAME": {
-      // Only host can start the game
       const isHost = ctx.room.hostId === ctx.playerId;
       if (!isHost) return state;
       if (state.phase !== "lobby") return state;
 
+      // Generate secret number 1-100
+      const secret = Math.floor(ctx.random() * 100) + 1;
+
       return {
-        ...state,
-        phase: "playing",
+        phase: "guessing",
+        secret,
+        guesses: {},
+        winnerId: null,
       };
     }
+
+    case "SUBMIT_GUESS": {
+      if (state.phase !== "guessing") return state;
+      if (typeof action.payload?.value !== "number") return state;
+
+      const value = Math.round(action.payload.value);
+      if (value < 1 || value > 100 || !Number.isFinite(value)) return state;
+
+      return {
+        ...state,
+        guesses: {
+          ...state.guesses,
+          [action.playerId]: value,
+        },
+      };
+    }
+
+    case "REVEAL_RESULTS": {
+      const isHost = ctx.room.hostId === ctx.playerId;
+      if (!isHost) return state;
+      if (state.phase !== "guessing") return state;
+      if (state.secret == null) return state;
+
+      const guessEntries = Object.entries(state.guesses);
+      if (guessEntries.length === 0) {
+        // No guesses yet, do nothing
+        return state;
+      }
+
+      // Find winner (closest guess)
+      let winnerId: string | null = null;
+      let bestDiff = Infinity;
+
+      for (const [playerId, guess] of guessEntries) {
+        const diff = Math.abs(guess - state.secret);
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          winnerId = playerId;
+        }
+      }
+
+      return {
+        ...state,
+        phase: "results",
+        winnerId,
+      };
+    }
+
     default:
       return state;
   }
@@ -58,14 +119,23 @@ export const numberGuessGame = defineGame<NumberGuessState, NumberGuessAction>({
   reducer,
   getPhase,
   isActionAllowed(state, action, ctx) {
-    // Only host can START_GAME and only in lobby phase
-    if (action.type === "START_GAME") {
-      return ctx.room.hostId === ctx.playerId && state.phase === "lobby";
+    switch (action.type) {
+      case "START_GAME":
+        return ctx.room.hostId === ctx.playerId && state.phase === "lobby";
+      case "SUBMIT_GUESS":
+        return state.phase === "guessing";
+      case "REVEAL_RESULTS":
+        return (
+          ctx.room.hostId === ctx.playerId &&
+          state.phase === "guessing" &&
+          Object.keys(state.guesses).length > 0
+        );
+      default:
+        return true;
     }
-    return true;
   },
   views: {
-    // Placeholder views - will be implemented in Phase 5
+    // Views are rendered inline in room page for now
     HostView: () => null,
     PlayerView: () => null,
   },
