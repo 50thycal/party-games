@@ -1,0 +1,13 @@
+# Games folder
+# Each game is a subfolder containing:
+# - config.ts (game template definition)
+# - HostView.tsx (host UI component)
+# - PlayerView.tsx (player UI component)
+# - types.ts (game-specific types)
+#
+# Example structure for a game:
+# /games/number-guess/
+#   config.ts
+#   HostView.tsx
+#   PlayerView.tsx
+#   types.ts
