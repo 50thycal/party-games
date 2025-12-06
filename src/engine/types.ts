@@ -22,6 +22,7 @@ export type Room = {
 export type BaseAction = {
   type: string;
   playerId: string;
+  payload?: unknown;
 };
 
 // Context provided to game reducers
