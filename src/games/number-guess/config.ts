@@ -13,7 +13,11 @@ type NumberGuessState = {
 };
 
 // Action types
-type NumberGuessActionType = "START_GAME" | "SUBMIT_GUESS" | "REVEAL_RESULTS";
+type NumberGuessActionType =
+  | "START_GAME"
+  | "SUBMIT_GUESS"
+  | "REVEAL_RESULTS"
+  | "PLAY_AGAIN";
 
 interface NumberGuessAction extends BaseAction {
   type: NumberGuessActionType;
@@ -104,6 +108,22 @@ function reducer(
       };
     }
 
+    case "PLAY_AGAIN": {
+      const isHost = ctx.room.hostId === ctx.playerId;
+      if (!isHost) return state;
+      if (state.phase !== "results") return state;
+
+      // Generate new secret number 1-100
+      const secret = Math.floor(ctx.random() * 100) + 1;
+
+      return {
+        phase: "guessing",
+        secret,
+        guesses: {},
+        winnerId: null,
+      };
+    }
+
     default:
       return state;
   }
@@ -130,6 +150,8 @@ export const numberGuessGame = defineGame<NumberGuessState, NumberGuessAction>({
           state.phase === "guessing" &&
           Object.keys(state.guesses).length > 0
         );
+      case "PLAY_AGAIN":
+        return ctx.room.hostId === ctx.playerId && state.phase === "results";
       default:
         return true;
     }
