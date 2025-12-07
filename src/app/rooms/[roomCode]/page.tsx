@@ -48,6 +48,7 @@ export default function RoomPage() {
   const [isRevealing, setIsRevealing] = useState(false);
   const [guessInput, setGuessInput] = useState("");
   const [isSubmittingGuess, setIsSubmittingGuess] = useState(false);
+  const [isPlayingAgain, setIsPlayingAgain] = useState(false);
 
   // Load current player identity
   useEffect(() => {
@@ -153,6 +154,16 @@ export default function RoomPage() {
       await dispatchAction("SUBMIT_GUESS", { value });
     } finally {
       setIsSubmittingGuess(false);
+    }
+  }
+
+  async function handlePlayAgain() {
+    setIsPlayingAgain(true);
+    try {
+      await dispatchAction("PLAY_AGAIN");
+      setGuessInput("");
+    } finally {
+      setIsPlayingAgain(false);
     }
   }
 
@@ -289,9 +300,13 @@ export default function RoomPage() {
             )}
 
             {phase === "results" && (
-              <p className="text-gray-400 text-sm text-center">
-                Game complete! Create a new room to play again.
-              </p>
+              <button
+                onClick={handlePlayAgain}
+                disabled={isPlayingAgain}
+                className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+              >
+                {isPlayingAgain ? "Starting new round..." : "Play Again"}
+              </button>
             )}
           </section>
         )}
