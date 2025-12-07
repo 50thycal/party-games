@@ -2,10 +2,10 @@ import { defineGame } from "@/engine/defineGame";
 import type { BaseAction, GamePhase, GameContext, Player } from "@/engine/types";
 
 // Game phases
-type NumberGuessPhase = "lobby" | "guessing" | "results";
+export type NumberGuessPhase = "lobby" | "guessing" | "results";
 
 // Game state
-type NumberGuessState = {
+export type NumberGuessState = {
   phase: NumberGuessPhase;
   secret: number | null;
   guesses: Record<string, number>; // playerId -> guess
@@ -13,13 +13,13 @@ type NumberGuessState = {
 };
 
 // Action types
-type NumberGuessActionType =
+export type NumberGuessActionType =
   | "START_GAME"
   | "SUBMIT_GUESS"
   | "REVEAL_RESULTS"
   | "PLAY_AGAIN";
 
-interface NumberGuessAction extends BaseAction {
+export interface NumberGuessAction extends BaseAction {
   type: NumberGuessActionType;
   payload?: {
     value?: number;
@@ -155,10 +155,5 @@ export const numberGuessGame = defineGame<NumberGuessState, NumberGuessAction>({
       default:
         return true;
     }
-  },
-  views: {
-    // Views are rendered inline in room page for now
-    HostView: () => null,
-    PlayerView: () => null,
   },
 });

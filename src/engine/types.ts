@@ -36,16 +36,7 @@ export type GameContext = {
 // Game phase - games define their own phase strings
 export type GamePhase = string;
 
-// Props passed to game views
-export type ViewProps<S, A extends BaseAction> = {
-  state: S;
-  dispatch: (action: Omit<A, "playerId">) => void;
-  room: Room;
-  playerId: string;
-  isHost: boolean;
-};
-
-// The core game template interface
+// The core game template interface (logic only - no views)
 export interface GameTemplate<S, A extends BaseAction> {
   id: string;
   name: string;
@@ -64,12 +55,6 @@ export interface GameTemplate<S, A extends BaseAction> {
 
   // Optional action validation
   isActionAllowed?(state: S, action: A, ctx: GameContext): boolean;
-
-  // React components for rendering
-  views: {
-    HostView: React.FC<ViewProps<S, A>>;
-    PlayerView: React.FC<ViewProps<S, A>>;
-  };
 }
 
 // Room state stored server-side
