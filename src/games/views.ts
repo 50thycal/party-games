@@ -2,6 +2,7 @@
 
 import type { Room } from "@/engine/types";
 import { NumberGuessGameView } from "./number-guess/GameView";
+import { CometRushGameView } from "./comet-rush/GameView";
 
 // Props passed to game views
 export type GameViewProps<S = unknown> = {
@@ -33,11 +34,19 @@ export const gameOptions: GameOption[] = [
     minPlayers: 2,
     maxPlayers: 8,
   },
+  {
+    id: "comet-rush",
+    name: "Comet Rush",
+    description: "Build rockets and destroy the comet before it hits Earth!",
+    minPlayers: 2,
+    maxPlayers: 4,
+  },
 ];
 
 // Registry of game view components
 const gameViews: Record<string, GameViewComponent> = {
   "number-guess": NumberGuessGameView as GameViewComponent,
+  "comet-rush": CometRushGameView as GameViewComponent,
 };
 
 /**
