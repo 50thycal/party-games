@@ -76,6 +76,10 @@ export interface PlayerUpgrades {
   accuracyBonus: number;
   buildTimeBonus: number;
   maxRocketsBonus: number;
+  // Hard caps for sliders (raised by research cards)
+  powerCap: number;
+  accuracyCap: number;
+  buildTimeCap: number;
 }
 
 export interface CometRushPlayerState {
@@ -160,6 +164,7 @@ export type CometRushActionType =
   | "BUILD_ROCKET"
   | "LAUNCH_ROCKET"
   | "END_TURN"
+  | "CYCLE_RESEARCH"
   | "PLAY_AGAIN";
 
 export interface PlayResearchPayload {
@@ -178,9 +183,13 @@ export interface LaunchRocketPayload {
   rocketId: string;
 }
 
+export interface CycleResearchPayload {
+  cardIds: string[]; // must be exactly 3
+}
+
 export interface CometRushAction extends BaseAction {
   type: CometRushActionType;
-  payload?: PlayResearchPayload | BuildRocketPayload | LaunchRocketPayload | Record<string, never>;
+  payload?: PlayResearchPayload | BuildRocketPayload | LaunchRocketPayload | CycleResearchPayload | Record<string, never>;
 }
 
 // ============================================================================
@@ -356,6 +365,9 @@ function buildPlayerState(p: Player): CometRushPlayerState {
       accuracyBonus: 0,
       buildTimeBonus: 0,
       maxRocketsBonus: 0,
+      powerCap: 4,
+      accuracyCap: 4,
+      buildTimeCap: 4,
     },
     trophies: [],
     hasPlayedResearchThisTurn: false,
@@ -493,6 +505,7 @@ function reducer(
           updatedPlayer.upgrades = {
             ...updatedPlayer.upgrades,
             powerBonus: updatedPlayer.upgrades.powerBonus + 1,
+            powerCap: updatedPlayer.upgrades.powerCap + 1,
           };
           break;
 
@@ -500,6 +513,7 @@ function reducer(
           updatedPlayer.upgrades = {
             ...updatedPlayer.upgrades,
             accuracyBonus: Math.min(updatedPlayer.upgrades.accuracyBonus + 1, 4),
+            accuracyCap: updatedPlayer.upgrades.accuracyCap + 1,
           };
           break;
 
@@ -507,6 +521,7 @@ function reducer(
           updatedPlayer.upgrades = {
             ...updatedPlayer.upgrades,
             buildTimeBonus: updatedPlayer.upgrades.buildTimeBonus + 1,
+            buildTimeCap: updatedPlayer.upgrades.buildTimeCap + 1,
           };
           break;
 
@@ -633,18 +648,25 @@ function reducer(
       const player = state.players[action.playerId];
       if (!player || player.hasBuiltRocketThisTurn) return state;
 
-      // Validate inputs
-      const { buildTimeBase, power, accuracy } = payload;
-      if (buildTimeBase < 1 || buildTimeBase > 4) return state;
-      if (power < 1 || power > 10) return state;
-      if (accuracy < 2 || accuracy > 12) return state;
+      // Get raw values from payload
+      const rawPower = payload.power;
+      const rawAccuracy = payload.accuracy;
+      const rawBuildTime = payload.buildTimeBase;
 
-      // Apply upgrades to inputs
+      // Basic validation
+      if (rawBuildTime < 1 || rawPower < 1 || rawAccuracy < 1) return state;
+
+      // Clamp to player's caps (enforced server-side to prevent cheating)
+      const power = Math.min(rawPower, player.upgrades.powerCap);
+      const accuracy = Math.min(rawAccuracy, player.upgrades.accuracyCap);
+      const buildTimeBase = Math.min(rawBuildTime, player.upgrades.buildTimeCap);
+
+      // Apply upgrades to clamped inputs
       const effectiveBuildTime = Math.max(1, buildTimeBase - player.upgrades.buildTimeBonus);
       const effectivePower = power + player.upgrades.powerBonus;
       const effectiveAccuracy = Math.min(12, accuracy + player.upgrades.accuracyBonus);
 
-      // Calculate cost
+      // Calculate cost using clamped values
       const cost = calculateRocketCost(buildTimeBase, power, accuracy);
       if (player.resourceCubes < cost) return state;
 
@@ -817,6 +839,61 @@ function reducer(
       };
     }
 
+    case "CYCLE_RESEARCH": {
+      if (state.phase !== "playing") return state;
+
+      const activePlayerId = getActivePlayerId(state);
+      if (action.playerId !== activePlayerId) return state;
+
+      const payload = action.payload as CycleResearchPayload | undefined;
+      if (!payload || payload.cardIds.length !== 3) return state;
+
+      const player = state.players[action.playerId];
+      if (!player) return state;
+
+      // Verify all 3 cards are actually in hand
+      const handIds = new Set(player.hand.map((c) => c.id));
+      const allPresent = payload.cardIds.every((id) => handIds.has(id));
+      if (!allPresent) return state;
+
+      // Move the 3 chosen cards to researchDiscard
+      const remainingHand: ResearchCard[] = [];
+      const discarded: ResearchCard[] = [];
+
+      for (const card of player.hand) {
+        if (payload.cardIds.includes(card.id)) {
+          discarded.push(card);
+        } else {
+          remainingHand.push(card);
+        }
+      }
+
+      let researchDeck = [...state.researchDeck];
+      const researchDiscard = [...state.researchDiscard, ...discarded];
+
+      // Draw 1 replacement card if available
+      let drawn: ResearchCard | undefined;
+      if (researchDeck.length > 0) {
+        drawn = researchDeck[0];
+        researchDeck = researchDeck.slice(1);
+      }
+
+      const updatedPlayer: CometRushPlayerState = {
+        ...player,
+        hand: drawn ? [...remainingHand, drawn] : remainingHand,
+      };
+
+      return {
+        ...state,
+        researchDeck,
+        researchDiscard,
+        players: {
+          ...state.players,
+          [player.id]: updatedPlayer,
+        },
+      };
+    }
+
     case "END_TURN": {
       if (state.phase !== "playing") return state;
 
@@ -958,6 +1035,7 @@ function isActionAllowed(
     case "PLAY_RESEARCH_SET":
     case "BUILD_ROCKET":
     case "LAUNCH_ROCKET":
+    case "CYCLE_RESEARCH":
     case "END_TURN":
       return state.phase === "playing" && ctx.playerId === activePlayerId;
 

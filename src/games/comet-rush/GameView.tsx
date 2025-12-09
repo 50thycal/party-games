@@ -235,9 +235,13 @@ function BuildRocketForm({
   onBuild: (buildTimeBase: number, power: number, accuracy: number) => void;
   isBuilding: boolean;
 }) {
-  const [buildTime, setBuildTime] = useState(2);
-  const [power, setPower] = useState(3);
-  const [accuracy, setAccuracy] = useState(6);
+  // Get caps from player upgrades
+  const { powerCap, accuracyCap, buildTimeCap } = player.upgrades;
+
+  // Initialize state with values clamped to caps
+  const [buildTime, setBuildTime] = useState(Math.min(2, buildTimeCap));
+  const [power, setPower] = useState(Math.min(3, powerCap));
+  const [accuracy, setAccuracy] = useState(Math.min(4, accuracyCap));
 
   const cost = calculateRocketCost(buildTime, power, accuracy);
   const canAfford = player.resourceCubes >= cost;
@@ -270,7 +274,7 @@ function BuildRocketForm({
           <input
             type="range"
             min={1}
-            max={4}
+            max={buildTimeCap}
             value={buildTime}
             onChange={(e) => setBuildTime(Number(e.target.value))}
             className="w-full"
@@ -279,6 +283,9 @@ function BuildRocketForm({
             <span>Fast (expensive)</span>
             <span>Slow (cheap)</span>
           </div>
+          {buildTimeCap > 4 && (
+            <div className="text-xs text-green-400 mt-1">Cap increased to {buildTimeCap}!</div>
+          )}
         </div>
 
         <div>
@@ -294,11 +301,14 @@ function BuildRocketForm({
           <input
             type="range"
             min={1}
-            max={10}
+            max={powerCap}
             value={power}
             onChange={(e) => setPower(Number(e.target.value))}
             className="w-full"
           />
+          {powerCap > 4 && (
+            <div className="text-xs text-green-400 mt-1">Cap increased to {powerCap}!</div>
+          )}
         </div>
 
         <div>
@@ -313,8 +323,8 @@ function BuildRocketForm({
           </div>
           <input
             type="range"
-            min={2}
-            max={12}
+            min={1}
+            max={accuracyCap}
             value={accuracy}
             onChange={(e) => setAccuracy(Number(e.target.value))}
             className="w-full"
@@ -323,6 +333,9 @@ function BuildRocketForm({
             <span>Hard to hit</span>
             <span>Easy to hit</span>
           </div>
+          {accuracyCap > 4 && (
+            <div className="text-xs text-green-400 mt-1">Cap increased to {accuracyCap}!</div>
+          )}
         </div>
 
         <div className="flex justify-between items-center pt-2 border-t border-gray-700">
@@ -596,7 +609,10 @@ export function CometRushGameView({
   const [isEndingTurn, setIsEndingTurn] = useState(false);
   const [isPlayingResearch, setIsPlayingResearch] = useState(false);
   const [isPlayingAgain, setIsPlayingAgain] = useState(false);
+  const [isCycling, setIsCycling] = useState(false);
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
+  const [cycleCardIds, setCycleCardIds] = useState<string[]>([]);
+  const [isCycleMode, setIsCycleMode] = useState(false);
   const [targetPlayerId, setTargetPlayerId] = useState<string>("");
   const [targetRocketId, setTargetRocketId] = useState<string>("");
 
@@ -673,6 +689,25 @@ export function CometRushGameView({
     setSelectedCardIds((prev) =>
       prev.includes(cardId) ? prev.filter((id) => id !== cardId) : [...prev, cardId]
     );
+  }
+
+  function toggleCycleCardSelection(cardId: string) {
+    setCycleCardIds((prev) =>
+      prev.includes(cardId) ? prev.filter((id) => id !== cardId) : [...prev, cardId]
+    );
+  }
+
+  async function handleCycleResearch() {
+    if (cycleCardIds.length !== 3) return;
+
+    setIsCycling(true);
+    try {
+      await dispatchAction("CYCLE_RESEARCH", { cardIds: cycleCardIds });
+      setCycleCardIds([]);
+      setIsCycleMode(false);
+    } finally {
+      setIsCycling(false);
+    }
   }
 
   // Check if selected cards form a valid set
@@ -890,6 +925,69 @@ export function CometRushGameView({
                   className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded transition-colors"
                 >
                   {isPlayingResearch ? "Playing..." : "Play Research Set"}
+                </button>
+              </div>
+            )}
+
+            {/* Cycle Research (3-for-1 trade) */}
+            {isMyTurn && player.hand.length >= 3 && !isCycleMode && (
+              <button
+                onClick={() => {
+                  setIsCycleMode(true);
+                  setCycleCardIds([]);
+                  setSelectedCardIds([]);
+                }}
+                className="w-full mt-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded transition-colors"
+              >
+                Trade 3 Cards for 1
+              </button>
+            )}
+
+            {/* Cycle Mode UI */}
+            {isMyTurn && isCycleMode && (
+              <div className="mt-4 p-3 bg-purple-900/30 border border-purple-600 rounded-lg">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-sm font-semibold text-purple-300">
+                    Select 3 cards to discard
+                  </span>
+                  <button
+                    onClick={() => {
+                      setIsCycleMode(false);
+                      setCycleCardIds([]);
+                    }}
+                    className="text-gray-400 hover:text-white text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 gap-2 mb-3">
+                  {player.hand.map((card) => (
+                    <div
+                      key={card.id}
+                      onClick={() => toggleCycleCardSelection(card.id)}
+                      className={`border rounded-lg p-2 cursor-pointer transition-all ${
+                        cycleCardIds.includes(card.id)
+                          ? "border-purple-400 bg-purple-900/50 ring-2 ring-purple-400"
+                          : "border-gray-600 bg-gray-800 hover:border-gray-500"
+                      }`}
+                    >
+                      <div className="font-semibold text-sm">{card.name}</div>
+                      <div className="text-xs text-gray-400">{card.description}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="text-sm text-gray-400 mb-2">
+                  Selected: {cycleCardIds.length}/3
+                  {cycleCardIds.length === 3 && (
+                    <span className="text-green-400 ml-2">Ready to trade!</span>
+                  )}
+                </div>
+                <button
+                  onClick={handleCycleResearch}
+                  disabled={cycleCardIds.length !== 3 || isCycling}
+                  className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded transition-colors"
+                >
+                  {isCycling ? "Trading..." : "Discard 3, Draw 1"}
                 </button>
               </div>
             )}
