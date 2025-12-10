@@ -9,6 +9,7 @@ import {
   CometRushAction,
   CometRushPlayerState,
   ResearchCard,
+  ResearchType,
   calculateScores,
 } from "@/games/comet-rush/config";
 import type { Player, GameContext, Room } from "@/engine/types";
