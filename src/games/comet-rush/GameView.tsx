@@ -9,6 +9,7 @@ import type {
   ResearchCard,
   StrengthCard,
   TurnMeta,
+  ResearchResult,
 } from "./config";
 import { calculateScores } from "./config";
 
@@ -757,6 +758,11 @@ export function CometRushGameView({
     setTurnWizardStep(null);
   }
 
+  // Clear research result popup
+  async function handleClearResearchResult() {
+    await dispatchAction("CLEAR_RESEARCH_RESULT");
+  }
+
   async function handleStartGame() {
     setIsStarting(true);
     try {
@@ -1016,6 +1022,30 @@ export function CometRushGameView({
               </div>
             </div>
           )}
+
+          {/* Research Result Popup */}
+          {gameState.lastResearchResult &&
+            gameState.lastResearchResult.playerId === playerId && (
+              <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60">
+                <div className="w-full max-w-sm rounded-2xl bg-slate-900 p-4 m-4 border border-slate-700 shadow-xl">
+                  <div className="text-center">
+                    <div className="text-4xl mb-3">📜</div>
+                    <h2 className="text-sm font-semibold text-slate-50 uppercase tracking-wide">
+                      Research Result
+                    </h2>
+                    <p className="mt-3 text-sm text-slate-200">
+                      {gameState.lastResearchResult.description}
+                    </p>
+                    <button
+                      className="mt-4 w-full rounded-lg bg-sky-600 hover:bg-sky-700 px-3 py-2 text-sm font-semibold text-white transition-colors"
+                      onClick={handleClearResearchResult}
+                    >
+                      OK
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
           {/* Turn Indicator - sticky */}
           <div

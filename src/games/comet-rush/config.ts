@@ -123,6 +123,12 @@ export interface TurnMeta {
   lastDrawnCardId: string | null;
 }
 
+export interface ResearchResult {
+  id: string;
+  playerId: string;
+  description: string;
+}
+
 export interface CometRushState {
   phase: CometRushPhase;
   round: number;
@@ -153,6 +159,9 @@ export interface CometRushState {
   // Turn-start wizard meta (for UI)
   turnMeta: TurnMeta | null;
 
+  // Last research result for popup feedback
+  lastResearchResult: ResearchResult | null;
+
   // Player who destroyed the final strength card (bonus points)
   finalDestroyerId: string | null;
 
@@ -177,6 +186,7 @@ export type CometRushActionType =
   | "LAUNCH_ROCKET"
   | "END_TURN"
   | "CYCLE_RESEARCH"
+  | "CLEAR_RESEARCH_RESULT"
   | "PLAY_AGAIN";
 
 export interface PlayResearchPayload {
@@ -417,6 +427,7 @@ function initialState(players: Player[]): CometRushState {
     players: playersState,
     lastLaunchResult: null,
     turnMeta: null,
+    lastResearchResult: null,
     finalDestroyerId: null,
     winnerIds: [],
     earthDestroyed: false,
@@ -618,6 +629,7 @@ function reducer(
       let updatedPlayers = { ...state.players };
       let updatedPlayer = { ...player };
       const tag = cardsToPlay[0].tag;
+      let resultDescription = "";
 
       switch (tag) {
         case "POWER":
@@ -626,6 +638,7 @@ function reducer(
             powerBonus: updatedPlayer.upgrades.powerBonus + 1,
             powerCap: updatedPlayer.upgrades.powerCap + 1,
           };
+          resultDescription = `Rocket power upgraded! Future rockets get +${updatedPlayer.upgrades.powerBonus} power (cap now ${updatedPlayer.upgrades.powerCap}).`;
           break;
 
         case "ACCURACY":
@@ -634,6 +647,7 @@ function reducer(
             accuracyBonus: Math.min(updatedPlayer.upgrades.accuracyBonus + 1, 4),
             accuracyCap: updatedPlayer.upgrades.accuracyCap + 1,
           };
+          resultDescription = `Targeting upgraded! Future rockets get +${updatedPlayer.upgrades.accuracyBonus} accuracy (cap now ${updatedPlayer.upgrades.accuracyCap}).`;
           break;
 
         case "BUILD_TIME":
@@ -642,6 +656,7 @@ function reducer(
             buildTimeBonus: updatedPlayer.upgrades.buildTimeBonus + 1,
             buildTimeCap: updatedPlayer.upgrades.buildTimeCap + 1,
           };
+          resultDescription = `Quick Assembly! Future rockets build ${updatedPlayer.upgrades.buildTimeBonus} turn(s) faster.`;
           break;
 
         case "INCOME":
@@ -649,6 +664,7 @@ function reducer(
             ...updatedPlayer.upgrades,
             incomeBonus: updatedPlayer.upgrades.incomeBonus + 1,
           };
+          resultDescription = `Income increased! Now earning +${updatedPlayer.baseIncome + updatedPlayer.upgrades.incomeBonus} cubes per round.`;
           break;
 
         case "MAX_ROCKETS":
@@ -656,19 +672,29 @@ function reducer(
             ...updatedPlayer.upgrades,
             maxRocketsBonus: updatedPlayer.upgrades.maxRocketsBonus + 1,
           };
+          resultDescription = `Launch pad expanded! Can now build ${updatedPlayer.maxConcurrentRockets + updatedPlayer.upgrades.maxRocketsBonus} rockets at once.`;
           break;
 
         case "PEEK_MOVE":
           if (state.movementDeck.length > 0) {
-            updatedPlayer.peekedMovementCard = state.movementDeck[0];
+            const topCard = state.movementDeck[0];
+            updatedPlayer.peekedMovementCard = topCard;
+            resultDescription = `Trajectory Analysis: Next comet movement is ${topCard.moveSpaces} space(s).`;
+          } else {
+            resultDescription = "Peeked at movement deck: no cards remaining.";
           }
           break;
 
         case "PEEK_STRENGTH":
           if (state.strengthDeck.length > 0) {
-            updatedPlayer.peekedStrengthCard = state.strengthDeck[0];
+            const topCard = state.strengthDeck[0];
+            updatedPlayer.peekedStrengthCard = topCard;
+            resultDescription = `Surface Scan: Next comet segment has strength ${topCard.baseStrength}.`;
           } else if (state.activeStrengthCard) {
             updatedPlayer.peekedStrengthCard = state.activeStrengthCard;
+            resultDescription = `Surface Scan: Current comet segment has strength ${state.activeStrengthCard.currentStrength}.`;
+          } else {
+            resultDescription = "Peeked at strength deck: no cards remaining.";
           }
           break;
 
@@ -686,6 +712,7 @@ function reducer(
             },
           };
           updatedPlayer.resourceCubes += stealAmount;
+          resultDescription = `Stole ${stealAmount} cube(s) from ${targetPlayer.name}!`;
           break;
         }
 
@@ -708,6 +735,7 @@ function reducer(
             },
           };
           updatedPlayer.hand = [...updatedPlayer.hand, stolenCard];
+          resultDescription = `Stole "${stolenCard.name}" from ${targetPlayer.name}!`;
           break;
         }
 
@@ -721,10 +749,13 @@ function reducer(
           );
           if (targetRocketIndex === -1) return state;
 
+          const targetRocket = targetPlayer.rockets[targetRocketIndex];
+          const newBuildTime = targetRocket.buildTimeRemaining + 1;
+
           const updatedRockets = [...targetPlayer.rockets];
           updatedRockets[targetRocketIndex] = {
             ...updatedRockets[targetRocketIndex],
-            buildTimeRemaining: updatedRockets[targetRocketIndex].buildTimeRemaining + 1,
+            buildTimeRemaining: newBuildTime,
           };
 
           updatedPlayers = {
@@ -734,6 +765,7 @@ function reducer(
               rockets: updatedRockets,
             },
           };
+          resultDescription = `Sabotaged ${targetPlayer.name}'s rocket! Now ${newBuildTime} turn(s) remaining.`;
           break;
         }
 
@@ -752,6 +784,13 @@ function reducer(
         ...state,
         players: updatedPlayers,
         researchDiscard: [...state.researchDiscard, ...cardsToPlay],
+        lastResearchResult: resultDescription
+          ? {
+              id: `${ctx.now()}`,
+              playerId: action.playerId,
+              description: resultDescription,
+            }
+          : null,
       };
     }
 
@@ -1013,6 +1052,17 @@ function reducer(
       };
     }
 
+    case "CLEAR_RESEARCH_RESULT": {
+      if (!state.lastResearchResult) return state;
+      // Only the player who triggered it should be able to clear
+      if (state.lastResearchResult.playerId !== action.playerId) return state;
+
+      return {
+        ...state,
+        lastResearchResult: null,
+      };
+    }
+
     case "END_TURN": {
       if (state.phase !== "playing") return state;
 
@@ -1123,6 +1173,9 @@ function isActionAllowed(
     case "CYCLE_RESEARCH":
     case "END_TURN":
       return state.phase === "playing" && ctx.playerId === activePlayerId;
+
+    case "CLEAR_RESEARCH_RESULT":
+      return state.phase === "playing";
 
     case "PLAY_AGAIN":
       return isHost && state.phase === "gameOver";
