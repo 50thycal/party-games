@@ -29,53 +29,101 @@ function CometTrack({
   distanceToImpact,
   lastMovementCard,
   activeStrengthCard,
+  movementDeckCount,
+  strengthDeckCount,
 }: {
   distanceToImpact: number;
   lastMovementCard: { moveSpaces: number } | null;
   activeStrengthCard: StrengthCard | null;
+  movementDeckCount: number;
+  strengthDeckCount: number;
 }) {
   const percentage = Math.max(0, Math.min(100, (distanceToImpact / 18) * 100));
 
-  return (
-    <div className="bg-gray-900 rounded-lg p-4 mb-4">
-      <div className="flex justify-between items-center mb-2">
-        <span className="text-sm text-gray-400">Comet Distance</span>
-        <span className="font-bold text-lg">
-          {distanceToImpact} / 18
-          {lastMovementCard && (
-            <span className="text-red-400 text-sm ml-2">
-              (-{lastMovementCard.moveSpaces})
-            </span>
-          )}
-        </span>
-      </div>
-      <div className="w-full bg-gray-700 rounded-full h-4 overflow-hidden">
-        <div
-          className="h-full bg-gradient-to-r from-red-600 to-yellow-500 transition-all duration-500"
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
-      <div className="flex justify-between text-xs text-gray-500 mt-1">
-        <span>Impact!</span>
-        <span>Safe</span>
-      </div>
+  const dangerColor =
+    distanceToImpact <= 6
+      ? "bg-red-500"
+      : distanceToImpact <= 12
+      ? "bg-yellow-500"
+      : "bg-green-500";
 
-      {activeStrengthCard && (
-        <div className="mt-4 p-3 bg-purple-900/30 border border-purple-700 rounded-lg">
-          <div className="text-sm text-purple-400 mb-1">Active Comet Segment</div>
-          <div className="flex justify-between items-center">
-            <span className="text-gray-300">Strength:</span>
-            <span className="text-2xl font-bold text-purple-300">
-              {activeStrengthCard.currentStrength}
-              {activeStrengthCard.currentStrength !== activeStrengthCard.baseStrength && (
-                <span className="text-sm text-gray-500 ml-1">
-                  (was {activeStrengthCard.baseStrength})
+  const DeckVisual = ({
+    label,
+    count,
+    color,
+  }: {
+    label: string;
+    count: number;
+    color: string;
+  }) => (
+    <div className="relative w-16 h-22">
+      {/* back card */}
+      <div className="absolute inset-0 translate-x-1 translate-y-1 rounded-lg border border-gray-700 bg-gray-900/60" />
+      {/* front card */}
+      <div className={`absolute inset-0 rounded-lg border ${color} bg-gray-800/80 flex flex-col justify-between p-2`}>
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-200">
+          {label}
+        </span>
+        <span className="text-[10px] text-gray-400">Deck</span>
+      </div>
+      {/* count badge */}
+      <div className="absolute -bottom-1 -right-1 rounded-full bg-black/90 px-2 py-0.5 text-[11px] font-bold text-white border border-gray-600">
+        {count}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="bg-gray-900 rounded-xl border border-gray-700 p-4 mb-4">
+      <div className="flex items-start justify-between gap-4">
+        {/* Left side - distance info */}
+        <div className="flex-1">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">Comet Distance</span>
+            <span className="font-bold text-lg">
+              {distanceToImpact} / 18
+              {lastMovementCard && (
+                <span className="text-red-400 text-sm ml-2">
+                  (-{lastMovementCard.moveSpaces})
                 </span>
               )}
             </span>
           </div>
+          <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+            <div
+              className={`h-full ${dangerColor} transition-all duration-500`}
+              style={{ width: `${percentage}%` }}
+            />
+          </div>
+          <div className="flex justify-between text-xs text-gray-500 mt-1">
+            <span>Impact!</span>
+            <span>Safe</span>
+          </div>
+
+          {activeStrengthCard && (
+            <div className="mt-3 p-3 bg-amber-900/30 border border-amber-600/60 rounded-lg">
+              <div className="text-xs uppercase tracking-wide text-amber-400 mb-1">Active Comet Segment</div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-300 text-sm">Strength:</span>
+                <span className="text-xl font-bold text-amber-300">
+                  {activeStrengthCard.currentStrength}
+                  {activeStrengthCard.currentStrength !== activeStrengthCard.baseStrength && (
+                    <span className="text-xs text-amber-400/70 ml-1">
+                      (was {activeStrengthCard.baseStrength})
+                    </span>
+                  )}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Right side - deck visuals */}
+        <div className="flex flex-col gap-3 pt-1">
+          <DeckVisual label="Move" count={movementDeckCount} color="border-cyan-600" />
+          <DeckVisual label="Str" count={strengthDeckCount} color="border-amber-600" />
+        </div>
+      </div>
     </div>
   );
 }
@@ -203,26 +251,41 @@ function ResearchCardDisplay({
   isSelected: boolean;
   onToggle: () => void;
 }) {
-  const typeColors = {
-    ROCKET_UPGRADE: "border-green-600 bg-green-900/30",
-    COMET_INSIGHT: "border-blue-600 bg-blue-900/30",
-    SABOTAGE: "border-red-600 bg-red-900/30",
+  const typeColors: Record<ResearchCard["type"], string> = {
+    ROCKET_UPGRADE: "border-green-600 bg-green-900/40",
+    COMET_INSIGHT: "border-blue-600 bg-blue-900/40",
+    SABOTAGE: "border-red-600 bg-red-900/40",
   };
 
+  const baseColor = typeColors[card.type];
+
   return (
-    <div
+    <button
+      type="button"
       onClick={onToggle}
-      className={`border rounded-lg p-3 cursor-pointer transition-all ${
-        typeColors[card.type]
-      } ${isSelected ? "ring-2 ring-white" : ""}`}
+      className={`w-full text-left rounded-xl p-4 border-2 transition-all duration-150 ${
+        isSelected
+          ? `${baseColor} ring-2 ring-cyan-400 scale-[1.02] shadow-lg shadow-cyan-500/20 border-cyan-400`
+          : `${baseColor} hover:border-gray-400 hover:bg-opacity-60`
+      }`}
     >
-      <div className="font-semibold text-sm mb-1">{card.name}</div>
-      <div className="text-xs text-gray-400 mb-2">{card.description}</div>
-      <div className="flex justify-between items-center text-xs">
-        <span className="text-gray-500">{card.setKey}</span>
-        <span className="text-gray-400">Need {card.setSizeRequired}</span>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1">
+          <div className="text-sm font-semibold text-gray-50">
+            {card.name}
+          </div>
+          <div className="mt-1 text-xs text-gray-300">
+            {card.description}
+          </div>
+        </div>
+        <div className="text-right text-[10px] uppercase tracking-wide text-gray-400">
+          <div className="font-semibold">{card.setKey}</div>
+          <div className="mt-1 text-[11px] text-gray-500">
+            Need {card.setSizeRequired}
+          </div>
+        </div>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -477,32 +540,50 @@ function OtherPlayersDisplay({
 
   return (
     <div className="mb-4">
-      <h3 className="font-semibold mb-2 text-gray-400">Other Players</h3>
+      <h3 className="text-lg font-semibold text-gray-50 mb-3">Other Players</h3>
       <div className="space-y-2">
-        {otherPlayers.map((p) => (
-          <div
-            key={p.id}
-            className={`p-3 rounded-lg border ${
-              p.id === activePlayerId
-                ? "border-yellow-600 bg-yellow-900/20"
-                : "border-gray-700 bg-gray-900"
-            }`}
-          >
-            <div className="flex justify-between items-center">
-              <span className="font-semibold">
-                {p.name}
-                {p.id === activePlayerId && (
-                  <span className="text-yellow-400 text-sm ml-2">(Active)</span>
+        {otherPlayers.map((p) => {
+          const readyRockets = p.rockets.filter((r) => r.status === "ready").length;
+          const points = p.trophies.reduce((sum, t) => sum + t.baseStrength, 0);
+
+          return (
+            <div
+              key={p.id}
+              className={`p-3 rounded-xl border ${
+                p.id === activePlayerId
+                  ? "border-yellow-500 bg-yellow-900/30"
+                  : "border-gray-700 bg-gray-800/60"
+              }`}
+            >
+              <div className="flex justify-between items-center mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-gray-100">{p.name}</span>
+                  {p.id === activePlayerId && (
+                    <span className="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-yellow-500/20 text-yellow-300 border border-yellow-500/50 rounded-full">
+                      Active
+                    </span>
+                  )}
+                </div>
+                <span className="text-yellow-400 font-semibold">{p.resourceCubes} cubes</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <span className="px-2 py-1 text-xs bg-gray-700/50 border border-gray-600 rounded-full text-gray-300">
+                  {p.hand.length} cards
+                </span>
+                {readyRockets > 0 && (
+                  <span className="px-2 py-1 text-xs bg-green-900/50 border border-green-600 rounded-full text-green-300">
+                    {readyRockets} ready
+                  </span>
                 )}
-              </span>
-              <span className="text-yellow-400">{p.resourceCubes} cubes</span>
+                {points > 0 && (
+                  <span className="px-2 py-1 text-xs bg-purple-900/50 border border-purple-600 rounded-full text-purple-300">
+                    {points} pts
+                  </span>
+                )}
+              </div>
             </div>
-            <div className="text-sm text-gray-400 mt-1">
-              {p.hand.length} cards | {p.rockets.filter((r) => r.status === "ready").length} rockets ready |{" "}
-              {p.trophies.reduce((sum, t) => sum + t.baseStrength, 0)} pts
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -761,25 +842,27 @@ export function CometRushGameView({
       {/* PLAYING PHASE */}
       {phase === "playing" && gameState && player && (
         <>
-          {/* Turn Indicator */}
+          {/* Turn Indicator - sticky */}
           <div
-            className={`mb-4 p-3 rounded-lg text-center font-semibold ${
-              isMyTurn ? "bg-green-900/50 border border-green-600" : "bg-gray-800"
+            className={`sticky top-0 z-10 mb-4 p-3 rounded-xl text-center font-semibold backdrop-blur-sm ${
+              isMyTurn
+                ? "bg-green-900/80 border border-green-500 shadow-lg shadow-green-500/20"
+                : "bg-gray-800/90 border border-gray-700"
             }`}
           >
-            {isMyTurn ? (
-              "Your Turn!"
-            ) : (
-              <>
-                Waiting for{" "}
-                {gameState.players[activePlayerId ?? ""]?.name ?? "..."}
-              </>
-            )}
-          </div>
-
-          {/* Round Info */}
-          <div className="text-center text-sm text-gray-400 mb-4">
-            Round {gameState.round}
+            <div className="flex items-center justify-center gap-3">
+              <span className="text-xs text-gray-400 uppercase tracking-wide">
+                Round {gameState.round}
+              </span>
+              <span className="text-gray-600">|</span>
+              {isMyTurn ? (
+                <span className="text-green-300">Your Turn!</span>
+              ) : (
+                <span className="text-gray-300">
+                  Waiting for {gameState.players[activePlayerId ?? ""]?.name ?? "..."}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Comet Track */}
@@ -787,6 +870,8 @@ export function CometRushGameView({
             distanceToImpact={gameState.distanceToImpact}
             lastMovementCard={gameState.lastMovementCard}
             activeStrengthCard={gameState.activeStrengthCard}
+            movementDeckCount={gameState.movementDeck.length}
+            strengthDeckCount={gameState.strengthDeck.length}
           />
 
           {/* Last Launch Result */}
@@ -812,26 +897,28 @@ export function CometRushGameView({
           <TrophiesDisplay trophies={player.trophies} />
 
           {/* My Rockets */}
-          <section className="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-4">
-            <h3 className="font-semibold mb-3">Your Rockets</h3>
+          <section className="bg-gray-800/60 border border-gray-700 rounded-xl p-4 mb-4">
+            <h3 className="text-lg font-semibold text-gray-50 mb-4">Your Rockets</h3>
             {player.rockets.length === 0 ? (
-              <p className="text-gray-500 text-sm">No rockets yet. Build one below!</p>
+              <p className="text-sm text-gray-400">No rockets yet. Build one below!</p>
             ) : (
-              player.rockets
-                .filter((r) => r.status !== "spent")
-                .map((rocket) => (
-                  <RocketCard
-                    key={rocket.id}
-                    rocket={rocket}
-                    onLaunch={
-                      isMyTurn && !player.hasLaunchedRocketThisTurn
-                        ? () => handleLaunchRocket(rocket.id)
-                        : undefined
-                    }
-                    canLaunch={isMyTurn && !player.hasLaunchedRocketThisTurn}
-                    isLaunching={isLaunching}
-                  />
-                ))
+              <div className="space-y-2">
+                {player.rockets
+                  .filter((r) => r.status !== "spent")
+                  .map((rocket) => (
+                    <RocketCard
+                      key={rocket.id}
+                      rocket={rocket}
+                      onLaunch={
+                        isMyTurn && !player.hasLaunchedRocketThisTurn
+                          ? () => handleLaunchRocket(rocket.id)
+                          : undefined
+                      }
+                      canLaunch={isMyTurn && !player.hasLaunchedRocketThisTurn}
+                      isLaunching={isLaunching}
+                    />
+                  ))}
+              </div>
             )}
           </section>
 
@@ -839,23 +926,27 @@ export function CometRushGameView({
           {isMyTurn && <BuildRocketForm player={player} onBuild={handleBuildRocket} isBuilding={isBuilding} />}
 
           {/* Research Cards */}
-          <section className="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-4">
-            <h3 className="font-semibold mb-3">
+          <section className="bg-gray-800/60 border border-gray-700 rounded-xl p-4 mb-4">
+            <h3 className="text-lg font-semibold text-gray-50 mb-4">
               Research Cards ({player.hand.length})
               {player.hasPlayedResearchThisTurn && (
-                <span className="text-gray-500 text-sm ml-2">(played this turn)</span>
+                <span className="text-xs text-gray-400 ml-2">(played this turn)</span>
               )}
             </h3>
             {player.hand.length === 0 ? (
-              <p className="text-gray-500 text-sm">No cards in hand.</p>
+              <p className="text-sm text-gray-400">No cards in hand.</p>
             ) : (
-              <div className="grid grid-cols-1 gap-2">
+              <div className="space-y-3">
                 {player.hand.map((card) => (
                   <ResearchCardDisplay
                     key={card.id}
                     card={card}
                     isSelected={selectedCardIds.includes(card.id)}
-                    onToggle={() => isMyTurn && !player.hasPlayedResearchThisTurn && toggleCardSelection(card.id)}
+                    onToggle={() => {
+                      if (isMyTurn && !player.hasPlayedResearchThisTurn && !isCycleMode) {
+                        toggleCardSelection(card.id);
+                      }
+                    }}
                   />
                 ))}
               </div>
