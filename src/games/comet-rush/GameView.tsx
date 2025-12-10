@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { GameViewProps } from "@/games/views";
 import type {
   CometRushState,
@@ -8,8 +8,15 @@ import type {
   Rocket,
   ResearchCard,
   StrengthCard,
+  TurnMeta,
 } from "./config";
 import { calculateScores } from "./config";
+
+// ============================================================================
+// TURN WIZARD TYPES
+// ============================================================================
+
+type TurnWizardStep = "announce" | "showIncome" | "promptDraw" | "showCard" | null;
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -697,11 +704,64 @@ export function CometRushGameView({
   const [targetPlayerId, setTargetPlayerId] = useState<string>("");
   const [targetRocketId, setTargetRocketId] = useState<string>("");
 
+  // Turn wizard state
+  const [turnWizardStep, setTurnWizardStep] = useState<TurnWizardStep>(null);
+  const [isBeginningTurn, setIsBeginningTurn] = useState(false);
+  const [isDrawingCard, setIsDrawingCard] = useState(false);
+  const prevTurnMetaRef = useRef<TurnMeta | null>(null);
+
   const gameState = state as CometRushState;
   const phase = gameState?.phase ?? "lobby";
   const player = gameState?.players?.[playerId];
   const activePlayerId = gameState?.playerOrder?.[gameState?.activePlayerIndex ?? 0] ?? null;
   const isMyTurn = playerId === activePlayerId;
+  const turnMeta = gameState?.turnMeta ?? null;
+
+  // Effect to detect turn start and trigger wizard
+  useEffect(() => {
+    // Only show wizard in playing phase and when it's my turn
+    if (phase !== "playing" || !isMyTurn || !turnMeta) return;
+
+    // Check if this is a new turn for me (turnMeta changed to my player)
+    const prevMeta = prevTurnMetaRef.current;
+    const isNewTurn =
+      turnMeta.playerId === playerId &&
+      (!prevMeta || prevMeta.playerId !== playerId || prevMeta.incomeGained !== turnMeta.incomeGained);
+
+    if (isNewTurn && turnMeta.incomeGained === 0 && turnMeta.lastDrawnCardId === null) {
+      // Fresh turn start - show "It's your turn" announcement
+      setTurnWizardStep("announce");
+    }
+
+    prevTurnMetaRef.current = turnMeta;
+  }, [phase, isMyTurn, turnMeta, playerId]);
+
+  // Begin turn handler - triggers income and rocket tick
+  async function handleBeginTurn() {
+    setIsBeginningTurn(true);
+    try {
+      await dispatchAction("BEGIN_TURN");
+      setTurnWizardStep("showIncome");
+    } finally {
+      setIsBeginningTurn(false);
+    }
+  }
+
+  // Draw turn card handler
+  async function handleDrawTurnCard() {
+    setIsDrawingCard(true);
+    try {
+      await dispatchAction("DRAW_TURN_CARD");
+      setTurnWizardStep("showCard");
+    } finally {
+      setIsDrawingCard(false);
+    }
+  }
+
+  // Dismiss wizard
+  function dismissWizard() {
+    setTurnWizardStep(null);
+  }
 
   async function handleStartGame() {
     setIsStarting(true);
@@ -842,6 +902,127 @@ export function CometRushGameView({
       {/* PLAYING PHASE */}
       {phase === "playing" && gameState && player && (
         <>
+          {/* Turn Wizard Modal */}
+          {turnWizardStep && isMyTurn && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+              <div className="bg-gray-800 border border-gray-600 rounded-2xl p-6 m-4 max-w-sm w-full shadow-2xl">
+                {/* Step 1: Announce turn */}
+                {turnWizardStep === "announce" && (
+                  <div className="text-center">
+                    <div className="text-5xl mb-4">🚀</div>
+                    <h2 className="text-2xl font-bold text-green-400 mb-2">Your Turn!</h2>
+                    <p className="text-gray-400 mb-6">
+                      Round {gameState.round}
+                    </p>
+                    <button
+                      onClick={handleBeginTurn}
+                      disabled={isBeginningTurn}
+                      className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                    >
+                      {isBeginningTurn ? "Starting..." : "Begin Turn"}
+                    </button>
+                  </div>
+                )}
+
+                {/* Step 2: Show income gained */}
+                {turnWizardStep === "showIncome" && turnMeta && (
+                  <div className="text-center">
+                    <div className="text-5xl mb-4">💰</div>
+                    <h2 className="text-xl font-bold text-yellow-400 mb-2">Income Received!</h2>
+                    <div className="bg-gray-900 rounded-lg p-4 mb-4">
+                      <div className="text-3xl font-bold text-yellow-300">
+                        +{turnMeta.incomeGained} cubes
+                      </div>
+                      <div className="text-gray-400 text-sm mt-1">
+                        Total: {turnMeta.newTotalCubes} cubes
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setTurnWizardStep("promptDraw")}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                    >
+                      Continue
+                    </button>
+                  </div>
+                )}
+
+                {/* Step 3: Prompt to draw card */}
+                {turnWizardStep === "promptDraw" && (
+                  <div className="text-center">
+                    <div className="text-5xl mb-4">🃏</div>
+                    <h2 className="text-xl font-bold text-blue-400 mb-2">Draw Research Card</h2>
+                    <p className="text-gray-400 mb-6">
+                      {gameState.researchDeck.length > 0
+                        ? `${gameState.researchDeck.length} cards remaining in deck`
+                        : "Deck is empty!"}
+                    </p>
+                    <button
+                      onClick={handleDrawTurnCard}
+                      disabled={isDrawingCard || gameState.researchDeck.length === 0}
+                      className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                    >
+                      {isDrawingCard
+                        ? "Drawing..."
+                        : gameState.researchDeck.length === 0
+                        ? "No Cards Left"
+                        : "Draw Card"}
+                    </button>
+                    {gameState.researchDeck.length === 0 && (
+                      <button
+                        onClick={dismissWizard}
+                        className="w-full mt-3 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+                      >
+                        Continue Without Drawing
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Step 4: Show drawn card */}
+                {turnWizardStep === "showCard" && turnMeta && (
+                  <div className="text-center">
+                    <div className="text-5xl mb-4">✨</div>
+                    <h2 className="text-xl font-bold text-green-400 mb-2">Card Drawn!</h2>
+                    {(() => {
+                      const drawnCard = player.hand.find(
+                        (c) => c.id === turnMeta.lastDrawnCardId
+                      );
+                      if (!drawnCard) {
+                        return (
+                          <p className="text-gray-400 mb-6">No card was drawn.</p>
+                        );
+                      }
+                      const typeColors: Record<ResearchCard["type"], string> = {
+                        ROCKET_UPGRADE: "border-green-600 bg-green-900/40",
+                        COMET_INSIGHT: "border-blue-600 bg-blue-900/40",
+                        SABOTAGE: "border-red-600 bg-red-900/40",
+                      };
+                      return (
+                        <div
+                          className={`border-2 rounded-xl p-4 mb-4 ${typeColors[drawnCard.type]}`}
+                        >
+                          <div className="font-bold text-lg">{drawnCard.name}</div>
+                          <div className="text-sm text-gray-300 mt-1">
+                            {drawnCard.description}
+                          </div>
+                          <div className="text-xs text-gray-400 mt-2">
+                            {drawnCard.setKey} • Need {drawnCard.setSizeRequired}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    <button
+                      onClick={dismissWizard}
+                      className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                    >
+                      Start Playing
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Turn Indicator - sticky */}
           <div
             className={`sticky top-0 z-10 mb-4 p-3 rounded-xl text-center font-semibold backdrop-blur-sm ${
