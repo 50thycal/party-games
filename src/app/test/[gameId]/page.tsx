@@ -110,7 +110,7 @@ function getPlayableResearchSets(
 
   const result: ResearchSetOption[] = [];
 
-  for (const [setKey, bucket] of bySetKey) {
+  for (const [setKey, bucket] of Array.from(bySetKey.entries())) {
     const setSizeRequired = bucket[0].setSizeRequired || 1;
     if (bucket.length >= setSizeRequired) {
       result.push({
