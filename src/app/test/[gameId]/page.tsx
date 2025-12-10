@@ -27,6 +27,10 @@ interface SimLogEntry {
   actionType: string;
   details: string;
   summary: string;
+  movementCardsLeft: number;
+  strengthCardsLeft: number;
+  totalMovementValueLeft: number;
+  totalStrengthValueLeft: number;
 }
 
 interface SimSummary {
@@ -52,7 +56,15 @@ interface SimRow {
 
 type SortKey = keyof SimRow;
 
-type LogSortKey = "id" | "round" | "playerLabel" | "actionType";
+type LogSortKey =
+  | "id"
+  | "round"
+  | "playerLabel"
+  | "actionType"
+  | "movementCardsLeft"
+  | "strengthCardsLeft"
+  | "totalMovementValueLeft"
+  | "totalStrengthValueLeft";
 
 // ============================================================================
 // HELPERS
@@ -256,6 +268,19 @@ function simulateBotTurn(
 
   const addLog = (action: string, details: string) => {
     const playerLabel = playerId.replace("player-", "P");
+
+    // Calculate comet tracking data
+    const movementCardsLeft = currentState.movementDeck.length;
+    const strengthCardsLeft = currentState.strengthDeck.length;
+    const totalMovementValueLeft = currentState.movementDeck.reduce(
+      (sum, card) => sum + card.moveSpaces,
+      0,
+    );
+    const totalStrengthValueLeft = currentState.strengthDeck.reduce(
+      (sum, card) => sum + card.baseStrength,
+      0,
+    );
+
     log.push({
       id: 0, // Will be assigned after simulation completes
       round: currentState.round,
@@ -265,6 +290,10 @@ function simulateBotTurn(
       actionType: action,
       details,
       summary: details,
+      movementCardsLeft,
+      strengthCardsLeft,
+      totalMovementValueLeft,
+      totalStrengthValueLeft,
     });
   };
 
@@ -378,6 +407,18 @@ function runCometRushSimulation(
   let totalRocketsBuilt = 0;
   let totalRocketsLaunched = 0;
 
+  // Calculate initial comet state
+  const initialMovementCardsLeft = state.movementDeck.length;
+  const initialStrengthCardsLeft = state.strengthDeck.length;
+  const initialTotalMovementValueLeft = state.movementDeck.reduce(
+    (sum, card) => sum + card.moveSpaces,
+    0,
+  );
+  const initialTotalStrengthValueLeft = state.strengthDeck.reduce(
+    (sum, card) => sum + card.baseStrength,
+    0,
+  );
+
   log.push({
     id: 0,
     round: 1,
@@ -387,6 +428,10 @@ function runCometRushSimulation(
     actionType: "START_GAME",
     details: `Game started with ${playerCount} players`,
     summary: `Game started with ${playerCount} players`,
+    movementCardsLeft: initialMovementCardsLeft,
+    strengthCardsLeft: initialStrengthCardsLeft,
+    totalMovementValueLeft: initialTotalMovementValueLeft,
+    totalStrengthValueLeft: initialTotalStrengthValueLeft,
   });
 
   // Run simulation loop
@@ -453,23 +498,26 @@ export default function TestGamePage() {
   const [sortKey, setSortKey] = useState<SortKey>("id");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
-  // Filter state
-  const [filterId, setFilterId] = useState("");
-  const [filterPlayers, setFilterPlayers] = useState("");
-  const [filterRounds, setFilterRounds] = useState("");
-  const [filterEndReason, setFilterEndReason] = useState("");
-  const [filterWinner, setFilterWinner] = useState("");
+  // Filter state - dropdowns use "Any" as default
+  const [filterPlayers, setFilterPlayers] = useState("Any");
+  const [filterRounds, setFilterRounds] = useState("Any");
+  const [filterEndReason, setFilterEndReason] = useState("Any");
+  const [filterRocketsBuilt, setFilterRocketsBuilt] = useState("Any");
+  const [filterRocketsLaunched, setFilterRocketsLaunched] = useState("Any");
 
   // Action Log sorting state
   const [logSortKey, setLogSortKey] = useState<LogSortKey>("id");
   const [logSortDir, setLogSortDir] = useState<"asc" | "desc">("asc");
 
-  // Action Log filter state
-  const [filterLogId, setFilterLogId] = useState("");
-  const [filterLogRound, setFilterLogRound] = useState("");
-  const [filterLogPlayer, setFilterLogPlayer] = useState("");
-  const [filterLogAction, setFilterLogAction] = useState("");
-  const [filterLogSummary, setFilterLogSummary] = useState("");
+  // Action Log filter state - dropdowns use "Any" as default
+  const [filterLogRound, setFilterLogRound] = useState("Any");
+  const [filterLogPlayer, setFilterLogPlayer] = useState("Any");
+  const [filterLogAction, setFilterLogAction] = useState("Any");
+  const [filterMvCards, setFilterMvCards] = useState("Any");
+  const [filterStrCards, setFilterStrCards] = useState("Any");
+  const [filterMvTotal, setFilterMvTotal] = useState("Any");
+  const [filterStrTotal, setFilterStrTotal] = useState("Any");
+  const [filterLogSummary, setFilterLogSummary] = useState(""); // Keep text for details
 
   const runSimulation = useCallback(() => {
     setIsRunning(true);
@@ -519,6 +567,28 @@ export default function TestGamePage() {
     });
   }, []);
 
+  // Compute unique values for Simulation Runs dropdowns
+  const uniquePlayers = useMemo(
+    () => Array.from(new Set(simRows.map((r) => r.players))).sort((a, b) => a - b),
+    [simRows],
+  );
+  const uniqueRounds = useMemo(
+    () => Array.from(new Set(simRows.map((r) => r.rounds))).sort((a, b) => a - b),
+    [simRows],
+  );
+  const uniqueEndReasons = useMemo(
+    () => Array.from(new Set(simRows.map((r) => r.endReason))).sort(),
+    [simRows],
+  );
+  const uniqueRocketsBuilt = useMemo(
+    () => Array.from(new Set(simRows.map((r) => r.rocketsBuilt))).sort((a, b) => a - b),
+    [simRows],
+  );
+  const uniqueRocketsLaunched = useMemo(
+    () => Array.from(new Set(simRows.map((r) => r.rocketsLaunched))).sort((a, b) => a - b),
+    [simRows],
+  );
+
   // Derived sorted rows
   const sortedRows = [...simRows].sort((a, b) => {
     const dir = sortDir === "asc" ? 1 : -1;
@@ -536,21 +606,16 @@ export default function TestGamePage() {
 
   // Derived filtered rows
   const filteredRows = sortedRows.filter((row) => {
-    if (filterId && !String(row.id).includes(filterId.trim())) return false;
-    if (filterPlayers && !String(row.players).includes(filterPlayers.trim()))
-      return false;
-    if (filterRounds && !String(row.rounds).includes(filterRounds.trim()))
+    if (filterPlayers !== "Any" && String(row.players) !== filterPlayers) return false;
+    if (filterRounds !== "Any" && String(row.rounds) !== filterRounds) return false;
+    if (filterEndReason !== "Any" && row.endReason !== filterEndReason) return false;
+    if (filterRocketsBuilt !== "Any" && String(row.rocketsBuilt) !== filterRocketsBuilt)
       return false;
     if (
-      filterEndReason &&
-      !row.endReason.toLowerCase().includes(filterEndReason.toLowerCase().trim())
+      filterRocketsLaunched !== "Any" &&
+      String(row.rocketsLaunched) !== filterRocketsLaunched
     )
       return false;
-    if (filterWinner) {
-      const winners = row.winnerIds.join(",");
-      if (!winners.toLowerCase().includes(filterWinner.toLowerCase().trim()))
-        return false;
-    }
     return true;
   });
 
@@ -606,6 +671,44 @@ export default function TestGamePage() {
     });
   }, []);
 
+  // Compute unique values for Action Log dropdowns
+  const uniqueLogRounds = useMemo(
+    () => Array.from(new Set(log.map((r) => r.round))).sort((a, b) => a - b),
+    [log],
+  );
+  const uniqueLogPlayers = useMemo(
+    () => Array.from(new Set(log.map((r) => r.playerLabel))).sort(),
+    [log],
+  );
+  const uniqueLogActions = useMemo(
+    () => Array.from(new Set(log.map((r) => r.actionType))).sort(),
+    [log],
+  );
+  const uniqueMvCards = useMemo(
+    () =>
+      Array.from(new Set(log.map((r) => r.movementCardsLeft))).sort((a, b) => a - b),
+    [log],
+  );
+  const uniqueStrCards = useMemo(
+    () =>
+      Array.from(new Set(log.map((r) => r.strengthCardsLeft))).sort((a, b) => a - b),
+    [log],
+  );
+  const uniqueMvTotals = useMemo(
+    () =>
+      Array.from(new Set(log.map((r) => r.totalMovementValueLeft))).sort(
+        (a, b) => a - b,
+      ),
+    [log],
+  );
+  const uniqueStrTotals = useMemo(
+    () =>
+      Array.from(new Set(log.map((r) => r.totalStrengthValueLeft))).sort(
+        (a, b) => a - b,
+      ),
+    [log],
+  );
+
   // Derived sorted action log
   const sortedActionLog = [...log].sort((a, b) => {
     const dir = logSortDir === "asc" ? 1 : -1;
@@ -620,17 +723,27 @@ export default function TestGamePage() {
 
   // Derived filtered action log
   const filteredActionLog = sortedActionLog.filter((row) => {
-    if (filterLogId && !String(row.id).includes(filterLogId.trim())) return false;
-    if (filterLogRound && !String(row.round).includes(filterLogRound.trim()))
-      return false;
+    if (filterLogRound !== "Any" && String(row.round) !== filterLogRound) return false;
+    if (filterLogPlayer !== "Any" && row.playerLabel !== filterLogPlayer) return false;
+    if (filterLogAction !== "Any" && row.actionType !== filterLogAction) return false;
     if (
-      filterLogPlayer &&
-      !row.playerLabel.toLowerCase().includes(filterLogPlayer.toLowerCase().trim())
+      filterMvCards !== "Any" &&
+      String(row.movementCardsLeft) !== filterMvCards
     )
       return false;
     if (
-      filterLogAction &&
-      !row.actionType.toLowerCase().includes(filterLogAction.toLowerCase().trim())
+      filterStrCards !== "Any" &&
+      String(row.strengthCardsLeft) !== filterStrCards
+    )
+      return false;
+    if (
+      filterMvTotal !== "Any" &&
+      String(row.totalMovementValueLeft) !== filterMvTotal
+    )
+      return false;
+    if (
+      filterStrTotal !== "Any" &&
+      String(row.totalStrengthValueLeft) !== filterStrTotal
     )
       return false;
     if (
@@ -645,7 +758,17 @@ export default function TestGamePage() {
   const handleCopyActionLog = useCallback(async () => {
     if (!navigator.clipboard) return;
 
-    const header = ["#", "round", "player", "action", "details"];
+    const header = [
+      "#",
+      "round",
+      "player",
+      "action",
+      "mvCards",
+      "strCards",
+      "mvTotal",
+      "strTotal",
+      "details",
+    ];
 
     const lines = [
       header.join("\t"),
@@ -655,6 +778,10 @@ export default function TestGamePage() {
           row.round,
           row.playerLabel,
           row.actionType,
+          row.movementCardsLeft,
+          row.strengthCardsLeft,
+          row.totalMovementValueLeft,
+          row.totalStrengthValueLeft,
           row.summary.replace(/\s+/g, " "),
         ].join("\t"),
       ),
@@ -758,49 +885,79 @@ export default function TestGamePage() {
 
                 {/* Filter row */}
                 <tr className="border-b border-slate-800 text-[11px]">
+                  <th className="px-2 py-1"></th>
                   <th className="px-2 py-1">
-                    <input
-                      className="w-full rounded bg-slate-800 px-1 py-0.5 outline-none text-slate-200"
-                      value={filterId}
-                      onChange={(e) => setFilterId(e.target.value)}
-                      placeholder="#"
-                    />
-                  </th>
-                  <th className="px-2 py-1">
-                    <input
-                      className="w-full rounded bg-slate-800 px-1 py-0.5 outline-none text-slate-200"
+                    <select
+                      className="w-full rounded bg-slate-800 px-1 py-0.5 text-[11px] text-slate-200"
                       value={filterPlayers}
                       onChange={(e) => setFilterPlayers(e.target.value)}
-                      placeholder="Any"
-                    />
+                    >
+                      <option value="Any">Any</option>
+                      {uniquePlayers.map((p) => (
+                        <option key={p} value={String(p)}>
+                          {p}
+                        </option>
+                      ))}
+                    </select>
                   </th>
                   <th className="px-2 py-1">
-                    <input
-                      className="w-full rounded bg-slate-800 px-1 py-0.5 outline-none text-slate-200"
+                    <select
+                      className="w-full rounded bg-slate-800 px-1 py-0.5 text-[11px] text-slate-200"
                       value={filterRounds}
                       onChange={(e) => setFilterRounds(e.target.value)}
-                      placeholder="Any"
-                    />
+                    >
+                      <option value="Any">Any</option>
+                      {uniqueRounds.map((r) => (
+                        <option key={r} value={String(r)}>
+                          {r}
+                        </option>
+                      ))}
+                    </select>
                   </th>
                   <th className="px-2 py-1">
-                    <input
-                      className="w-full rounded bg-slate-800 px-1 py-0.5 outline-none text-slate-200"
+                    <select
+                      className="w-full rounded bg-slate-800 px-1 py-0.5 text-[11px] text-slate-200"
                       value={filterEndReason}
                       onChange={(e) => setFilterEndReason(e.target.value)}
-                      placeholder="hit/destroy"
-                    />
+                    >
+                      <option value="Any">Any</option>
+                      {uniqueEndReasons.map((e) => (
+                        <option key={e} value={e}>
+                          {e}
+                        </option>
+                      ))}
+                    </select>
                   </th>
-                  <th className="px-2 py-1"></th>
-                  <th className="px-2 py-1"></th>
-                  <th className="px-2 py-1"></th>
                   <th className="px-2 py-1">
-                    <input
-                      className="w-full rounded bg-slate-800 px-1 py-0.5 outline-none text-slate-200"
-                      value={filterWinner}
-                      onChange={(e) => setFilterWinner(e.target.value)}
-                      placeholder="Winner"
-                    />
+                    <select
+                      className="w-full rounded bg-slate-800 px-1 py-0.5 text-[11px] text-slate-200"
+                      value={filterRocketsBuilt}
+                      onChange={(e) => setFilterRocketsBuilt(e.target.value)}
+                    >
+                      <option value="Any">Any</option>
+                      {uniqueRocketsBuilt.map((r) => (
+                        <option key={r} value={String(r)}>
+                          {r}
+                        </option>
+                      ))}
+                    </select>
                   </th>
+                  <th className="px-2 py-1">
+                    <select
+                      className="w-full rounded bg-slate-800 px-1 py-0.5 text-[11px] text-slate-200"
+                      value={filterRocketsLaunched}
+                      onChange={(e) => setFilterRocketsLaunched(e.target.value)}
+                    >
+                      <option value="Any">Any</option>
+                      {uniqueRocketsLaunched.map((r) => (
+                        <option key={r} value={String(r)}>
+                          {r}
+                        </option>
+                      ))}
+                    </select>
+                  </th>
+                  <th className="px-2 py-1"></th>
+                  <th className="px-2 py-1"></th>
                 </tr>
               </thead>
 
@@ -940,49 +1097,146 @@ export default function TestGamePage() {
                       Action{" "}
                       {logSortKey === "actionType" && (logSortDir === "asc" ? "↑" : "↓")}
                     </th>
+                    <th
+                      className="cursor-pointer px-2 py-1 hover:text-slate-200"
+                      onClick={() => handleLogSort("movementCardsLeft")}
+                    >
+                      MvCards{" "}
+                      {logSortKey === "movementCardsLeft" && (logSortDir === "asc" ? "↑" : "↓")}
+                    </th>
+                    <th
+                      className="cursor-pointer px-2 py-1 hover:text-slate-200"
+                      onClick={() => handleLogSort("strengthCardsLeft")}
+                    >
+                      StrCards{" "}
+                      {logSortKey === "strengthCardsLeft" && (logSortDir === "asc" ? "↑" : "↓")}
+                    </th>
+                    <th
+                      className="cursor-pointer px-2 py-1 hover:text-slate-200"
+                      onClick={() => handleLogSort("totalMovementValueLeft")}
+                    >
+                      MvTotal{" "}
+                      {logSortKey === "totalMovementValueLeft" &&
+                        (logSortDir === "asc" ? "↑" : "↓")}
+                    </th>
+                    <th
+                      className="cursor-pointer px-2 py-1 hover:text-slate-200"
+                      onClick={() => handleLogSort("totalStrengthValueLeft")}
+                    >
+                      StrTotal{" "}
+                      {logSortKey === "totalStrengthValueLeft" &&
+                        (logSortDir === "asc" ? "↑" : "↓")}
+                    </th>
                     <th className="px-2 py-1">Details</th>
                   </tr>
 
                   {/* Filter row */}
                   <tr className="border-b border-slate-800 text-[11px] bg-slate-900">
+                    <th className="px-2 py-1"></th>
                     <th className="px-2 py-1">
-                      <input
-                        className="w-full rounded bg-slate-800 px-1 py-0.5 outline-none text-slate-200"
-                        value={filterLogId}
-                        onChange={(e) => setFilterLogId(e.target.value)}
-                        placeholder="#"
-                      />
-                    </th>
-                    <th className="px-2 py-1">
-                      <input
-                        className="w-full rounded bg-slate-800 px-1 py-0.5 outline-none text-slate-200"
+                      <select
+                        className="w-full rounded bg-slate-800 px-1 py-0.5 text-[11px] text-slate-200"
                         value={filterLogRound}
                         onChange={(e) => setFilterLogRound(e.target.value)}
-                        placeholder="R"
-                      />
+                      >
+                        <option value="Any">Any</option>
+                        {uniqueLogRounds.map((r) => (
+                          <option key={r} value={String(r)}>
+                            R{r}
+                          </option>
+                        ))}
+                      </select>
                     </th>
                     <th className="px-2 py-1">
-                      <input
-                        className="w-full rounded bg-slate-800 px-1 py-0.5 outline-none text-slate-200"
+                      <select
+                        className="w-full rounded bg-slate-800 px-1 py-0.5 text-[11px] text-slate-200"
                         value={filterLogPlayer}
                         onChange={(e) => setFilterLogPlayer(e.target.value)}
-                        placeholder="P1/P2/..."
-                      />
+                      >
+                        <option value="Any">Any</option>
+                        {uniqueLogPlayers.map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                      </select>
                     </th>
                     <th className="px-2 py-1">
-                      <input
-                        className="w-full rounded bg-slate-800 px-1 py-0.5 outline-none text-slate-200"
+                      <select
+                        className="w-full rounded bg-slate-800 px-1 py-0.5 text-[11px] text-slate-200"
                         value={filterLogAction}
                         onChange={(e) => setFilterLogAction(e.target.value)}
-                        placeholder="BEGIN_TURN"
-                      />
+                      >
+                        <option value="Any">Any</option>
+                        {uniqueLogActions.map((a) => (
+                          <option key={a} value={a}>
+                            {a}
+                          </option>
+                        ))}
+                      </select>
+                    </th>
+                    <th className="px-2 py-1">
+                      <select
+                        className="w-full rounded bg-slate-800 px-1 py-0.5 text-[11px] text-slate-200"
+                        value={filterMvCards}
+                        onChange={(e) => setFilterMvCards(e.target.value)}
+                      >
+                        <option value="Any">Any</option>
+                        {uniqueMvCards.map((c) => (
+                          <option key={c} value={String(c)}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                    </th>
+                    <th className="px-2 py-1">
+                      <select
+                        className="w-full rounded bg-slate-800 px-1 py-0.5 text-[11px] text-slate-200"
+                        value={filterStrCards}
+                        onChange={(e) => setFilterStrCards(e.target.value)}
+                      >
+                        <option value="Any">Any</option>
+                        {uniqueStrCards.map((c) => (
+                          <option key={c} value={String(c)}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                    </th>
+                    <th className="px-2 py-1">
+                      <select
+                        className="w-full rounded bg-slate-800 px-1 py-0.5 text-[11px] text-slate-200"
+                        value={filterMvTotal}
+                        onChange={(e) => setFilterMvTotal(e.target.value)}
+                      >
+                        <option value="Any">Any</option>
+                        {uniqueMvTotals.map((t) => (
+                          <option key={t} value={String(t)}>
+                            {t}
+                          </option>
+                        ))}
+                      </select>
+                    </th>
+                    <th className="px-2 py-1">
+                      <select
+                        className="w-full rounded bg-slate-800 px-1 py-0.5 text-[11px] text-slate-200"
+                        value={filterStrTotal}
+                        onChange={(e) => setFilterStrTotal(e.target.value)}
+                      >
+                        <option value="Any">Any</option>
+                        {uniqueStrTotals.map((t) => (
+                          <option key={t} value={String(t)}>
+                            {t}
+                          </option>
+                        ))}
+                      </select>
                     </th>
                     <th className="px-2 py-1">
                       <input
-                        className="w-full rounded bg-slate-800 px-1 py-0.5 outline-none text-slate-200"
+                        className="w-full rounded bg-slate-800 px-1 py-0.5 text-[11px] text-slate-200"
                         value={filterLogSummary}
                         onChange={(e) => setFilterLogSummary(e.target.value)}
-                        placeholder="text search"
+                        placeholder="search"
                       />
                     </th>
                   </tr>
@@ -992,7 +1246,7 @@ export default function TestGamePage() {
                   {filteredActionLog.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={5}
+                        colSpan={9}
                         className="px-2 py-3 text-center text-[11px] text-slate-500"
                       >
                         No actions to display.
@@ -1013,6 +1267,18 @@ export default function TestGamePage() {
                         </td>
                         <td className="px-2 py-1 text-[11px] text-amber-300 font-mono">
                           {row.actionType}
+                        </td>
+                        <td className="px-2 py-1 text-[11px] text-slate-200">
+                          {row.movementCardsLeft}
+                        </td>
+                        <td className="px-2 py-1 text-[11px] text-slate-200">
+                          {row.strengthCardsLeft}
+                        </td>
+                        <td className="px-2 py-1 text-[11px] text-slate-200">
+                          {row.totalMovementValueLeft}
+                        </td>
+                        <td className="px-2 py-1 text-[11px] text-slate-200">
+                          {row.totalStrengthValueLeft}
                         </td>
                         <td className="px-2 py-1 text-[11px] text-slate-200">
                           {row.summary}
