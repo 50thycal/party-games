@@ -116,6 +116,19 @@ export interface LaunchResult {
   destroyed: boolean;
 }
 
+export interface TurnMeta {
+  playerId: string;
+  incomeGained: number;
+  newTotalCubes: number;
+  lastDrawnCardId: string | null;
+}
+
+export interface ResearchResult {
+  id: string;
+  playerId: string;
+  description: string;
+}
+
 export interface CometRushState {
   phase: CometRushPhase;
   round: number;
@@ -143,6 +156,12 @@ export interface CometRushState {
   // Last launch result for display
   lastLaunchResult: LaunchResult | null;
 
+  // Turn-start wizard meta (for UI)
+  turnMeta: TurnMeta | null;
+
+  // Last research result for popup feedback
+  lastResearchResult: ResearchResult | null;
+
   // Player who destroyed the final strength card (bonus points)
   finalDestroyerId: string | null;
 
@@ -160,11 +179,14 @@ export interface CometRushState {
 
 export type CometRushActionType =
   | "START_GAME"
+  | "BEGIN_TURN"
+  | "DRAW_TURN_CARD"
   | "PLAY_RESEARCH_SET"
   | "BUILD_ROCKET"
   | "LAUNCH_ROCKET"
   | "END_TURN"
   | "CYCLE_RESEARCH"
+  | "CLEAR_RESEARCH_RESULT"
   | "PLAY_AGAIN";
 
 export interface PlayResearchPayload {
@@ -404,6 +426,8 @@ function initialState(players: Player[]): CometRushState {
     researchDiscard: [],
     players: playersState,
     lastLaunchResult: null,
+    turnMeta: null,
+    lastResearchResult: null,
     finalDestroyerId: null,
     winnerIds: [],
     earthDestroyed: false,
@@ -451,6 +475,9 @@ function reducer(
         };
       }
 
+      // Initialize turnMeta for first player (no income/draw yet, they must call BEGIN_TURN)
+      const firstPlayerId = state.playerOrder[0];
+
       return {
         ...state,
         phase: "playing",
@@ -464,6 +491,109 @@ function reducer(
         lastMovementCard: null,
         players: updatedPlayers,
         lastLaunchResult: null,
+        turnMeta: {
+          playerId: firstPlayerId,
+          incomeGained: 0,
+          newTotalCubes: updatedPlayers[firstPlayerId]?.resourceCubes ?? 0,
+          lastDrawnCardId: null,
+        },
+      };
+    }
+
+    case "BEGIN_TURN": {
+      if (state.phase !== "playing") return state;
+
+      const activePlayerId = getActivePlayerId(state);
+      if (action.playerId !== activePlayerId) return state;
+
+      const player = state.players[action.playerId];
+      if (!player) return state;
+
+      // Calculate income
+      const income = player.baseIncome + player.upgrades.incomeBonus;
+      const newTotalCubes = player.resourceCubes + income;
+
+      // Advance rocket builds
+      const updatedRockets = player.rockets.map((rocket) => {
+        if (rocket.status === "building") {
+          const newRemaining = rocket.buildTimeRemaining - 1;
+          return {
+            ...rocket,
+            buildTimeRemaining: newRemaining,
+            status: newRemaining <= 0 ? ("ready" as RocketStatus) : rocket.status,
+          };
+        }
+        return rocket;
+      });
+
+      const updatedPlayer: CometRushPlayerState = {
+        ...player,
+        resourceCubes: newTotalCubes,
+        rockets: updatedRockets,
+        hasPlayedResearchThisTurn: false,
+        hasBuiltRocketThisTurn: false,
+        hasLaunchedRocketThisTurn: false,
+        peekedMovementCard: null,
+        peekedStrengthCard: null,
+      };
+
+      return {
+        ...state,
+        players: {
+          ...state.players,
+          [action.playerId]: updatedPlayer,
+        },
+        turnMeta: {
+          playerId: action.playerId,
+          incomeGained: income,
+          newTotalCubes,
+          lastDrawnCardId: null,
+        },
+      };
+    }
+
+    case "DRAW_TURN_CARD": {
+      if (state.phase !== "playing") return state;
+
+      const activePlayerId = getActivePlayerId(state);
+      if (action.playerId !== activePlayerId) return state;
+
+      // Must have called BEGIN_TURN first (turnMeta exists)
+      if (!state.turnMeta || state.turnMeta.playerId !== action.playerId) return state;
+
+      // Already drew a card this turn
+      if (state.turnMeta.lastDrawnCardId !== null) return state;
+
+      const player = state.players[action.playerId];
+      if (!player) return state;
+
+      let researchDeck = [...state.researchDeck];
+      let drawnCardId: string | null = null;
+      let newHand = player.hand;
+
+      if (researchDeck.length > 0) {
+        const drawnCard = researchDeck[0];
+        drawnCardId = drawnCard.id;
+        researchDeck = researchDeck.slice(1);
+        newHand = [...player.hand, drawnCard];
+      }
+
+      const updatedPlayer: CometRushPlayerState = {
+        ...player,
+        hand: newHand,
+      };
+
+      return {
+        ...state,
+        researchDeck,
+        players: {
+          ...state.players,
+          [action.playerId]: updatedPlayer,
+        },
+        turnMeta: {
+          ...state.turnMeta,
+          lastDrawnCardId: drawnCardId,
+        },
       };
     }
 
@@ -499,6 +629,7 @@ function reducer(
       let updatedPlayers = { ...state.players };
       let updatedPlayer = { ...player };
       const tag = cardsToPlay[0].tag;
+      let resultDescription = "";
 
       switch (tag) {
         case "POWER":
@@ -507,6 +638,7 @@ function reducer(
             powerBonus: updatedPlayer.upgrades.powerBonus + 1,
             powerCap: updatedPlayer.upgrades.powerCap + 1,
           };
+          resultDescription = `Rocket power upgraded! Future rockets get +${updatedPlayer.upgrades.powerBonus} power (cap now ${updatedPlayer.upgrades.powerCap}).`;
           break;
 
         case "ACCURACY":
@@ -515,6 +647,7 @@ function reducer(
             accuracyBonus: Math.min(updatedPlayer.upgrades.accuracyBonus + 1, 4),
             accuracyCap: updatedPlayer.upgrades.accuracyCap + 1,
           };
+          resultDescription = `Targeting upgraded! Future rockets get +${updatedPlayer.upgrades.accuracyBonus} accuracy (cap now ${updatedPlayer.upgrades.accuracyCap}).`;
           break;
 
         case "BUILD_TIME":
@@ -523,6 +656,7 @@ function reducer(
             buildTimeBonus: updatedPlayer.upgrades.buildTimeBonus + 1,
             buildTimeCap: updatedPlayer.upgrades.buildTimeCap + 1,
           };
+          resultDescription = `Quick Assembly! Future rockets build ${updatedPlayer.upgrades.buildTimeBonus} turn(s) faster.`;
           break;
 
         case "INCOME":
@@ -530,6 +664,7 @@ function reducer(
             ...updatedPlayer.upgrades,
             incomeBonus: updatedPlayer.upgrades.incomeBonus + 1,
           };
+          resultDescription = `Income increased! Now earning +${updatedPlayer.baseIncome + updatedPlayer.upgrades.incomeBonus} cubes per round.`;
           break;
 
         case "MAX_ROCKETS":
@@ -537,19 +672,29 @@ function reducer(
             ...updatedPlayer.upgrades,
             maxRocketsBonus: updatedPlayer.upgrades.maxRocketsBonus + 1,
           };
+          resultDescription = `Launch pad expanded! Can now build ${updatedPlayer.maxConcurrentRockets + updatedPlayer.upgrades.maxRocketsBonus} rockets at once.`;
           break;
 
         case "PEEK_MOVE":
           if (state.movementDeck.length > 0) {
-            updatedPlayer.peekedMovementCard = state.movementDeck[0];
+            const topCard = state.movementDeck[0];
+            updatedPlayer.peekedMovementCard = topCard;
+            resultDescription = `Trajectory Analysis: Next comet movement is ${topCard.moveSpaces} space(s).`;
+          } else {
+            resultDescription = "Peeked at movement deck: no cards remaining.";
           }
           break;
 
         case "PEEK_STRENGTH":
           if (state.strengthDeck.length > 0) {
-            updatedPlayer.peekedStrengthCard = state.strengthDeck[0];
+            const topCard = state.strengthDeck[0];
+            updatedPlayer.peekedStrengthCard = topCard;
+            resultDescription = `Surface Scan: Next comet segment has strength ${topCard.baseStrength}.`;
           } else if (state.activeStrengthCard) {
             updatedPlayer.peekedStrengthCard = state.activeStrengthCard;
+            resultDescription = `Surface Scan: Current comet segment has strength ${state.activeStrengthCard.currentStrength}.`;
+          } else {
+            resultDescription = "Peeked at strength deck: no cards remaining.";
           }
           break;
 
@@ -567,6 +712,7 @@ function reducer(
             },
           };
           updatedPlayer.resourceCubes += stealAmount;
+          resultDescription = `Stole ${stealAmount} cube(s) from ${targetPlayer.name}!`;
           break;
         }
 
@@ -589,6 +735,7 @@ function reducer(
             },
           };
           updatedPlayer.hand = [...updatedPlayer.hand, stolenCard];
+          resultDescription = `Stole "${stolenCard.name}" from ${targetPlayer.name}!`;
           break;
         }
 
@@ -602,10 +749,13 @@ function reducer(
           );
           if (targetRocketIndex === -1) return state;
 
+          const targetRocket = targetPlayer.rockets[targetRocketIndex];
+          const newBuildTime = targetRocket.buildTimeRemaining + 1;
+
           const updatedRockets = [...targetPlayer.rockets];
           updatedRockets[targetRocketIndex] = {
             ...updatedRockets[targetRocketIndex],
-            buildTimeRemaining: updatedRockets[targetRocketIndex].buildTimeRemaining + 1,
+            buildTimeRemaining: newBuildTime,
           };
 
           updatedPlayers = {
@@ -615,6 +765,7 @@ function reducer(
               rockets: updatedRockets,
             },
           };
+          resultDescription = `Sabotaged ${targetPlayer.name}'s rocket! Now ${newBuildTime} turn(s) remaining.`;
           break;
         }
 
@@ -633,6 +784,13 @@ function reducer(
         ...state,
         players: updatedPlayers,
         researchDiscard: [...state.researchDiscard, ...cardsToPlay],
+        lastResearchResult: resultDescription
+          ? {
+              id: `${ctx.now()}`,
+              playerId: action.playerId,
+              description: resultDescription,
+            }
+          : null,
       };
     }
 
@@ -894,6 +1052,17 @@ function reducer(
       };
     }
 
+    case "CLEAR_RESEARCH_RESULT": {
+      if (!state.lastResearchResult) return state;
+      // Only the player who triggered it should be able to clear
+      if (state.lastResearchResult.playerId !== action.playerId) return state;
+
+      return {
+        ...state,
+        lastResearchResult: null,
+      };
+    }
+
     case "END_TURN": {
       if (state.phase !== "playing") return state;
 
@@ -942,49 +1111,9 @@ function reducer(
         }
       }
 
-      // Give next player income and draw card at start of their turn
+      // Set turnMeta for next player (income/draw handled by BEGIN_TURN and DRAW_TURN_CARD)
       const nextPlayerId = state.playerOrder[nextIndex];
       const nextPlayer = state.players[nextPlayerId];
-      let researchDeck = [...state.researchDeck];
-      let updatedPlayers = { ...state.players };
-
-      if (nextPlayer && phase === "playing") {
-        // Income
-        const income = nextPlayer.baseIncome + nextPlayer.upgrades.incomeBonus;
-
-        // Draw card
-        let newHand = nextPlayer.hand;
-        if (researchDeck.length > 0) {
-          const drawnCard = researchDeck[0];
-          researchDeck = researchDeck.slice(1);
-          newHand = [...nextPlayer.hand, drawnCard];
-        }
-
-        // Advance rocket builds for the next player
-        const updatedRockets = nextPlayer.rockets.map((rocket) => {
-          if (rocket.status === "building") {
-            const newRemaining = rocket.buildTimeRemaining - 1;
-            return {
-              ...rocket,
-              buildTimeRemaining: newRemaining,
-              status: newRemaining <= 0 ? ("ready" as RocketStatus) : rocket.status,
-            };
-          }
-          return rocket;
-        });
-
-        updatedPlayers[nextPlayerId] = {
-          ...nextPlayer,
-          resourceCubes: nextPlayer.resourceCubes + income,
-          hand: newHand,
-          rockets: updatedRockets,
-          hasPlayedResearchThisTurn: false,
-          hasBuiltRocketThisTurn: false,
-          hasLaunchedRocketThisTurn: false,
-          peekedMovementCard: null,
-          peekedStrengthCard: null,
-        };
-      }
 
       return {
         ...state,
@@ -997,8 +1126,12 @@ function reducer(
         phase,
         winnerIds,
         earthDestroyed,
-        researchDeck,
-        players: updatedPlayers,
+        turnMeta: phase === "playing" && nextPlayer ? {
+          playerId: nextPlayerId,
+          incomeGained: 0,
+          newTotalCubes: nextPlayer.resourceCubes,
+          lastDrawnCardId: null,
+        } : null,
       };
     }
 
@@ -1032,12 +1165,17 @@ function isActionAllowed(
     case "START_GAME":
       return isHost && state.phase === "lobby";
 
+    case "BEGIN_TURN":
+    case "DRAW_TURN_CARD":
     case "PLAY_RESEARCH_SET":
     case "BUILD_ROCKET":
     case "LAUNCH_ROCKET":
     case "CYCLE_RESEARCH":
     case "END_TURN":
       return state.phase === "playing" && ctx.playerId === activePlayerId;
+
+    case "CLEAR_RESEARCH_RESULT":
+      return state.phase === "playing";
 
     case "PLAY_AGAIN":
       return isHost && state.phase === "gameOver";

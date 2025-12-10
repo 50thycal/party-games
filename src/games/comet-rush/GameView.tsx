@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { GameViewProps } from "@/games/views";
 import type {
   CometRushState,
@@ -8,8 +8,16 @@ import type {
   Rocket,
   ResearchCard,
   StrengthCard,
+  TurnMeta,
+  ResearchResult,
 } from "./config";
 import { calculateScores } from "./config";
+
+// ============================================================================
+// TURN WIZARD TYPES
+// ============================================================================
+
+type TurnWizardStep = "announce" | "showIncome" | "promptDraw" | "showCard" | null;
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -29,53 +37,94 @@ function CometTrack({
   distanceToImpact,
   lastMovementCard,
   activeStrengthCard,
+  movementDeckCount,
+  strengthDeckCount,
 }: {
   distanceToImpact: number;
   lastMovementCard: { moveSpaces: number } | null;
   activeStrengthCard: StrengthCard | null;
+  movementDeckCount: number;
+  strengthDeckCount: number;
 }) {
   const percentage = Math.max(0, Math.min(100, (distanceToImpact / 18) * 100));
 
-  return (
-    <div className="bg-gray-900 rounded-lg p-4 mb-4">
-      <div className="flex justify-between items-center mb-2">
-        <span className="text-sm text-gray-400">Comet Distance</span>
-        <span className="font-bold text-lg">
-          {distanceToImpact} / 18
-          {lastMovementCard && (
-            <span className="text-red-400 text-sm ml-2">
-              (-{lastMovementCard.moveSpaces})
-            </span>
-          )}
-        </span>
-      </div>
-      <div className="w-full bg-gray-700 rounded-full h-4 overflow-hidden">
-        <div
-          className="h-full bg-gradient-to-r from-red-600 to-yellow-500 transition-all duration-500"
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
-      <div className="flex justify-between text-xs text-gray-500 mt-1">
-        <span>Impact!</span>
-        <span>Safe</span>
-      </div>
+  const dangerColor =
+    distanceToImpact <= 6
+      ? "bg-red-500"
+      : distanceToImpact <= 12
+      ? "bg-yellow-500"
+      : "bg-green-500";
 
-      {activeStrengthCard && (
-        <div className="mt-4 p-3 bg-purple-900/30 border border-purple-700 rounded-lg">
-          <div className="text-sm text-purple-400 mb-1">Active Comet Segment</div>
-          <div className="flex justify-between items-center">
-            <span className="text-gray-300">Strength:</span>
-            <span className="text-2xl font-bold text-purple-300">
-              {activeStrengthCard.currentStrength}
-              {activeStrengthCard.currentStrength !== activeStrengthCard.baseStrength && (
-                <span className="text-sm text-gray-500 ml-1">
-                  (was {activeStrengthCard.baseStrength})
+  const DeckChip = ({ label, count, borderColor }: { label: string; count: number; borderColor: string }) => (
+    <div className="flex flex-col items-center">
+      <div className="relative h-10 w-14">
+        {/* Back card shadow */}
+        <div className="absolute inset-0 translate-x-0.5 translate-y-0.5 rounded-md border border-slate-700 bg-slate-900/70" />
+        {/* Front card */}
+        <div className={`absolute inset-0 rounded-md border ${borderColor} bg-slate-800/90 flex items-center justify-center`}>
+          <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-200">
+            {label}
+          </span>
+        </div>
+      </div>
+      {/* Count badge */}
+      <div className="mt-1 rounded-full bg-black/80 px-2 py-0.5 text-[10px] font-bold text-slate-100 border border-slate-700">
+        {count}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="bg-slate-900/60 rounded-xl border border-slate-700 p-4 mb-4">
+      <div className="flex items-start justify-between gap-4">
+        {/* Left side - distance info */}
+        <div className="flex-1">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Comet Distance</span>
+            <span className="font-bold text-lg">
+              {distanceToImpact} / 18
+              {lastMovementCard && (
+                <span className="text-red-400 text-sm ml-2">
+                  (-{lastMovementCard.moveSpaces})
                 </span>
               )}
             </span>
           </div>
+          <div className="w-full bg-slate-700 rounded-full h-3 overflow-hidden">
+            <div
+              className={`h-full ${dangerColor} transition-all duration-500`}
+              style={{ width: `${percentage}%` }}
+            />
+          </div>
+          <div className="flex justify-between text-xs text-slate-500 mt-1">
+            <span>Impact!</span>
+            <span>Safe</span>
+          </div>
+
+          {activeStrengthCard && (
+            <div className="mt-3 p-3 bg-amber-900/30 border border-amber-600/60 rounded-lg">
+              <div className="text-xs uppercase tracking-wide text-amber-400 mb-1">Active Comet Segment</div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-300 text-sm">Strength:</span>
+                <span className="text-xl font-bold text-amber-300">
+                  {activeStrengthCard.currentStrength}
+                  {activeStrengthCard.currentStrength !== activeStrengthCard.baseStrength && (
+                    <span className="text-xs text-amber-400/70 ml-1">
+                      (was {activeStrengthCard.baseStrength})
+                    </span>
+                  )}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Right side - compact deck chips */}
+        <div className="flex flex-col items-center gap-2 pt-1">
+          <DeckChip label="Move" count={movementDeckCount} borderColor="border-cyan-500" />
+          <DeckChip label="Str" count={strengthDeckCount} borderColor="border-amber-500" />
+        </div>
+      </div>
     </div>
   );
 }
@@ -203,26 +252,42 @@ function ResearchCardDisplay({
   isSelected: boolean;
   onToggle: () => void;
 }) {
-  const typeColors = {
-    ROCKET_UPGRADE: "border-green-600 bg-green-900/30",
-    COMET_INSIGHT: "border-blue-600 bg-blue-900/30",
-    SABOTAGE: "border-red-600 bg-red-900/30",
+  const typeColors: Record<ResearchCard["type"], string> = {
+    ROCKET_UPGRADE: "from-emerald-700/70 to-emerald-900/80",
+    COMET_INSIGHT: "from-sky-700/70 to-sky-900/80",
+    SABOTAGE: "from-rose-700/70 to-rose-900/80",
   };
 
+  const gradient = typeColors[card.type];
+
   return (
-    <div
+    <button
+      type="button"
       onClick={onToggle}
-      className={`border rounded-lg p-3 cursor-pointer transition-all ${
-        typeColors[card.type]
-      } ${isSelected ? "ring-2 ring-white" : ""}`}
+      className={`
+        w-full rounded-2xl border px-3 py-3 sm:px-4 sm:py-3 text-left
+        transition-all duration-150
+        bg-gradient-to-br ${gradient}
+        ${isSelected
+          ? "border-cyan-300 ring-2 ring-cyan-400 scale-[1.02] shadow-lg shadow-cyan-500/20"
+          : "border-slate-600 hover:border-slate-300 hover:shadow-md"}
+      `}
     >
-      <div className="font-semibold text-sm mb-1">{card.name}</div>
-      <div className="text-xs text-gray-400 mb-2">{card.description}</div>
-      <div className="flex justify-between items-center text-xs">
-        <span className="text-gray-500">{card.setKey}</span>
-        <span className="text-gray-400">Need {card.setSizeRequired}</span>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1">
+          <div className="text-sm font-semibold text-slate-50">
+            {card.name}
+          </div>
+          <div className="mt-1 text-xs text-slate-200">
+            {card.description}
+          </div>
+        </div>
+        <div className="text-right text-[10px] uppercase tracking-wide text-slate-300">
+          <div className="font-semibold">{card.setKey}</div>
+          <div className="mt-1">Need {card.setSizeRequired}</div>
+        </div>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -477,32 +542,50 @@ function OtherPlayersDisplay({
 
   return (
     <div className="mb-4">
-      <h3 className="font-semibold mb-2 text-gray-400">Other Players</h3>
+      <h3 className="text-lg font-semibold text-gray-50 mb-3">Other Players</h3>
       <div className="space-y-2">
-        {otherPlayers.map((p) => (
-          <div
-            key={p.id}
-            className={`p-3 rounded-lg border ${
-              p.id === activePlayerId
-                ? "border-yellow-600 bg-yellow-900/20"
-                : "border-gray-700 bg-gray-900"
-            }`}
-          >
-            <div className="flex justify-between items-center">
-              <span className="font-semibold">
-                {p.name}
-                {p.id === activePlayerId && (
-                  <span className="text-yellow-400 text-sm ml-2">(Active)</span>
+        {otherPlayers.map((p) => {
+          const readyRockets = p.rockets.filter((r) => r.status === "ready").length;
+          const points = p.trophies.reduce((sum, t) => sum + t.baseStrength, 0);
+
+          return (
+            <div
+              key={p.id}
+              className={`p-3 rounded-xl border ${
+                p.id === activePlayerId
+                  ? "border-yellow-500 bg-yellow-900/30"
+                  : "border-gray-700 bg-gray-800/60"
+              }`}
+            >
+              <div className="flex justify-between items-center mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-gray-100">{p.name}</span>
+                  {p.id === activePlayerId && (
+                    <span className="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-yellow-500/20 text-yellow-300 border border-yellow-500/50 rounded-full">
+                      Active
+                    </span>
+                  )}
+                </div>
+                <span className="text-yellow-400 font-semibold">{p.resourceCubes} cubes</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <span className="px-2 py-1 text-xs bg-gray-700/50 border border-gray-600 rounded-full text-gray-300">
+                  {p.hand.length} cards
+                </span>
+                {readyRockets > 0 && (
+                  <span className="px-2 py-1 text-xs bg-green-900/50 border border-green-600 rounded-full text-green-300">
+                    {readyRockets} ready
+                  </span>
                 )}
-              </span>
-              <span className="text-yellow-400">{p.resourceCubes} cubes</span>
+                {points > 0 && (
+                  <span className="px-2 py-1 text-xs bg-purple-900/50 border border-purple-600 rounded-full text-purple-300">
+                    {points} pts
+                  </span>
+                )}
+              </div>
             </div>
-            <div className="text-sm text-gray-400 mt-1">
-              {p.hand.length} cards | {p.rockets.filter((r) => r.status === "ready").length} rockets ready |{" "}
-              {p.trophies.reduce((sum, t) => sum + t.baseStrength, 0)} pts
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -616,11 +699,69 @@ export function CometRushGameView({
   const [targetPlayerId, setTargetPlayerId] = useState<string>("");
   const [targetRocketId, setTargetRocketId] = useState<string>("");
 
+  // Turn wizard state
+  const [turnWizardStep, setTurnWizardStep] = useState<TurnWizardStep>(null);
+  const [isBeginningTurn, setIsBeginningTurn] = useState(false);
+  const [isDrawingCard, setIsDrawingCard] = useState(false);
+  const prevTurnMetaRef = useRef<TurnMeta | null>(null);
+
   const gameState = state as CometRushState;
   const phase = gameState?.phase ?? "lobby";
   const player = gameState?.players?.[playerId];
   const activePlayerId = gameState?.playerOrder?.[gameState?.activePlayerIndex ?? 0] ?? null;
   const isMyTurn = playerId === activePlayerId;
+  const turnMeta = gameState?.turnMeta ?? null;
+
+  // Effect to detect turn start and trigger wizard
+  useEffect(() => {
+    // Only show wizard in playing phase and when it's my turn
+    if (phase !== "playing" || !isMyTurn || !turnMeta) return;
+
+    // Check if this is a new turn for me (turnMeta changed to my player)
+    const prevMeta = prevTurnMetaRef.current;
+    const isNewTurn =
+      turnMeta.playerId === playerId &&
+      (!prevMeta || prevMeta.playerId !== playerId || prevMeta.incomeGained !== turnMeta.incomeGained);
+
+    if (isNewTurn && turnMeta.incomeGained === 0 && turnMeta.lastDrawnCardId === null) {
+      // Fresh turn start - show "It's your turn" announcement
+      setTurnWizardStep("announce");
+    }
+
+    prevTurnMetaRef.current = turnMeta;
+  }, [phase, isMyTurn, turnMeta, playerId]);
+
+  // Begin turn handler - triggers income and rocket tick
+  async function handleBeginTurn() {
+    setIsBeginningTurn(true);
+    try {
+      await dispatchAction("BEGIN_TURN");
+      setTurnWizardStep("showIncome");
+    } finally {
+      setIsBeginningTurn(false);
+    }
+  }
+
+  // Draw turn card handler
+  async function handleDrawTurnCard() {
+    setIsDrawingCard(true);
+    try {
+      await dispatchAction("DRAW_TURN_CARD");
+      setTurnWizardStep("showCard");
+    } finally {
+      setIsDrawingCard(false);
+    }
+  }
+
+  // Dismiss wizard
+  function dismissWizard() {
+    setTurnWizardStep(null);
+  }
+
+  // Clear research result popup
+  async function handleClearResearchResult() {
+    await dispatchAction("CLEAR_RESEARCH_RESULT");
+  }
 
   async function handleStartGame() {
     setIsStarting(true);
@@ -761,25 +902,172 @@ export function CometRushGameView({
       {/* PLAYING PHASE */}
       {phase === "playing" && gameState && player && (
         <>
-          {/* Turn Indicator */}
+          {/* Turn Wizard Modal */}
+          {turnWizardStep && isMyTurn && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+              <div className="bg-gray-800 border border-gray-600 rounded-2xl p-6 m-4 max-w-sm w-full shadow-2xl">
+                {/* Step 1: Announce turn */}
+                {turnWizardStep === "announce" && (
+                  <div className="text-center">
+                    <div className="text-5xl mb-4">🚀</div>
+                    <h2 className="text-2xl font-bold text-green-400 mb-2">Your Turn!</h2>
+                    <p className="text-gray-400 mb-6">
+                      Round {gameState.round}
+                    </p>
+                    <button
+                      onClick={handleBeginTurn}
+                      disabled={isBeginningTurn}
+                      className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                    >
+                      {isBeginningTurn ? "Starting..." : "Begin Turn"}
+                    </button>
+                  </div>
+                )}
+
+                {/* Step 2: Show income gained */}
+                {turnWizardStep === "showIncome" && turnMeta && (
+                  <div className="text-center">
+                    <div className="text-5xl mb-4">💰</div>
+                    <h2 className="text-xl font-bold text-yellow-400 mb-2">Income Received!</h2>
+                    <div className="bg-gray-900 rounded-lg p-4 mb-4">
+                      <div className="text-3xl font-bold text-yellow-300">
+                        +{turnMeta.incomeGained} cubes
+                      </div>
+                      <div className="text-gray-400 text-sm mt-1">
+                        Total: {turnMeta.newTotalCubes} cubes
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setTurnWizardStep("promptDraw")}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                    >
+                      Continue
+                    </button>
+                  </div>
+                )}
+
+                {/* Step 3: Prompt to draw card */}
+                {turnWizardStep === "promptDraw" && (
+                  <div className="text-center">
+                    <div className="text-5xl mb-4">🃏</div>
+                    <h2 className="text-xl font-bold text-blue-400 mb-2">Draw Research Card</h2>
+                    <p className="text-gray-400 mb-6">
+                      {gameState.researchDeck.length > 0
+                        ? `${gameState.researchDeck.length} cards remaining in deck`
+                        : "Deck is empty!"}
+                    </p>
+                    <button
+                      onClick={handleDrawTurnCard}
+                      disabled={isDrawingCard || gameState.researchDeck.length === 0}
+                      className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                    >
+                      {isDrawingCard
+                        ? "Drawing..."
+                        : gameState.researchDeck.length === 0
+                        ? "No Cards Left"
+                        : "Draw Card"}
+                    </button>
+                    {gameState.researchDeck.length === 0 && (
+                      <button
+                        onClick={dismissWizard}
+                        className="w-full mt-3 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+                      >
+                        Continue Without Drawing
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Step 4: Show drawn card */}
+                {turnWizardStep === "showCard" && turnMeta && (
+                  <div className="text-center">
+                    <div className="text-5xl mb-4">✨</div>
+                    <h2 className="text-xl font-bold text-green-400 mb-2">Card Drawn!</h2>
+                    {(() => {
+                      const drawnCard = player.hand.find(
+                        (c) => c.id === turnMeta.lastDrawnCardId
+                      );
+                      if (!drawnCard) {
+                        return (
+                          <p className="text-gray-400 mb-6">No card was drawn.</p>
+                        );
+                      }
+                      const typeColors: Record<ResearchCard["type"], string> = {
+                        ROCKET_UPGRADE: "border-green-600 bg-green-900/40",
+                        COMET_INSIGHT: "border-blue-600 bg-blue-900/40",
+                        SABOTAGE: "border-red-600 bg-red-900/40",
+                      };
+                      return (
+                        <div
+                          className={`border-2 rounded-xl p-4 mb-4 ${typeColors[drawnCard.type]}`}
+                        >
+                          <div className="font-bold text-lg">{drawnCard.name}</div>
+                          <div className="text-sm text-gray-300 mt-1">
+                            {drawnCard.description}
+                          </div>
+                          <div className="text-xs text-gray-400 mt-2">
+                            {drawnCard.setKey} • Need {drawnCard.setSizeRequired}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    <button
+                      onClick={dismissWizard}
+                      className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                    >
+                      Start Playing
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Research Result Popup */}
+          {gameState.lastResearchResult &&
+            gameState.lastResearchResult.playerId === playerId && (
+              <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60">
+                <div className="w-full max-w-sm rounded-2xl bg-slate-900 p-4 m-4 border border-slate-700 shadow-xl">
+                  <div className="text-center">
+                    <div className="text-4xl mb-3">📜</div>
+                    <h2 className="text-sm font-semibold text-slate-50 uppercase tracking-wide">
+                      Research Result
+                    </h2>
+                    <p className="mt-3 text-sm text-slate-200">
+                      {gameState.lastResearchResult.description}
+                    </p>
+                    <button
+                      className="mt-4 w-full rounded-lg bg-sky-600 hover:bg-sky-700 px-3 py-2 text-sm font-semibold text-white transition-colors"
+                      onClick={handleClearResearchResult}
+                    >
+                      OK
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+          {/* Turn Indicator - sticky */}
           <div
-            className={`mb-4 p-3 rounded-lg text-center font-semibold ${
-              isMyTurn ? "bg-green-900/50 border border-green-600" : "bg-gray-800"
+            className={`sticky top-0 z-10 mb-4 p-3 rounded-xl text-center font-semibold backdrop-blur-sm ${
+              isMyTurn
+                ? "bg-green-900/80 border border-green-500 shadow-lg shadow-green-500/20"
+                : "bg-gray-800/90 border border-gray-700"
             }`}
           >
-            {isMyTurn ? (
-              "Your Turn!"
-            ) : (
-              <>
-                Waiting for{" "}
-                {gameState.players[activePlayerId ?? ""]?.name ?? "..."}
-              </>
-            )}
-          </div>
-
-          {/* Round Info */}
-          <div className="text-center text-sm text-gray-400 mb-4">
-            Round {gameState.round}
+            <div className="flex items-center justify-center gap-3">
+              <span className="text-xs text-gray-400 uppercase tracking-wide">
+                Round {gameState.round}
+              </span>
+              <span className="text-gray-600">|</span>
+              {isMyTurn ? (
+                <span className="text-green-300">Your Turn!</span>
+              ) : (
+                <span className="text-gray-300">
+                  Waiting for {gameState.players[activePlayerId ?? ""]?.name ?? "..."}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Comet Track */}
@@ -787,6 +1075,8 @@ export function CometRushGameView({
             distanceToImpact={gameState.distanceToImpact}
             lastMovementCard={gameState.lastMovementCard}
             activeStrengthCard={gameState.activeStrengthCard}
+            movementDeckCount={gameState.movementDeck.length}
+            strengthDeckCount={gameState.strengthDeck.length}
           />
 
           {/* Last Launch Result */}
@@ -812,26 +1102,28 @@ export function CometRushGameView({
           <TrophiesDisplay trophies={player.trophies} />
 
           {/* My Rockets */}
-          <section className="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-4">
-            <h3 className="font-semibold mb-3">Your Rockets</h3>
+          <section className="bg-gray-800/60 border border-gray-700 rounded-xl p-4 mb-4">
+            <h3 className="text-lg font-semibold text-gray-50 mb-4">Your Rockets</h3>
             {player.rockets.length === 0 ? (
-              <p className="text-gray-500 text-sm">No rockets yet. Build one below!</p>
+              <p className="text-sm text-gray-400">No rockets yet. Build one below!</p>
             ) : (
-              player.rockets
-                .filter((r) => r.status !== "spent")
-                .map((rocket) => (
-                  <RocketCard
-                    key={rocket.id}
-                    rocket={rocket}
-                    onLaunch={
-                      isMyTurn && !player.hasLaunchedRocketThisTurn
-                        ? () => handleLaunchRocket(rocket.id)
-                        : undefined
-                    }
-                    canLaunch={isMyTurn && !player.hasLaunchedRocketThisTurn}
-                    isLaunching={isLaunching}
-                  />
-                ))
+              <div className="space-y-2">
+                {player.rockets
+                  .filter((r) => r.status !== "spent")
+                  .map((rocket) => (
+                    <RocketCard
+                      key={rocket.id}
+                      rocket={rocket}
+                      onLaunch={
+                        isMyTurn && !player.hasLaunchedRocketThisTurn
+                          ? () => handleLaunchRocket(rocket.id)
+                          : undefined
+                      }
+                      canLaunch={isMyTurn && !player.hasLaunchedRocketThisTurn}
+                      isLaunching={isLaunching}
+                    />
+                  ))}
+              </div>
             )}
           </section>
 
@@ -839,23 +1131,27 @@ export function CometRushGameView({
           {isMyTurn && <BuildRocketForm player={player} onBuild={handleBuildRocket} isBuilding={isBuilding} />}
 
           {/* Research Cards */}
-          <section className="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-4">
-            <h3 className="font-semibold mb-3">
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-slate-50 mb-3">
               Research Cards ({player.hand.length})
               {player.hasPlayedResearchThisTurn && (
-                <span className="text-gray-500 text-sm ml-2">(played this turn)</span>
+                <span className="text-xs text-slate-400 ml-2">(played this turn)</span>
               )}
             </h3>
             {player.hand.length === 0 ? (
-              <p className="text-gray-500 text-sm">No cards in hand.</p>
+              <p className="text-sm text-slate-400">No cards in hand.</p>
             ) : (
-              <div className="grid grid-cols-1 gap-2">
+              <div className="space-y-2">
                 {player.hand.map((card) => (
                   <ResearchCardDisplay
                     key={card.id}
                     card={card}
                     isSelected={selectedCardIds.includes(card.id)}
-                    onToggle={() => isMyTurn && !player.hasPlayedResearchThisTurn && toggleCardSelection(card.id)}
+                    onToggle={() => {
+                      if (isMyTurn && !player.hasPlayedResearchThisTurn && !isCycleMode) {
+                        toggleCardSelection(card.id);
+                      }
+                    }}
                   />
                 ))}
               </div>
@@ -991,7 +1287,7 @@ export function CometRushGameView({
                 </button>
               </div>
             )}
-          </section>
+          </div>
 
           {/* Other Players */}
           <OtherPlayersDisplay
