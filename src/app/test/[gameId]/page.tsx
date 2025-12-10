@@ -35,6 +35,19 @@ interface SimSummary {
   totalRocketsLaunched: number;
 }
 
+interface SimRow {
+  id: number;
+  timestamp: number;
+  players: number;
+  rounds: number;
+  endReason: "earthDestroyed" | "cometDestroyed" | "maxRounds";
+  winnerIds: string[];
+  rocketsBuilt: number;
+  rocketsLaunched: number;
+}
+
+type SortKey = keyof SimRow;
+
 // ============================================================================
 // HELPERS
 // ============================================================================
@@ -401,6 +414,21 @@ export default function TestGamePage() {
   const [log, setLog] = useState<SimLogEntry[]>([]);
   const [isRunning, setIsRunning] = useState(false);
 
+  // All simulation runs
+  const [simRows, setSimRows] = useState<SimRow[]>([]);
+  const [nextId, setNextId] = useState(1);
+
+  // Sorting state
+  const [sortKey, setSortKey] = useState<SortKey>("id");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  // Filter state
+  const [filterId, setFilterId] = useState("");
+  const [filterPlayers, setFilterPlayers] = useState("");
+  const [filterRounds, setFilterRounds] = useState("");
+  const [filterEndReason, setFilterEndReason] = useState("");
+  const [filterWinner, setFilterWinner] = useState("");
+
   const runSimulation = useCallback(() => {
     setIsRunning(true);
     setSummary(null);
@@ -412,17 +440,121 @@ export default function TestGamePage() {
       setSummary(result.summary);
       setLog(result.log);
       setIsRunning(false);
+
+      // Add to simulation rows
+      const endReason = result.summary.cometDestroyed
+        ? "cometDestroyed"
+        : result.summary.earthDestroyed
+        ? "earthDestroyed"
+        : "maxRounds";
+
+      const row: SimRow = {
+        id: nextId,
+        timestamp: Date.now(),
+        players: playerCount,
+        rounds: result.summary.totalRounds,
+        endReason: endReason as "earthDestroyed" | "cometDestroyed" | "maxRounds",
+        winnerIds: result.summary.winner ? [result.summary.winner] : [],
+        rocketsBuilt: result.summary.totalRocketsBuilt,
+        rocketsLaunched: result.summary.totalRocketsLaunched,
+      };
+
+      setSimRows((prev) => [...prev, row]);
+      setNextId((id) => id + 1);
     }, 50);
-  }, [playerCount]);
+  }, [playerCount, nextId]);
+
+  // Sorting logic
+  const handleSort = useCallback((column: SortKey) => {
+    setSortKey((prevKey) => {
+      if (prevKey === column) {
+        setSortDir((prevDir) => (prevDir === "asc" ? "desc" : "asc"));
+        return prevKey;
+      } else {
+        setSortDir("asc");
+        return column;
+      }
+    });
+  }, []);
+
+  // Derived sorted rows
+  const sortedRows = [...simRows].sort((a, b) => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    const va = a[sortKey];
+    const vb = b[sortKey];
+
+    if (typeof va === "number" && typeof vb === "number") {
+      return (va - vb) * dir;
+    }
+    if (Array.isArray(va) && Array.isArray(vb)) {
+      return (va.length - vb.length) * dir;
+    }
+    return String(va).localeCompare(String(vb)) * dir;
+  });
+
+  // Derived filtered rows
+  const filteredRows = sortedRows.filter((row) => {
+    if (filterId && !String(row.id).includes(filterId.trim())) return false;
+    if (filterPlayers && !String(row.players).includes(filterPlayers.trim()))
+      return false;
+    if (filterRounds && !String(row.rounds).includes(filterRounds.trim()))
+      return false;
+    if (
+      filterEndReason &&
+      !row.endReason.toLowerCase().includes(filterEndReason.toLowerCase().trim())
+    )
+      return false;
+    if (filterWinner) {
+      const winners = row.winnerIds.join(",");
+      if (!winners.toLowerCase().includes(filterWinner.toLowerCase().trim()))
+        return false;
+    }
+    return true;
+  });
+
+  // Copy table to clipboard
+  const handleCopyTable = useCallback(async () => {
+    if (!navigator.clipboard) return;
+
+    const header = [
+      "#",
+      "players",
+      "rounds",
+      "endReason",
+      "timestamp",
+      "winners",
+      "rocketsBuilt",
+      "rocketsLaunched",
+    ];
+
+    const lines = [
+      header.join("\t"),
+      ...filteredRows.map((row) =>
+        [
+          row.id,
+          row.players,
+          row.rounds,
+          row.endReason,
+          new Date(row.timestamp).toISOString(),
+          row.winnerIds.join(","),
+          row.rocketsBuilt,
+          row.rocketsLaunched,
+        ].join("\t"),
+      ),
+    ];
+
+    const text = lines.join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (e) {
+      console.error("Failed to copy table", e);
+    }
+  }, [filteredRows]);
 
   return (
     <main className="flex min-h-screen flex-col items-center p-8">
-      <h1 className="text-3xl font-bold mb-2">
-        Test: {gameId}
-      </h1>
-      <p className="text-gray-400 mb-6">
-        {playerCount} players
-      </p>
+      <h1 className="text-3xl font-bold mb-2">Test: {gameId}</h1>
+      <p className="text-gray-400 mb-6">{playerCount} players</p>
 
       <div className="flex gap-4 mb-8">
         <button
@@ -440,13 +572,176 @@ export default function TestGamePage() {
         </Link>
       </div>
 
+      {/* Simulation Runs Table */}
+      <section className="w-full max-w-6xl mb-8">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <h2 className="text-sm font-semibold text-slate-100">
+            Simulation Runs ({filteredRows.length})
+          </h2>
+          <button
+            type="button"
+            onClick={handleCopyTable}
+            disabled={filteredRows.length === 0}
+            className="rounded-lg border border-slate-600 px-2 py-1 text-[11px] font-semibold text-slate-100 hover:border-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Copy Table
+          </button>
+        </div>
+
+        <div className="rounded-xl border border-slate-700 bg-slate-900/60 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-xs text-slate-200">
+              <thead>
+                <tr className="border-b border-slate-700 text-[11px] uppercase tracking-wide text-slate-400">
+                  <th
+                    className="cursor-pointer px-2 py-1 hover:text-slate-200"
+                    onClick={() => handleSort("id")}
+                  >
+                    # {sortKey === "id" && (sortDir === "asc" ? "↑" : "↓")}
+                  </th>
+                  <th
+                    className="cursor-pointer px-2 py-1 hover:text-slate-200"
+                    onClick={() => handleSort("players")}
+                  >
+                    Players {sortKey === "players" && (sortDir === "asc" ? "↑" : "↓")}
+                  </th>
+                  <th
+                    className="cursor-pointer px-2 py-1 hover:text-slate-200"
+                    onClick={() => handleSort("rounds")}
+                  >
+                    Rounds {sortKey === "rounds" && (sortDir === "asc" ? "↑" : "↓")}
+                  </th>
+                  <th
+                    className="cursor-pointer px-2 py-1 hover:text-slate-200"
+                    onClick={() => handleSort("endReason")}
+                  >
+                    End Reason {sortKey === "endReason" && (sortDir === "asc" ? "↑" : "↓")}
+                  </th>
+                  <th
+                    className="cursor-pointer px-2 py-1 hover:text-slate-200"
+                    onClick={() => handleSort("rocketsBuilt")}
+                  >
+                    Built {sortKey === "rocketsBuilt" && (sortDir === "asc" ? "↑" : "↓")}
+                  </th>
+                  <th
+                    className="cursor-pointer px-2 py-1 hover:text-slate-200"
+                    onClick={() => handleSort("rocketsLaunched")}
+                  >
+                    Launched {sortKey === "rocketsLaunched" && (sortDir === "asc" ? "↑" : "↓")}
+                  </th>
+                  <th
+                    className="cursor-pointer px-2 py-1 hover:text-slate-200"
+                    onClick={() => handleSort("timestamp")}
+                  >
+                    Time {sortKey === "timestamp" && (sortDir === "asc" ? "↑" : "↓")}
+                  </th>
+                  <th className="px-2 py-1">Winners</th>
+                </tr>
+
+                {/* Filter row */}
+                <tr className="border-b border-slate-800 text-[11px]">
+                  <th className="px-2 py-1">
+                    <input
+                      className="w-full rounded bg-slate-800 px-1 py-0.5 outline-none text-slate-200"
+                      value={filterId}
+                      onChange={(e) => setFilterId(e.target.value)}
+                      placeholder="#"
+                    />
+                  </th>
+                  <th className="px-2 py-1">
+                    <input
+                      className="w-full rounded bg-slate-800 px-1 py-0.5 outline-none text-slate-200"
+                      value={filterPlayers}
+                      onChange={(e) => setFilterPlayers(e.target.value)}
+                      placeholder="Any"
+                    />
+                  </th>
+                  <th className="px-2 py-1">
+                    <input
+                      className="w-full rounded bg-slate-800 px-1 py-0.5 outline-none text-slate-200"
+                      value={filterRounds}
+                      onChange={(e) => setFilterRounds(e.target.value)}
+                      placeholder="Any"
+                    />
+                  </th>
+                  <th className="px-2 py-1">
+                    <input
+                      className="w-full rounded bg-slate-800 px-1 py-0.5 outline-none text-slate-200"
+                      value={filterEndReason}
+                      onChange={(e) => setFilterEndReason(e.target.value)}
+                      placeholder="hit/destroy"
+                    />
+                  </th>
+                  <th className="px-2 py-1"></th>
+                  <th className="px-2 py-1"></th>
+                  <th className="px-2 py-1"></th>
+                  <th className="px-2 py-1">
+                    <input
+                      className="w-full rounded bg-slate-800 px-1 py-0.5 outline-none text-slate-200"
+                      value={filterWinner}
+                      onChange={(e) => setFilterWinner(e.target.value)}
+                      placeholder="Winner"
+                    />
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredRows.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={8}
+                      className="px-2 py-3 text-center text-[11px] text-slate-500"
+                    >
+                      No simulation runs yet. Click &quot;Run Simulation&quot; to get started.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredRows.map((row) => (
+                    <tr key={row.id} className="border-b border-slate-800 hover:bg-slate-800/30">
+                      <td className="px-2 py-1 text-[11px]">{row.id}</td>
+                      <td className="px-2 py-1 text-[11px]">{row.players}</td>
+                      <td className="px-2 py-1 text-[11px]">{row.rounds}</td>
+                      <td className="px-2 py-1 text-[11px]">
+                        <span
+                          className={
+                            row.endReason === "cometDestroyed"
+                              ? "text-green-400"
+                              : row.endReason === "earthDestroyed"
+                              ? "text-red-400"
+                              : "text-yellow-400"
+                          }
+                        >
+                          {row.endReason}
+                        </span>
+                      </td>
+                      <td className="px-2 py-1 text-[11px]">{row.rocketsBuilt}</td>
+                      <td className="px-2 py-1 text-[11px]">{row.rocketsLaunched}</td>
+                      <td className="px-2 py-1 text-[11px]">
+                        {new Date(row.timestamp).toLocaleTimeString()}
+                      </td>
+                      <td className="px-2 py-1 text-[11px]">
+                        {row.winnerIds.join(", ") || "—"}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      {/* Last Run Summary */}
       {summary && (
         <div className="w-full max-w-2xl mb-8">
-          <h2 className="text-xl font-semibold mb-4">Summary</h2>
+          <h2 className="text-xl font-semibold mb-4">Last Run Summary</h2>
           <div className="bg-gray-800 rounded-lg p-4 space-y-2">
             <div className="flex justify-between">
               <span className="text-gray-400">Outcome:</span>
-              <span className={summary.cometDestroyed ? "text-green-400" : "text-red-400"}>
+              <span
+                className={summary.cometDestroyed ? "text-green-400" : "text-red-400"}
+              >
                 {summary.cometDestroyed ? "Comet Destroyed!" : "Earth Destroyed!"}
               </span>
             </div>
@@ -479,6 +774,7 @@ export default function TestGamePage() {
         </div>
       )}
 
+      {/* Action Log */}
       {log.length > 0 && (
         <div className="w-full max-w-2xl">
           <h2 className="text-xl font-semibold mb-4">Action Log</h2>
@@ -486,7 +782,9 @@ export default function TestGamePage() {
             {log.map((entry, i) => (
               <div key={i} className="flex gap-2 py-1 border-b border-gray-700 last:border-0">
                 <span className="text-gray-500 w-12 shrink-0">R{entry.round}</span>
-                <span className="text-blue-400 w-20 shrink-0">{entry.playerId.replace("player-", "P")}</span>
+                <span className="text-blue-400 w-20 shrink-0">
+                  {entry.playerId.replace("player-", "P")}
+                </span>
                 <span className="text-yellow-400 w-32 shrink-0">{entry.action}</span>
                 <span className="text-gray-300">{entry.details}</span>
               </div>
