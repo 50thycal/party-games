@@ -22,6 +22,13 @@ export default function HomePage() {
           Join Room
         </Link>
       </div>
+
+      <Link
+        href="/test"
+        className="mt-8 text-sm text-gray-500 hover:text-gray-400 transition-colors"
+      >
+        Test game (dev)
+      </Link>
     </main>
   );
 }
