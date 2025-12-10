@@ -77,6 +77,135 @@ function createGameContext(
 }
 
 // ============================================================================
+// BOT INTELLIGENCE HELPERS
+// ============================================================================
+
+type ResearchSetOption = {
+  setKey: string;
+  type: ResearchCard["type"];
+  cards: ResearchCard[];
+};
+
+function getPlayableResearchSets(
+  player: CometRushPlayerState,
+): ResearchSetOption[] {
+  const bySetKey = new Map<
+    string,
+    { card: ResearchCard; type: ResearchCard["type"]; setSizeRequired: number }[]
+  >();
+
+  for (const card of player.hand) {
+    const key = card.setKey;
+    if (!key) continue;
+    const bucket = bySetKey.get(key) ?? [];
+    bucket.push({
+      card,
+      type: card.type,
+      setSizeRequired: card.setSizeRequired ?? 1,
+    });
+    bySetKey.set(key, bucket);
+  }
+
+  const result: ResearchSetOption[] = [];
+
+  for (const [setKey, bucket] of bySetKey) {
+    const setSizeRequired = bucket[0].setSizeRequired || 1;
+    if (bucket.length >= setSizeRequired) {
+      result.push({
+        setKey,
+        type: bucket[0].type,
+        cards: bucket.slice(0, setSizeRequired).map((b) => b.card),
+      });
+    }
+  }
+
+  return result;
+}
+
+const RESEARCH_PRIORITY: string[] = [
+  "INCOME",
+  "MAX_ROCKETS",
+  "BUILD_TIME",
+  "POWER",
+  "ACCURACY",
+  "PEEK_STRENGTH",
+  "PEEK_MOVE",
+  "STEAL_RESOURCES",
+  "DELAY_BUILD",
+  "STEAL_CARD",
+];
+
+function chooseResearchSetToPlay(
+  player: CometRushPlayerState,
+): ResearchSetOption | null {
+  const options = getPlayableResearchSets(player);
+  if (options.length === 0) return null;
+
+  // Sort by our priority list
+  options.sort((a, b) => {
+    const pa = RESEARCH_PRIORITY.indexOf(a.setKey);
+    const pb = RESEARCH_PRIORITY.indexOf(b.setKey);
+    return (pa === -1 ? 999 : pa) - (pb === -1 ? 999 : pb);
+  });
+
+  // 70% of the time we play the "best" one, otherwise random
+  const best = options[0];
+  if (Math.random() < 0.7 || options.length === 1) return best;
+
+  return options[1 + Math.floor(Math.random() * (options.length - 1))];
+}
+
+type RocketConfig = {
+  buildTimeBase: number;
+  power: number;
+  accuracy: number;
+};
+
+function chooseRocketToBuild(
+  player: CometRushPlayerState,
+): RocketConfig | null {
+  const { powerCap, accuracyCap, buildTimeCap } = player.upgrades;
+
+  // Check if we have capacity for more rockets
+  const maxSlots =
+    player.maxConcurrentRockets + player.upgrades.maxRocketsBonus;
+  const buildingOrReady = player.rockets.filter(
+    (r) => r.status === "building" || r.status === "ready",
+  ).length;
+  if (buildingOrReady >= maxSlots) return null;
+
+  // If low on cubes, skip building
+  if (player.resourceCubes < 4) return null;
+
+  const buildTimeBase = Math.max(
+    1,
+    Math.min(buildTimeCap, 3), // try to keep around 3 turns
+  );
+
+  const targetPower = Math.min(powerCap, 5); // aim for ~5 power
+  const targetAccuracy = Math.min(accuracyCap, 7); // "hit on 7 or less" style
+
+  return {
+    buildTimeBase,
+    power: targetPower,
+    accuracy: targetAccuracy,
+  };
+}
+
+function chooseRocketToLaunch(
+  player: CometRushPlayerState,
+): string | null {
+  const ready = player.rockets.filter((r) => r.status === "ready");
+  if (ready.length === 0) return null;
+
+  // Launch the highest power ready rocket
+  ready.sort((a, b) => b.power - a.power);
+  const choice = ready[0];
+
+  return choice.id;
+}
+
+// ============================================================================
 // BOT LOGIC
 // ============================================================================
 
@@ -120,42 +249,57 @@ function simulateBotTurn(
     addLog("DRAW_TURN_CARD", cardId ? `Drew card ${cardId}` : "No cards to draw");
   }
 
-  // 3. Try to build a rocket if we have enough resources and capacity
-  const player = currentState.players[playerId];
-  if (player) {
-    const activeRockets = player.rockets.filter(
-      (r) => r.status === "building" || r.status === "ready"
-    ).length;
-    const maxRockets = player.maxConcurrentRockets + player.upgrades.maxRocketsBonus;
+  // 3. MAYBE play one research set
+  let player = currentState.players[playerId];
+  if (player && !player.hasPlayedResearchThisTurn) {
+    const choice = chooseResearchSetToPlay(player);
+    if (choice) {
+      if (
+        dispatch({
+          type: "PLAY_RESEARCH_SET",
+          playerId,
+          payload: { cardIds: choice.cards.map((c) => c.id) },
+        })
+      ) {
+        addLog(
+          "PLAY_RESEARCH_SET",
+          `Played ${choice.setKey} (${choice.cards.length} cards)`
+        );
+      }
+    }
+  }
 
-    if (activeRockets < maxRockets && player.resourceCubes >= 3) {
-      // Simple bot: build a basic rocket (power 1, accuracy 2, build time 2)
-      const power = Math.min(1, player.upgrades.powerCap);
-      const accuracy = Math.min(2, player.upgrades.accuracyCap);
-      const buildTime = Math.min(2, player.upgrades.buildTimeCap);
-
+  // 4. MAYBE build one rocket (with intelligent stats)
+  player = currentState.players[playerId];
+  if (player && !player.hasBuiltRocketThisTurn) {
+    const config = chooseRocketToBuild(player);
+    if (config) {
       if (
         dispatch({
           type: "BUILD_ROCKET",
           playerId,
-          payload: { buildTimeBase: buildTime, power, accuracy },
+          payload: config,
         })
       ) {
         rocketsBuilt++;
-        addLog("BUILD_ROCKET", `Power: ${power}, Accuracy: ${accuracy}, Build time: ${buildTime}`);
+        addLog(
+          "BUILD_ROCKET",
+          `P=${config.power}, A=${config.accuracy}, T=${config.buildTimeBase}`
+        );
       }
     }
+  }
 
-    // 4. Try to launch a ready rocket
-    const readyRocket = currentState.players[playerId]?.rockets.find(
-      (r) => r.status === "ready"
-    );
-    if (readyRocket) {
+  // 5. MAYBE launch one ready rocket
+  player = currentState.players[playerId];
+  if (player && !player.hasLaunchedRocketThisTurn) {
+    const rocketId = chooseRocketToLaunch(player);
+    if (rocketId) {
       if (
         dispatch({
           type: "LAUNCH_ROCKET",
           playerId,
-          payload: { rocketId: readyRocket.id },
+          payload: { rocketId },
         })
       ) {
         rocketsLaunched++;
@@ -172,7 +316,7 @@ function simulateBotTurn(
     }
   }
 
-  // 5. END_TURN
+  // 6. END_TURN
   if (dispatch({ type: "END_TURN", playerId })) {
     addLog("END_TURN", `Distance to impact: ${currentState.distanceToImpact}`);
   }
