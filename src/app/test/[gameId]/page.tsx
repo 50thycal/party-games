@@ -19,10 +19,14 @@ import type { Player, GameContext, Room } from "@/engine/types";
 // ============================================================================
 
 interface SimLogEntry {
+  id: number;
   round: number;
   playerId: string;
+  playerLabel: string;
   action: string;
+  actionType: string;
   details: string;
+  summary: string;
 }
 
 interface SimSummary {
@@ -47,6 +51,8 @@ interface SimRow {
 }
 
 type SortKey = keyof SimRow;
+
+type LogSortKey = "id" | "round" | "playerLabel" | "actionType";
 
 // ============================================================================
 // HELPERS
@@ -249,7 +255,17 @@ function simulateBotTurn(
   };
 
   const addLog = (action: string, details: string) => {
-    log.push({ round: currentState.round, playerId, action, details });
+    const playerLabel = playerId.replace("player-", "P");
+    log.push({
+      id: 0, // Will be assigned after simulation completes
+      round: currentState.round,
+      playerId,
+      playerLabel,
+      action,
+      actionType: action,
+      details,
+      summary: details,
+    });
   };
 
   // 1. BEGIN_TURN
@@ -362,7 +378,16 @@ function runCometRushSimulation(
   let totalRocketsBuilt = 0;
   let totalRocketsLaunched = 0;
 
-  log.push({ round: 1, playerId: "SYSTEM", action: "START_GAME", details: `Game started with ${playerCount} players` });
+  log.push({
+    id: 0,
+    round: 1,
+    playerId: "SYSTEM",
+    playerLabel: "SYSTEM",
+    action: "START_GAME",
+    actionType: "START_GAME",
+    details: `Game started with ${playerCount} players`,
+    summary: `Game started with ${playerCount} players`,
+  });
 
   // Run simulation loop
   let safetyCounter = 0;
@@ -397,7 +422,13 @@ function runCometRushSimulation(
     totalRocketsLaunched,
   };
 
-  return { summary, log };
+  // Assign IDs to log entries
+  const logWithIds = log.map((entry, index) => ({
+    ...entry,
+    id: index + 1,
+  }));
+
+  return { summary, log: logWithIds };
 }
 
 // ============================================================================
@@ -428,6 +459,17 @@ export default function TestGamePage() {
   const [filterRounds, setFilterRounds] = useState("");
   const [filterEndReason, setFilterEndReason] = useState("");
   const [filterWinner, setFilterWinner] = useState("");
+
+  // Action Log sorting state
+  const [logSortKey, setLogSortKey] = useState<LogSortKey>("id");
+  const [logSortDir, setLogSortDir] = useState<"asc" | "desc">("asc");
+
+  // Action Log filter state
+  const [filterLogId, setFilterLogId] = useState("");
+  const [filterLogRound, setFilterLogRound] = useState("");
+  const [filterLogPlayer, setFilterLogPlayer] = useState("");
+  const [filterLogAction, setFilterLogAction] = useState("");
+  const [filterLogSummary, setFilterLogSummary] = useState("");
 
   const runSimulation = useCallback(() => {
     setIsRunning(true);
@@ -550,6 +592,82 @@ export default function TestGamePage() {
       console.error("Failed to copy table", e);
     }
   }, [filteredRows]);
+
+  // Action Log sorting logic
+  const handleLogSort = useCallback((column: LogSortKey) => {
+    setLogSortKey((prevKey) => {
+      if (prevKey === column) {
+        setLogSortDir((prevDir) => (prevDir === "asc" ? "desc" : "asc"));
+        return prevKey;
+      } else {
+        setLogSortDir("asc");
+        return column;
+      }
+    });
+  }, []);
+
+  // Derived sorted action log
+  const sortedActionLog = [...log].sort((a, b) => {
+    const dir = logSortDir === "asc" ? 1 : -1;
+    const va = a[logSortKey];
+    const vb = b[logSortKey];
+
+    if (typeof va === "number" && typeof vb === "number") {
+      return (va - vb) * dir;
+    }
+    return String(va).localeCompare(String(vb)) * dir;
+  });
+
+  // Derived filtered action log
+  const filteredActionLog = sortedActionLog.filter((row) => {
+    if (filterLogId && !String(row.id).includes(filterLogId.trim())) return false;
+    if (filterLogRound && !String(row.round).includes(filterLogRound.trim()))
+      return false;
+    if (
+      filterLogPlayer &&
+      !row.playerLabel.toLowerCase().includes(filterLogPlayer.toLowerCase().trim())
+    )
+      return false;
+    if (
+      filterLogAction &&
+      !row.actionType.toLowerCase().includes(filterLogAction.toLowerCase().trim())
+    )
+      return false;
+    if (
+      filterLogSummary &&
+      !row.summary.toLowerCase().includes(filterLogSummary.toLowerCase().trim())
+    )
+      return false;
+    return true;
+  });
+
+  // Copy action log to clipboard
+  const handleCopyActionLog = useCallback(async () => {
+    if (!navigator.clipboard) return;
+
+    const header = ["#", "round", "player", "action", "details"];
+
+    const lines = [
+      header.join("\t"),
+      ...filteredActionLog.map((row) =>
+        [
+          row.id,
+          row.round,
+          row.playerLabel,
+          row.actionType,
+          row.summary.replace(/\s+/g, " "),
+        ].join("\t"),
+      ),
+    ];
+
+    const text = lines.join("\n");
+
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (err) {
+      console.error("Failed to copy action log", err);
+    }
+  }, [filteredActionLog]);
 
   return (
     <main className="flex min-h-screen flex-col items-center p-8">
@@ -776,21 +894,137 @@ export default function TestGamePage() {
 
       {/* Action Log */}
       {log.length > 0 && (
-        <div className="w-full max-w-2xl">
-          <h2 className="text-xl font-semibold mb-4">Action Log</h2>
-          <div className="bg-gray-800 rounded-lg p-4 max-h-96 overflow-y-auto font-mono text-sm">
-            {log.map((entry, i) => (
-              <div key={i} className="flex gap-2 py-1 border-b border-gray-700 last:border-0">
-                <span className="text-gray-500 w-12 shrink-0">R{entry.round}</span>
-                <span className="text-blue-400 w-20 shrink-0">
-                  {entry.playerId.replace("player-", "P")}
-                </span>
-                <span className="text-yellow-400 w-32 shrink-0">{entry.action}</span>
-                <span className="text-gray-300">{entry.details}</span>
-              </div>
-            ))}
+        <section className="w-full max-w-6xl">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <h2 className="text-sm font-semibold text-slate-100">
+              Action Log ({filteredActionLog.length})
+            </h2>
+            <button
+              type="button"
+              onClick={handleCopyActionLog}
+              disabled={filteredActionLog.length === 0}
+              className="rounded-lg border border-slate-600 px-2 py-1 text-[11px] font-semibold text-slate-100 hover:border-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Copy Log
+            </button>
           </div>
-        </div>
+
+          <div className="rounded-xl border border-slate-700 bg-slate-900/60 overflow-hidden">
+            <div className="overflow-x-auto max-h-96">
+              <table className="min-w-full text-left text-xs text-slate-200">
+                <thead className="sticky top-0 bg-slate-900">
+                  <tr className="border-b border-slate-700 text-[11px] uppercase tracking-wide text-slate-400">
+                    <th
+                      className="cursor-pointer px-2 py-1 hover:text-slate-200"
+                      onClick={() => handleLogSort("id")}
+                    >
+                      # {logSortKey === "id" && (logSortDir === "asc" ? "↑" : "↓")}
+                    </th>
+                    <th
+                      className="cursor-pointer px-2 py-1 hover:text-slate-200"
+                      onClick={() => handleLogSort("round")}
+                    >
+                      R {logSortKey === "round" && (logSortDir === "asc" ? "↑" : "↓")}
+                    </th>
+                    <th
+                      className="cursor-pointer px-2 py-1 hover:text-slate-200"
+                      onClick={() => handleLogSort("playerLabel")}
+                    >
+                      Player{" "}
+                      {logSortKey === "playerLabel" && (logSortDir === "asc" ? "↑" : "↓")}
+                    </th>
+                    <th
+                      className="cursor-pointer px-2 py-1 hover:text-slate-200"
+                      onClick={() => handleLogSort("actionType")}
+                    >
+                      Action{" "}
+                      {logSortKey === "actionType" && (logSortDir === "asc" ? "↑" : "↓")}
+                    </th>
+                    <th className="px-2 py-1">Details</th>
+                  </tr>
+
+                  {/* Filter row */}
+                  <tr className="border-b border-slate-800 text-[11px] bg-slate-900">
+                    <th className="px-2 py-1">
+                      <input
+                        className="w-full rounded bg-slate-800 px-1 py-0.5 outline-none text-slate-200"
+                        value={filterLogId}
+                        onChange={(e) => setFilterLogId(e.target.value)}
+                        placeholder="#"
+                      />
+                    </th>
+                    <th className="px-2 py-1">
+                      <input
+                        className="w-full rounded bg-slate-800 px-1 py-0.5 outline-none text-slate-200"
+                        value={filterLogRound}
+                        onChange={(e) => setFilterLogRound(e.target.value)}
+                        placeholder="R"
+                      />
+                    </th>
+                    <th className="px-2 py-1">
+                      <input
+                        className="w-full rounded bg-slate-800 px-1 py-0.5 outline-none text-slate-200"
+                        value={filterLogPlayer}
+                        onChange={(e) => setFilterLogPlayer(e.target.value)}
+                        placeholder="P1/P2/..."
+                      />
+                    </th>
+                    <th className="px-2 py-1">
+                      <input
+                        className="w-full rounded bg-slate-800 px-1 py-0.5 outline-none text-slate-200"
+                        value={filterLogAction}
+                        onChange={(e) => setFilterLogAction(e.target.value)}
+                        placeholder="BEGIN_TURN"
+                      />
+                    </th>
+                    <th className="px-2 py-1">
+                      <input
+                        className="w-full rounded bg-slate-800 px-1 py-0.5 outline-none text-slate-200"
+                        value={filterLogSummary}
+                        onChange={(e) => setFilterLogSummary(e.target.value)}
+                        placeholder="text search"
+                      />
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {filteredActionLog.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="px-2 py-3 text-center text-[11px] text-slate-500"
+                      >
+                        No actions to display.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredActionLog.map((row) => (
+                      <tr
+                        key={row.id}
+                        className="border-b border-slate-800 align-top hover:bg-slate-800/30"
+                      >
+                        <td className="px-2 py-1 text-[11px] text-slate-400">{row.id}</td>
+                        <td className="px-2 py-1 text-[11px] text-slate-200">
+                          R{row.round}
+                        </td>
+                        <td className="px-2 py-1 text-[11px] text-sky-400">
+                          {row.playerLabel}
+                        </td>
+                        <td className="px-2 py-1 text-[11px] text-amber-300 font-mono">
+                          {row.actionType}
+                        </td>
+                        <td className="px-2 py-1 text-[11px] text-slate-200">
+                          {row.summary}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
       )}
     </main>
   );
