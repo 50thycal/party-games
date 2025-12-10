@@ -54,39 +54,32 @@ function CometTrack({
       ? "bg-yellow-500"
       : "bg-green-500";
 
-  const DeckVisual = ({
-    label,
-    count,
-    color,
-  }: {
-    label: string;
-    count: number;
-    color: string;
-  }) => (
-    <div className="relative w-16 h-22">
-      {/* back card */}
-      <div className="absolute inset-0 translate-x-1 translate-y-1 rounded-lg border border-gray-700 bg-gray-900/60" />
-      {/* front card */}
-      <div className={`absolute inset-0 rounded-lg border ${color} bg-gray-800/80 flex flex-col justify-between p-2`}>
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-200">
-          {label}
-        </span>
-        <span className="text-[10px] text-gray-400">Deck</span>
+  const DeckChip = ({ label, count, borderColor }: { label: string; count: number; borderColor: string }) => (
+    <div className="flex flex-col items-center">
+      <div className="relative h-10 w-14">
+        {/* Back card shadow */}
+        <div className="absolute inset-0 translate-x-0.5 translate-y-0.5 rounded-md border border-slate-700 bg-slate-900/70" />
+        {/* Front card */}
+        <div className={`absolute inset-0 rounded-md border ${borderColor} bg-slate-800/90 flex items-center justify-center`}>
+          <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-200">
+            {label}
+          </span>
+        </div>
       </div>
-      {/* count badge */}
-      <div className="absolute -bottom-1 -right-1 rounded-full bg-black/90 px-2 py-0.5 text-[11px] font-bold text-white border border-gray-600">
+      {/* Count badge */}
+      <div className="mt-1 rounded-full bg-black/80 px-2 py-0.5 text-[10px] font-bold text-slate-100 border border-slate-700">
         {count}
       </div>
     </div>
   );
 
   return (
-    <div className="bg-gray-900 rounded-xl border border-gray-700 p-4 mb-4">
+    <div className="bg-slate-900/60 rounded-xl border border-slate-700 p-4 mb-4">
       <div className="flex items-start justify-between gap-4">
         {/* Left side - distance info */}
         <div className="flex-1">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">Comet Distance</span>
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Comet Distance</span>
             <span className="font-bold text-lg">
               {distanceToImpact} / 18
               {lastMovementCard && (
@@ -96,13 +89,13 @@ function CometTrack({
               )}
             </span>
           </div>
-          <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+          <div className="w-full bg-slate-700 rounded-full h-3 overflow-hidden">
             <div
               className={`h-full ${dangerColor} transition-all duration-500`}
               style={{ width: `${percentage}%` }}
             />
           </div>
-          <div className="flex justify-between text-xs text-gray-500 mt-1">
+          <div className="flex justify-between text-xs text-slate-500 mt-1">
             <span>Impact!</span>
             <span>Safe</span>
           </div>
@@ -111,7 +104,7 @@ function CometTrack({
             <div className="mt-3 p-3 bg-amber-900/30 border border-amber-600/60 rounded-lg">
               <div className="text-xs uppercase tracking-wide text-amber-400 mb-1">Active Comet Segment</div>
               <div className="flex justify-between items-center">
-                <span className="text-gray-300 text-sm">Strength:</span>
+                <span className="text-slate-300 text-sm">Strength:</span>
                 <span className="text-xl font-bold text-amber-300">
                   {activeStrengthCard.currentStrength}
                   {activeStrengthCard.currentStrength !== activeStrengthCard.baseStrength && (
@@ -125,10 +118,10 @@ function CometTrack({
           )}
         </div>
 
-        {/* Right side - deck visuals */}
-        <div className="flex flex-col gap-3 pt-1">
-          <DeckVisual label="Move" count={movementDeckCount} color="border-cyan-600" />
-          <DeckVisual label="Str" count={strengthDeckCount} color="border-amber-600" />
+        {/* Right side - compact deck chips */}
+        <div className="flex flex-col items-center gap-2 pt-1">
+          <DeckChip label="Move" count={movementDeckCount} borderColor="border-cyan-500" />
+          <DeckChip label="Str" count={strengthDeckCount} borderColor="border-amber-500" />
         </div>
       </div>
     </div>
@@ -259,37 +252,38 @@ function ResearchCardDisplay({
   onToggle: () => void;
 }) {
   const typeColors: Record<ResearchCard["type"], string> = {
-    ROCKET_UPGRADE: "border-green-600 bg-green-900/40",
-    COMET_INSIGHT: "border-blue-600 bg-blue-900/40",
-    SABOTAGE: "border-red-600 bg-red-900/40",
+    ROCKET_UPGRADE: "from-emerald-700/70 to-emerald-900/80",
+    COMET_INSIGHT: "from-sky-700/70 to-sky-900/80",
+    SABOTAGE: "from-rose-700/70 to-rose-900/80",
   };
 
-  const baseColor = typeColors[card.type];
+  const gradient = typeColors[card.type];
 
   return (
     <button
       type="button"
       onClick={onToggle}
-      className={`w-full text-left rounded-xl p-4 border-2 transition-all duration-150 ${
-        isSelected
-          ? `${baseColor} ring-2 ring-cyan-400 scale-[1.02] shadow-lg shadow-cyan-500/20 border-cyan-400`
-          : `${baseColor} hover:border-gray-400 hover:bg-opacity-60`
-      }`}
+      className={`
+        w-full rounded-2xl border px-3 py-3 sm:px-4 sm:py-3 text-left
+        transition-all duration-150
+        bg-gradient-to-br ${gradient}
+        ${isSelected
+          ? "border-cyan-300 ring-2 ring-cyan-400 scale-[1.02] shadow-lg shadow-cyan-500/20"
+          : "border-slate-600 hover:border-slate-300 hover:shadow-md"}
+      `}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1">
-          <div className="text-sm font-semibold text-gray-50">
+          <div className="text-sm font-semibold text-slate-50">
             {card.name}
           </div>
-          <div className="mt-1 text-xs text-gray-300">
+          <div className="mt-1 text-xs text-slate-200">
             {card.description}
           </div>
         </div>
-        <div className="text-right text-[10px] uppercase tracking-wide text-gray-400">
+        <div className="text-right text-[10px] uppercase tracking-wide text-slate-300">
           <div className="font-semibold">{card.setKey}</div>
-          <div className="mt-1 text-[11px] text-gray-500">
-            Need {card.setSizeRequired}
-          </div>
+          <div className="mt-1">Need {card.setSizeRequired}</div>
         </div>
       </div>
     </button>
@@ -1107,17 +1101,17 @@ export function CometRushGameView({
           {isMyTurn && <BuildRocketForm player={player} onBuild={handleBuildRocket} isBuilding={isBuilding} />}
 
           {/* Research Cards */}
-          <section className="bg-gray-800/60 border border-gray-700 rounded-xl p-4 mb-4">
-            <h3 className="text-lg font-semibold text-gray-50 mb-4">
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-slate-50 mb-3">
               Research Cards ({player.hand.length})
               {player.hasPlayedResearchThisTurn && (
-                <span className="text-xs text-gray-400 ml-2">(played this turn)</span>
+                <span className="text-xs text-slate-400 ml-2">(played this turn)</span>
               )}
             </h3>
             {player.hand.length === 0 ? (
-              <p className="text-sm text-gray-400">No cards in hand.</p>
+              <p className="text-sm text-slate-400">No cards in hand.</p>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {player.hand.map((card) => (
                   <ResearchCardDisplay
                     key={card.id}
@@ -1263,7 +1257,7 @@ export function CometRushGameView({
                 </button>
               </div>
             )}
-          </section>
+          </div>
 
           {/* Other Players */}
           <OtherPlayersDisplay
