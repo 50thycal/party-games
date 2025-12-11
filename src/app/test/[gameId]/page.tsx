@@ -511,111 +511,117 @@ function simulateBotTurn(
 
   let actionTaken = false;
 
-  // PRIORITY 1: Launch if can destroy active segment
-  if (!actionTaken && !player.hasLaunchedRocketThisTurn && canDestroyActiveSegment(player, currentState)) {
+  // PRIORITY 1: Launch if can destroy active segment (loop for multiple launches)
+  while (!actionTaken && canDestroyActiveSegment(player, currentState)) {
     const rocketId = chooseRocketToLaunch(player);
-    if (rocketId) {
-      const rocket = player.rockets.find((r) => r.id === rocketId);
-      const rocketStats = rocket ? {
-        power: rocket.power,
-        accuracy: rocket.accuracy,
-        buildTimeBase: rocket.buildTimeBase,
-      } : null;
+    if (!rocketId) break;
 
-      if (dispatch({ type: "LAUNCH_ROCKET", playerId, payload: { rocketId } })) {
-        rocketsLaunched++;
-        const result = currentState.lastLaunchResult;
-        if (result && rocketStats) {
-          const damage = result.destroyed
-            ? result.strengthBefore
-            : (result.hit ? Math.max(0, result.strengthBefore - result.strengthAfter) : 0);
+    const rocket = player.rockets.find((r) => r.id === rocketId);
+    const rocketStats = rocket ? {
+      power: rocket.power,
+      accuracy: rocket.accuracy,
+      buildTimeBase: rocket.buildTimeBase,
+    } : null;
 
-          launchedRockets.push({
-            ...rocketStats,
-            hit: result.hit,
-            damage,
-            destroyed: result.destroyed,
-          });
+    if (dispatch({ type: "LAUNCH_ROCKET", playerId, payload: { rocketId } })) {
+      rocketsLaunched++;
+      const result = currentState.lastLaunchResult;
+      if (result && rocketStats) {
+        const damage = result.destroyed
+          ? result.strengthBefore
+          : (result.hit ? Math.max(0, result.strengthBefore - result.strengthAfter) : 0);
 
-          const hitMiss = result.hit ? "HIT" : "MISS";
-          const destroyed = result.destroyed ? " - DESTROYED!" : "";
-          addLog("LAUNCH_ROCKET", `[P1: Kill shot] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`, `LAUNCH: P1 segmentHP <= rocket.power`);
-        }
-        actionTaken = true;
-        player = currentState.players[playerId];
+        launchedRockets.push({
+          ...rocketStats,
+          hit: result.hit,
+          damage,
+          destroyed: result.destroyed,
+        });
+
+        const hitMiss = result.hit ? "HIT" : "MISS";
+        const destroyed = result.destroyed ? " - DESTROYED!" : "";
+        addLog("LAUNCH_ROCKET", `[P1: Kill shot] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`, `LAUNCH: P1 segmentHP <= rocket.power`);
       }
+      actionTaken = true;
+      player = currentState.players[playerId];
+    } else {
+      break;
     }
   }
 
-  // PRIORITY 2: Launch if comet distance <= 8
-  if (!actionTaken && !player.hasLaunchedRocketThisTurn && currentState.distanceToImpact <= 8 && hasReadyRocket(player)) {
+  // PRIORITY 2: Launch if comet distance <= 8 (loop for multiple launches)
+  while (!actionTaken && currentState.distanceToImpact <= 8 && hasReadyRocket(player)) {
     const rocketId = chooseRocketToLaunch(player);
-    if (rocketId) {
-      const rocket = player.rockets.find((r) => r.id === rocketId);
-      const rocketStats = rocket ? {
-        power: rocket.power,
-        accuracy: rocket.accuracy,
-        buildTimeBase: rocket.buildTimeBase,
-      } : null;
+    if (!rocketId) break;
 
-      if (dispatch({ type: "LAUNCH_ROCKET", playerId, payload: { rocketId } })) {
-        rocketsLaunched++;
-        const result = currentState.lastLaunchResult;
-        if (result && rocketStats) {
-          const damage = result.destroyed
-            ? result.strengthBefore
-            : (result.hit ? Math.max(0, result.strengthBefore - result.strengthAfter) : 0);
+    const rocket = player.rockets.find((r) => r.id === rocketId);
+    const rocketStats = rocket ? {
+      power: rocket.power,
+      accuracy: rocket.accuracy,
+      buildTimeBase: rocket.buildTimeBase,
+    } : null;
 
-          launchedRockets.push({
-            ...rocketStats,
-            hit: result.hit,
-            damage,
-            destroyed: result.destroyed,
-          });
+    if (dispatch({ type: "LAUNCH_ROCKET", playerId, payload: { rocketId } })) {
+      rocketsLaunched++;
+      const result = currentState.lastLaunchResult;
+      if (result && rocketStats) {
+        const damage = result.destroyed
+          ? result.strengthBefore
+          : (result.hit ? Math.max(0, result.strengthBefore - result.strengthAfter) : 0);
 
-          const hitMiss = result.hit ? "HIT" : "MISS";
-          const destroyed = result.destroyed ? " - DESTROYED!" : "";
-          addLog("LAUNCH_ROCKET", `[P2: Close approach] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`, `LAUNCH: P2 cometDist <= 8`);
-        }
-        actionTaken = true;
-        player = currentState.players[playerId];
+        launchedRockets.push({
+          ...rocketStats,
+          hit: result.hit,
+          damage,
+          destroyed: result.destroyed,
+        });
+
+        const hitMiss = result.hit ? "HIT" : "MISS";
+        const destroyed = result.destroyed ? " - DESTROYED!" : "";
+        addLog("LAUNCH_ROCKET", `[P2: Close approach] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`, `LAUNCH: P2 cometDist <= 8`);
       }
+      actionTaken = true;
+      player = currentState.players[playerId];
+    } else {
+      break;
     }
   }
 
-  // PRIORITY 3: Launch if have ready rocket AND building rocket
-  if (!actionTaken && !player.hasLaunchedRocketThisTurn && hasReadyRocket(player) && hasBuildingRocket(player)) {
+  // PRIORITY 3: Launch if have ready rocket AND building rocket (loop for multiple launches)
+  while (!actionTaken && hasReadyRocket(player) && hasBuildingRocket(player)) {
     const rocketId = chooseRocketToLaunch(player);
-    if (rocketId) {
-      const rocket = player.rockets.find((r) => r.id === rocketId);
-      const rocketStats = rocket ? {
-        power: rocket.power,
-        accuracy: rocket.accuracy,
-        buildTimeBase: rocket.buildTimeBase,
-      } : null;
+    if (!rocketId) break;
 
-      if (dispatch({ type: "LAUNCH_ROCKET", playerId, payload: { rocketId } })) {
-        rocketsLaunched++;
-        const result = currentState.lastLaunchResult;
-        if (result && rocketStats) {
-          const damage = result.destroyed
-            ? result.strengthBefore
-            : (result.hit ? Math.max(0, result.strengthBefore - result.strengthAfter) : 0);
+    const rocket = player.rockets.find((r) => r.id === rocketId);
+    const rocketStats = rocket ? {
+      power: rocket.power,
+      accuracy: rocket.accuracy,
+      buildTimeBase: rocket.buildTimeBase,
+    } : null;
 
-          launchedRockets.push({
-            ...rocketStats,
-            hit: result.hit,
-            damage,
-            destroyed: result.destroyed,
-          });
+    if (dispatch({ type: "LAUNCH_ROCKET", playerId, payload: { rocketId } })) {
+      rocketsLaunched++;
+      const result = currentState.lastLaunchResult;
+      if (result && rocketStats) {
+        const damage = result.destroyed
+          ? result.strengthBefore
+          : (result.hit ? Math.max(0, result.strengthBefore - result.strengthAfter) : 0);
 
-          const hitMiss = result.hit ? "HIT" : "MISS";
-          const destroyed = result.destroyed ? " - DESTROYED!" : "";
-          addLog("LAUNCH_ROCKET", `[P3: Clear pipeline] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`, `LAUNCH: P3 ready + building`);
-        }
-        actionTaken = true;
-        player = currentState.players[playerId];
+        launchedRockets.push({
+          ...rocketStats,
+          hit: result.hit,
+          damage,
+          destroyed: result.destroyed,
+        });
+
+        const hitMiss = result.hit ? "HIT" : "MISS";
+        const destroyed = result.destroyed ? " - DESTROYED!" : "";
+        addLog("LAUNCH_ROCKET", `[P3: Clear pipeline] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`, `LAUNCH: P3 ready + building`);
       }
+      actionTaken = true;
+      player = currentState.players[playerId];
+    } else {
+      break;
     }
   }
 
