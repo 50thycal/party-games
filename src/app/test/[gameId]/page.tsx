@@ -272,14 +272,11 @@ function simulateBotTurn(
     // Calculate comet tracking data
     const movementCardsLeft = currentState.movementDeck.length;
     const strengthCardsLeft = currentState.strengthDeck.length;
-    const totalMovementValueLeft = currentState.movementDeck.reduce(
-      (sum, card) => sum + card.moveSpaces,
-      0,
-    );
+    const totalMovementValueLeft = currentState.distanceToImpact;
     const totalStrengthValueLeft = currentState.strengthDeck.reduce(
       (sum, card) => sum + card.baseStrength,
       0,
-    );
+    ) + (currentState.activeStrengthCard?.currentStrength ?? 0);
 
     log.push({
       id: 0, // Will be assigned after simulation completes
@@ -410,14 +407,11 @@ function runCometRushSimulation(
   // Calculate initial comet state
   const initialMovementCardsLeft = state.movementDeck.length;
   const initialStrengthCardsLeft = state.strengthDeck.length;
-  const initialTotalMovementValueLeft = state.movementDeck.reduce(
-    (sum, card) => sum + card.moveSpaces,
-    0,
-  );
+  const initialTotalMovementValueLeft = state.distanceToImpact;
   const initialTotalStrengthValueLeft = state.strengthDeck.reduce(
     (sum, card) => sum + card.baseStrength,
     0,
-  );
+  ) + (state.activeStrengthCard?.currentStrength ?? 0);
 
   log.push({
     id: 0,
@@ -765,7 +759,7 @@ export default function TestGamePage() {
       "action",
       "mvCards",
       "strCards",
-      "mvTotal",
+      "dist",
       "strTotal",
       "details",
     ];
@@ -1115,7 +1109,7 @@ export default function TestGamePage() {
                       className="cursor-pointer px-2 py-1 hover:text-slate-200"
                       onClick={() => handleLogSort("totalMovementValueLeft")}
                     >
-                      MvTotal{" "}
+                      Dist{" "}
                       {logSortKey === "totalMovementValueLeft" &&
                         (logSortDir === "asc" ? "↑" : "↓")}
                     </th>
