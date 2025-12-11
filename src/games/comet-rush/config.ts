@@ -568,8 +568,15 @@ function reducer(
       if (!player) return state;
 
       let researchDeck = [...state.researchDeck];
+      let researchDiscard = [...state.researchDiscard];
       let drawnCardId: string | null = null;
       let newHand = player.hand;
+
+      // If deck is empty, shuffle discard pile into deck
+      if (researchDeck.length === 0 && researchDiscard.length > 0) {
+        researchDeck = shuffle(researchDiscard, ctx.random);
+        researchDiscard = [];
+      }
 
       if (researchDeck.length > 0) {
         const drawnCard = researchDeck[0];
@@ -586,6 +593,7 @@ function reducer(
       return {
         ...state,
         researchDeck,
+        researchDiscard,
         players: {
           ...state.players,
           [action.playerId]: updatedPlayer,
@@ -881,10 +889,51 @@ function reducer(
 
       const rocket = player.rockets[rocketIndex];
 
-      // Ensure there's an active strength card
+      // Roll 2d6 for accuracy FIRST
+      const diceRoll = roll2d6(ctx.random);
+      const hit = diceRoll <= rocket.accuracy;
+
+      // If MISS, don't touch strength deck at all
+      if (!hit) {
+        const updatedRockets = [...player.rockets];
+        updatedRockets[rocketIndex] = {
+          ...rocket,
+          status: "spent",
+        };
+
+        const launchResult: LaunchResult = {
+          playerId: action.playerId,
+          rocketId: rocket.id,
+          diceRoll,
+          accuracyNeeded: rocket.accuracy,
+          hit: false,
+          power: rocket.power,
+          strengthBefore: state.activeStrengthCard?.currentStrength ?? 0,
+          strengthAfter: state.activeStrengthCard?.currentStrength ?? 0,
+          destroyed: false,
+        };
+
+        const updatedPlayer = {
+          ...player,
+          rockets: updatedRockets,
+          hasLaunchedRocketThisTurn: true,
+        };
+
+        return {
+          ...state,
+          players: {
+            ...state.players,
+            [action.playerId]: updatedPlayer,
+          },
+          lastLaunchResult: launchResult,
+        };
+      }
+
+      // HIT: Now process strength
       let activeStrengthCard = state.activeStrengthCard;
       let strengthDeck = [...state.strengthDeck];
 
+      // If no active strength card, flip the top one
       if (!activeStrengthCard) {
         if (strengthDeck.length === 0) {
           // No more strength cards - game should already be over
@@ -894,34 +943,28 @@ function reducer(
         strengthDeck = strengthDeck.slice(1);
       }
 
-      // Roll 2d6 for accuracy
-      const diceRoll = roll2d6(ctx.random);
-      const hit = diceRoll <= rocket.accuracy;
-
       let updatedStrengthCard: StrengthCard | null = activeStrengthCard;
       let destroyed = false;
       let trophyCard: StrengthCard | null = null;
       let finalDestroyerId = state.finalDestroyerId;
 
-      if (hit) {
-        // Check power vs strength
-        if (rocket.power > activeStrengthCard.currentStrength) {
-          // Destroyed!
-          destroyed = true;
-          trophyCard = activeStrengthCard;
-          updatedStrengthCard = null;
+      // Check power vs strength
+      if (rocket.power > activeStrengthCard.currentStrength) {
+        // Destroyed!
+        destroyed = true;
+        trophyCard = activeStrengthCard;
+        updatedStrengthCard = null;
 
-          // Check if this was the final card
-          if (strengthDeck.length === 0) {
-            finalDestroyerId = action.playerId;
-          }
-        } else {
-          // Partial damage
-          updatedStrengthCard = {
-            ...activeStrengthCard,
-            currentStrength: activeStrengthCard.currentStrength - 1,
-          };
+        // Check if this was the final card
+        if (strengthDeck.length === 0) {
+          finalDestroyerId = action.playerId;
         }
+      } else {
+        // Partial damage
+        updatedStrengthCard = {
+          ...activeStrengthCard,
+          currentStrength: activeStrengthCard.currentStrength - 1,
+        };
       }
 
       // Update rocket status
