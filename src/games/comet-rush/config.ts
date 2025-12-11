@@ -219,7 +219,7 @@ export interface CometRushAction extends BaseAction {
 // ============================================================================
 
 const STARTING_CUBES = 5;
-const BASE_INCOME = 2;
+const BASE_INCOME = 4;
 const BASE_DISTANCE_TO_IMPACT = 18;
 const BASE_MAX_ROCKETS = 2;
 const TOTAL_STRENGTH_CARDS = 6; // How many need to be destroyed to win
