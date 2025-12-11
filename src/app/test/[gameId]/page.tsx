@@ -256,7 +256,7 @@ function chooseRocketToBuild(
   );
 
   const targetPower = Math.min(powerCap, 5); // aim for ~5 power
-  const targetAccuracy = Math.min(accuracyCap, 7); // "hit on 7 or less" style
+  const targetAccuracy = Math.min(accuracyCap, 3); // baseline 50% hit rate (3/6)
 
   return {
     buildTimeBase,
