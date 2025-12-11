@@ -279,6 +279,52 @@ function chooseRocketToLaunch(
 }
 
 // ============================================================================
+// BOT PRIORITY HELPERS
+// ============================================================================
+
+function hasReadyRocket(player: CometRushPlayerState): boolean {
+  return player.rockets.some((r) => r.status === "ready");
+}
+
+function hasBuildingRocket(player: CometRushPlayerState): boolean {
+  return player.rockets.some((r) => r.status === "building");
+}
+
+function canDestroyActiveSegment(
+  player: CometRushPlayerState,
+  state: CometRushState
+): boolean {
+  if (!state.activeStrengthCard) return false;
+  const ready = player.rockets.filter((r) => r.status === "ready");
+  if (ready.length === 0) return false;
+
+  // Check if any ready rocket can destroy the active segment
+  return ready.some((r) => r.power > state.activeStrengthCard!.currentStrength);
+}
+
+function hasPowerOrAccuracyResearch(player: CometRushPlayerState): boolean {
+  const sets = getPlayableResearchSets(player);
+  return sets.some((s) => s.setKey === "POWER" || s.setKey === "ACCURACY");
+}
+
+function choosePriorityResearchSet(
+  player: CometRushPlayerState,
+  priorityTypes: string[]
+): ResearchSetOption | null {
+  const options = getPlayableResearchSets(player);
+  if (options.length === 0) return null;
+
+  // First, try to find a priority type
+  for (const priority of priorityTypes) {
+    const match = options.find((s) => s.setKey === priority);
+    if (match) return match;
+  }
+
+  // Otherwise return first available
+  return options[0];
+}
+
+// ============================================================================
 // BOT LOGIC
 // ============================================================================
 
@@ -348,73 +394,34 @@ function simulateBotTurn(
     });
   };
 
-  // 1. BEGIN_TURN
+  // 1. BEGIN_TURN (always)
   if (dispatch({ type: "BEGIN_TURN", playerId })) {
     const player = currentState.players[playerId];
     addLog("BEGIN_TURN", `Income: +${currentState.turnMeta?.incomeGained ?? 0} cubes (total: ${player?.resourceCubes ?? 0})`);
   }
 
-  // 2. DRAW_TURN_CARD
+  // 2. DRAW_TURN_CARD (always)
   if (dispatch({ type: "DRAW_TURN_CARD", playerId })) {
     const cardId = currentState.turnMeta?.lastDrawnCardId;
     addLog("DRAW_TURN_CARD", cardId ? `Drew card ${cardId}` : "No cards to draw");
   }
 
-  // 3. MAYBE play one research set
+  // 3. Evaluate actions in priority order
   let player = currentState.players[playerId];
-  if (player && !player.hasPlayedResearchThisTurn) {
-    const choice = chooseResearchSetToPlay(player);
-    if (choice) {
-      if (
-        dispatch({
-          type: "PLAY_RESEARCH_SET",
-          playerId,
-          payload: { cardIds: choice.cards.map((c) => c.id) },
-        })
-      ) {
-        addLog(
-          "PLAY_RESEARCH_SET",
-          `Played ${choice.setKey} (${choice.cards.length} cards)`
-        );
-      }
+  if (!player) {
+    // If player doesn't exist, just end turn
+    if (dispatch({ type: "END_TURN", playerId })) {
+      addLog("END_TURN", `Distance to impact: ${currentState.distanceToImpact}`);
     }
+    return { state: currentState, seed: currentSeed, rocketsBuilt, rocketsLaunched };
   }
 
-  // 4. MAYBE build one rocket (with intelligent stats)
-  player = currentState.players[playerId];
-  if (player && !player.hasBuiltRocketThisTurn) {
-    const config = chooseRocketToBuild(player);
-    if (config) {
-      if (
-        dispatch({
-          type: "BUILD_ROCKET",
-          playerId,
-          payload: config,
-        })
-      ) {
-        rocketsBuilt++;
+  let actionTaken = false;
 
-        // Track built rocket stats
-        builtRockets.push({
-          power: config.power,
-          accuracy: config.accuracy,
-          buildTimeBase: config.buildTimeBase,
-        });
-
-        addLog(
-          "BUILD_ROCKET",
-          `P=${config.power}, A=${config.accuracy}, T=${config.buildTimeBase}`
-        );
-      }
-    }
-  }
-
-  // 5. MAYBE launch one ready rocket
-  player = currentState.players[playerId];
-  if (player && !player.hasLaunchedRocketThisTurn) {
+  // PRIORITY 1: Launch if can destroy active segment
+  if (!actionTaken && !player.hasLaunchedRocketThisTurn && canDestroyActiveSegment(player, currentState)) {
     const rocketId = chooseRocketToLaunch(player);
     if (rocketId) {
-      // Capture rocket stats BEFORE launch
       const rocket = player.rockets.find((r) => r.id === rocketId);
       const rocketStats = rocket ? {
         power: rocket.power,
@@ -422,17 +429,10 @@ function simulateBotTurn(
         buildTimeBase: rocket.buildTimeBase,
       } : null;
 
-      if (
-        dispatch({
-          type: "LAUNCH_ROCKET",
-          playerId,
-          payload: { rocketId },
-        })
-      ) {
+      if (dispatch({ type: "LAUNCH_ROCKET", playerId, payload: { rocketId } })) {
         rocketsLaunched++;
         const result = currentState.lastLaunchResult;
         if (result && rocketStats) {
-          // Track launched rocket stats
           const damage = result.destroyed
             ? result.strengthBefore
             : (result.hit ? Math.max(0, result.strengthBefore - result.strengthAfter) : 0);
@@ -446,11 +446,124 @@ function simulateBotTurn(
 
           const hitMiss = result.hit ? "HIT" : "MISS";
           const destroyed = result.destroyed ? " - DESTROYED!" : "";
-          addLog(
-            "LAUNCH_ROCKET",
-            `Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`
-          );
+          addLog("LAUNCH_ROCKET", `[P1: Kill shot] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`);
         }
+        actionTaken = true;
+        player = currentState.players[playerId];
+      }
+    }
+  }
+
+  // PRIORITY 2: Launch if comet distance <= 8
+  if (!actionTaken && !player.hasLaunchedRocketThisTurn && currentState.distanceToImpact <= 8 && hasReadyRocket(player)) {
+    const rocketId = chooseRocketToLaunch(player);
+    if (rocketId) {
+      const rocket = player.rockets.find((r) => r.id === rocketId);
+      const rocketStats = rocket ? {
+        power: rocket.power,
+        accuracy: rocket.accuracy,
+        buildTimeBase: rocket.buildTimeBase,
+      } : null;
+
+      if (dispatch({ type: "LAUNCH_ROCKET", playerId, payload: { rocketId } })) {
+        rocketsLaunched++;
+        const result = currentState.lastLaunchResult;
+        if (result && rocketStats) {
+          const damage = result.destroyed
+            ? result.strengthBefore
+            : (result.hit ? Math.max(0, result.strengthBefore - result.strengthAfter) : 0);
+
+          launchedRockets.push({
+            ...rocketStats,
+            hit: result.hit,
+            damage,
+            destroyed: result.destroyed,
+          });
+
+          const hitMiss = result.hit ? "HIT" : "MISS";
+          const destroyed = result.destroyed ? " - DESTROYED!" : "";
+          addLog("LAUNCH_ROCKET", `[P2: Close approach] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`);
+        }
+        actionTaken = true;
+        player = currentState.players[playerId];
+      }
+    }
+  }
+
+  // PRIORITY 3: Launch if have ready rocket AND building rocket
+  if (!actionTaken && !player.hasLaunchedRocketThisTurn && hasReadyRocket(player) && hasBuildingRocket(player)) {
+    const rocketId = chooseRocketToLaunch(player);
+    if (rocketId) {
+      const rocket = player.rockets.find((r) => r.id === rocketId);
+      const rocketStats = rocket ? {
+        power: rocket.power,
+        accuracy: rocket.accuracy,
+        buildTimeBase: rocket.buildTimeBase,
+      } : null;
+
+      if (dispatch({ type: "LAUNCH_ROCKET", playerId, payload: { rocketId } })) {
+        rocketsLaunched++;
+        const result = currentState.lastLaunchResult;
+        if (result && rocketStats) {
+          const damage = result.destroyed
+            ? result.strengthBefore
+            : (result.hit ? Math.max(0, result.strengthBefore - result.strengthAfter) : 0);
+
+          launchedRockets.push({
+            ...rocketStats,
+            hit: result.hit,
+            damage,
+            destroyed: result.destroyed,
+          });
+
+          const hitMiss = result.hit ? "HIT" : "MISS";
+          const destroyed = result.destroyed ? " - DESTROYED!" : "";
+          addLog("LAUNCH_ROCKET", `[P3: Clear pipeline] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`);
+        }
+        actionTaken = true;
+        player = currentState.players[playerId];
+      }
+    }
+  }
+
+  // PRIORITY 4: Build if no building rocket and enough resources
+  if (!actionTaken && !player.hasBuiltRocketThisTurn && !hasBuildingRocket(player)) {
+    const config = chooseRocketToBuild(player);
+    if (config) {
+      if (dispatch({ type: "BUILD_ROCKET", playerId, payload: config })) {
+        rocketsBuilt++;
+        builtRockets.push({
+          power: config.power,
+          accuracy: config.accuracy,
+          buildTimeBase: config.buildTimeBase,
+        });
+        addLog("BUILD_ROCKET", `[P4: Pipeline] P=${config.power}, A=${config.accuracy}, T=${config.buildTimeBase}`);
+        actionTaken = true;
+        player = currentState.players[playerId];
+      }
+    }
+  }
+
+  // PRIORITY 5: Play POWER or ACCURACY research
+  if (!actionTaken && !player.hasPlayedResearchThisTurn && hasPowerOrAccuracyResearch(player)) {
+    const choice = choosePriorityResearchSet(player, ["POWER", "ACCURACY"]);
+    if (choice) {
+      if (dispatch({ type: "PLAY_RESEARCH_SET", playerId, payload: { cardIds: choice.cards.map((c) => c.id) } })) {
+        addLog("PLAY_RESEARCH_SET", `[P5: Combat upgrade] ${choice.setKey} (${choice.cards.length} cards)`);
+        actionTaken = true;
+        player = currentState.players[playerId];
+      }
+    }
+  }
+
+  // PRIORITY 6: Play any other research
+  if (!actionTaken && !player.hasPlayedResearchThisTurn) {
+    const choice = chooseResearchSetToPlay(player);
+    if (choice) {
+      if (dispatch({ type: "PLAY_RESEARCH_SET", playerId, payload: { cardIds: choice.cards.map((c) => c.id) } })) {
+        addLog("PLAY_RESEARCH_SET", `[P6: Other upgrade] ${choice.setKey} (${choice.cards.length} cards)`);
+        actionTaken = true;
+        player = currentState.players[playerId];
       }
     }
   }
