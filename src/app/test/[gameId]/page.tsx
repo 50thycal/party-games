@@ -118,7 +118,9 @@ type LogSortKey =
   | "movementCardsLeft"
   | "strengthCardsLeft"
   | "totalMovementValueLeft"
-  | "totalStrengthValueLeft";
+  | "totalStrengthValueLeft"
+  | "resources"
+  | "playableSets";
 
 // ============================================================================
 // HELPERS
@@ -1153,10 +1155,21 @@ export default function TestGamePage() {
       "round",
       "player",
       "action",
+      "res",
+      "hand",
+      "queue",
+      "ready",
+      "actSeg",
+      "segHP",
       "mvCards",
       "strCards",
       "dist",
       "strTotal",
+      "decision",
+      "sets",
+      "canBuild",
+      "slotFull",
+      "hasReady",
       "details",
     ];
 
@@ -1168,10 +1181,21 @@ export default function TestGamePage() {
           row.round,
           row.playerLabel,
           row.actionType,
+          row.resources,
+          row.hand,
+          row.buildQueue,
+          row.readyRockets,
+          row.activeSegment,
+          row.segmentHP,
           row.movementCardsLeft,
           row.strengthCardsLeft,
           row.totalMovementValueLeft,
           row.totalStrengthValueLeft,
+          row.decision,
+          row.playableSets,
+          row.canBuildRocket,
+          row.rocketSlotFull,
+          row.hasReadyRocket,
           row.summary.replace(/\s+/g, " "),
         ].join("\t"),
       ),
