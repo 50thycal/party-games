@@ -33,6 +33,45 @@ interface SimLogEntry {
   totalStrengthValueLeft: number;
 }
 
+interface SimulationAnalytics {
+  // Built rockets
+  built: {
+    count: number;
+    minPower: number;
+    maxPower: number;
+    avgPower: number;
+    minAccuracy: number;
+    maxAccuracy: number;
+    avgAccuracy: number;
+    minBuildTime: number;
+    maxBuildTime: number;
+    avgBuildTime: number;
+  };
+
+  // Launched rockets
+  launched: {
+    count: number;
+    minPower: number;
+    maxPower: number;
+    avgPower: number;
+    minAccuracy: number;
+    maxAccuracy: number;
+    avgAccuracy: number;
+    minBuildTime: number;
+    maxBuildTime: number;
+    avgBuildTime: number;
+    hitRate: number; // hits / launches
+  };
+
+  // Damage to comet
+  comet: {
+    totalDamage: number;
+    segmentsDestroyed: number;
+    totalStrengthStart: number;
+    totalStrengthEnd: number;
+  };
+}
+
 interface SimSummary {
   totalRounds: number;
   winner: string | null;
@@ -41,6 +80,7 @@ interface SimSummary {
   playerScores: Record<string, number>;
   totalRocketsBuilt: number;
   totalRocketsLaunched: number;
+  analytics: SimulationAnalytics;
 }
 
 interface SimRow {
@@ -242,12 +282,26 @@ function chooseRocketToLaunch(
 // BOT LOGIC
 // ============================================================================
 
+interface RocketRecord {
+  power: number;
+  accuracy: number;
+  buildTimeBase: number;
+}
+
+interface LaunchRecord extends RocketRecord {
+  hit: boolean;
+  damage: number;
+  destroyed: boolean;
+}
+
 function simulateBotTurn(
   state: CometRushState,
   playerId: string,
   room: Room,
   seed: number,
-  log: SimLogEntry[]
+  log: SimLogEntry[],
+  builtRockets: RocketRecord[],
+  launchedRockets: LaunchRecord[]
 ): { state: CometRushState; seed: number; rocketsBuilt: number; rocketsLaunched: number } {
   let currentState = state;
   let currentSeed = seed;
@@ -339,6 +393,14 @@ function simulateBotTurn(
         })
       ) {
         rocketsBuilt++;
+
+        // Track built rocket stats
+        builtRockets.push({
+          power: config.power,
+          accuracy: config.accuracy,
+          buildTimeBase: config.buildTimeBase,
+        });
+
         addLog(
           "BUILD_ROCKET",
           `P=${config.power}, A=${config.accuracy}, T=${config.buildTimeBase}`
@@ -352,6 +414,14 @@ function simulateBotTurn(
   if (player && !player.hasLaunchedRocketThisTurn) {
     const rocketId = chooseRocketToLaunch(player);
     if (rocketId) {
+      // Capture rocket stats BEFORE launch
+      const rocket = player.rockets.find((r) => r.id === rocketId);
+      const rocketStats = rocket ? {
+        power: rocket.power,
+        accuracy: rocket.accuracy,
+        buildTimeBase: rocket.buildTimeBase,
+      } : null;
+
       if (
         dispatch({
           type: "LAUNCH_ROCKET",
@@ -361,7 +431,19 @@ function simulateBotTurn(
       ) {
         rocketsLaunched++;
         const result = currentState.lastLaunchResult;
-        if (result) {
+        if (result && rocketStats) {
+          // Track launched rocket stats
+          const damage = result.destroyed
+            ? result.strengthBefore
+            : (result.hit ? Math.max(0, result.strengthBefore - result.strengthAfter) : 0);
+
+          launchedRockets.push({
+            ...rocketStats,
+            hit: result.hit,
+            damage,
+            destroyed: result.destroyed,
+          });
+
           const hitMiss = result.hit ? "HIT" : "MISS";
           const destroyed = result.destroyed ? " - DESTROYED!" : "";
           addLog(
@@ -379,6 +461,94 @@ function simulateBotTurn(
   }
 
   return { state: currentState, seed: currentSeed, rocketsBuilt, rocketsLaunched };
+}
+
+// ============================================================================
+// ANALYTICS COMPUTATION
+// ============================================================================
+
+function computeAnalytics(
+  builtRockets: RocketRecord[],
+  launchedRockets: LaunchRecord[],
+  finalState: CometRushState
+): SimulationAnalytics {
+  // Helper to compute stats
+  const computeStats = (rockets: RocketRecord[]) => {
+    if (rockets.length === 0) {
+      return {
+        count: 0,
+        minPower: 0,
+        maxPower: 0,
+        avgPower: 0,
+        minAccuracy: 0,
+        maxAccuracy: 0,
+        avgAccuracy: 0,
+        minBuildTime: 0,
+        maxBuildTime: 0,
+        avgBuildTime: 0,
+      };
+    }
+
+    const powers = rockets.map((r) => r.power);
+    const accuracies = rockets.map((r) => r.accuracy);
+    const buildTimes = rockets.map((r) => r.buildTimeBase);
+
+    return {
+      count: rockets.length,
+      minPower: Math.min(...powers),
+      maxPower: Math.max(...powers),
+      avgPower: powers.reduce((a, b) => a + b, 0) / powers.length,
+      minAccuracy: Math.min(...accuracies),
+      maxAccuracy: Math.max(...accuracies),
+      avgAccuracy: accuracies.reduce((a, b) => a + b, 0) / accuracies.length,
+      minBuildTime: Math.min(...buildTimes),
+      maxBuildTime: Math.max(...buildTimes),
+      avgBuildTime: buildTimes.reduce((a, b) => a + b, 0) / buildTimes.length,
+    };
+  };
+
+  // Built rockets stats
+  const built = computeStats(builtRockets);
+
+  // Launched rockets stats
+  const launchedStats = computeStats(launchedRockets);
+  const hits = launchedRockets.filter((r) => r.hit).length;
+  const hitRate = launchedRockets.length > 0 ? hits / launchedRockets.length : 0;
+
+  const launched = {
+    ...launchedStats,
+    hitRate,
+  };
+
+  // Comet damage stats
+  const totalDamage = launchedRockets.reduce((sum, r) => sum + r.damage, 0);
+  const segmentsDestroyed = launchedRockets.filter((r) => r.destroyed).length;
+
+  // Calculate total strength at start and end
+  const totalStrengthStart = finalState.strengthDeck.reduce(
+    (sum, card) => sum + card.baseStrength,
+    0
+  ) + (finalState.activeStrengthCard?.baseStrength ?? 0) +
+    Object.values(finalState.players).reduce(
+      (sum, p) => sum + p.trophies.reduce((s, t) => s + t.baseStrength, 0),
+      0
+    );
+
+  const totalStrengthEnd = finalState.strengthDeck.reduce(
+    (sum, card) => sum + card.baseStrength,
+    0
+  ) + (finalState.activeStrengthCard?.currentStrength ?? 0);
+
+  return {
+    built,
+    launched,
+    comet: {
+      totalDamage,
+      segmentsDestroyed,
+      totalStrengthStart,
+      totalStrengthEnd,
+    },
+  };
 }
 
 // ============================================================================
@@ -403,6 +573,10 @@ function runCometRushSimulation(
   const log: SimLogEntry[] = [];
   let totalRocketsBuilt = 0;
   let totalRocketsLaunched = 0;
+
+  // Analytics tracking
+  const builtRockets: RocketRecord[] = [];
+  const launchedRockets: LaunchRecord[] = [];
 
   // Calculate initial comet state
   const initialMovementCardsLeft = state.movementDeck.length;
@@ -436,12 +610,15 @@ function runCometRushSimulation(
     safetyCounter++;
     const activePlayerId = state.playerOrder[state.activePlayerIndex];
 
-    const result = simulateBotTurn(state, activePlayerId, room, seed, log);
+    const result = simulateBotTurn(state, activePlayerId, room, seed, log, builtRockets, launchedRockets);
     state = result.state;
     seed = result.seed;
     totalRocketsBuilt += result.rocketsBuilt;
     totalRocketsLaunched += result.rocketsLaunched;
   }
+
+  // Compute analytics
+  const analytics = computeAnalytics(builtRockets, launchedRockets, state);
 
   // Build summary
   const scores = calculateScores(state);
@@ -459,6 +636,7 @@ function runCometRushSimulation(
     ),
     totalRocketsBuilt,
     totalRocketsLaunched,
+    analytics,
   };
 
   // Assign IDs to log entries
@@ -1038,6 +1216,107 @@ export default function TestGamePage() {
                   <span>{score} pts</span>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Analytics */}
+      {summary?.analytics && (
+        <div className="w-full max-w-2xl mb-8">
+          <h2 className="text-xl font-semibold mb-4">Rocket Statistics</h2>
+          <div className="bg-gray-800 rounded-lg p-4 space-y-4">
+            {/* Built Rockets */}
+            <div>
+              <h3 className="text-lg font-semibold text-blue-400 mb-2">Built Rockets</h3>
+              <div className="space-y-1 pl-4 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Power:</span>
+                  <span>
+                    {summary.analytics.built.minPower}–{summary.analytics.built.maxPower}{" "}
+                    (avg {summary.analytics.built.avgPower.toFixed(1)})
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Accuracy:</span>
+                  <span>
+                    {summary.analytics.built.minAccuracy}–{summary.analytics.built.maxAccuracy}{" "}
+                    (avg {summary.analytics.built.avgAccuracy.toFixed(1)})
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Build Time:</span>
+                  <span>
+                    {summary.analytics.built.minBuildTime}–{summary.analytics.built.maxBuildTime}{" "}
+                    (avg {summary.analytics.built.avgBuildTime.toFixed(1)})
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Total Built:</span>
+                  <span>{summary.analytics.built.count}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Launched Rockets */}
+            <div className="border-t border-gray-700 pt-3">
+              <h3 className="text-lg font-semibold text-green-400 mb-2">Launched Rockets</h3>
+              <div className="space-y-1 pl-4 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Power:</span>
+                  <span>
+                    {summary.analytics.launched.minPower}–{summary.analytics.launched.maxPower}{" "}
+                    (avg {summary.analytics.launched.avgPower.toFixed(1)})
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Accuracy:</span>
+                  <span>
+                    {summary.analytics.launched.minAccuracy}–{summary.analytics.launched.maxAccuracy}{" "}
+                    (avg {summary.analytics.launched.avgAccuracy.toFixed(1)})
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Build Time:</span>
+                  <span>
+                    {summary.analytics.launched.minBuildTime}–{summary.analytics.launched.maxBuildTime}{" "}
+                    (avg {summary.analytics.launched.avgBuildTime.toFixed(1)})
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Total Launched:</span>
+                  <span>{summary.analytics.launched.count}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Hit Rate:</span>
+                  <span className="text-yellow-400 font-semibold">
+                    {(summary.analytics.launched.hitRate * 100).toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Comet Damage */}
+            <div className="border-t border-gray-700 pt-3">
+              <h3 className="text-lg font-semibold text-purple-400 mb-2">Comet Damage</h3>
+              <div className="space-y-1 pl-4 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Total Damage Dealt:</span>
+                  <span>{summary.analytics.comet.totalDamage}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Segments Destroyed:</span>
+                  <span>{summary.analytics.comet.segmentsDestroyed}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Initial Total Strength:</span>
+                  <span>{summary.analytics.comet.totalStrengthStart}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Remaining Strength:</span>
+                  <span>{summary.analytics.comet.totalStrengthEnd}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
