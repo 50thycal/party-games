@@ -219,7 +219,7 @@ export interface CometRushAction extends BaseAction {
 // ============================================================================
 
 const STARTING_CUBES = 5;
-const BASE_INCOME = 2;
+const BASE_INCOME = 4;
 const BASE_DISTANCE_TO_IMPACT = 18;
 const BASE_MAX_ROCKETS = 2;
 const TOTAL_STRENGTH_CARDS = 6; // How many need to be destroyed to win
@@ -320,10 +320,8 @@ function calculateRocketCost(buildTimeBase: number, power: number, accuracy: num
   return power + accuracyCost + buildTimeCost;
 }
 
-function roll2d6(random: () => number): number {
-  const d1 = Math.floor(random() * 6) + 1;
-  const d2 = Math.floor(random() * 6) + 1;
-  return d1 + d2;
+function roll1d6(random: () => number): number {
+  return Math.floor(random() * 6) + 1;
 }
 
 function getActivePlayerId(state: CometRushState): string | null {
@@ -388,7 +386,7 @@ function buildPlayerState(p: Player): CometRushPlayerState {
       buildTimeBonus: 0,
       maxRocketsBonus: 0,
       powerCap: 4,
-      accuracyCap: 4,
+      accuracyCap: 6,
       buildTimeCap: 4,
     },
     trophies: [],
@@ -652,8 +650,8 @@ function reducer(
         case "ACCURACY":
           updatedPlayer.upgrades = {
             ...updatedPlayer.upgrades,
-            accuracyBonus: Math.min(updatedPlayer.upgrades.accuracyBonus + 1, 4),
-            accuracyCap: updatedPlayer.upgrades.accuracyCap + 1,
+            accuracyBonus: updatedPlayer.upgrades.accuracyBonus + 1,
+            accuracyCap: Math.min(updatedPlayer.upgrades.accuracyCap + 1, 6),
           };
           resultDescription = `Targeting upgraded! Future rockets get +${updatedPlayer.upgrades.accuracyBonus} accuracy (cap now ${updatedPlayer.upgrades.accuracyCap}).`;
           break;
@@ -830,7 +828,7 @@ function reducer(
       // Apply upgrades to clamped inputs
       const effectiveBuildTime = Math.max(1, buildTimeBase - player.upgrades.buildTimeBonus);
       const effectivePower = power + player.upgrades.powerBonus;
-      const effectiveAccuracy = Math.min(12, accuracy + player.upgrades.accuracyBonus);
+      const effectiveAccuracy = Math.min(6, accuracy + player.upgrades.accuracyBonus);
 
       // Calculate cost using clamped values
       const cost = calculateRocketCost(buildTimeBase, power, accuracy);
@@ -889,8 +887,8 @@ function reducer(
 
       const rocket = player.rockets[rocketIndex];
 
-      // Roll 2d6 for accuracy FIRST
-      const diceRoll = roll2d6(ctx.random);
+      // Roll 1d6 for accuracy
+      const diceRoll = roll1d6(ctx.random);
       const hit = diceRoll <= rocket.accuracy;
 
       // If MISS, don't touch strength deck at all
