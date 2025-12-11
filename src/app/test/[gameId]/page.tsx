@@ -95,6 +95,7 @@ interface SimSummary {
   totalRocketsBuilt: number;
   totalRocketsLaunched: number;
   analytics: SimulationAnalytics;
+  aborted?: boolean;
 }
 
 interface SimRow {
@@ -827,10 +828,15 @@ function computeAnalytics(
 // SIMULATION RUNNER
 // ============================================================================
 
+// Safety caps to prevent runaway simulations
+const MAX_ROUNDS_PER_GAME = 25;
+const MAX_ACTIONS_PER_GAME = 500;
+
 function runCometRushSimulation(
   playerCount: number,
-  maxRounds: number = 100
-): { summary: SimSummary; log: SimLogEntry[] } {
+  maxRounds: number = MAX_ROUNDS_PER_GAME
+): { summary: SimSummary; log: SimLogEntry[]; aborted?: boolean } {
+  console.log(`[Simulation] Starting game with ${playerCount} players, maxRounds=${maxRounds}`);
   const players = createTestPlayers(playerCount);
   const room = createTestRoom(players);
   let seed = Date.now();
@@ -885,20 +891,41 @@ function runCometRushSimulation(
     hasReadyRocket: false,
   });
 
-  // Run simulation loop
+  // Run simulation loop with safety caps
   let safetyCounter = 0;
+  let actionCounter = 0;
   const maxIterations = maxRounds * playerCount;
+  let aborted = false;
 
-  while (state.phase === "playing" && safetyCounter < maxIterations) {
+  while (state.phase === "playing" && safetyCounter < maxIterations && actionCounter < MAX_ACTIONS_PER_GAME) {
     safetyCounter++;
     const activePlayerId = state.playerOrder[state.activePlayerIndex];
 
+    const actionsBefore = log.length;
     const result = simulateBotTurn(state, activePlayerId, room, seed, log, builtRockets, launchedRockets);
+    const actionsThisTurn = log.length - actionsBefore;
+    actionCounter += actionsThisTurn;
+
     state = result.state;
     seed = result.seed;
     totalRocketsBuilt += result.rocketsBuilt;
     totalRocketsLaunched += result.rocketsLaunched;
+
+    // Check if we've exceeded the action cap
+    if (actionCounter >= MAX_ACTIONS_PER_GAME) {
+      console.warn(`[Simulation] ABORTED: Hit MAX_ACTIONS_PER_GAME (${MAX_ACTIONS_PER_GAME}) at round ${state.round}`);
+      aborted = true;
+      break;
+    }
   }
+
+  // Check if we hit the round cap
+  if (state.phase === "playing" && safetyCounter >= maxIterations) {
+    console.warn(`[Simulation] ABORTED: Hit MAX_ROUNDS (${maxRounds}) at round ${state.round}`);
+    aborted = true;
+  }
+
+  console.log(`[Simulation] Finished: ${state.phase}, rounds=${state.round}, actions=${actionCounter}, aborted=${aborted}`);
 
   // Compute analytics
   const analytics = computeAnalytics(builtRockets, launchedRockets, state);
@@ -928,7 +955,7 @@ function runCometRushSimulation(
     id: index + 1,
   }));
 
-  return { summary, log: logWithIds };
+  return { summary, log: logWithIds, aborted };
 }
 
 // ============================================================================
@@ -982,12 +1009,21 @@ export default function TestGamePage() {
     // Run on next tick to allow UI update
     setTimeout(() => {
       const result = runCometRushSimulation(playerCount);
-      setSummary(result.summary);
+
+      // Add aborted flag to summary if present
+      const summaryWithAborted: SimSummary = {
+        ...result.summary,
+        aborted: result.aborted,
+      };
+
+      setSummary(summaryWithAborted);
       setLog(result.log);
       setIsRunning(false);
 
       // Add to simulation rows
-      const endReason = result.summary.cometDestroyed
+      const endReason = result.aborted
+        ? "maxRounds"
+        : result.summary.cometDestroyed
         ? "cometDestroyed"
         : result.summary.earthDestroyed
         ? "earthDestroyed"
@@ -1489,6 +1525,14 @@ export default function TestGamePage() {
         <div className="w-full max-w-2xl mb-8">
           <h2 className="text-xl font-semibold mb-4">Last Run Summary</h2>
           <div className="bg-gray-800 rounded-lg p-4 space-y-2">
+            {summary.aborted && (
+              <div className="bg-orange-900/30 border border-orange-600 rounded p-2 mb-2">
+                <span className="text-orange-400 font-semibold">⚠ SIMULATION ABORTED</span>
+                <p className="text-orange-300 text-sm mt-1">
+                  Hit safety cap (max rounds or actions). Check console for details.
+                </p>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-gray-400">Outcome:</span>
               <span
