@@ -31,6 +31,20 @@ interface SimLogEntry {
   strengthCardsLeft: number;
   totalMovementValueLeft: number;
   totalStrengthValueLeft: number;
+  // Player state
+  resources: number;
+  hand: string;
+  buildQueue: string;
+  readyRockets: string;
+  // Comet state
+  activeSegment: string;
+  segmentHP: string;
+  // Bot decision context
+  decision: string;
+  playableSets: number;
+  canBuildRocket: boolean;
+  rocketSlotFull: boolean;
+  hasReadyRocket: boolean;
 }
 
 interface SimulationAnalytics {
@@ -279,6 +293,39 @@ function chooseRocketToLaunch(
 }
 
 // ============================================================================
+// STATE FORMATTING HELPERS
+// ============================================================================
+
+function formatHand(player: CometRushPlayerState): string {
+  if (player.hand.length === 0) return "-";
+
+  // Count cards by setKey
+  const counts = new Map<string, number>();
+  for (const card of player.hand) {
+    const key = card.setKey || "UNKNOWN";
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+
+  // Format as "POWx2, ACCx1, ..."
+  const entries = Array.from(counts.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  return entries.map(([key, count]) => `${key}x${count}`).join(", ");
+}
+
+function formatBuildQueue(player: CometRushPlayerState): string {
+  const building = player.rockets.filter((r) => r.status === "building");
+  if (building.length === 0) return "[]";
+
+  return "[" + building.map((r) => `P${r.power}/A${r.accuracy}/T${r.buildTimeRemaining}`).join(", ") + "]";
+}
+
+function formatReadyRockets(player: CometRushPlayerState): string {
+  const ready = player.rockets.filter((r) => r.status === "ready");
+  if (ready.length === 0) return "[]";
+
+  return "[" + ready.map((r) => `P${r.power}/A${r.accuracy}`).join(", ") + "]";
+}
+
+// ============================================================================
 // BOT PRIORITY HELPERS
 // ============================================================================
 
@@ -366,8 +413,9 @@ function simulateBotTurn(
     return false;
   };
 
-  const addLog = (action: string, details: string) => {
+  const addLog = (action: string, details: string, decisionContext?: string) => {
     const playerLabel = playerId.replace("player-", "P");
+    const player = currentState.players[playerId];
 
     // Calculate comet tracking data
     const movementCardsLeft = currentState.movementDeck.length;
@@ -377,6 +425,38 @@ function simulateBotTurn(
       (sum, card) => sum + card.baseStrength,
       0,
     ) + (currentState.activeStrengthCard?.currentStrength ?? 0);
+
+    // Player state
+    const resources = player?.resourceCubes ?? 0;
+    const hand = player ? formatHand(player) : "-";
+    const buildQueue = player ? formatBuildQueue(player) : "[]";
+    const readyRockets = player ? formatReadyRockets(player) : "[]";
+
+    // Comet state
+    const activeSegment = currentState.activeStrengthCard
+      ? String(currentState.activeStrengthCard.baseStrength)
+      : "-";
+    const segmentHP = currentState.activeStrengthCard
+      ? String(currentState.activeStrengthCard.currentStrength)
+      : "-";
+
+    // Bot decision context
+    const playableSets = player ? getPlayableResearchSets(player).length : 0;
+    const canBuildRocket = player ? (() => {
+      const maxSlots = player.maxConcurrentRockets + player.upgrades.maxRocketsBonus;
+      const buildingOrReady = player.rockets.filter(
+        (r) => r.status === "building" || r.status === "ready"
+      ).length;
+      return player.resourceCubes >= 4 && buildingOrReady < maxSlots && !hasBuildingRocket(player);
+    })() : false;
+    const rocketSlotFull = player ? (() => {
+      const maxSlots = player.maxConcurrentRockets + player.upgrades.maxRocketsBonus;
+      const buildingOrReady = player.rockets.filter(
+        (r) => r.status === "building" || r.status === "ready"
+      ).length;
+      return buildingOrReady >= maxSlots;
+    })() : false;
+    const hasReadyRocket = player ? player.rockets.some((r) => r.status === "ready") : false;
 
     log.push({
       id: 0, // Will be assigned after simulation completes
@@ -391,19 +471,30 @@ function simulateBotTurn(
       strengthCardsLeft,
       totalMovementValueLeft,
       totalStrengthValueLeft,
+      resources,
+      hand,
+      buildQueue,
+      readyRockets,
+      activeSegment,
+      segmentHP,
+      decision: decisionContext || "-",
+      playableSets,
+      canBuildRocket,
+      rocketSlotFull,
+      hasReadyRocket,
     });
   };
 
   // 1. BEGIN_TURN (always)
   if (dispatch({ type: "BEGIN_TURN", playerId })) {
     const player = currentState.players[playerId];
-    addLog("BEGIN_TURN", `Income: +${currentState.turnMeta?.incomeGained ?? 0} cubes (total: ${player?.resourceCubes ?? 0})`);
+    addLog("BEGIN_TURN", `Income: +${currentState.turnMeta?.incomeGained ?? 0} cubes (total: ${player?.resourceCubes ?? 0})`, "BEGIN_TURN: mandatory");
   }
 
   // 2. DRAW_TURN_CARD (always)
   if (dispatch({ type: "DRAW_TURN_CARD", playerId })) {
     const cardId = currentState.turnMeta?.lastDrawnCardId;
-    addLog("DRAW_TURN_CARD", cardId ? `Drew card ${cardId}` : "No cards to draw");
+    addLog("DRAW_TURN_CARD", cardId ? `Drew card ${cardId}` : "No cards to draw", "DRAW: mandatory");
   }
 
   // 3. Evaluate actions in priority order
@@ -411,7 +502,7 @@ function simulateBotTurn(
   if (!player) {
     // If player doesn't exist, just end turn
     if (dispatch({ type: "END_TURN", playerId })) {
-      addLog("END_TURN", `Distance to impact: ${currentState.distanceToImpact}`);
+      addLog("END_TURN", `Distance to impact: ${currentState.distanceToImpact}`, "END_TURN: no player");
     }
     return { state: currentState, seed: currentSeed, rocketsBuilt, rocketsLaunched };
   }
@@ -446,7 +537,7 @@ function simulateBotTurn(
 
           const hitMiss = result.hit ? "HIT" : "MISS";
           const destroyed = result.destroyed ? " - DESTROYED!" : "";
-          addLog("LAUNCH_ROCKET", `[P1: Kill shot] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`);
+          addLog("LAUNCH_ROCKET", `[P1: Kill shot] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`, `LAUNCH: P1 segmentHP <= rocket.power`);
         }
         actionTaken = true;
         player = currentState.players[playerId];
@@ -482,7 +573,7 @@ function simulateBotTurn(
 
           const hitMiss = result.hit ? "HIT" : "MISS";
           const destroyed = result.destroyed ? " - DESTROYED!" : "";
-          addLog("LAUNCH_ROCKET", `[P2: Close approach] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`);
+          addLog("LAUNCH_ROCKET", `[P2: Close approach] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`, `LAUNCH: P2 cometDist <= 8`);
         }
         actionTaken = true;
         player = currentState.players[playerId];
@@ -518,7 +609,7 @@ function simulateBotTurn(
 
           const hitMiss = result.hit ? "HIT" : "MISS";
           const destroyed = result.destroyed ? " - DESTROYED!" : "";
-          addLog("LAUNCH_ROCKET", `[P3: Clear pipeline] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`);
+          addLog("LAUNCH_ROCKET", `[P3: Clear pipeline] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`, `LAUNCH: P3 ready + building`);
         }
         actionTaken = true;
         player = currentState.players[playerId];
@@ -537,7 +628,7 @@ function simulateBotTurn(
           accuracy: config.accuracy,
           buildTimeBase: config.buildTimeBase,
         });
-        addLog("BUILD_ROCKET", `[P4: Pipeline] P=${config.power}, A=${config.accuracy}, T=${config.buildTimeBase}`);
+        addLog("BUILD_ROCKET", `[P4: Pipeline] P=${config.power}, A=${config.accuracy}, T=${config.buildTimeBase}`, `BUILD: P4 no building + canBuild`);
         actionTaken = true;
         player = currentState.players[playerId];
       }
@@ -549,7 +640,7 @@ function simulateBotTurn(
     const choice = choosePriorityResearchSet(player, ["POWER", "ACCURACY"]);
     if (choice) {
       if (dispatch({ type: "PLAY_RESEARCH_SET", playerId, payload: { cardIds: choice.cards.map((c) => c.id) } })) {
-        addLog("PLAY_RESEARCH_SET", `[P5: Combat upgrade] ${choice.setKey} (${choice.cards.length} cards)`);
+        addLog("PLAY_RESEARCH_SET", `[P5: Combat upgrade] ${choice.setKey} (${choice.cards.length} cards)`, `PLAY_RESEARCH: P5 ${choice.setKey} available`);
         actionTaken = true;
         player = currentState.players[playerId];
       }
@@ -561,16 +652,19 @@ function simulateBotTurn(
     const choice = chooseResearchSetToPlay(player);
     if (choice) {
       if (dispatch({ type: "PLAY_RESEARCH_SET", playerId, payload: { cardIds: choice.cards.map((c) => c.id) } })) {
-        addLog("PLAY_RESEARCH_SET", `[P6: Other upgrade] ${choice.setKey} (${choice.cards.length} cards)`);
+        addLog("PLAY_RESEARCH_SET", `[P6: Other upgrade] ${choice.setKey} (${choice.cards.length} cards)`, `PLAY_RESEARCH: P6 ${choice.setKey} available`);
         actionTaken = true;
         player = currentState.players[playerId];
       }
     }
   }
 
-  // 6. END_TURN
+  // 7. END_TURN
+  const endDecision = actionTaken
+    ? "END_TURN: action taken"
+    : `END_TURN: no action (ready:${hasReadyRocket(player)}, canBuild:${!hasBuildingRocket(player)}, sets:${getPlayableResearchSets(player).length})`;
   if (dispatch({ type: "END_TURN", playerId })) {
-    addLog("END_TURN", `Distance to impact: ${currentState.distanceToImpact}`);
+    addLog("END_TURN", `Distance to impact: ${currentState.distanceToImpact}`, endDecision);
   }
 
   return { state: currentState, seed: currentSeed, rocketsBuilt, rocketsLaunched };
@@ -713,6 +807,17 @@ function runCometRushSimulation(
     strengthCardsLeft: initialStrengthCardsLeft,
     totalMovementValueLeft: initialTotalMovementValueLeft,
     totalStrengthValueLeft: initialTotalStrengthValueLeft,
+    resources: 0,
+    hand: "-",
+    buildQueue: "[]",
+    readyRockets: "[]",
+    activeSegment: "-",
+    segmentHP: "-",
+    decision: "START_GAME",
+    playableSets: 0,
+    canBuildRocket: false,
+    rocketSlotFull: false,
+    hasReadyRocket: false,
   });
 
   // Run simulation loop
