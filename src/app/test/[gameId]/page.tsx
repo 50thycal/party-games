@@ -676,7 +676,7 @@ function simulateBotTurn(
   if (launchCount > 0) actionTaken = true;
 
   // PRIORITY 4: Build rockets to fill available slots (loop for multiple builds)
-  while (!actionTaken && !player.hasBuiltRocketThisTurn && botWantsAnotherRocket(player, currentState.distanceToImpact)) {
+  while (!actionTaken && botWantsAnotherRocket(player, currentState.distanceToImpact)) {
     const config = chooseRocketToBuild(player);
     if (!config) break;
 

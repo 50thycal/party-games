@@ -810,7 +810,7 @@ function reducer(
       if (!payload) return state;
 
       const player = state.players[action.playerId];
-      if (!player || player.hasBuiltRocketThisTurn) return state;
+      if (!player) return state;
 
       // Get raw values from payload
       const rawPower = payload.power;
