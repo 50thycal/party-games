@@ -358,10 +358,17 @@ function hasPowerOrAccuracyResearch(player: CometRushPlayerState): boolean {
 
 function choosePriorityResearchSet(
   player: CometRushPlayerState,
-  priorityTypes: string[]
+  priorityTypes: string[],
+  distanceToImpact?: number
 ): ResearchSetOption | null {
-  const options = getPlayableResearchSets(player);
+  let options = getPlayableResearchSets(player);
   if (options.length === 0) return null;
+
+  // Late game: filter out economy upgrades when distance is critical
+  if (distanceToImpact !== undefined && distanceToImpact <= 4) {
+    options = options.filter((s) => s.setKey !== "INCOME" && s.setKey !== "MAX_ROCKETS");
+    if (options.length === 0) return null;
+  }
 
   // First, try to find a priority type
   for (const priority of priorityTypes) {
@@ -371,6 +378,34 @@ function choosePriorityResearchSet(
 
   // Otherwise return first available
   return options[0];
+}
+
+function botWantsAnotherRocket(
+  player: CometRushPlayerState,
+  distanceToImpact: number
+): boolean {
+  const maxSlots = player.maxConcurrentRockets + player.upgrades.maxRocketsBonus;
+  const currentSlots = player.rockets.filter(
+    (r) => r.status === "building" || r.status === "ready"
+  ).length;
+
+  // Can't build more if slots are full
+  if (currentSlots >= maxSlots) return false;
+
+  // If we're not close to impact, aggressively fill slots
+  if (distanceToImpact > 6 && currentSlots < maxSlots) return true;
+
+  // Midgame with lots of resources: fill slots
+  if (distanceToImpact > 3 && player.resourceCubes >= 8 && currentSlots < maxSlots) {
+    return true;
+  }
+
+  // Late game: only build if we have empty slots AND at least one ready rocket
+  if (distanceToImpact <= 3 && player.rockets.some((r) => r.status === "ready") && currentSlots < maxSlots) {
+    return true;
+  }
+
+  return false;
 }
 
 // ============================================================================
@@ -510,6 +545,8 @@ function simulateBotTurn(
   }
 
   let actionTaken = false;
+  let launchCount = 0;
+  let buildCount = 0;
 
   // PRIORITY 1: Launch if can destroy active segment (loop for multiple launches)
   while (!actionTaken && canDestroyActiveSegment(player, currentState)) {
@@ -525,6 +562,7 @@ function simulateBotTurn(
 
     if (dispatch({ type: "LAUNCH_ROCKET", playerId, payload: { rocketId } })) {
       rocketsLaunched++;
+      launchCount++;
       const result = currentState.lastLaunchResult;
       if (result && rocketStats) {
         const damage = result.destroyed
@@ -542,12 +580,15 @@ function simulateBotTurn(
         const destroyed = result.destroyed ? " - DESTROYED!" : "";
         addLog("LAUNCH_ROCKET", `[P1: Kill shot] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`, `LAUNCH: P1 segmentHP <= rocket.power`);
       }
-      actionTaken = true;
       player = currentState.players[playerId];
+      // Don't set actionTaken here - allow multiple launches
     } else {
       break;
     }
   }
+
+  // Mark if we launched anything in P1
+  if (launchCount > 0) actionTaken = true;
 
   // PRIORITY 2: Launch if comet distance <= 8 (loop for multiple launches)
   while (!actionTaken && currentState.distanceToImpact <= 8 && hasReadyRocket(player)) {
@@ -563,6 +604,7 @@ function simulateBotTurn(
 
     if (dispatch({ type: "LAUNCH_ROCKET", playerId, payload: { rocketId } })) {
       rocketsLaunched++;
+      launchCount++;
       const result = currentState.lastLaunchResult;
       if (result && rocketStats) {
         const damage = result.destroyed
@@ -580,12 +622,15 @@ function simulateBotTurn(
         const destroyed = result.destroyed ? " - DESTROYED!" : "";
         addLog("LAUNCH_ROCKET", `[P2: Close approach] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`, `LAUNCH: P2 cometDist <= 8`);
       }
-      actionTaken = true;
       player = currentState.players[playerId];
+      // Don't set actionTaken here - allow multiple launches
     } else {
       break;
     }
   }
+
+  // Mark if we launched anything in P2
+  if (launchCount > 0) actionTaken = true;
 
   // PRIORITY 3: Launch if have ready rocket AND building rocket (loop for multiple launches)
   while (!actionTaken && hasReadyRocket(player) && hasBuildingRocket(player)) {
@@ -601,6 +646,7 @@ function simulateBotTurn(
 
     if (dispatch({ type: "LAUNCH_ROCKET", playerId, payload: { rocketId } })) {
       rocketsLaunched++;
+      launchCount++;
       const result = currentState.lastLaunchResult;
       if (result && rocketStats) {
         const damage = result.destroyed
@@ -618,34 +664,45 @@ function simulateBotTurn(
         const destroyed = result.destroyed ? " - DESTROYED!" : "";
         addLog("LAUNCH_ROCKET", `[P3: Clear pipeline] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`, `LAUNCH: P3 ready + building`);
       }
-      actionTaken = true;
       player = currentState.players[playerId];
+      // Don't set actionTaken here - allow multiple launches
     } else {
       break;
     }
   }
 
-  // PRIORITY 4: Build if no building rocket and enough resources
-  if (!actionTaken && !player.hasBuiltRocketThisTurn && !hasBuildingRocket(player)) {
+  // Mark if we launched anything in P3
+  if (launchCount > 0) actionTaken = true;
+
+  // PRIORITY 4: Build rockets to fill available slots (loop for multiple builds)
+  while (!actionTaken && !player.hasBuiltRocketThisTurn && botWantsAnotherRocket(player, currentState.distanceToImpact)) {
     const config = chooseRocketToBuild(player);
-    if (config) {
-      if (dispatch({ type: "BUILD_ROCKET", playerId, payload: config })) {
-        rocketsBuilt++;
-        builtRockets.push({
-          power: config.power,
-          accuracy: config.accuracy,
-          buildTimeBase: config.buildTimeBase,
-        });
-        addLog("BUILD_ROCKET", `[P4: Pipeline] P=${config.power}, A=${config.accuracy}, T=${config.buildTimeBase}`, `BUILD: P4 no building + canBuild`);
-        actionTaken = true;
-        player = currentState.players[playerId];
-      }
+    if (!config) break;
+
+    if (dispatch({ type: "BUILD_ROCKET", playerId, payload: config })) {
+      rocketsBuilt++;
+      buildCount++;
+      builtRockets.push({
+        power: config.power,
+        accuracy: config.accuracy,
+        buildTimeBase: config.buildTimeBase,
+      });
+      const currentSlots = player.rockets.filter((r) => r.status === "building" || r.status === "ready").length;
+      const maxSlots = player.maxConcurrentRockets + player.upgrades.maxRocketsBonus;
+      addLog("BUILD_ROCKET", `[P4: Fill slots] P=${config.power}, A=${config.accuracy}, T=${config.buildTimeBase} (${currentSlots + 1}/${maxSlots})`, `BUILD: P4 slots available`);
+      player = currentState.players[playerId];
+      // Don't set actionTaken here - allow multiple builds
+    } else {
+      break;
     }
   }
 
+  // Mark if we built anything in P4
+  if (buildCount > 0) actionTaken = true;
+
   // PRIORITY 5: Play POWER or ACCURACY research
   if (!actionTaken && !player.hasPlayedResearchThisTurn && hasPowerOrAccuracyResearch(player)) {
-    const choice = choosePriorityResearchSet(player, ["POWER", "ACCURACY"]);
+    const choice = choosePriorityResearchSet(player, ["POWER", "ACCURACY"], currentState.distanceToImpact);
     if (choice) {
       if (dispatch({ type: "PLAY_RESEARCH_SET", playerId, payload: { cardIds: choice.cards.map((c) => c.id) } })) {
         addLog("PLAY_RESEARCH_SET", `[P5: Combat upgrade] ${choice.setKey} (${choice.cards.length} cards)`, `PLAY_RESEARCH: P5 ${choice.setKey} available`);
@@ -655,9 +712,9 @@ function simulateBotTurn(
     }
   }
 
-  // PRIORITY 6: Play any other research
+  // PRIORITY 6: Play any other research (filtered for late-game focus)
   if (!actionTaken && !player.hasPlayedResearchThisTurn) {
-    const choice = chooseResearchSetToPlay(player);
+    const choice = choosePriorityResearchSet(player, [], currentState.distanceToImpact);
     if (choice) {
       if (dispatch({ type: "PLAY_RESEARCH_SET", playerId, payload: { cardIds: choice.cards.map((c) => c.id) } })) {
         addLog("PLAY_RESEARCH_SET", `[P6: Other upgrade] ${choice.setKey} (${choice.cards.length} cards)`, `PLAY_RESEARCH: P6 ${choice.setKey} available`);
