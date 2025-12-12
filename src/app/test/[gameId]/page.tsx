@@ -383,7 +383,7 @@ function choosePriorityResearchSet(
 
 function botWantsAnotherRocket(
   player: CometRushPlayerState,
-  distanceToImpact: number
+  _distanceToImpact: number
 ): boolean {
   const maxSlots = player.maxConcurrentRockets + player.upgrades.maxRocketsBonus;
   const currentSlots = player.rockets.filter(
@@ -396,15 +396,8 @@ function botWantsAnotherRocket(
   // Can't build if not enough resources (minimum cost is 4)
   if (player.resourceCubes < 4) return false;
 
-  // Early/mid game: aggressively fill all available slots
-  if (distanceToImpact > 3 && currentSlots < maxSlots) return true;
-
-  // Late game: only build if we have at least one ready rocket to launch
-  if (distanceToImpact <= 3 && player.rockets.some((r) => r.status === "ready") && currentSlots < maxSlots) {
-    return true;
-  }
-
-  return false;
+  // Build if we have resources and slots - no strategic restrictions
+  return true;
 }
 
 // ============================================================================
@@ -606,12 +599,12 @@ function simulateBotTurn(
     return { state: currentState, seed: currentSeed, rocketsBuilt, rocketsLaunched };
   }
 
-  let actionTaken = false;
   let launchCount = 0;
   let buildCount = 0;
+  let researchPlayed = false;
 
   // ====================
-  // PHASE 1: LAUNCH ROCKETS (execute highest priority that applies)
+  // PHASE 1: LAUNCH ALL READY ROCKETS
   // ====================
 
   // Log available actions before Phase 1
@@ -623,17 +616,11 @@ function simulateBotTurn(
 
   console.log(`[${playerId}] PHASE 1 START - Legal actions: LAUNCH=${canLaunch} (ready:${player.rockets.filter(r => r.status === "ready").length}), BUILD=${canBuild} (slots:${currentSlots}/${maxSlots}, res:${player.resourceCubes}), RESEARCH=${canResearch} (sets:${getPlayableResearchSets(player).length})`);
 
-  // PRIORITY 1: Launch if can destroy active segment (loop for multiple launches)
-  let p1Iterations = 0;
-  let launchedInPhase1 = false;
-  const canP1 = canDestroyActiveSegment(player, currentState);
-  if (canP1) {
-    console.log(`[${playerId}] P1 LAUNCH available: Can destroy active segment (segHP:${currentState.activeStrengthCard?.currentStrength})`);
-  }
-
-  while (canDestroyActiveSegment(player, currentState)) {
-    if (++p1Iterations > 10) {
-      console.error(`[LOOP GUARD] P1 launch loop exceeded 10 iterations for ${playerId}`);
+  // Launch ALL ready rockets - no restrictions
+  let launchIterations = 0;
+  while (hasReadyRocket(player)) {
+    if (++launchIterations > 20) {
+      console.error(`[LOOP GUARD] Launch loop exceeded 20 iterations for ${playerId}`);
       break;
     }
     const rocketId = chooseRocketToLaunch(player);
@@ -650,7 +637,6 @@ function simulateBotTurn(
       turnActionIndex++;
       rocketsLaunched++;
       launchCount++;
-      launchedInPhase1 = true;
       const result = currentState.lastLaunchResult;
       if (result && rocketStats) {
         const damage = result.destroyed
@@ -666,118 +652,15 @@ function simulateBotTurn(
 
         const hitMiss = result.hit ? "HIT" : "MISS";
         const destroyed = result.destroyed ? " - DESTROYED!" : "";
-        console.log(`[${playerId}] Action ${turnActionIndex}: LAUNCH_ROCKET (P1) - ${hitMiss} (roll:${result.diceRoll} vs ${result.accuracyNeeded})${destroyed}`);
-        addLog("LAUNCH_ROCKET", `[P1: Kill shot] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`, `LAUNCH: P1 segmentHP <= rocket.power`);
+        console.log(`[${playerId}] Action ${turnActionIndex}: LAUNCH_ROCKET - ${hitMiss} (roll:${result.diceRoll} vs ${result.accuracyNeeded})${destroyed}`);
+        addLog("LAUNCH_ROCKET", `Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`, `LAUNCH: ready rocket available`);
       }
       player = currentState.players[playerId];
     } else {
+      console.log(`[${playerId}] LAUNCH_ROCKET rejected by reducer for rocket ${rocketId}`);
       break;
     }
   }
-
-  // PRIORITY 2: Launch if comet distance <= 8 (only if P1 didn't launch)
-  let p2Iterations = 0;
-  const canP2 = !launchedInPhase1 && currentState.distanceToImpact <= 8 && hasReadyRocket(player);
-  if (canP2) {
-    console.log(`[${playerId}] P2 LAUNCH available: Close approach (dist:${currentState.distanceToImpact})`);
-  }
-  if (!launchedInPhase1 && currentState.distanceToImpact <= 8 && hasReadyRocket(player)) {
-    while (currentState.distanceToImpact <= 8 && hasReadyRocket(player)) {
-      if (++p2Iterations > 10) {
-        console.error(`[LOOP GUARD] P2 launch loop exceeded 10 iterations for ${playerId}`);
-        break;
-      }
-      const rocketId = chooseRocketToLaunch(player);
-      if (!rocketId) break;
-
-      const rocket = player.rockets.find((r) => r.id === rocketId);
-      const rocketStats = rocket ? {
-        power: rocket.power,
-        accuracy: rocket.accuracy,
-        buildTimeBase: rocket.buildTimeBase,
-      } : null;
-
-      if (dispatch({ type: "LAUNCH_ROCKET", playerId, payload: { rocketId } })) {
-        turnActionIndex++;
-        rocketsLaunched++;
-        launchCount++;
-        const result = currentState.lastLaunchResult;
-        if (result && rocketStats) {
-          const damage = result.destroyed
-            ? result.strengthBefore
-            : (result.hit ? Math.max(0, result.strengthBefore - result.strengthAfter) : 0);
-
-          launchedRockets.push({
-            ...rocketStats,
-            hit: result.hit,
-            damage,
-            destroyed: result.destroyed,
-          });
-
-          const hitMiss = result.hit ? "HIT" : "MISS";
-          const destroyed = result.destroyed ? " - DESTROYED!" : "";
-          console.log(`[${playerId}] Action ${turnActionIndex}: LAUNCH_ROCKET (P2) - ${hitMiss} (roll:${result.diceRoll} vs ${result.accuracyNeeded})${destroyed}`);
-          addLog("LAUNCH_ROCKET", `[P2: Close approach] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`, `LAUNCH: P2 cometDist <= 8`);
-        }
-        player = currentState.players[playerId];
-      } else {
-        break;
-      }
-    }
-  }
-
-  // PRIORITY 3: Launch if have ready rocket AND building rocket (only if P1/P2 didn't launch)
-  let p3Iterations = 0;
-  const canP3 = !launchedInPhase1 && launchCount === 0 && hasReadyRocket(player) && hasBuildingRocket(player);
-  if (canP3) {
-    console.log(`[${playerId}] P3 LAUNCH available: Clear pipeline (ready:${player.rockets.filter(r => r.status === "ready").length}, building:${player.rockets.filter(r => r.status === "building").length})`);
-  }
-  if (!launchedInPhase1 && launchCount === 0 && hasReadyRocket(player) && hasBuildingRocket(player)) {
-    while (hasReadyRocket(player) && hasBuildingRocket(player)) {
-      if (++p3Iterations > 10) {
-        console.error(`[LOOP GUARD] P3 launch loop exceeded 10 iterations for ${playerId}`);
-        break;
-      }
-      const rocketId = chooseRocketToLaunch(player);
-      if (!rocketId) break;
-
-      const rocket = player.rockets.find((r) => r.id === rocketId);
-      const rocketStats = rocket ? {
-        power: rocket.power,
-        accuracy: rocket.accuracy,
-        buildTimeBase: rocket.buildTimeBase,
-      } : null;
-
-      if (dispatch({ type: "LAUNCH_ROCKET", playerId, payload: { rocketId } })) {
-        turnActionIndex++;
-        rocketsLaunched++;
-        launchCount++;
-        const result = currentState.lastLaunchResult;
-        if (result && rocketStats) {
-          const damage = result.destroyed
-            ? result.strengthBefore
-            : (result.hit ? Math.max(0, result.strengthBefore - result.strengthAfter) : 0);
-
-          launchedRockets.push({
-            ...rocketStats,
-            hit: result.hit,
-            damage,
-            destroyed: result.destroyed,
-          });
-
-          const hitMiss = result.hit ? "HIT" : "MISS";
-          const destroyed = result.destroyed ? " - DESTROYED!" : "";
-          console.log(`[${playerId}] Action ${turnActionIndex}: LAUNCH_ROCKET (P3) - ${hitMiss} (roll:${result.diceRoll} vs ${result.accuracyNeeded})${destroyed}`);
-          addLog("LAUNCH_ROCKET", `[P3: Clear pipeline] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`, `LAUNCH: P3 ready + building`);
-        }
-        player = currentState.players[playerId];
-      } else {
-        break;
-      }
-    }
-  }
-
-  if (launchCount > 0) actionTaken = true;
 
   // ====================
   // PHASE 2: BUILD ROCKETS (always check, regardless of launch phase)
@@ -819,37 +702,30 @@ function simulateBotTurn(
     }
   }
 
-  if (buildCount > 0) actionTaken = true;
-
   // ====================
-  // PHASE 3: RESEARCH (only if no launches or builds happened)
+  // PHASE 3: RESEARCH (can happen regardless of launches/builds)
   // ====================
 
-  console.log(`[${playerId}] PHASE 3 START - RESEARCH check: actionTaken=${actionTaken}, hasPlayed=${player.hasPlayedResearchThisTurn}, hasPowerAcc=${hasPowerOrAccuracyResearch(player)}, sets=${getPlayableResearchSets(player).length}`);
+  console.log(`[${playerId}] PHASE 3 START - RESEARCH check: hasPlayed=${player.hasPlayedResearchThisTurn}, hasPowerAcc=${hasPowerOrAccuracyResearch(player)}, sets=${getPlayableResearchSets(player).length}`);
 
-  // PRIORITY 5: Play POWER or ACCURACY research
-  if (!actionTaken && !player.hasPlayedResearchThisTurn && hasPowerOrAccuracyResearch(player)) {
-    const choice = choosePriorityResearchSet(player, ["POWER", "ACCURACY"], currentState.distanceToImpact);
-    if (choice) {
-      if (dispatch({ type: "PLAY_RESEARCH_SET", playerId, payload: { cardIds: choice.cards.map((c) => c.id) } })) {
-        turnActionIndex++;
-        console.log(`[${playerId}] Action ${turnActionIndex}: PLAY_RESEARCH_SET (P5) - ${choice.setKey} (${choice.cards.length} cards)`);
-        addLog("PLAY_RESEARCH_SET", `[P5: Combat upgrade] ${choice.setKey} (${choice.cards.length} cards)`, `PLAY_RESEARCH: P5 ${choice.setKey} available`);
-        actionTaken = true;
-        player = currentState.players[playerId];
-      }
+  // Play research if we have a valid set and haven't played this turn
+  if (!player.hasPlayedResearchThisTurn) {
+    // Try POWER or ACCURACY first (combat upgrades)
+    let choice = hasPowerOrAccuracyResearch(player)
+      ? choosePriorityResearchSet(player, ["POWER", "ACCURACY"], currentState.distanceToImpact)
+      : null;
+
+    // Fall back to any other research
+    if (!choice) {
+      choice = choosePriorityResearchSet(player, [], currentState.distanceToImpact);
     }
-  }
 
-  // PRIORITY 6: Play any other research (filtered for late-game focus)
-  if (!actionTaken && !player.hasPlayedResearchThisTurn) {
-    const choice = choosePriorityResearchSet(player, [], currentState.distanceToImpact);
     if (choice) {
       if (dispatch({ type: "PLAY_RESEARCH_SET", playerId, payload: { cardIds: choice.cards.map((c) => c.id) } })) {
         turnActionIndex++;
-        console.log(`[${playerId}] Action ${turnActionIndex}: PLAY_RESEARCH_SET (P6) - ${choice.setKey} (${choice.cards.length} cards)`);
-        addLog("PLAY_RESEARCH_SET", `[P6: Other upgrade] ${choice.setKey} (${choice.cards.length} cards)`, `PLAY_RESEARCH: P6 ${choice.setKey} available`);
-        actionTaken = true;
+        researchPlayed = true;
+        console.log(`[${playerId}] Action ${turnActionIndex}: PLAY_RESEARCH_SET - ${choice.setKey} (${choice.cards.length} cards)`);
+        addLog("PLAY_RESEARCH_SET", `${choice.setKey} (${choice.cards.length} cards)`, `PLAY_RESEARCH: ${choice.setKey} available`);
         player = currentState.players[playerId];
       }
     }
@@ -861,14 +737,15 @@ function simulateBotTurn(
   const canLaunchAtEnd = hasReadyRocket(player);
   const canResearchAtEnd = getPlayableResearchSets(player).length > 0 && !player.hasPlayedResearchThisTurn;
 
-  const endReason = actionTaken
-    ? `Ending turn after taking ${launchCount + buildCount} action(s) (launched:${launchCount}, built:${buildCount})`
+  const totalActions = launchCount + buildCount + (researchPlayed ? 1 : 0);
+  const endReason = totalActions > 0
+    ? `Ending turn after ${totalActions} action(s) (launched:${launchCount}, built:${buildCount}, research:${researchPlayed ? 1 : 0})`
     : `Ending turn - NO actions possible (canLaunch:${canLaunchAtEnd}, canBuild:${canBuildAtEnd}, canResearch:${canResearchAtEnd}, res:${player.resourceCubes}, slots:${currentSlotsAtEnd}/${maxSlots})`;
 
   console.log(`[${playerId}] END_TURN - ${endReason}`);
 
-  const endDecision = actionTaken
-    ? "END_TURN: action taken"
+  const endDecision = totalActions > 0
+    ? "END_TURN: actions completed"
     : `END_TURN: no action (ready:${hasReadyRocket(player)}, canBuild:${canBuildAtEnd}, sets:${getPlayableResearchSets(player).length})`;
   if (dispatch({ type: "END_TURN", playerId })) {
     turnActionIndex++;
