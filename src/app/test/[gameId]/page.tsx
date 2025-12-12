@@ -439,13 +439,69 @@ function simulateBotTurn(
   let rocketsBuilt = 0;
   let rocketsLaunched = 0;
 
+  // PER-TURN action limit to prevent infinite loops
+  const MAX_ACTIONS_PER_TURN = 50;
+  let turnActionCount = 0;
+
   const dispatch = (action: CometRushAction): boolean => {
+    // Check per-turn action limit BEFORE dispatching
+    if (turnActionCount >= MAX_ACTIONS_PER_TURN) {
+      console.error(`[LOOP GUARD] Hit MAX_ACTIONS_PER_TURN (${MAX_ACTIONS_PER_TURN}) for player ${playerId}`);
+      console.error(`State snapshot:`, {
+        resources: currentState.players[playerId]?.resourceCubes,
+        rockets: currentState.players[playerId]?.rockets.length,
+        ready: currentState.players[playerId]?.rockets.filter(r => r.status === "ready").length,
+        building: currentState.players[playerId]?.rockets.filter(r => r.status === "building").length,
+        phase: currentState.phase,
+        round: currentState.round,
+      });
+      return false;
+    }
+
     const ctx = createGameContext(room, playerId, currentSeed);
     currentSeed += 1;
 
     const allowed = cometRushGame.isActionAllowed?.(currentState, action, ctx) ?? true;
     if (allowed) {
+      const prevState = currentState;
       currentState = cometRushGame.reducer(currentState, action, ctx);
+      turnActionCount++;
+
+      // STATE CHANGE ASSERTION: Verify state actually changed for critical actions
+      if (action.type === "BUILD_ROCKET") {
+        const prevPlayer = prevState.players[playerId];
+        const newPlayer = currentState.players[playerId];
+        if (prevPlayer && newPlayer) {
+          const resourcesDecreased = newPlayer.resourceCubes < prevPlayer.resourceCubes;
+          const rocketsIncreased = newPlayer.rockets.length > prevPlayer.rockets.length;
+          if (!resourcesDecreased || !rocketsIncreased) {
+            console.error(`[STATE ASSERTION] BUILD_ROCKET didn't change state properly!`, {
+              resourcesBefore: prevPlayer.resourceCubes,
+              resourcesAfter: newPlayer.resourceCubes,
+              rocketsBefore: prevPlayer.rockets.length,
+              rocketsAfter: newPlayer.rockets.length,
+            });
+            return false;
+          }
+        }
+      }
+
+      if (action.type === "LAUNCH_ROCKET") {
+        const prevPlayer = prevState.players[playerId];
+        const newPlayer = currentState.players[playerId];
+        if (prevPlayer && newPlayer) {
+          const prevReady = prevPlayer.rockets.filter(r => r.status === "ready").length;
+          const newReady = newPlayer.rockets.filter(r => r.status === "ready").length;
+          if (newReady >= prevReady) {
+            console.error(`[STATE ASSERTION] LAUNCH_ROCKET didn't decrease ready rockets!`, {
+              readyBefore: prevReady,
+              readyAfter: newReady,
+            });
+            return false;
+          }
+        }
+      }
+
       return true;
     }
     return false;
@@ -550,7 +606,12 @@ function simulateBotTurn(
   let buildCount = 0;
 
   // PRIORITY 1: Launch if can destroy active segment (loop for multiple launches)
+  let p1Iterations = 0;
   while (!actionTaken && canDestroyActiveSegment(player, currentState)) {
+    if (++p1Iterations > 10) {
+      console.error(`[LOOP GUARD] P1 launch loop exceeded 10 iterations for ${playerId}`);
+      break;
+    }
     const rocketId = chooseRocketToLaunch(player);
     if (!rocketId) break;
 
@@ -592,7 +653,12 @@ function simulateBotTurn(
   if (launchCount > 0) actionTaken = true;
 
   // PRIORITY 2: Launch if comet distance <= 8 (loop for multiple launches)
+  let p2Iterations = 0;
   while (!actionTaken && currentState.distanceToImpact <= 8 && hasReadyRocket(player)) {
+    if (++p2Iterations > 10) {
+      console.error(`[LOOP GUARD] P2 launch loop exceeded 10 iterations for ${playerId}`);
+      break;
+    }
     const rocketId = chooseRocketToLaunch(player);
     if (!rocketId) break;
 
@@ -634,7 +700,12 @@ function simulateBotTurn(
   if (launchCount > 0) actionTaken = true;
 
   // PRIORITY 3: Launch if have ready rocket AND building rocket (loop for multiple launches)
+  let p3Iterations = 0;
   while (!actionTaken && hasReadyRocket(player) && hasBuildingRocket(player)) {
+    if (++p3Iterations > 10) {
+      console.error(`[LOOP GUARD] P3 launch loop exceeded 10 iterations for ${playerId}`);
+      break;
+    }
     const rocketId = chooseRocketToLaunch(player);
     if (!rocketId) break;
 
@@ -676,7 +747,18 @@ function simulateBotTurn(
   if (launchCount > 0) actionTaken = true;
 
   // PRIORITY 4: Build rockets to fill available slots (loop for multiple builds)
+  let p4Iterations = 0;
   while (!actionTaken && botWantsAnotherRocket(player, currentState.distanceToImpact)) {
+    if (++p4Iterations > 10) {
+      console.error(`[LOOP GUARD] P4 build loop exceeded 10 iterations for ${playerId}`);
+      console.error(`Loop state:`, {
+        resources: player.resourceCubes,
+        rockets: player.rockets.length,
+        maxSlots: player.maxConcurrentRockets + player.upgrades.maxRocketsBonus,
+        distance: currentState.distanceToImpact,
+      });
+      break;
+    }
     const config = chooseRocketToBuild(player);
     if (!config) break;
 
