@@ -393,15 +393,13 @@ function botWantsAnotherRocket(
   // Can't build more if slots are full
   if (currentSlots >= maxSlots) return false;
 
-  // If we're not close to impact, aggressively fill slots
-  if (distanceToImpact > 6 && currentSlots < maxSlots) return true;
+  // Can't build if not enough resources (minimum cost is 4)
+  if (player.resourceCubes < 4) return false;
 
-  // Midgame with lots of resources: fill slots
-  if (distanceToImpact > 3 && player.resourceCubes >= 8 && currentSlots < maxSlots) {
-    return true;
-  }
+  // Early/mid game: aggressively fill all available slots
+  if (distanceToImpact > 3 && currentSlots < maxSlots) return true;
 
-  // Late game: only build if we have empty slots AND at least one ready rocket
+  // Late game: only build if we have at least one ready rocket to launch
   if (distanceToImpact <= 3 && player.rockets.some((r) => r.status === "ready") && currentSlots < maxSlots) {
     return true;
   }
@@ -439,13 +437,69 @@ function simulateBotTurn(
   let rocketsBuilt = 0;
   let rocketsLaunched = 0;
 
+  // PER-TURN action limit to prevent infinite loops
+  const MAX_ACTIONS_PER_TURN = 50;
+  let turnActionCount = 0;
+
   const dispatch = (action: CometRushAction): boolean => {
+    // Check per-turn action limit BEFORE dispatching
+    if (turnActionCount >= MAX_ACTIONS_PER_TURN) {
+      console.error(`[LOOP GUARD] Hit MAX_ACTIONS_PER_TURN (${MAX_ACTIONS_PER_TURN}) for player ${playerId}`);
+      console.error(`State snapshot:`, {
+        resources: currentState.players[playerId]?.resourceCubes,
+        rockets: currentState.players[playerId]?.rockets.length,
+        ready: currentState.players[playerId]?.rockets.filter(r => r.status === "ready").length,
+        building: currentState.players[playerId]?.rockets.filter(r => r.status === "building").length,
+        phase: currentState.phase,
+        round: currentState.round,
+      });
+      return false;
+    }
+
     const ctx = createGameContext(room, playerId, currentSeed);
     currentSeed += 1;
 
     const allowed = cometRushGame.isActionAllowed?.(currentState, action, ctx) ?? true;
     if (allowed) {
+      const prevState = currentState;
       currentState = cometRushGame.reducer(currentState, action, ctx);
+      turnActionCount++;
+
+      // STATE CHANGE ASSERTION: Verify state actually changed for critical actions
+      if (action.type === "BUILD_ROCKET") {
+        const prevPlayer = prevState.players[playerId];
+        const newPlayer = currentState.players[playerId];
+        if (prevPlayer && newPlayer) {
+          const resourcesDecreased = newPlayer.resourceCubes < prevPlayer.resourceCubes;
+          const rocketsIncreased = newPlayer.rockets.length > prevPlayer.rockets.length;
+          if (!resourcesDecreased || !rocketsIncreased) {
+            console.error(`[STATE ASSERTION] BUILD_ROCKET didn't change state properly!`, {
+              resourcesBefore: prevPlayer.resourceCubes,
+              resourcesAfter: newPlayer.resourceCubes,
+              rocketsBefore: prevPlayer.rockets.length,
+              rocketsAfter: newPlayer.rockets.length,
+            });
+            return false;
+          }
+        }
+      }
+
+      if (action.type === "LAUNCH_ROCKET") {
+        const prevPlayer = prevState.players[playerId];
+        const newPlayer = currentState.players[playerId];
+        if (prevPlayer && newPlayer) {
+          const prevReady = prevPlayer.rockets.filter(r => r.status === "ready").length;
+          const newReady = newPlayer.rockets.filter(r => r.status === "ready").length;
+          if (newReady >= prevReady) {
+            console.error(`[STATE ASSERTION] LAUNCH_ROCKET didn't decrease ready rockets!`, {
+              readyBefore: prevReady,
+              readyAfter: newReady,
+            });
+            return false;
+          }
+        }
+      }
+
       return true;
     }
     return false;
@@ -485,7 +539,7 @@ function simulateBotTurn(
       const buildingOrReady = player.rockets.filter(
         (r) => r.status === "building" || r.status === "ready"
       ).length;
-      return player.resourceCubes >= 4 && buildingOrReady < maxSlots && !hasBuildingRocket(player);
+      return player.resourceCubes >= 4 && buildingOrReady < maxSlots;
     })() : false;
     const rocketSlotFull = player ? (() => {
       const maxSlots = player.maxConcurrentRockets + player.upgrades.maxRocketsBonus;
@@ -523,15 +577,22 @@ function simulateBotTurn(
     });
   };
 
+  // Action counter for debug logging
+  let turnActionIndex = 0;
+
   // 1. BEGIN_TURN (always)
   if (dispatch({ type: "BEGIN_TURN", playerId })) {
+    turnActionIndex++;
     const player = currentState.players[playerId];
+    console.log(`[${playerId}] Action ${turnActionIndex}: BEGIN_TURN - Income: +${currentState.turnMeta?.incomeGained ?? 0} (total: ${player?.resourceCubes ?? 0})`);
     addLog("BEGIN_TURN", `Income: +${currentState.turnMeta?.incomeGained ?? 0} cubes (total: ${player?.resourceCubes ?? 0})`, "BEGIN_TURN: mandatory");
   }
 
   // 2. DRAW_TURN_CARD (always)
   if (dispatch({ type: "DRAW_TURN_CARD", playerId })) {
+    turnActionIndex++;
     const cardId = currentState.turnMeta?.lastDrawnCardId;
+    console.log(`[${playerId}] Action ${turnActionIndex}: DRAW_TURN_CARD - ${cardId ?? "none"}`);
     addLog("DRAW_TURN_CARD", cardId ? `Drew card ${cardId}` : "No cards to draw", "DRAW: mandatory");
   }
 
@@ -549,8 +610,32 @@ function simulateBotTurn(
   let launchCount = 0;
   let buildCount = 0;
 
+  // ====================
+  // PHASE 1: LAUNCH ROCKETS (execute highest priority that applies)
+  // ====================
+
+  // Log available actions before Phase 1
+  const maxSlots = player.maxConcurrentRockets + player.upgrades.maxRocketsBonus;
+  const currentSlots = player.rockets.filter((r) => r.status === "building" || r.status === "ready").length;
+  const canBuild = player.resourceCubes >= 4 && currentSlots < maxSlots;
+  const canLaunch = hasReadyRocket(player);
+  const canResearch = getPlayableResearchSets(player).length > 0 && !player.hasPlayedResearchThisTurn;
+
+  console.log(`[${playerId}] PHASE 1 START - Legal actions: LAUNCH=${canLaunch} (ready:${player.rockets.filter(r => r.status === "ready").length}), BUILD=${canBuild} (slots:${currentSlots}/${maxSlots}, res:${player.resourceCubes}), RESEARCH=${canResearch} (sets:${getPlayableResearchSets(player).length})`);
+
   // PRIORITY 1: Launch if can destroy active segment (loop for multiple launches)
-  while (!actionTaken && canDestroyActiveSegment(player, currentState)) {
+  let p1Iterations = 0;
+  let launchedInPhase1 = false;
+  const canP1 = canDestroyActiveSegment(player, currentState);
+  if (canP1) {
+    console.log(`[${playerId}] P1 LAUNCH available: Can destroy active segment (segHP:${currentState.activeStrengthCard?.currentStrength})`);
+  }
+
+  while (canDestroyActiveSegment(player, currentState)) {
+    if (++p1Iterations > 10) {
+      console.error(`[LOOP GUARD] P1 launch loop exceeded 10 iterations for ${playerId}`);
+      break;
+    }
     const rocketId = chooseRocketToLaunch(player);
     if (!rocketId) break;
 
@@ -562,8 +647,10 @@ function simulateBotTurn(
     } : null;
 
     if (dispatch({ type: "LAUNCH_ROCKET", playerId, payload: { rocketId } })) {
+      turnActionIndex++;
       rocketsLaunched++;
       launchCount++;
+      launchedInPhase1 = true;
       const result = currentState.lastLaunchResult;
       if (result && rocketStats) {
         const damage = result.destroyed
@@ -579,108 +666,142 @@ function simulateBotTurn(
 
         const hitMiss = result.hit ? "HIT" : "MISS";
         const destroyed = result.destroyed ? " - DESTROYED!" : "";
+        console.log(`[${playerId}] Action ${turnActionIndex}: LAUNCH_ROCKET (P1) - ${hitMiss} (roll:${result.diceRoll} vs ${result.accuracyNeeded})${destroyed}`);
         addLog("LAUNCH_ROCKET", `[P1: Kill shot] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`, `LAUNCH: P1 segmentHP <= rocket.power`);
       }
       player = currentState.players[playerId];
-      // Don't set actionTaken here - allow multiple launches
     } else {
       break;
     }
   }
 
-  // Mark if we launched anything in P1
-  if (launchCount > 0) actionTaken = true;
-
-  // PRIORITY 2: Launch if comet distance <= 8 (loop for multiple launches)
-  while (!actionTaken && currentState.distanceToImpact <= 8 && hasReadyRocket(player)) {
-    const rocketId = chooseRocketToLaunch(player);
-    if (!rocketId) break;
-
-    const rocket = player.rockets.find((r) => r.id === rocketId);
-    const rocketStats = rocket ? {
-      power: rocket.power,
-      accuracy: rocket.accuracy,
-      buildTimeBase: rocket.buildTimeBase,
-    } : null;
-
-    if (dispatch({ type: "LAUNCH_ROCKET", playerId, payload: { rocketId } })) {
-      rocketsLaunched++;
-      launchCount++;
-      const result = currentState.lastLaunchResult;
-      if (result && rocketStats) {
-        const damage = result.destroyed
-          ? result.strengthBefore
-          : (result.hit ? Math.max(0, result.strengthBefore - result.strengthAfter) : 0);
-
-        launchedRockets.push({
-          ...rocketStats,
-          hit: result.hit,
-          damage,
-          destroyed: result.destroyed,
-        });
-
-        const hitMiss = result.hit ? "HIT" : "MISS";
-        const destroyed = result.destroyed ? " - DESTROYED!" : "";
-        addLog("LAUNCH_ROCKET", `[P2: Close approach] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`, `LAUNCH: P2 cometDist <= 8`);
+  // PRIORITY 2: Launch if comet distance <= 8 (only if P1 didn't launch)
+  let p2Iterations = 0;
+  const canP2 = !launchedInPhase1 && currentState.distanceToImpact <= 8 && hasReadyRocket(player);
+  if (canP2) {
+    console.log(`[${playerId}] P2 LAUNCH available: Close approach (dist:${currentState.distanceToImpact})`);
+  }
+  if (!launchedInPhase1 && currentState.distanceToImpact <= 8 && hasReadyRocket(player)) {
+    while (currentState.distanceToImpact <= 8 && hasReadyRocket(player)) {
+      if (++p2Iterations > 10) {
+        console.error(`[LOOP GUARD] P2 launch loop exceeded 10 iterations for ${playerId}`);
+        break;
       }
-      player = currentState.players[playerId];
-      // Don't set actionTaken here - allow multiple launches
-    } else {
-      break;
-    }
-  }
+      const rocketId = chooseRocketToLaunch(player);
+      if (!rocketId) break;
 
-  // Mark if we launched anything in P2
-  if (launchCount > 0) actionTaken = true;
+      const rocket = player.rockets.find((r) => r.id === rocketId);
+      const rocketStats = rocket ? {
+        power: rocket.power,
+        accuracy: rocket.accuracy,
+        buildTimeBase: rocket.buildTimeBase,
+      } : null;
 
-  // PRIORITY 3: Launch if have ready rocket AND building rocket (loop for multiple launches)
-  while (!actionTaken && hasReadyRocket(player) && hasBuildingRocket(player)) {
-    const rocketId = chooseRocketToLaunch(player);
-    if (!rocketId) break;
+      if (dispatch({ type: "LAUNCH_ROCKET", playerId, payload: { rocketId } })) {
+        turnActionIndex++;
+        rocketsLaunched++;
+        launchCount++;
+        const result = currentState.lastLaunchResult;
+        if (result && rocketStats) {
+          const damage = result.destroyed
+            ? result.strengthBefore
+            : (result.hit ? Math.max(0, result.strengthBefore - result.strengthAfter) : 0);
 
-    const rocket = player.rockets.find((r) => r.id === rocketId);
-    const rocketStats = rocket ? {
-      power: rocket.power,
-      accuracy: rocket.accuracy,
-      buildTimeBase: rocket.buildTimeBase,
-    } : null;
+          launchedRockets.push({
+            ...rocketStats,
+            hit: result.hit,
+            damage,
+            destroyed: result.destroyed,
+          });
 
-    if (dispatch({ type: "LAUNCH_ROCKET", playerId, payload: { rocketId } })) {
-      rocketsLaunched++;
-      launchCount++;
-      const result = currentState.lastLaunchResult;
-      if (result && rocketStats) {
-        const damage = result.destroyed
-          ? result.strengthBefore
-          : (result.hit ? Math.max(0, result.strengthBefore - result.strengthAfter) : 0);
-
-        launchedRockets.push({
-          ...rocketStats,
-          hit: result.hit,
-          damage,
-          destroyed: result.destroyed,
-        });
-
-        const hitMiss = result.hit ? "HIT" : "MISS";
-        const destroyed = result.destroyed ? " - DESTROYED!" : "";
-        addLog("LAUNCH_ROCKET", `[P3: Clear pipeline] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`, `LAUNCH: P3 ready + building`);
+          const hitMiss = result.hit ? "HIT" : "MISS";
+          const destroyed = result.destroyed ? " - DESTROYED!" : "";
+          console.log(`[${playerId}] Action ${turnActionIndex}: LAUNCH_ROCKET (P2) - ${hitMiss} (roll:${result.diceRoll} vs ${result.accuracyNeeded})${destroyed}`);
+          addLog("LAUNCH_ROCKET", `[P2: Close approach] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`, `LAUNCH: P2 cometDist <= 8`);
+        }
+        player = currentState.players[playerId];
+      } else {
+        break;
       }
-      player = currentState.players[playerId];
-      // Don't set actionTaken here - allow multiple launches
-    } else {
-      break;
     }
   }
 
-  // Mark if we launched anything in P3
+  // PRIORITY 3: Launch if have ready rocket AND building rocket (only if P1/P2 didn't launch)
+  let p3Iterations = 0;
+  const canP3 = !launchedInPhase1 && launchCount === 0 && hasReadyRocket(player) && hasBuildingRocket(player);
+  if (canP3) {
+    console.log(`[${playerId}] P3 LAUNCH available: Clear pipeline (ready:${player.rockets.filter(r => r.status === "ready").length}, building:${player.rockets.filter(r => r.status === "building").length})`);
+  }
+  if (!launchedInPhase1 && launchCount === 0 && hasReadyRocket(player) && hasBuildingRocket(player)) {
+    while (hasReadyRocket(player) && hasBuildingRocket(player)) {
+      if (++p3Iterations > 10) {
+        console.error(`[LOOP GUARD] P3 launch loop exceeded 10 iterations for ${playerId}`);
+        break;
+      }
+      const rocketId = chooseRocketToLaunch(player);
+      if (!rocketId) break;
+
+      const rocket = player.rockets.find((r) => r.id === rocketId);
+      const rocketStats = rocket ? {
+        power: rocket.power,
+        accuracy: rocket.accuracy,
+        buildTimeBase: rocket.buildTimeBase,
+      } : null;
+
+      if (dispatch({ type: "LAUNCH_ROCKET", playerId, payload: { rocketId } })) {
+        turnActionIndex++;
+        rocketsLaunched++;
+        launchCount++;
+        const result = currentState.lastLaunchResult;
+        if (result && rocketStats) {
+          const damage = result.destroyed
+            ? result.strengthBefore
+            : (result.hit ? Math.max(0, result.strengthBefore - result.strengthAfter) : 0);
+
+          launchedRockets.push({
+            ...rocketStats,
+            hit: result.hit,
+            damage,
+            destroyed: result.destroyed,
+          });
+
+          const hitMiss = result.hit ? "HIT" : "MISS";
+          const destroyed = result.destroyed ? " - DESTROYED!" : "";
+          console.log(`[${playerId}] Action ${turnActionIndex}: LAUNCH_ROCKET (P3) - ${hitMiss} (roll:${result.diceRoll} vs ${result.accuracyNeeded})${destroyed}`);
+          addLog("LAUNCH_ROCKET", `[P3: Clear pipeline] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`, `LAUNCH: P3 ready + building`);
+        }
+        player = currentState.players[playerId];
+      } else {
+        break;
+      }
+    }
+  }
+
   if (launchCount > 0) actionTaken = true;
 
-  // PRIORITY 4: Build rockets to fill available slots (loop for multiple builds)
-  while (!actionTaken && botWantsAnotherRocket(player, currentState.distanceToImpact)) {
+  // ====================
+  // PHASE 2: BUILD ROCKETS (always check, regardless of launch phase)
+  // ====================
+
+  console.log(`[${playerId}] PHASE 2 START - BUILD check: botWants=${botWantsAnotherRocket(player, currentState.distanceToImpact)} (res:${player.resourceCubes}, slots:${player.rockets.filter(r => r.status === "building" || r.status === "ready").length}/${maxSlots}, dist:${currentState.distanceToImpact})`);
+
+  let p4Iterations = 0;
+  while (botWantsAnotherRocket(player, currentState.distanceToImpact)) {
+    if (++p4Iterations > 10) {
+      console.error(`[LOOP GUARD] P4 build loop exceeded 10 iterations for ${playerId}`);
+      console.error(`Loop state:`, {
+        resources: player.resourceCubes,
+        rockets: player.rockets.length,
+        maxSlots: player.maxConcurrentRockets + player.upgrades.maxRocketsBonus,
+        distance: currentState.distanceToImpact,
+      });
+      break;
+    }
     const config = chooseRocketToBuild(player);
     if (!config) break;
 
     if (dispatch({ type: "BUILD_ROCKET", playerId, payload: config })) {
+      turnActionIndex++;
       rocketsBuilt++;
       buildCount++;
       builtRockets.push({
@@ -690,22 +811,29 @@ function simulateBotTurn(
       });
       const currentSlots = player.rockets.filter((r) => r.status === "building" || r.status === "ready").length;
       const maxSlots = player.maxConcurrentRockets + player.upgrades.maxRocketsBonus;
+      console.log(`[${playerId}] Action ${turnActionIndex}: BUILD_ROCKET (P4) - P=${config.power}, A=${config.accuracy}, T=${config.buildTimeBase} (${currentSlots + 1}/${maxSlots}, res after: ${player.resourceCubes - 4})`);
       addLog("BUILD_ROCKET", `[P4: Fill slots] P=${config.power}, A=${config.accuracy}, T=${config.buildTimeBase} (${currentSlots + 1}/${maxSlots})`, `BUILD: P4 slots available`);
       player = currentState.players[playerId];
-      // Don't set actionTaken here - allow multiple builds
     } else {
       break;
     }
   }
 
-  // Mark if we built anything in P4
   if (buildCount > 0) actionTaken = true;
+
+  // ====================
+  // PHASE 3: RESEARCH (only if no launches or builds happened)
+  // ====================
+
+  console.log(`[${playerId}] PHASE 3 START - RESEARCH check: actionTaken=${actionTaken}, hasPlayed=${player.hasPlayedResearchThisTurn}, hasPowerAcc=${hasPowerOrAccuracyResearch(player)}, sets=${getPlayableResearchSets(player).length}`);
 
   // PRIORITY 5: Play POWER or ACCURACY research
   if (!actionTaken && !player.hasPlayedResearchThisTurn && hasPowerOrAccuracyResearch(player)) {
     const choice = choosePriorityResearchSet(player, ["POWER", "ACCURACY"], currentState.distanceToImpact);
     if (choice) {
       if (dispatch({ type: "PLAY_RESEARCH_SET", playerId, payload: { cardIds: choice.cards.map((c) => c.id) } })) {
+        turnActionIndex++;
+        console.log(`[${playerId}] Action ${turnActionIndex}: PLAY_RESEARCH_SET (P5) - ${choice.setKey} (${choice.cards.length} cards)`);
         addLog("PLAY_RESEARCH_SET", `[P5: Combat upgrade] ${choice.setKey} (${choice.cards.length} cards)`, `PLAY_RESEARCH: P5 ${choice.setKey} available`);
         actionTaken = true;
         player = currentState.players[playerId];
@@ -718,6 +846,8 @@ function simulateBotTurn(
     const choice = choosePriorityResearchSet(player, [], currentState.distanceToImpact);
     if (choice) {
       if (dispatch({ type: "PLAY_RESEARCH_SET", playerId, payload: { cardIds: choice.cards.map((c) => c.id) } })) {
+        turnActionIndex++;
+        console.log(`[${playerId}] Action ${turnActionIndex}: PLAY_RESEARCH_SET (P6) - ${choice.setKey} (${choice.cards.length} cards)`);
         addLog("PLAY_RESEARCH_SET", `[P6: Other upgrade] ${choice.setKey} (${choice.cards.length} cards)`, `PLAY_RESEARCH: P6 ${choice.setKey} available`);
         actionTaken = true;
         player = currentState.players[playerId];
@@ -726,10 +856,22 @@ function simulateBotTurn(
   }
 
   // 7. END_TURN
+  const currentSlotsAtEnd = player.rockets.filter((r) => r.status === "building" || r.status === "ready").length;
+  const canBuildAtEnd = player.resourceCubes >= 4 && currentSlotsAtEnd < maxSlots;
+  const canLaunchAtEnd = hasReadyRocket(player);
+  const canResearchAtEnd = getPlayableResearchSets(player).length > 0 && !player.hasPlayedResearchThisTurn;
+
+  const endReason = actionTaken
+    ? `Ending turn after taking ${launchCount + buildCount} action(s) (launched:${launchCount}, built:${buildCount})`
+    : `Ending turn - NO actions possible (canLaunch:${canLaunchAtEnd}, canBuild:${canBuildAtEnd}, canResearch:${canResearchAtEnd}, res:${player.resourceCubes}, slots:${currentSlotsAtEnd}/${maxSlots})`;
+
+  console.log(`[${playerId}] END_TURN - ${endReason}`);
+
   const endDecision = actionTaken
     ? "END_TURN: action taken"
-    : `END_TURN: no action (ready:${hasReadyRocket(player)}, canBuild:${!hasBuildingRocket(player)}, sets:${getPlayableResearchSets(player).length})`;
+    : `END_TURN: no action (ready:${hasReadyRocket(player)}, canBuild:${canBuildAtEnd}, sets:${getPlayableResearchSets(player).length})`;
   if (dispatch({ type: "END_TURN", playerId })) {
+    turnActionIndex++;
     addLog("END_TURN", `Distance to impact: ${currentState.distanceToImpact}`, endDecision);
   }
 
@@ -835,127 +977,137 @@ const MAX_ACTIONS_PER_GAME = 500;
 function runCometRushSimulation(
   playerCount: number,
   maxRounds: number = MAX_ROUNDS_PER_GAME
-): { summary: SimSummary; log: SimLogEntry[]; aborted?: boolean } {
-  console.log(`[Simulation] Starting game with ${playerCount} players, maxRounds=${maxRounds}`);
-  const players = createTestPlayers(playerCount);
-  const room = createTestRoom(players);
-  let seed = Date.now();
+): Promise<{ summary: SimSummary; log: SimLogEntry[]; aborted?: boolean }> {
+  return new Promise((resolve) => {
+    console.log(`[Simulation] Starting game with ${playerCount} players, maxRounds=${maxRounds}`);
+    const players = createTestPlayers(playerCount);
+    const room = createTestRoom(players);
+    let seed = Date.now();
 
-  // Create initial state
-  let state = cometRushGame.initialState(players);
+    // Create initial state
+    let state = cometRushGame.initialState(players);
 
-  // Start game (as host)
-  const hostCtx = createGameContext(room, players[0].id, seed++);
-  state = cometRushGame.reducer(state, { type: "START_GAME", playerId: players[0].id }, hostCtx);
+    // Start game (as host)
+    const hostCtx = createGameContext(room, players[0].id, seed++);
+    state = cometRushGame.reducer(state, { type: "START_GAME", playerId: players[0].id }, hostCtx);
 
-  const log: SimLogEntry[] = [];
-  let totalRocketsBuilt = 0;
-  let totalRocketsLaunched = 0;
+    const log: SimLogEntry[] = [];
+    let totalRocketsBuilt = 0;
+    let totalRocketsLaunched = 0;
 
-  // Analytics tracking
-  const builtRockets: RocketRecord[] = [];
-  const launchedRockets: LaunchRecord[] = [];
+    // Analytics tracking
+    const builtRockets: RocketRecord[] = [];
+    const launchedRockets: LaunchRecord[] = [];
 
-  // Calculate initial comet state
-  const initialMovementCardsLeft = state.movementDeck.length;
-  const initialStrengthCardsLeft = state.strengthDeck.length;
-  const initialTotalMovementValueLeft = state.distanceToImpact;
-  const initialTotalStrengthValueLeft = state.strengthDeck.reduce(
-    (sum, card) => sum + card.baseStrength,
-    0,
-  ) + (state.activeStrengthCard?.currentStrength ?? 0);
+    // Calculate initial comet state
+    const initialMovementCardsLeft = state.movementDeck.length;
+    const initialStrengthCardsLeft = state.strengthDeck.length;
+    const initialTotalMovementValueLeft = state.distanceToImpact;
+    const initialTotalStrengthValueLeft = state.strengthDeck.reduce(
+      (sum, card) => sum + card.baseStrength,
+      0,
+    ) + (state.activeStrengthCard?.currentStrength ?? 0);
 
-  log.push({
-    id: 0,
-    round: 1,
-    playerId: "SYSTEM",
-    playerLabel: "SYSTEM",
-    action: "START_GAME",
-    actionType: "START_GAME",
-    details: `Game started with ${playerCount} players`,
-    summary: `Game started with ${playerCount} players`,
-    movementCardsLeft: initialMovementCardsLeft,
-    strengthCardsLeft: initialStrengthCardsLeft,
-    totalMovementValueLeft: initialTotalMovementValueLeft,
-    totalStrengthValueLeft: initialTotalStrengthValueLeft,
-    resources: 0,
-    hand: "-",
-    buildQueue: "[]",
-    readyRockets: "[]",
-    activeSegment: "-",
-    segmentHP: "-",
-    decision: "START_GAME",
-    playableSets: 0,
-    canBuildRocket: false,
-    rocketSlotFull: false,
-    hasReadyRocket: false,
-  });
+    log.push({
+      id: 0,
+      round: 1,
+      playerId: "SYSTEM",
+      playerLabel: "SYSTEM",
+      action: "START_GAME",
+      actionType: "START_GAME",
+      details: `Game started with ${playerCount} players`,
+      summary: `Game started with ${playerCount} players`,
+      movementCardsLeft: initialMovementCardsLeft,
+      strengthCardsLeft: initialStrengthCardsLeft,
+      totalMovementValueLeft: initialTotalMovementValueLeft,
+      totalStrengthValueLeft: initialTotalStrengthValueLeft,
+      resources: 0,
+      hand: "-",
+      buildQueue: "[]",
+      readyRockets: "[]",
+      activeSegment: "-",
+      segmentHP: "-",
+      decision: "START_GAME",
+      playableSets: 0,
+      canBuildRocket: false,
+      rocketSlotFull: false,
+      hasReadyRocket: false,
+    });
 
-  // Run simulation loop with safety caps
-  let safetyCounter = 0;
-  let actionCounter = 0;
-  const maxIterations = maxRounds * playerCount;
-  let aborted = false;
+    // Run simulation loop with safety caps - ASYNC version
+    let safetyCounter = 0;
+    let actionCounter = 0;
+    const maxIterations = maxRounds * playerCount;
+    let aborted = false;
 
-  while (state.phase === "playing" && safetyCounter < maxIterations && actionCounter < MAX_ACTIONS_PER_GAME) {
-    safetyCounter++;
-    const activePlayerId = state.playerOrder[state.activePlayerIndex];
+    function runNextTurn() {
+      // Check exit conditions
+      if (state.phase !== "playing" || safetyCounter >= maxIterations || actionCounter >= MAX_ACTIONS_PER_GAME) {
+        // Simulation complete - finalize
+        if (state.phase === "playing" && safetyCounter >= maxIterations) {
+          console.warn(`[Simulation] ABORTED: Hit MAX_ROUNDS (${maxRounds}) at round ${state.round}`);
+          aborted = true;
+        }
+        if (actionCounter >= MAX_ACTIONS_PER_GAME) {
+          console.warn(`[Simulation] ABORTED: Hit MAX_ACTIONS_PER_GAME (${MAX_ACTIONS_PER_GAME}) at round ${state.round}`);
+          aborted = true;
+        }
 
-    const actionsBefore = log.length;
-    const result = simulateBotTurn(state, activePlayerId, room, seed, log, builtRockets, launchedRockets);
-    const actionsThisTurn = log.length - actionsBefore;
-    actionCounter += actionsThisTurn;
+        console.log(`[Simulation] Finished: ${state.phase}, rounds=${state.round}, actions=${actionCounter}, aborted=${aborted}`);
 
-    state = result.state;
-    seed = result.seed;
-    totalRocketsBuilt += result.rocketsBuilt;
-    totalRocketsLaunched += result.rocketsLaunched;
+        // Compute analytics
+        const analytics = computeAnalytics(builtRockets, launchedRockets, state);
 
-    // Check if we've exceeded the action cap
-    if (actionCounter >= MAX_ACTIONS_PER_GAME) {
-      console.warn(`[Simulation] ABORTED: Hit MAX_ACTIONS_PER_GAME (${MAX_ACTIONS_PER_GAME}) at round ${state.round}`);
-      aborted = true;
-      break;
+        // Build summary
+        const scores = calculateScores(state);
+        const winner = state.winnerIds.length > 0
+          ? state.winnerIds.map((id) => state.players[id]?.name ?? id).join(", ")
+          : null;
+
+        const summary: SimSummary = {
+          totalRounds: state.round,
+          winner,
+          earthDestroyed: state.earthDestroyed,
+          cometDestroyed: state.cometDestroyed,
+          playerScores: Object.fromEntries(
+            Object.entries(scores).map(([id, score]) => [state.players[id]?.name ?? id, score])
+          ),
+          totalRocketsBuilt,
+          totalRocketsLaunched,
+          analytics,
+        };
+
+        // Assign IDs to log entries
+        const logWithIds = log.map((entry, index) => ({
+          ...entry,
+          id: index + 1,
+        }));
+
+        resolve({ summary, log: logWithIds, aborted });
+        return;
+      }
+
+      // Run one turn
+      safetyCounter++;
+      const activePlayerId = state.playerOrder[state.activePlayerIndex];
+
+      const actionsBefore = log.length;
+      const result = simulateBotTurn(state, activePlayerId, room, seed, log, builtRockets, launchedRockets);
+      const actionsThisTurn = log.length - actionsBefore;
+      actionCounter += actionsThisTurn;
+
+      state = result.state;
+      seed = result.seed;
+      totalRocketsBuilt += result.rocketsBuilt;
+      totalRocketsLaunched += result.rocketsLaunched;
+
+      // Yield to browser after each turn, then continue
+      setTimeout(runNextTurn, 0);
     }
-  }
 
-  // Check if we hit the round cap
-  if (state.phase === "playing" && safetyCounter >= maxIterations) {
-    console.warn(`[Simulation] ABORTED: Hit MAX_ROUNDS (${maxRounds}) at round ${state.round}`);
-    aborted = true;
-  }
-
-  console.log(`[Simulation] Finished: ${state.phase}, rounds=${state.round}, actions=${actionCounter}, aborted=${aborted}`);
-
-  // Compute analytics
-  const analytics = computeAnalytics(builtRockets, launchedRockets, state);
-
-  // Build summary
-  const scores = calculateScores(state);
-  const winner = state.winnerIds.length > 0
-    ? state.winnerIds.map((id) => state.players[id]?.name ?? id).join(", ")
-    : null;
-
-  const summary: SimSummary = {
-    totalRounds: state.round,
-    winner,
-    earthDestroyed: state.earthDestroyed,
-    cometDestroyed: state.cometDestroyed,
-    playerScores: Object.fromEntries(
-      Object.entries(scores).map(([id, score]) => [state.players[id]?.name ?? id, score])
-    ),
-    totalRocketsBuilt,
-    totalRocketsLaunched,
-    analytics,
-  };
-
-  // Assign IDs to log entries
-  const logWithIds = log.map((entry, index) => ({
-    ...entry,
-    id: index + 1,
-  }));
-
-  return { summary, log: logWithIds, aborted };
+    // Start the async loop
+    runNextTurn();
+  });
 }
 
 // ============================================================================
@@ -1001,48 +1153,46 @@ export default function TestGamePage() {
   const [filterStrTotal, setFilterStrTotal] = useState("Any");
   const [filterLogSummary, setFilterLogSummary] = useState(""); // Keep text for details
 
-  const runSimulation = useCallback(() => {
+  const runSimulation = useCallback(async () => {
     setIsRunning(true);
     setSummary(null);
     setLog([]);
 
-    // Run on next tick to allow UI update
-    setTimeout(() => {
-      const result = runCometRushSimulation(playerCount);
+    // Run async simulation
+    const result = await runCometRushSimulation(playerCount);
 
-      // Add aborted flag to summary if present
-      const summaryWithAborted: SimSummary = {
-        ...result.summary,
-        aborted: result.aborted,
-      };
+    // Add aborted flag to summary if present
+    const summaryWithAborted: SimSummary = {
+      ...result.summary,
+      aborted: result.aborted,
+    };
 
-      setSummary(summaryWithAborted);
-      setLog(result.log);
-      setIsRunning(false);
+    setSummary(summaryWithAborted);
+    setLog(result.log);
+    setIsRunning(false);
 
-      // Add to simulation rows
-      const endReason = result.aborted
-        ? "maxRounds"
-        : result.summary.cometDestroyed
-        ? "cometDestroyed"
-        : result.summary.earthDestroyed
-        ? "earthDestroyed"
-        : "maxRounds";
+    // Add to simulation rows
+    const endReason = result.aborted
+      ? "maxRounds"
+      : result.summary.cometDestroyed
+      ? "cometDestroyed"
+      : result.summary.earthDestroyed
+      ? "earthDestroyed"
+      : "maxRounds";
 
-      const row: SimRow = {
-        id: nextId,
-        timestamp: Date.now(),
-        players: playerCount,
-        rounds: result.summary.totalRounds,
-        endReason: endReason as "earthDestroyed" | "cometDestroyed" | "maxRounds",
-        winnerIds: result.summary.winner ? [result.summary.winner] : [],
-        rocketsBuilt: result.summary.totalRocketsBuilt,
-        rocketsLaunched: result.summary.totalRocketsLaunched,
-      };
+    const row: SimRow = {
+      id: nextId,
+      timestamp: Date.now(),
+      players: playerCount,
+      rounds: result.summary.totalRounds,
+      endReason: endReason as "earthDestroyed" | "cometDestroyed" | "maxRounds",
+      winnerIds: result.summary.winner ? [result.summary.winner] : [],
+      rocketsBuilt: result.summary.totalRocketsBuilt,
+      rocketsLaunched: result.summary.totalRocketsLaunched,
+    };
 
-      setSimRows((prev) => [...prev, row]);
-      setNextId((id) => id + 1);
-    }, 50);
+    setSimRows((prev) => [...prev, row]);
+    setNextId((id) => id + 1);
   }, [playerCount, nextId]);
 
   // Sorting logic
