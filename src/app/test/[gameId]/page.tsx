@@ -605,9 +605,14 @@ function simulateBotTurn(
   let launchCount = 0;
   let buildCount = 0;
 
+  // ====================
+  // PHASE 1: LAUNCH ROCKETS (execute highest priority that applies)
+  // ====================
+
   // PRIORITY 1: Launch if can destroy active segment (loop for multiple launches)
   let p1Iterations = 0;
-  while (!actionTaken && canDestroyActiveSegment(player, currentState)) {
+  let launchedInPhase1 = false;
+  while (canDestroyActiveSegment(player, currentState)) {
     if (++p1Iterations > 10) {
       console.error(`[LOOP GUARD] P1 launch loop exceeded 10 iterations for ${playerId}`);
       break;
@@ -625,6 +630,7 @@ function simulateBotTurn(
     if (dispatch({ type: "LAUNCH_ROCKET", playerId, payload: { rocketId } })) {
       rocketsLaunched++;
       launchCount++;
+      launchedInPhase1 = true;
       const result = currentState.lastLaunchResult;
       if (result && rocketStats) {
         const damage = result.destroyed
@@ -643,112 +649,109 @@ function simulateBotTurn(
         addLog("LAUNCH_ROCKET", `[P1: Kill shot] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`, `LAUNCH: P1 segmentHP <= rocket.power`);
       }
       player = currentState.players[playerId];
-      // Don't set actionTaken here - allow multiple launches
     } else {
       break;
     }
   }
 
-  // Mark if we launched anything in P1
-  if (launchCount > 0) actionTaken = true;
-
-  // PRIORITY 2: Launch if comet distance <= 8 (loop for multiple launches)
+  // PRIORITY 2: Launch if comet distance <= 8 (only if P1 didn't launch)
   let p2Iterations = 0;
-  while (!actionTaken && currentState.distanceToImpact <= 8 && hasReadyRocket(player)) {
-    if (++p2Iterations > 10) {
-      console.error(`[LOOP GUARD] P2 launch loop exceeded 10 iterations for ${playerId}`);
-      break;
-    }
-    const rocketId = chooseRocketToLaunch(player);
-    if (!rocketId) break;
-
-    const rocket = player.rockets.find((r) => r.id === rocketId);
-    const rocketStats = rocket ? {
-      power: rocket.power,
-      accuracy: rocket.accuracy,
-      buildTimeBase: rocket.buildTimeBase,
-    } : null;
-
-    if (dispatch({ type: "LAUNCH_ROCKET", playerId, payload: { rocketId } })) {
-      rocketsLaunched++;
-      launchCount++;
-      const result = currentState.lastLaunchResult;
-      if (result && rocketStats) {
-        const damage = result.destroyed
-          ? result.strengthBefore
-          : (result.hit ? Math.max(0, result.strengthBefore - result.strengthAfter) : 0);
-
-        launchedRockets.push({
-          ...rocketStats,
-          hit: result.hit,
-          damage,
-          destroyed: result.destroyed,
-        });
-
-        const hitMiss = result.hit ? "HIT" : "MISS";
-        const destroyed = result.destroyed ? " - DESTROYED!" : "";
-        addLog("LAUNCH_ROCKET", `[P2: Close approach] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`, `LAUNCH: P2 cometDist <= 8`);
+  if (!launchedInPhase1 && currentState.distanceToImpact <= 8 && hasReadyRocket(player)) {
+    while (currentState.distanceToImpact <= 8 && hasReadyRocket(player)) {
+      if (++p2Iterations > 10) {
+        console.error(`[LOOP GUARD] P2 launch loop exceeded 10 iterations for ${playerId}`);
+        break;
       }
-      player = currentState.players[playerId];
-      // Don't set actionTaken here - allow multiple launches
-    } else {
-      break;
+      const rocketId = chooseRocketToLaunch(player);
+      if (!rocketId) break;
+
+      const rocket = player.rockets.find((r) => r.id === rocketId);
+      const rocketStats = rocket ? {
+        power: rocket.power,
+        accuracy: rocket.accuracy,
+        buildTimeBase: rocket.buildTimeBase,
+      } : null;
+
+      if (dispatch({ type: "LAUNCH_ROCKET", playerId, payload: { rocketId } })) {
+        rocketsLaunched++;
+        launchCount++;
+        const result = currentState.lastLaunchResult;
+        if (result && rocketStats) {
+          const damage = result.destroyed
+            ? result.strengthBefore
+            : (result.hit ? Math.max(0, result.strengthBefore - result.strengthAfter) : 0);
+
+          launchedRockets.push({
+            ...rocketStats,
+            hit: result.hit,
+            damage,
+            destroyed: result.destroyed,
+          });
+
+          const hitMiss = result.hit ? "HIT" : "MISS";
+          const destroyed = result.destroyed ? " - DESTROYED!" : "";
+          addLog("LAUNCH_ROCKET", `[P2: Close approach] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`, `LAUNCH: P2 cometDist <= 8`);
+        }
+        player = currentState.players[playerId];
+      } else {
+        break;
+      }
     }
   }
 
-  // Mark if we launched anything in P2
-  if (launchCount > 0) actionTaken = true;
-
-  // PRIORITY 3: Launch if have ready rocket AND building rocket (loop for multiple launches)
+  // PRIORITY 3: Launch if have ready rocket AND building rocket (only if P1/P2 didn't launch)
   let p3Iterations = 0;
-  while (!actionTaken && hasReadyRocket(player) && hasBuildingRocket(player)) {
-    if (++p3Iterations > 10) {
-      console.error(`[LOOP GUARD] P3 launch loop exceeded 10 iterations for ${playerId}`);
-      break;
-    }
-    const rocketId = chooseRocketToLaunch(player);
-    if (!rocketId) break;
-
-    const rocket = player.rockets.find((r) => r.id === rocketId);
-    const rocketStats = rocket ? {
-      power: rocket.power,
-      accuracy: rocket.accuracy,
-      buildTimeBase: rocket.buildTimeBase,
-    } : null;
-
-    if (dispatch({ type: "LAUNCH_ROCKET", playerId, payload: { rocketId } })) {
-      rocketsLaunched++;
-      launchCount++;
-      const result = currentState.lastLaunchResult;
-      if (result && rocketStats) {
-        const damage = result.destroyed
-          ? result.strengthBefore
-          : (result.hit ? Math.max(0, result.strengthBefore - result.strengthAfter) : 0);
-
-        launchedRockets.push({
-          ...rocketStats,
-          hit: result.hit,
-          damage,
-          destroyed: result.destroyed,
-        });
-
-        const hitMiss = result.hit ? "HIT" : "MISS";
-        const destroyed = result.destroyed ? " - DESTROYED!" : "";
-        addLog("LAUNCH_ROCKET", `[P3: Clear pipeline] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`, `LAUNCH: P3 ready + building`);
+  if (!launchedInPhase1 && launchCount === 0 && hasReadyRocket(player) && hasBuildingRocket(player)) {
+    while (hasReadyRocket(player) && hasBuildingRocket(player)) {
+      if (++p3Iterations > 10) {
+        console.error(`[LOOP GUARD] P3 launch loop exceeded 10 iterations for ${playerId}`);
+        break;
       }
-      player = currentState.players[playerId];
-      // Don't set actionTaken here - allow multiple launches
-    } else {
-      break;
+      const rocketId = chooseRocketToLaunch(player);
+      if (!rocketId) break;
+
+      const rocket = player.rockets.find((r) => r.id === rocketId);
+      const rocketStats = rocket ? {
+        power: rocket.power,
+        accuracy: rocket.accuracy,
+        buildTimeBase: rocket.buildTimeBase,
+      } : null;
+
+      if (dispatch({ type: "LAUNCH_ROCKET", playerId, payload: { rocketId } })) {
+        rocketsLaunched++;
+        launchCount++;
+        const result = currentState.lastLaunchResult;
+        if (result && rocketStats) {
+          const damage = result.destroyed
+            ? result.strengthBefore
+            : (result.hit ? Math.max(0, result.strengthBefore - result.strengthAfter) : 0);
+
+          launchedRockets.push({
+            ...rocketStats,
+            hit: result.hit,
+            damage,
+            destroyed: result.destroyed,
+          });
+
+          const hitMiss = result.hit ? "HIT" : "MISS";
+          const destroyed = result.destroyed ? " - DESTROYED!" : "";
+          addLog("LAUNCH_ROCKET", `[P3: Clear pipeline] Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`, `LAUNCH: P3 ready + building`);
+        }
+        player = currentState.players[playerId];
+      } else {
+        break;
+      }
     }
   }
 
-  // Mark if we launched anything in P3
   if (launchCount > 0) actionTaken = true;
 
-  // PRIORITY 4: Build rockets to fill available slots (loop for multiple builds)
+  // ====================
+  // PHASE 2: BUILD ROCKETS (always check, regardless of launch phase)
+  // ====================
+
   let p4Iterations = 0;
-  while (!actionTaken && botWantsAnotherRocket(player, currentState.distanceToImpact)) {
+  while (botWantsAnotherRocket(player, currentState.distanceToImpact)) {
     if (++p4Iterations > 10) {
       console.error(`[LOOP GUARD] P4 build loop exceeded 10 iterations for ${playerId}`);
       console.error(`Loop state:`, {
@@ -774,14 +777,16 @@ function simulateBotTurn(
       const maxSlots = player.maxConcurrentRockets + player.upgrades.maxRocketsBonus;
       addLog("BUILD_ROCKET", `[P4: Fill slots] P=${config.power}, A=${config.accuracy}, T=${config.buildTimeBase} (${currentSlots + 1}/${maxSlots})`, `BUILD: P4 slots available`);
       player = currentState.players[playerId];
-      // Don't set actionTaken here - allow multiple builds
     } else {
       break;
     }
   }
 
-  // Mark if we built anything in P4
   if (buildCount > 0) actionTaken = true;
+
+  // ====================
+  // PHASE 3: RESEARCH (only if no launches or builds happened)
+  // ====================
 
   // PRIORITY 5: Play POWER or ACCURACY research
   if (!actionTaken && !player.hasPlayedResearchThisTurn && hasPowerOrAccuracyResearch(player)) {
