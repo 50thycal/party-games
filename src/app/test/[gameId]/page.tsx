@@ -835,127 +835,137 @@ const MAX_ACTIONS_PER_GAME = 500;
 function runCometRushSimulation(
   playerCount: number,
   maxRounds: number = MAX_ROUNDS_PER_GAME
-): { summary: SimSummary; log: SimLogEntry[]; aborted?: boolean } {
-  console.log(`[Simulation] Starting game with ${playerCount} players, maxRounds=${maxRounds}`);
-  const players = createTestPlayers(playerCount);
-  const room = createTestRoom(players);
-  let seed = Date.now();
+): Promise<{ summary: SimSummary; log: SimLogEntry[]; aborted?: boolean }> {
+  return new Promise((resolve) => {
+    console.log(`[Simulation] Starting game with ${playerCount} players, maxRounds=${maxRounds}`);
+    const players = createTestPlayers(playerCount);
+    const room = createTestRoom(players);
+    let seed = Date.now();
 
-  // Create initial state
-  let state = cometRushGame.initialState(players);
+    // Create initial state
+    let state = cometRushGame.initialState(players);
 
-  // Start game (as host)
-  const hostCtx = createGameContext(room, players[0].id, seed++);
-  state = cometRushGame.reducer(state, { type: "START_GAME", playerId: players[0].id }, hostCtx);
+    // Start game (as host)
+    const hostCtx = createGameContext(room, players[0].id, seed++);
+    state = cometRushGame.reducer(state, { type: "START_GAME", playerId: players[0].id }, hostCtx);
 
-  const log: SimLogEntry[] = [];
-  let totalRocketsBuilt = 0;
-  let totalRocketsLaunched = 0;
+    const log: SimLogEntry[] = [];
+    let totalRocketsBuilt = 0;
+    let totalRocketsLaunched = 0;
 
-  // Analytics tracking
-  const builtRockets: RocketRecord[] = [];
-  const launchedRockets: LaunchRecord[] = [];
+    // Analytics tracking
+    const builtRockets: RocketRecord[] = [];
+    const launchedRockets: LaunchRecord[] = [];
 
-  // Calculate initial comet state
-  const initialMovementCardsLeft = state.movementDeck.length;
-  const initialStrengthCardsLeft = state.strengthDeck.length;
-  const initialTotalMovementValueLeft = state.distanceToImpact;
-  const initialTotalStrengthValueLeft = state.strengthDeck.reduce(
-    (sum, card) => sum + card.baseStrength,
-    0,
-  ) + (state.activeStrengthCard?.currentStrength ?? 0);
+    // Calculate initial comet state
+    const initialMovementCardsLeft = state.movementDeck.length;
+    const initialStrengthCardsLeft = state.strengthDeck.length;
+    const initialTotalMovementValueLeft = state.distanceToImpact;
+    const initialTotalStrengthValueLeft = state.strengthDeck.reduce(
+      (sum, card) => sum + card.baseStrength,
+      0,
+    ) + (state.activeStrengthCard?.currentStrength ?? 0);
 
-  log.push({
-    id: 0,
-    round: 1,
-    playerId: "SYSTEM",
-    playerLabel: "SYSTEM",
-    action: "START_GAME",
-    actionType: "START_GAME",
-    details: `Game started with ${playerCount} players`,
-    summary: `Game started with ${playerCount} players`,
-    movementCardsLeft: initialMovementCardsLeft,
-    strengthCardsLeft: initialStrengthCardsLeft,
-    totalMovementValueLeft: initialTotalMovementValueLeft,
-    totalStrengthValueLeft: initialTotalStrengthValueLeft,
-    resources: 0,
-    hand: "-",
-    buildQueue: "[]",
-    readyRockets: "[]",
-    activeSegment: "-",
-    segmentHP: "-",
-    decision: "START_GAME",
-    playableSets: 0,
-    canBuildRocket: false,
-    rocketSlotFull: false,
-    hasReadyRocket: false,
-  });
+    log.push({
+      id: 0,
+      round: 1,
+      playerId: "SYSTEM",
+      playerLabel: "SYSTEM",
+      action: "START_GAME",
+      actionType: "START_GAME",
+      details: `Game started with ${playerCount} players`,
+      summary: `Game started with ${playerCount} players`,
+      movementCardsLeft: initialMovementCardsLeft,
+      strengthCardsLeft: initialStrengthCardsLeft,
+      totalMovementValueLeft: initialTotalMovementValueLeft,
+      totalStrengthValueLeft: initialTotalStrengthValueLeft,
+      resources: 0,
+      hand: "-",
+      buildQueue: "[]",
+      readyRockets: "[]",
+      activeSegment: "-",
+      segmentHP: "-",
+      decision: "START_GAME",
+      playableSets: 0,
+      canBuildRocket: false,
+      rocketSlotFull: false,
+      hasReadyRocket: false,
+    });
 
-  // Run simulation loop with safety caps
-  let safetyCounter = 0;
-  let actionCounter = 0;
-  const maxIterations = maxRounds * playerCount;
-  let aborted = false;
+    // Run simulation loop with safety caps - ASYNC version
+    let safetyCounter = 0;
+    let actionCounter = 0;
+    const maxIterations = maxRounds * playerCount;
+    let aborted = false;
 
-  while (state.phase === "playing" && safetyCounter < maxIterations && actionCounter < MAX_ACTIONS_PER_GAME) {
-    safetyCounter++;
-    const activePlayerId = state.playerOrder[state.activePlayerIndex];
+    function runNextTurn() {
+      // Check exit conditions
+      if (state.phase !== "playing" || safetyCounter >= maxIterations || actionCounter >= MAX_ACTIONS_PER_GAME) {
+        // Simulation complete - finalize
+        if (state.phase === "playing" && safetyCounter >= maxIterations) {
+          console.warn(`[Simulation] ABORTED: Hit MAX_ROUNDS (${maxRounds}) at round ${state.round}`);
+          aborted = true;
+        }
+        if (actionCounter >= MAX_ACTIONS_PER_GAME) {
+          console.warn(`[Simulation] ABORTED: Hit MAX_ACTIONS_PER_GAME (${MAX_ACTIONS_PER_GAME}) at round ${state.round}`);
+          aborted = true;
+        }
 
-    const actionsBefore = log.length;
-    const result = simulateBotTurn(state, activePlayerId, room, seed, log, builtRockets, launchedRockets);
-    const actionsThisTurn = log.length - actionsBefore;
-    actionCounter += actionsThisTurn;
+        console.log(`[Simulation] Finished: ${state.phase}, rounds=${state.round}, actions=${actionCounter}, aborted=${aborted}`);
 
-    state = result.state;
-    seed = result.seed;
-    totalRocketsBuilt += result.rocketsBuilt;
-    totalRocketsLaunched += result.rocketsLaunched;
+        // Compute analytics
+        const analytics = computeAnalytics(builtRockets, launchedRockets, state);
 
-    // Check if we've exceeded the action cap
-    if (actionCounter >= MAX_ACTIONS_PER_GAME) {
-      console.warn(`[Simulation] ABORTED: Hit MAX_ACTIONS_PER_GAME (${MAX_ACTIONS_PER_GAME}) at round ${state.round}`);
-      aborted = true;
-      break;
+        // Build summary
+        const scores = calculateScores(state);
+        const winner = state.winnerIds.length > 0
+          ? state.winnerIds.map((id) => state.players[id]?.name ?? id).join(", ")
+          : null;
+
+        const summary: SimSummary = {
+          totalRounds: state.round,
+          winner,
+          earthDestroyed: state.earthDestroyed,
+          cometDestroyed: state.cometDestroyed,
+          playerScores: Object.fromEntries(
+            Object.entries(scores).map(([id, score]) => [state.players[id]?.name ?? id, score])
+          ),
+          totalRocketsBuilt,
+          totalRocketsLaunched,
+          analytics,
+        };
+
+        // Assign IDs to log entries
+        const logWithIds = log.map((entry, index) => ({
+          ...entry,
+          id: index + 1,
+        }));
+
+        resolve({ summary, log: logWithIds, aborted });
+        return;
+      }
+
+      // Run one turn
+      safetyCounter++;
+      const activePlayerId = state.playerOrder[state.activePlayerIndex];
+
+      const actionsBefore = log.length;
+      const result = simulateBotTurn(state, activePlayerId, room, seed, log, builtRockets, launchedRockets);
+      const actionsThisTurn = log.length - actionsBefore;
+      actionCounter += actionsThisTurn;
+
+      state = result.state;
+      seed = result.seed;
+      totalRocketsBuilt += result.rocketsBuilt;
+      totalRocketsLaunched += result.rocketsLaunched;
+
+      // Yield to browser after each turn, then continue
+      setTimeout(runNextTurn, 0);
     }
-  }
 
-  // Check if we hit the round cap
-  if (state.phase === "playing" && safetyCounter >= maxIterations) {
-    console.warn(`[Simulation] ABORTED: Hit MAX_ROUNDS (${maxRounds}) at round ${state.round}`);
-    aborted = true;
-  }
-
-  console.log(`[Simulation] Finished: ${state.phase}, rounds=${state.round}, actions=${actionCounter}, aborted=${aborted}`);
-
-  // Compute analytics
-  const analytics = computeAnalytics(builtRockets, launchedRockets, state);
-
-  // Build summary
-  const scores = calculateScores(state);
-  const winner = state.winnerIds.length > 0
-    ? state.winnerIds.map((id) => state.players[id]?.name ?? id).join(", ")
-    : null;
-
-  const summary: SimSummary = {
-    totalRounds: state.round,
-    winner,
-    earthDestroyed: state.earthDestroyed,
-    cometDestroyed: state.cometDestroyed,
-    playerScores: Object.fromEntries(
-      Object.entries(scores).map(([id, score]) => [state.players[id]?.name ?? id, score])
-    ),
-    totalRocketsBuilt,
-    totalRocketsLaunched,
-    analytics,
-  };
-
-  // Assign IDs to log entries
-  const logWithIds = log.map((entry, index) => ({
-    ...entry,
-    id: index + 1,
-  }));
-
-  return { summary, log: logWithIds, aborted };
+    // Start the async loop
+    runNextTurn();
+  });
 }
 
 // ============================================================================
@@ -1001,48 +1011,46 @@ export default function TestGamePage() {
   const [filterStrTotal, setFilterStrTotal] = useState("Any");
   const [filterLogSummary, setFilterLogSummary] = useState(""); // Keep text for details
 
-  const runSimulation = useCallback(() => {
+  const runSimulation = useCallback(async () => {
     setIsRunning(true);
     setSummary(null);
     setLog([]);
 
-    // Run on next tick to allow UI update
-    setTimeout(() => {
-      const result = runCometRushSimulation(playerCount);
+    // Run async simulation
+    const result = await runCometRushSimulation(playerCount);
 
-      // Add aborted flag to summary if present
-      const summaryWithAborted: SimSummary = {
-        ...result.summary,
-        aborted: result.aborted,
-      };
+    // Add aborted flag to summary if present
+    const summaryWithAborted: SimSummary = {
+      ...result.summary,
+      aborted: result.aborted,
+    };
 
-      setSummary(summaryWithAborted);
-      setLog(result.log);
-      setIsRunning(false);
+    setSummary(summaryWithAborted);
+    setLog(result.log);
+    setIsRunning(false);
 
-      // Add to simulation rows
-      const endReason = result.aborted
-        ? "maxRounds"
-        : result.summary.cometDestroyed
-        ? "cometDestroyed"
-        : result.summary.earthDestroyed
-        ? "earthDestroyed"
-        : "maxRounds";
+    // Add to simulation rows
+    const endReason = result.aborted
+      ? "maxRounds"
+      : result.summary.cometDestroyed
+      ? "cometDestroyed"
+      : result.summary.earthDestroyed
+      ? "earthDestroyed"
+      : "maxRounds";
 
-      const row: SimRow = {
-        id: nextId,
-        timestamp: Date.now(),
-        players: playerCount,
-        rounds: result.summary.totalRounds,
-        endReason: endReason as "earthDestroyed" | "cometDestroyed" | "maxRounds",
-        winnerIds: result.summary.winner ? [result.summary.winner] : [],
-        rocketsBuilt: result.summary.totalRocketsBuilt,
-        rocketsLaunched: result.summary.totalRocketsLaunched,
-      };
+    const row: SimRow = {
+      id: nextId,
+      timestamp: Date.now(),
+      players: playerCount,
+      rounds: result.summary.totalRounds,
+      endReason: endReason as "earthDestroyed" | "cometDestroyed" | "maxRounds",
+      winnerIds: result.summary.winner ? [result.summary.winner] : [],
+      rocketsBuilt: result.summary.totalRocketsBuilt,
+      rocketsLaunched: result.summary.totalRocketsLaunched,
+    };
 
-      setSimRows((prev) => [...prev, row]);
-      setNextId((id) => id + 1);
-    }, 50);
+    setSimRows((prev) => [...prev, row]);
+    setNextId((id) => id + 1);
   }, [playerCount, nextId]);
 
   // Sorting logic
