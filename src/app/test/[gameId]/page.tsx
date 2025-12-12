@@ -1748,6 +1748,15 @@ export default function TestGamePage() {
                     </th>
                     <th
                       className="cursor-pointer px-2 py-1 hover:text-slate-200"
+                      onClick={() => handleLogSort("resources")}
+                    >
+                      Res{" "}
+                      {logSortKey === "resources" && (logSortDir === "asc" ? "↑" : "↓")}
+                    </th>
+                    <th className="px-2 py-1">Hand</th>
+                    <th className="px-2 py-1">Rockets</th>
+                    <th
+                      className="cursor-pointer px-2 py-1 hover:text-slate-200"
                       onClick={() => handleLogSort("movementCardsLeft")}
                     >
                       MvCards{" "}
@@ -1824,6 +1833,9 @@ export default function TestGamePage() {
                         ))}
                       </select>
                     </th>
+                    <th className="px-2 py-1"></th>
+                    <th className="px-2 py-1"></th>
+                    <th className="px-2 py-1"></th>
                     <th className="px-2 py-1">
                       <select
                         className="w-full rounded bg-slate-800 px-1 py-0.5 text-[11px] text-slate-200"
@@ -1895,7 +1907,7 @@ export default function TestGamePage() {
                   {filteredActionLog.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={9}
+                        colSpan={12}
                         className="px-2 py-3 text-center text-[11px] text-slate-500"
                       >
                         No actions to display.
@@ -1916,6 +1928,18 @@ export default function TestGamePage() {
                         </td>
                         <td className="px-2 py-1 text-[11px] text-amber-300 font-mono">
                           {row.actionType}
+                        </td>
+                        <td className="px-2 py-1 text-[11px] text-yellow-400 font-mono">
+                          {row.resources}
+                        </td>
+                        <td className="px-2 py-1 text-[11px] text-slate-300 font-mono whitespace-nowrap">
+                          {row.hand}
+                        </td>
+                        <td className="px-2 py-1 text-[11px] text-slate-300 font-mono whitespace-nowrap">
+                          <span className="text-green-400">{row.readyRockets}</span>
+                          {row.buildQueue !== "[]" && (
+                            <span className="text-yellow-500 ml-1">{row.buildQueue}</span>
+                          )}
                         </td>
                         <td className="px-2 py-1 text-[11px] text-slate-200">
                           {row.movementCardsLeft}
