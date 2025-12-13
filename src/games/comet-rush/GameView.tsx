@@ -25,7 +25,7 @@ type TurnWizardStep = "announce" | "showIncome" | "promptDraw" | "showCard" | nu
 
 function calculateRocketCost(buildTimeCost: number, power: number, accuracy: number): number {
   // Rules: Power costs 1 cube/level, Accuracy costs 1 cube/level
-  // Build Time Cost (4-1) is the base cube cost for completing the rocket
+  // Build Time Cost determines delay and cube cost: BTC 1 = 1 cube + 2 turns, BTC 2 = 2 cubes + 1 turn, BTC 3 = 3 cubes + instant
   return power + accuracy + buildTimeCost;
 }
 
@@ -311,9 +311,9 @@ function BuildRocketForm({
   const cost = calculateRocketCost(buildTime, power, accuracy);
   const canAfford = player.resourceCubes >= cost;
 
-  // Rockets are now instant - only count ready rockets for capacity
+  // Count both building and ready rockets for capacity
   const activeRockets = player.rockets.filter(
-    (r) => r.status === "ready"
+    (r) => r.status === "ready" || r.status === "building"
   ).length;
   const maxRockets = player.maxConcurrentRockets + player.upgrades.maxRocketsBonus;
   const hasSlot = activeRockets < maxRockets;
@@ -541,6 +541,7 @@ function OtherPlayersDisplay({
       <div className="space-y-2">
         {otherPlayers.map((p) => {
           const readyRockets = p.rockets.filter((r) => r.status === "ready").length;
+          const buildingRockets = p.rockets.filter((r) => r.status === "building").length;
           const points = p.trophies.reduce((sum, t) => sum + t.baseStrength, 0);
 
           return (
@@ -567,6 +568,11 @@ function OtherPlayersDisplay({
                 <span className="px-2 py-1 text-xs bg-gray-700/50 border border-gray-600 rounded-full text-gray-300">
                   {p.hand.length} cards
                 </span>
+                {buildingRockets > 0 && (
+                  <span className="px-2 py-1 text-xs bg-blue-900/50 border border-blue-600 rounded-full text-blue-300">
+                    {buildingRockets} building
+                  </span>
+                )}
                 {readyRockets > 0 && (
                   <span className="px-2 py-1 text-xs bg-green-900/50 border border-green-600 rounded-full text-green-300">
                     {readyRockets} ready
