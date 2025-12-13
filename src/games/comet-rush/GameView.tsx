@@ -337,14 +337,14 @@ function BuildRocketForm({
           <input
             type="range"
             min={1}
-            max={4}
+            max={buildTimeCap}
             value={buildTime}
             onChange={(e) => setBuildTime(Number(e.target.value))}
             className="w-full"
           />
           <div className="flex justify-between text-xs text-gray-500">
-            <span>Cheap</span>
-            <span>Expensive</span>
+            <span>Cheap & Slow (2 turns)</span>
+            <span>Expensive & Fast (instant)</span>
           </div>
         </div>
 

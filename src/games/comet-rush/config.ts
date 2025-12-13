@@ -377,7 +377,7 @@ function buildPlayerState(p: Player): CometRushPlayerState {
       maxRocketsBonus: 0,
       powerCap: 3,
       accuracyCap: 3,
-      buildTimeCap: 4,
+      buildTimeCap: 3,
     },
     trophies: [],
     hasPlayedResearchThisTurn: false,
@@ -754,13 +754,13 @@ function reducer(
       const rawAccuracy = payload.accuracy;
       const rawBuildTimeCost = payload.buildTimeBase; // Now represents cost, not timer
 
-      // Basic validation (Build Time Cost range is 1-4)
-      if (rawBuildTimeCost < 1 || rawBuildTimeCost > 4 || rawPower < 1 || rawAccuracy < 1) return state;
+      // Basic validation (Build Time Cost range is 1-3)
+      if (rawBuildTimeCost < 1 || rawBuildTimeCost > 3 || rawPower < 1 || rawAccuracy < 1) return state;
 
       // Clamp to player's caps (enforced server-side to prevent cheating)
       const power = Math.min(rawPower, player.upgrades.powerCap);
       const accuracy = Math.min(rawAccuracy, player.upgrades.accuracyCap);
-      const buildTimeCost = rawBuildTimeCost; // Build Time Cost is always 1-4, no cap needed
+      const buildTimeCost = Math.min(rawBuildTimeCost, player.upgrades.buildTimeCap); // Build Time Cost is 1-3
 
       // Apply upgrades to power and accuracy
       const effectivePower = power + player.upgrades.powerBonus;
