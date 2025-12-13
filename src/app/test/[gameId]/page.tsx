@@ -23,6 +23,7 @@ interface SimLogEntry {
   round: number;
   playerId: string;
   playerLabel: string;
+  personality: string;
   action: string;
   actionType: string;
   details: string;
@@ -212,6 +213,69 @@ function getPlayableResearchSets(
   return result;
 }
 
+// ============================================================================
+// BOT PERSONALITIES
+// ============================================================================
+
+type BotPersonality = "engineer" | "sniper" | "firehose" | "bruiser";
+
+interface PersonalityConfig {
+  name: string;
+  researchPriority: string[];
+  minAccuracyToLaunch: number; // Min accuracy before launching (unless urgent)
+  prefersPowerOverAccuracy: boolean;
+  buildTimeCostPreference: "cheap" | "balanced" | "instant"; // BTC preference
+  minHealthToAttack: number | null; // Only attack if segment HP <= this (null = always attack)
+  fillsAllSlots: boolean; // Tries to keep all rocket slots full
+}
+
+const PERSONALITIES: Record<BotPersonality, PersonalityConfig> = {
+  engineer: {
+    name: "Engineer",
+    researchPriority: ["ACCURACY", "POWER", "INCOME", "PEEK_STRENGTH", "STEAL_RESOURCES", "STEAL_CARD"],
+    minAccuracyToLaunch: 3, // 50% hit chance
+    prefersPowerOverAccuracy: false,
+    buildTimeCostPreference: "balanced",
+    minHealthToAttack: null, // Launches whenever ready
+    fillsAllSlots: true,
+  },
+  sniper: {
+    name: "Sniper",
+    researchPriority: ["STEAL_RESOURCES", "STEAL_CARD", "PEEK_STRENGTH", "ACCURACY", "POWER", "INCOME"],
+    minAccuracyToLaunch: 3,
+    prefersPowerOverAccuracy: false,
+    buildTimeCostPreference: "balanced",
+    minHealthToAttack: 3, // Only attacks weakened segments
+    fillsAllSlots: false,
+  },
+  firehose: {
+    name: "Firehose",
+    researchPriority: ["INCOME", "POWER", "ACCURACY", "PEEK_STRENGTH", "STEAL_RESOURCES", "STEAL_CARD"],
+    minAccuracyToLaunch: 2, // 33% hit chance, doesn't care
+    prefersPowerOverAccuracy: true,
+    buildTimeCostPreference: "cheap", // Prefers BTC=1 for cheap rockets
+    minHealthToAttack: null, // Launches at everything
+    fillsAllSlots: true,
+  },
+  bruiser: {
+    name: "Bruiser",
+    researchPriority: ["POWER", "ACCURACY", "INCOME", "PEEK_STRENGTH", "STEAL_RESOURCES", "STEAL_CARD"],
+    minAccuracyToLaunch: 2, // Doesn't care about accuracy
+    prefersPowerOverAccuracy: true,
+    buildTimeCostPreference: "instant", // Wants rockets NOW
+    minHealthToAttack: null, // Launches at everything to break through
+    fillsAllSlots: false,
+  },
+};
+
+// Assign personalities to players based on their ID
+function getPlayerPersonality(playerId: string): BotPersonality {
+  const personalities: BotPersonality[] = ["engineer", "sniper", "firehose", "bruiser"];
+  // Use player number to deterministically assign personality
+  const playerNum = parseInt(playerId.replace(/\D/g, "")) || 0;
+  return personalities[playerNum % personalities.length];
+}
+
 const RESEARCH_PRIORITY: string[] = [
   "INCOME",
   "POWER",
@@ -249,8 +313,10 @@ type RocketConfig = {
 
 function chooseRocketToBuild(
   player: CometRushPlayerState,
+  personality: BotPersonality,
 ): RocketConfig | null {
   const { powerCap, accuracyCap, buildTimeCap } = player.upgrades;
+  const config = PERSONALITIES[personality];
 
   // Check if we have capacity for more rockets (count both building and ready)
   const maxSlots =
@@ -263,12 +329,32 @@ function chooseRocketToBuild(
   // If low on cubes, skip building (minimum cost is 3)
   if (player.resourceCubes < 3) return null;
 
-  // Build cost is just added to rocket cost now, so use a reasonable value (max BTC is 3)
-  const buildTimeCost = Math.min(3, Math.max(1, player.resourceCubes - 4)); // use leftover for build cost
+  // Determine build time cost based on personality
+  let buildTimeCost: number;
+  if (config.buildTimeCostPreference === "cheap") {
+    // Firehose: prefer BTC=1 (cheap, 2 turn delay)
+    buildTimeCost = 1;
+  } else if (config.buildTimeCostPreference === "instant") {
+    // Bruiser: prefer BTC=3 (instant, expensive)
+    buildTimeCost = Math.min(3, buildTimeCap);
+  } else {
+    // Engineer/Sniper: balanced, use what we can afford
+    buildTimeCost = Math.min(3, Math.max(1, Math.min(buildTimeCap, player.resourceCubes - 6)));
+  }
 
-  // Power and accuracy now max at 3 (before upgrades)
-  const targetPower = Math.min(powerCap, 3);
-  const targetAccuracy = Math.min(accuracyCap, 3); // 3 on d6 = 50% hit rate
+  // Determine power and accuracy based on personality
+  let targetPower: number;
+  let targetAccuracy: number;
+
+  if (config.prefersPowerOverAccuracy) {
+    // Firehose/Bruiser: max power first, then accuracy
+    targetPower = Math.min(powerCap, 3);
+    targetAccuracy = Math.min(accuracyCap, Math.max(1, 3 - (3 - player.upgrades.accuracyBonus)));
+  } else {
+    // Engineer/Sniper: max accuracy first, then power
+    targetAccuracy = Math.min(accuracyCap, 3);
+    targetPower = Math.min(powerCap, Math.max(1, 3 - (3 - player.upgrades.powerBonus)));
+  }
 
   return {
     buildTimeBase: buildTimeCost,
@@ -279,13 +365,27 @@ function chooseRocketToBuild(
 
 function chooseRocketToLaunch(
   player: CometRushPlayerState,
+  personality: BotPersonality,
+  activeSegmentHP: number | null,
 ): string | null {
+  const config = PERSONALITIES[personality];
   const ready = player.rockets.filter((r) => r.status === "ready");
   if (ready.length === 0) return null;
 
+  // Sniper: only launch if segment HP is low enough
+  if (config.minHealthToAttack !== null && activeSegmentHP !== null) {
+    if (activeSegmentHP > config.minHealthToAttack) {
+      return null; // Wait for segment to be weakened
+    }
+  }
+
+  // Check minimum accuracy requirement
+  const accurateEnough = ready.filter((r) => r.accuracy >= config.minAccuracyToLaunch);
+  const candidates = accurateEnough.length > 0 ? accurateEnough : ready;
+
   // Launch the highest power ready rocket
-  ready.sort((a, b) => b.power - a.power);
-  const choice = ready[0];
+  candidates.sort((a, b) => b.power - a.power);
+  const choice = candidates[0];
 
   return choice.id;
 }
@@ -353,9 +453,11 @@ function hasPowerOrAccuracyResearch(player: CometRushPlayerState): boolean {
 
 function choosePriorityResearchSet(
   player: CometRushPlayerState,
+  personality: BotPersonality,
   priorityTypes: string[],
   distanceToImpact?: number
 ): ResearchSetOption | null {
+  const config = PERSONALITIES[personality];
   let options = getPlayableResearchSets(player);
   if (options.length === 0) return null;
 
@@ -365,8 +467,11 @@ function choosePriorityResearchSet(
     if (options.length === 0) return null;
   }
 
+  // Use personality-specific priorities if no explicit priorities given
+  const priorities = priorityTypes.length > 0 ? priorityTypes : config.researchPriority;
+
   // First, try to find a priority type
-  for (const priority of priorityTypes) {
+  for (const priority of priorities) {
     const match = options.find((s) => s.setKey === priority);
     if (match) return match;
   }
@@ -377,12 +482,14 @@ function choosePriorityResearchSet(
 
 function botWantsAnotherRocket(
   player: CometRushPlayerState,
+  personality: BotPersonality,
   _distanceToImpact: number
 ): boolean {
+  const config = PERSONALITIES[personality];
   const maxSlots = player.maxConcurrentRockets + player.upgrades.maxRocketsBonus;
-  // Rockets are now instant - only count ready rockets
+  // Count both ready and building rockets
   const currentSlots = player.rockets.filter(
-    (r) => r.status === "ready"
+    (r) => r.status === "ready" || r.status === "building"
   ).length;
 
   // Can't build more if slots are full
@@ -391,8 +498,13 @@ function botWantsAnotherRocket(
   // Can't build if not enough resources (minimum cost is 3: power 1 + accuracy 1 + build cost 1)
   if (player.resourceCubes < 3) return false;
 
-  // Build if we have resources and slots - no strategic restrictions
-  return true;
+  // Firehose/Engineer: always fill all slots
+  if (config.fillsAllSlots) {
+    return true;
+  }
+
+  // Sniper/Bruiser: more conservative, only build 1-2 rockets
+  return currentSlots < Math.max(1, maxSlots - 1);
 }
 
 // ============================================================================
@@ -495,6 +607,8 @@ function simulateBotTurn(
   const addLog = (action: string, details: string, decisionContext?: string) => {
     const playerLabel = playerId.replace("player-", "P");
     const player = currentState.players[playerId];
+    const personality = getPlayerPersonality(playerId);
+    const personalityName = PERSONALITIES[personality].name;
 
     // Calculate comet tracking data
     const movementCardsLeft = currentState.movementDeck.length;
@@ -542,6 +656,7 @@ function simulateBotTurn(
       round: currentState.round,
       playerId,
       playerLabel,
+      personality: personalityName,
       action,
       actionType: action,
       details,
@@ -593,6 +708,11 @@ function simulateBotTurn(
     return { state: currentState, seed: currentSeed, rocketsBuilt, rocketsLaunched };
   }
 
+  // Get bot personality for this player
+  const personality = getPlayerPersonality(playerId);
+  const personalityName = PERSONALITIES[personality].name;
+  console.log(`[${playerId}] 🤖 Playing as ${personalityName}`);
+
   let launchCount = 0;
   let buildCount = 0;
   let researchPlayed = false;
@@ -617,7 +737,8 @@ function simulateBotTurn(
       console.error(`[LOOP GUARD] Launch loop exceeded 20 iterations for ${playerId}`);
       break;
     }
-    const rocketId = chooseRocketToLaunch(player);
+    const activeSegmentHP = currentState.activeStrengthCard?.currentStrength ?? null;
+    const rocketId = chooseRocketToLaunch(player, personality, activeSegmentHP);
     if (!rocketId) break;
 
     const rocket = player.rockets.find((r) => r.id === rocketId);
@@ -660,10 +781,10 @@ function simulateBotTurn(
   // PHASE 2: BUILD ROCKETS (always check, regardless of launch phase)
   // ====================
 
-  console.log(`[${playerId}] PHASE 2 START - BUILD check: botWants=${botWantsAnotherRocket(player, currentState.distanceToImpact)} (res:${player.resourceCubes}, slots:${player.rockets.filter(r => r.status === "ready" || r.status === "building").length}/${maxSlots}, dist:${currentState.distanceToImpact})`);
+  console.log(`[${playerId}] PHASE 2 START - BUILD check: botWants=${botWantsAnotherRocket(player, personality, currentState.distanceToImpact)} (res:${player.resourceCubes}, slots:${player.rockets.filter(r => r.status === "ready" || r.status === "building").length}/${maxSlots}, dist:${currentState.distanceToImpact})`);
 
   let p4Iterations = 0;
-  while (botWantsAnotherRocket(player, currentState.distanceToImpact)) {
+  while (botWantsAnotherRocket(player, personality, currentState.distanceToImpact)) {
     if (++p4Iterations > 10) {
       console.error(`[LOOP GUARD] P4 build loop exceeded 10 iterations for ${playerId}`);
       console.error(`Loop state:`, {
@@ -674,7 +795,7 @@ function simulateBotTurn(
       });
       break;
     }
-    const config = chooseRocketToBuild(player);
+    const config = chooseRocketToBuild(player, personality);
     if (!config) break;
 
     if (dispatch({ type: "BUILD_ROCKET", playerId, payload: config })) {
@@ -698,6 +819,51 @@ function simulateBotTurn(
   }
 
   // ====================
+  // PHASE 2.5: LAUNCH INSTANT ROCKETS (if we built one and haven't launched yet)
+  // ====================
+
+  // If we built an instant rocket (BTC=3) and haven't launched yet, launch it now
+  if (!player.hasLaunchedRocketThisTurn && hasReadyRocket(player)) {
+    const activeSegmentHP = currentState.activeStrengthCard?.currentStrength ?? null;
+    const rocketId = chooseRocketToLaunch(player, personality, activeSegmentHP);
+    if (rocketId) {
+      const rocket = player.rockets.find((r) => r.id === rocketId);
+      const rocketStats = rocket ? {
+        power: rocket.power,
+        accuracy: rocket.accuracy,
+        buildTimeBase: rocket.buildTimeBase,
+      } : null;
+
+      console.log(`[${playerId}] PHASE 2.5 - Launching instant rocket that was just built`);
+
+      if (dispatch({ type: "LAUNCH_ROCKET", playerId, payload: { rocketId } })) {
+        turnActionIndex++;
+        rocketsLaunched++;
+        launchCount++;
+        const result = currentState.lastLaunchResult;
+        if (result && rocketStats) {
+          const damage = result.destroyed
+            ? result.strengthBefore
+            : (result.hit ? Math.max(0, result.strengthBefore - result.strengthAfter) : 0);
+
+          launchedRockets.push({
+            ...rocketStats,
+            hit: result.hit,
+            damage,
+            destroyed: result.destroyed,
+          });
+
+          const hitMiss = result.hit ? "HIT" : "MISS";
+          const destroyed = result.destroyed ? " - DESTROYED!" : "";
+          console.log(`[${playerId}] Action ${turnActionIndex}: LAUNCH_ROCKET (instant) - ${hitMiss} (roll:${result.diceRoll} vs ${result.accuracyNeeded})${destroyed}`);
+          addLog("LAUNCH_ROCKET", `Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`, `LAUNCH: instant rocket`);
+        }
+        player = currentState.players[playerId];
+      }
+    }
+  }
+
+  // ====================
   // PHASE 3: RESEARCH (can happen regardless of launches/builds)
   // ====================
 
@@ -707,12 +873,12 @@ function simulateBotTurn(
   if (!player.hasPlayedResearchThisTurn) {
     // Try POWER or ACCURACY first (combat upgrades)
     let choice = hasPowerOrAccuracyResearch(player)
-      ? choosePriorityResearchSet(player, ["POWER", "ACCURACY"], currentState.distanceToImpact)
+      ? choosePriorityResearchSet(player, personality, ["POWER", "ACCURACY"], currentState.distanceToImpact)
       : null;
 
     // Fall back to any other research
     if (!choice) {
-      choice = choosePriorityResearchSet(player, [], currentState.distanceToImpact);
+      choice = choosePriorityResearchSet(player, personality, [], currentState.distanceToImpact);
     }
 
     if (choice) {
@@ -885,6 +1051,7 @@ function runCometRushSimulation(
       round: 1,
       playerId: "SYSTEM",
       playerLabel: "SYSTEM",
+      personality: "-",
       action: "START_GAME",
       actionType: "START_GAME",
       details: `Game started with ${playerCount} players`,
