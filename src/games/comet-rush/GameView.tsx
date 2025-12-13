@@ -23,10 +23,10 @@ type TurnWizardStep = "announce" | "showIncome" | "promptDraw" | "showCard" | nu
 // HELPER FUNCTIONS
 // ============================================================================
 
-function calculateRocketCost(buildTimeBase: number, power: number, accuracy: number): number {
-  const accuracyCost = Math.ceil(accuracy / 2);
-  const buildTimeCost = Math.max(0, 4 - buildTimeBase);
-  return power + accuracyCost + buildTimeCost;
+function calculateRocketCost(buildTimeCost: number, power: number, accuracy: number): number {
+  // Rules: Power costs 1 cube/level, Accuracy costs 1 cube/level
+  // Build Time Cost (4-1) is the base cube cost for completing the rocket
+  return power + accuracy + buildTimeCost;
 }
 
 // ============================================================================
@@ -303,23 +303,24 @@ function BuildRocketForm({
   // Get caps from player upgrades
   const { powerCap, accuracyCap, buildTimeCap } = player.upgrades;
 
-  // Initialize state with values clamped to caps
+  // Initialize state with values clamped to caps (accuracy max is 3 per rules)
   const [buildTime, setBuildTime] = useState(Math.min(2, buildTimeCap));
   const [power, setPower] = useState(Math.min(3, powerCap));
-  const [accuracy, setAccuracy] = useState(Math.min(4, accuracyCap));
+  const [accuracy, setAccuracy] = useState(Math.min(3, accuracyCap));
 
   const cost = calculateRocketCost(buildTime, power, accuracy);
   const canAfford = player.resourceCubes >= cost;
 
+  // Rockets are now instant - only count ready rockets for capacity
   const activeRockets = player.rockets.filter(
-    (r) => r.status === "building" || r.status === "ready"
+    (r) => r.status === "ready"
   ).length;
   const maxRockets = player.maxConcurrentRockets + player.upgrades.maxRocketsBonus;
   const hasSlot = activeRockets < maxRockets;
 
   const effectivePower = power + player.upgrades.powerBonus;
-  const effectiveAccuracy = Math.min(12, accuracy + player.upgrades.accuracyBonus);
-  const effectiveBuildTime = Math.max(1, buildTime - player.upgrades.buildTimeBonus);
+  const effectiveAccuracy = Math.min(6, accuracy + player.upgrades.accuracyBonus); // Cap at 6 (guaranteed hit on d6)
+  const effectiveBuildTime = buildTime; // Build time is now just a cost, no reduction needed
 
   return (
     <div className="bg-gray-900 rounded-lg p-4 mb-4">
@@ -328,29 +329,23 @@ function BuildRocketForm({
       <div className="space-y-4">
         <div>
           <div className="flex justify-between mb-1">
-            <span className="text-sm text-gray-400">Build Time</span>
+            <span className="text-sm text-gray-400">Build Cost</span>
             <span className="text-sm">
-              {buildTime} turns
-              {player.upgrades.buildTimeBonus > 0 && (
-                <span className="text-green-400 ml-1">({effectiveBuildTime})</span>
-              )}
+              {buildTime} cubes
             </span>
           </div>
           <input
             type="range"
             min={1}
-            max={buildTimeCap}
+            max={4}
             value={buildTime}
             onChange={(e) => setBuildTime(Number(e.target.value))}
             className="w-full"
           />
           <div className="flex justify-between text-xs text-gray-500">
-            <span>Fast (expensive)</span>
-            <span>Slow (cheap)</span>
+            <span>Cheap</span>
+            <span>Expensive</span>
           </div>
-          {buildTimeCap > 4 && (
-            <div className="text-xs text-green-400 mt-1">Cap increased to {buildTimeCap}!</div>
-          )}
         </div>
 
         <div>
@@ -371,14 +366,14 @@ function BuildRocketForm({
             onChange={(e) => setPower(Number(e.target.value))}
             className="w-full"
           />
-          {powerCap > 4 && (
+          {powerCap > 3 && (
             <div className="text-xs text-green-400 mt-1">Cap increased to {powerCap}!</div>
           )}
         </div>
 
         <div>
           <div className="flex justify-between mb-1">
-            <span className="text-sm text-gray-400">Accuracy (roll {effectiveAccuracy} or less)</span>
+            <span className="text-sm text-gray-400">Accuracy (roll {effectiveAccuracy} or less on d6)</span>
             <span className="text-sm">
               {accuracy}
               {player.upgrades.accuracyBonus > 0 && (
@@ -398,7 +393,7 @@ function BuildRocketForm({
             <span>Hard to hit</span>
             <span>Easy to hit</span>
           </div>
-          {accuracyCap > 4 && (
+          {accuracyCap > 3 && (
             <div className="text-xs text-green-400 mt-1">Cap increased to {accuracyCap}!</div>
           )}
         </div>
@@ -860,9 +855,8 @@ export function CometRushGameView({
 
   // Check if we need target selection
   const needsTargetPlayer = selectedCards[0]?.tag === "STEAL_RESOURCES" ||
-    selectedCards[0]?.tag === "STEAL_CARD" ||
-    selectedCards[0]?.tag === "DELAY_BUILD";
-  const needsTargetRocket = selectedCards[0]?.tag === "DELAY_BUILD";
+    selectedCards[0]?.tag === "STEAL_CARD";
+  const needsTargetRocket = false; // No cards require rocket targeting now
 
   const otherPlayers = Object.values(gameState?.players ?? {}).filter((p) => p.id !== playerId);
 
