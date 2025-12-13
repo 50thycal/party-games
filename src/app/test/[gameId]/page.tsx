@@ -23,6 +23,7 @@ interface SimLogEntry {
   round: number;
   playerId: string;
   playerLabel: string;
+  personality: string;
   action: string;
   actionType: string;
   details: string;
@@ -606,6 +607,8 @@ function simulateBotTurn(
   const addLog = (action: string, details: string, decisionContext?: string) => {
     const playerLabel = playerId.replace("player-", "P");
     const player = currentState.players[playerId];
+    const personality = getPlayerPersonality(playerId);
+    const personalityName = PERSONALITIES[personality].name;
 
     // Calculate comet tracking data
     const movementCardsLeft = currentState.movementDeck.length;
@@ -653,6 +656,7 @@ function simulateBotTurn(
       round: currentState.round,
       playerId,
       playerLabel,
+      personality: personalityName,
       action,
       actionType: action,
       details,
@@ -1047,6 +1051,7 @@ function runCometRushSimulation(
       round: 1,
       playerId: "SYSTEM",
       playerLabel: "SYSTEM",
+      personality: "-",
       action: "START_GAME",
       actionType: "START_GAME",
       details: `Game started with ${playerCount} players`,
