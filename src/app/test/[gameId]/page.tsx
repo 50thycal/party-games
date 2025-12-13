@@ -698,6 +698,50 @@ function simulateBotTurn(
   }
 
   // ====================
+  // PHASE 2.5: LAUNCH INSTANT ROCKETS (if we built one and haven't launched yet)
+  // ====================
+
+  // If we built an instant rocket (BTC=3) and haven't launched yet, launch it now
+  if (!player.hasLaunchedRocketThisTurn && hasReadyRocket(player)) {
+    const rocketId = chooseRocketToLaunch(player);
+    if (rocketId) {
+      const rocket = player.rockets.find((r) => r.id === rocketId);
+      const rocketStats = rocket ? {
+        power: rocket.power,
+        accuracy: rocket.accuracy,
+        buildTimeBase: rocket.buildTimeBase,
+      } : null;
+
+      console.log(`[${playerId}] PHASE 2.5 - Launching instant rocket that was just built`);
+
+      if (dispatch({ type: "LAUNCH_ROCKET", playerId, payload: { rocketId } })) {
+        turnActionIndex++;
+        rocketsLaunched++;
+        launchCount++;
+        const result = currentState.lastLaunchResult;
+        if (result && rocketStats) {
+          const damage = result.destroyed
+            ? result.strengthBefore
+            : (result.hit ? Math.max(0, result.strengthBefore - result.strengthAfter) : 0);
+
+          launchedRockets.push({
+            ...rocketStats,
+            hit: result.hit,
+            damage,
+            destroyed: result.destroyed,
+          });
+
+          const hitMiss = result.hit ? "HIT" : "MISS";
+          const destroyed = result.destroyed ? " - DESTROYED!" : "";
+          console.log(`[${playerId}] Action ${turnActionIndex}: LAUNCH_ROCKET (instant) - ${hitMiss} (roll:${result.diceRoll} vs ${result.accuracyNeeded})${destroyed}`);
+          addLog("LAUNCH_ROCKET", `Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`, `LAUNCH: instant rocket`);
+        }
+        player = currentState.players[playerId];
+      }
+    }
+  }
+
+  // ====================
   // PHASE 3: RESEARCH (can happen regardless of launches/builds)
   // ====================
 
