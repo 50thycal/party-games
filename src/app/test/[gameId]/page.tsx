@@ -1901,6 +1901,7 @@ export default function TestGamePage() {
                       Player{" "}
                       {logSortKey === "playerLabel" && (logSortDir === "asc" ? "↑" : "↓")}
                     </th>
+                    <th className="px-2 py-1">Type</th>
                     <th
                       className="cursor-pointer px-2 py-1 hover:text-slate-200"
                       onClick={() => handleLogSort("actionType")}
@@ -2087,6 +2088,9 @@ export default function TestGamePage() {
                         </td>
                         <td className="px-2 py-1 text-[11px] text-sky-400">
                           {row.playerLabel}
+                        </td>
+                        <td className="px-2 py-1 text-[11px] text-purple-400">
+                          {row.personality}
                         </td>
                         <td className="px-2 py-1 text-[11px] text-amber-300 font-mono">
                           {row.actionType}
