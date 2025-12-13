@@ -252,19 +252,19 @@ function chooseRocketToBuild(
 ): RocketConfig | null {
   const { powerCap, accuracyCap, buildTimeCap } = player.upgrades;
 
-  // Check if we have capacity for more rockets (rockets are now instant)
+  // Check if we have capacity for more rockets (count both building and ready)
   const maxSlots =
     player.maxConcurrentRockets + player.upgrades.maxRocketsBonus;
-  const readyRockets = player.rockets.filter(
-    (r) => r.status === "ready",
+  const activeRockets = player.rockets.filter(
+    (r) => r.status === "ready" || r.status === "building",
   ).length;
-  if (readyRockets >= maxSlots) return null;
+  if (activeRockets >= maxSlots) return null;
 
   // If low on cubes, skip building (minimum cost is 3)
   if (player.resourceCubes < 3) return null;
 
-  // Build cost is just added to rocket cost now, so use a reasonable value
-  const buildTimeCost = Math.min(4, Math.max(1, player.resourceCubes - 4)); // use leftover for build cost
+  // Build cost is just added to rocket cost now, so use a reasonable value (max BTC is 3)
+  const buildTimeCost = Math.min(3, Math.max(1, player.resourceCubes - 4)); // use leftover for build cost
 
   // Power and accuracy now max at 3 (before upgrades)
   const targetPower = Math.min(powerCap, 3);
@@ -603,8 +603,8 @@ function simulateBotTurn(
 
   // Log available actions before Phase 1
   const maxSlots = player.maxConcurrentRockets + player.upgrades.maxRocketsBonus;
-  const currentSlots = player.rockets.filter((r) => r.status === "ready").length;
-  const canBuild = player.resourceCubes >= 4 && currentSlots < maxSlots;
+  const currentSlots = player.rockets.filter((r) => r.status === "ready" || r.status === "building").length;
+  const canBuild = player.resourceCubes >= 3 && currentSlots < maxSlots;
   const canLaunch = hasReadyRocket(player);
   const canResearch = getPlayableResearchSets(player).length > 0 && !player.hasPlayedResearchThisTurn;
 
@@ -660,7 +660,7 @@ function simulateBotTurn(
   // PHASE 2: BUILD ROCKETS (always check, regardless of launch phase)
   // ====================
 
-  console.log(`[${playerId}] PHASE 2 START - BUILD check: botWants=${botWantsAnotherRocket(player, currentState.distanceToImpact)} (res:${player.resourceCubes}, slots:${player.rockets.filter(r => r.status === "ready").length}/${maxSlots}, dist:${currentState.distanceToImpact})`);
+  console.log(`[${playerId}] PHASE 2 START - BUILD check: botWants=${botWantsAnotherRocket(player, currentState.distanceToImpact)} (res:${player.resourceCubes}, slots:${player.rockets.filter(r => r.status === "ready" || r.status === "building").length}/${maxSlots}, dist:${currentState.distanceToImpact})`);
 
   let p4Iterations = 0;
   while (botWantsAnotherRocket(player, currentState.distanceToImpact)) {
@@ -686,9 +686,10 @@ function simulateBotTurn(
         accuracy: config.accuracy,
         buildTimeBase: config.buildTimeBase,
       });
-      const currentSlots = player.rockets.filter((r) => r.status === "ready").length;
+      const currentSlots = player.rockets.filter((r) => r.status === "ready" || r.status === "building").length;
       const maxSlots = player.maxConcurrentRockets + player.upgrades.maxRocketsBonus;
-      console.log(`[${playerId}] Action ${turnActionIndex}: BUILD_ROCKET (P4) - P=${config.power}, A=${config.accuracy}, T=${config.buildTimeBase} (${currentSlots + 1}/${maxSlots}, res after: ${player.resourceCubes - 4})`);
+      const rocketCost = config.power + config.accuracy + config.buildTimeBase;
+      console.log(`[${playerId}] Action ${turnActionIndex}: BUILD_ROCKET (P4) - P=${config.power}, A=${config.accuracy}, T=${config.buildTimeBase} (${currentSlots + 1}/${maxSlots}, cost: ${rocketCost}, res after: ${player.resourceCubes - rocketCost})`);
       addLog("BUILD_ROCKET", `[P4: Fill slots] P=${config.power}, A=${config.accuracy}, T=${config.buildTimeBase} (${currentSlots + 1}/${maxSlots})`, `BUILD: P4 slots available`);
       player = currentState.players[playerId];
     } else {
@@ -726,8 +727,8 @@ function simulateBotTurn(
   }
 
   // 7. END_TURN
-  const currentSlotsAtEnd = player.rockets.filter((r) => r.status === "ready").length;
-  const canBuildAtEnd = player.resourceCubes >= 4 && currentSlotsAtEnd < maxSlots;
+  const currentSlotsAtEnd = player.rockets.filter((r) => r.status === "ready" || r.status === "building").length;
+  const canBuildAtEnd = player.resourceCubes >= 3 && currentSlotsAtEnd < maxSlots;
   const canLaunchAtEnd = hasReadyRocket(player);
   const canResearchAtEnd = getPlayableResearchSets(player).length > 0 && !player.hasPlayedResearchThisTurn;
 

@@ -57,10 +57,10 @@ export interface ResearchCard {
 
 export interface Rocket {
   id: string;
-  buildTimeBase: number;
-  buildTimeRemaining: number;
+  buildTimeBase: number; // Build Time Cost (1-3): affects both cube cost and build delay
+  buildTimeRemaining: number; // Turns until ready (decrements each turn at BEGIN_TURN)
   power: number;
-  accuracy: number; // 1-12, compared against 2d6 roll
+  accuracy: number; // 1-6, compared against 1d6 roll
   costCubes: number;
   status: RocketStatus;
 }
@@ -213,8 +213,8 @@ export interface CometRushAction extends BaseAction {
 // CONSTANTS
 // ============================================================================
 
-const STARTING_CUBES = 6;
-const BASE_INCOME = 4;
+const STARTING_CUBES = 20;
+const BASE_INCOME = 5;
 const BASE_DISTANCE_TO_IMPACT = 18;
 const BASE_MAX_ROCKETS = 3;
 const TOTAL_STRENGTH_CARDS = 5; // 6 cards created, 1 removed as hidden, 5 to destroy
@@ -306,7 +306,7 @@ function shuffle<T>(array: T[], random: () => number): T[] {
 
 function calculateRocketCost(buildTimeCost: number, power: number, accuracy: number): number {
   // Rules: Power costs 1 cube/level, Accuracy costs 1 cube/level
-  // Build Time Cost (4-1) is the base cube cost for completing the rocket
+  // Build Time Cost determines delay and cube cost: BTC 1 = 1 cube + 2 turns, BTC 2 = 2 cubes + 1 turn, BTC 3 = 3 cubes + instant
   return power + accuracy + buildTimeCost;
 }
 
@@ -377,7 +377,7 @@ function buildPlayerState(p: Player): CometRushPlayerState {
       maxRocketsBonus: 0,
       powerCap: 3,
       accuracyCap: 3,
-      buildTimeCap: 4,
+      buildTimeCap: 3,
     },
     trophies: [],
     hasPlayedResearchThisTurn: false,
@@ -505,11 +505,23 @@ function reducer(
       const income = player.baseIncome + player.upgrades.incomeBonus;
       const newTotalCubes = player.resourceCubes + income;
 
-      // No rocket build advancement needed - rockets are now instant
+      // Advance rocket build timers
+      const updatedRockets = player.rockets.map(rocket => {
+        if (rocket.status === "building" && rocket.buildTimeRemaining > 0) {
+          const newRemaining = rocket.buildTimeRemaining - 1;
+          return {
+            ...rocket,
+            buildTimeRemaining: newRemaining,
+            status: newRemaining === 0 ? "ready" : "building" as RocketStatus,
+          };
+        }
+        return rocket;
+      });
 
       const updatedPlayer: CometRushPlayerState = {
         ...player,
         resourceCubes: newTotalCubes,
+        rockets: updatedRockets,
         hasPlayedResearchThisTurn: false,
         hasBuiltRocketThisTurn: false,
         hasLaunchedRocketThisTurn: false,
@@ -742,13 +754,13 @@ function reducer(
       const rawAccuracy = payload.accuracy;
       const rawBuildTimeCost = payload.buildTimeBase; // Now represents cost, not timer
 
-      // Basic validation (Build Time Cost range is 1-4)
-      if (rawBuildTimeCost < 1 || rawBuildTimeCost > 4 || rawPower < 1 || rawAccuracy < 1) return state;
+      // Basic validation (Build Time Cost range is 1-3)
+      if (rawBuildTimeCost < 1 || rawBuildTimeCost > 3 || rawPower < 1 || rawAccuracy < 1) return state;
 
       // Clamp to player's caps (enforced server-side to prevent cheating)
       const power = Math.min(rawPower, player.upgrades.powerCap);
       const accuracy = Math.min(rawAccuracy, player.upgrades.accuracyCap);
-      const buildTimeCost = rawBuildTimeCost; // Build Time Cost is always 1-4, no cap needed
+      const buildTimeCost = Math.min(rawBuildTimeCost, player.upgrades.buildTimeCap); // Build Time Cost is 1-3
 
       // Apply upgrades to power and accuracy
       const effectivePower = power + player.upgrades.powerBonus;
@@ -758,22 +770,25 @@ function reducer(
       const cost = calculateRocketCost(buildTimeCost, power, accuracy);
       if (player.resourceCubes < cost) return state;
 
-      // Check max concurrent rockets (only count ready rockets now since no building state)
+      // Check max concurrent rockets (count both building and ready rockets)
       const activeRockets = player.rockets.filter(
-        (r) => r.status === "ready"
+        (r) => r.status === "ready" || r.status === "building"
       ).length;
       const maxRockets = player.maxConcurrentRockets + player.upgrades.maxRocketsBonus;
       if (activeRockets >= maxRockets) return state;
 
-      // Rockets are immediately ready (Build Time is a cost, not a timer)
+      // Calculate build time delay: BTC 1 = 2 turns, BTC 2 = 1 turn, BTC 3 = 0 turns (instant)
+      const buildTimeRemaining = 3 - buildTimeCost;
+      const initialStatus: RocketStatus = buildTimeRemaining > 0 ? "building" : "ready";
+
       const newRocket: Rocket = {
         id: `rocket-${action.playerId}-${ctx.now()}`,
         buildTimeBase: buildTimeCost,
-        buildTimeRemaining: 0, // No longer used - rockets are instant
+        buildTimeRemaining: buildTimeRemaining,
         power: effectivePower,
         accuracy: effectiveAccuracy,
         costCubes: cost,
-        status: "ready", // Always ready immediately
+        status: initialStatus,
       };
 
       const updatedPlayer = {
