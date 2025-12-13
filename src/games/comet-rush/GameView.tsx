@@ -319,7 +319,7 @@ function BuildRocketForm({
   const hasSlot = activeRockets < maxRockets;
 
   const effectivePower = power + player.upgrades.powerBonus;
-  const effectiveAccuracy = Math.min(3, accuracy + player.upgrades.accuracyBonus); // Max accuracy is 3 (1d6 roll)
+  const effectiveAccuracy = Math.min(6, accuracy + player.upgrades.accuracyBonus); // Cap at 6 (guaranteed hit on d6)
   const effectiveBuildTime = buildTime; // Build time is now just a cost, no reduction needed
 
   return (

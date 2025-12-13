@@ -752,7 +752,7 @@ function reducer(
 
       // Apply upgrades to power and accuracy
       const effectivePower = power + player.upgrades.powerBonus;
-      const effectiveAccuracy = Math.min(3, accuracy + player.upgrades.accuracyBonus);
+      const effectiveAccuracy = Math.min(6, accuracy + player.upgrades.accuracyBonus); // Cap at 6 (guaranteed hit on d6)
 
       // Calculate total cost (power + accuracy + build time cost)
       const cost = calculateRocketCost(buildTimeCost, power, accuracy);
