@@ -21,17 +21,12 @@ export type CometRushPhase = "lobby" | "playing" | "gameOver";
 export type ResearchType = "ROCKET_UPGRADE" | "COMET_INSIGHT" | "SABOTAGE";
 
 export type ResearchTag =
-  | "POWER"
-  | "ACCURACY"
-  | "BUILD_TIME"
-  | "INCOME"
-  | "MAX_ROCKETS"
-  | "PEEK_MOVE"
-  | "PEEK_STRENGTH"
-  | "STEAL_RESOURCES"
-  | "STEAL_CARD"
-  | "DELAY_BUILD"
-  | "FORCE_REROLL";
+  | "POWER"         // Permanent: +1 power to future rockets
+  | "ACCURACY"      // Permanent: +1 accuracy to future rockets
+  | "INCOME"        // Permanent: +1 income (requires 2 cards)
+  | "PEEK_STRENGTH" // One-time: Look at top strength card
+  | "STEAL_CARD"    // One-time: Steal random card from opponent
+  | "STEAL_RESOURCES"; // One-time: Steal cubes from opponent
 
 export type RocketStatus = "building" | "ready" | "launched" | "spent";
 
@@ -218,11 +213,11 @@ export interface CometRushAction extends BaseAction {
 // CONSTANTS
 // ============================================================================
 
-const STARTING_CUBES = 5;
+const STARTING_CUBES = 6;
 const BASE_INCOME = 4;
 const BASE_DISTANCE_TO_IMPACT = 18;
 const BASE_MAX_ROCKETS = 3;
-const TOTAL_STRENGTH_CARDS = 6; // How many need to be destroyed to win
+const TOTAL_STRENGTH_CARDS = 5; // 6 cards created, 1 removed as hidden, 5 to destroy
 
 // ============================================================================
 // DECK CREATION HELPERS
@@ -282,21 +277,16 @@ function createResearchDeck(): ResearchCard[] {
     }
   };
 
-  // Rocket upgrades (require 2 cards of same type)
-  add("ROCKET_UPGRADE", "POWER", "POWER", 2, 4, "Power Boost", "+1 power to future rockets");
-  add("ROCKET_UPGRADE", "ACCURACY", "ACCURACY", 2, 4, "Targeting System", "+1 accuracy to future rockets");
-  add("ROCKET_UPGRADE", "BUILD_TIME", "BUILD_TIME", 2, 4, "Quick Assembly", "-1 build time for future rockets");
+  // Permanent Upgrades (per rules)
+  // POWER and ACCURACY require 1 card; INCOME requires 2 cards
+  add("ROCKET_UPGRADE", "POWER", "POWER", 1, 4, "Power Boost", "+1 power to future rockets");
+  add("ROCKET_UPGRADE", "ACCURACY", "ACCURACY", 1, 4, "Targeting System", "+1 accuracy to future rockets");
   add("ROCKET_UPGRADE", "INCOME", "INCOME", 2, 4, "Resource Mining", "+1 resource income per round");
-  add("ROCKET_UPGRADE", "MAX_ROCKETS", "MAX_ROCKETS", 2, 4, "Launch Pad", "+1 max concurrent rockets");
 
-  // Comet insight (require 1 card)
-  add("COMET_INSIGHT", "PEEK_MOVE", "PEEK_MOVE", 1, 3, "Trajectory Analysis", "Peek at top movement card");
-  add("COMET_INSIGHT", "PEEK_STRENGTH", "PEEK_STRENGTH", 1, 3, "Surface Scan", "Peek at top strength card");
-
-  // Sabotage (varying requirements)
-  add("SABOTAGE", "STEAL_RESOURCES", "STEAL_RESOURCES", 2, 3, "Resource Raid", "Steal 2 cubes from another player");
-  add("SABOTAGE", "STEAL_CARD", "STEAL_CARD", 2, 3, "Espionage", "Steal a random card from another player");
-  add("SABOTAGE", "DELAY_BUILD", "DELAY_BUILD", 1, 3, "Sabotage", "Delay an opponent's rocket by 1 turn");
+  // One-Time Effects (all require 1 card per rules)
+  add("COMET_INSIGHT", "PEEK_STRENGTH", "PEEK_STRENGTH", 1, 3, "Surface Scan", "Look at the top strength card");
+  add("SABOTAGE", "STEAL_CARD", "STEAL_CARD", 1, 3, "Espionage", "Steal a random card from another player");
+  add("SABOTAGE", "STEAL_RESOURCES", "STEAL_RESOURCES", 1, 3, "Resource Raid", "Steal 2 cubes from another player");
 
   return cards;
 }
@@ -314,10 +304,10 @@ function shuffle<T>(array: T[], random: () => number): T[] {
   return copy;
 }
 
-function calculateRocketCost(buildTimeBase: number, power: number, accuracy: number): number {
-  const accuracyCost = Math.ceil(accuracy / 2);
-  const buildTimeCost = Math.max(0, 4 - buildTimeBase);
-  return power + accuracyCost + buildTimeCost;
+function calculateRocketCost(buildTimeCost: number, power: number, accuracy: number): number {
+  // Rules: Power costs 1 cube/level, Accuracy costs 1 cube/level
+  // Build Time Cost (4-1) is the base cube cost for completing the rocket
+  return power + accuracy + buildTimeCost;
 }
 
 function roll1d6(random: () => number): number {
@@ -385,8 +375,8 @@ function buildPlayerState(p: Player): CometRushPlayerState {
       accuracyBonus: 0,
       buildTimeBonus: 0,
       maxRocketsBonus: 0,
-      powerCap: 4,
-      accuracyCap: 6,
+      powerCap: 3,
+      accuracyCap: 3,
       buildTimeCap: 4,
     },
     trophies: [],
@@ -453,10 +443,14 @@ function reducer(
 
       // Build and shuffle decks
       const movementDeck = shuffle(createMovementDeck(), ctx.random);
-      const strengthDeck = shuffle(createStrengthDeck(), ctx.random);
+      const fullStrengthDeck = shuffle(createStrengthDeck(), ctx.random);
       const researchDeck = shuffle(createResearchDeck(), ctx.random);
 
-      // Deal initial hands (2 cards each)
+      // Remove one strength card (hidden card) - players don't know the comet's true total
+      // This card is set aside face down and never revealed
+      const strengthDeck = fullStrengthDeck.slice(1); // Remove first card (random after shuffle)
+
+      // Deal initial hands (3 cards each per rules)
       const updatedPlayers = { ...state.players };
       let currentDeck = [...researchDeck];
 
@@ -464,8 +458,8 @@ function reducer(
         const player = updatedPlayers[playerId];
         if (!player) continue;
 
-        const drawnCards = currentDeck.slice(0, 2);
-        currentDeck = currentDeck.slice(2);
+        const drawnCards = currentDeck.slice(0, 3);
+        currentDeck = currentDeck.slice(3);
 
         updatedPlayers[playerId] = {
           ...player,
@@ -511,23 +505,11 @@ function reducer(
       const income = player.baseIncome + player.upgrades.incomeBonus;
       const newTotalCubes = player.resourceCubes + income;
 
-      // Advance rocket builds
-      const updatedRockets = player.rockets.map((rocket) => {
-        if (rocket.status === "building") {
-          const newRemaining = rocket.buildTimeRemaining - 1;
-          return {
-            ...rocket,
-            buildTimeRemaining: newRemaining,
-            status: newRemaining <= 0 ? ("ready" as RocketStatus) : rocket.status,
-          };
-        }
-        return rocket;
-      });
+      // No rocket build advancement needed - rockets are now instant
 
       const updatedPlayer: CometRushPlayerState = {
         ...player,
         resourceCubes: newTotalCubes,
-        rockets: updatedRockets,
         hasPlayedResearchThisTurn: false,
         hasBuiltRocketThisTurn: false,
         hasLaunchedRocketThisTurn: false,
@@ -651,18 +633,9 @@ function reducer(
           updatedPlayer.upgrades = {
             ...updatedPlayer.upgrades,
             accuracyBonus: updatedPlayer.upgrades.accuracyBonus + 1,
-            accuracyCap: Math.min(updatedPlayer.upgrades.accuracyCap + 1, 6),
+            accuracyCap: updatedPlayer.upgrades.accuracyCap + 1,
           };
           resultDescription = `Targeting upgraded! Future rockets get +${updatedPlayer.upgrades.accuracyBonus} accuracy (cap now ${updatedPlayer.upgrades.accuracyCap}).`;
-          break;
-
-        case "BUILD_TIME":
-          updatedPlayer.upgrades = {
-            ...updatedPlayer.upgrades,
-            buildTimeBonus: updatedPlayer.upgrades.buildTimeBonus + 1,
-            buildTimeCap: updatedPlayer.upgrades.buildTimeCap + 1,
-          };
-          resultDescription = `Quick Assembly! Future rockets build ${updatedPlayer.upgrades.buildTimeBonus} turn(s) faster.`;
           break;
 
         case "INCOME":
@@ -670,25 +643,7 @@ function reducer(
             ...updatedPlayer.upgrades,
             incomeBonus: updatedPlayer.upgrades.incomeBonus + 1,
           };
-          resultDescription = `Income increased! Now earning +${updatedPlayer.baseIncome + updatedPlayer.upgrades.incomeBonus} cubes per round.`;
-          break;
-
-        case "MAX_ROCKETS":
-          updatedPlayer.upgrades = {
-            ...updatedPlayer.upgrades,
-            maxRocketsBonus: updatedPlayer.upgrades.maxRocketsBonus + 1,
-          };
-          resultDescription = `Launch pad expanded! Can now build ${updatedPlayer.maxConcurrentRockets + updatedPlayer.upgrades.maxRocketsBonus} rockets at once.`;
-          break;
-
-        case "PEEK_MOVE":
-          if (state.movementDeck.length > 0) {
-            const topCard = state.movementDeck[0];
-            updatedPlayer.peekedMovementCard = topCard;
-            resultDescription = `Trajectory Analysis: Next comet movement is ${topCard.moveSpaces} space(s).`;
-          } else {
-            resultDescription = "Peeked at movement deck: no cards remaining.";
-          }
+          resultDescription = `Income increased! Now earning ${updatedPlayer.baseIncome + updatedPlayer.upgrades.incomeBonus} cubes per round.`;
           break;
 
         case "PEEK_STRENGTH":
@@ -703,24 +658,6 @@ function reducer(
             resultDescription = "Peeked at strength deck: no cards remaining.";
           }
           break;
-
-        case "STEAL_RESOURCES": {
-          if (!payload.targetPlayerId) return state;
-          const targetPlayer = state.players[payload.targetPlayerId];
-          if (!targetPlayer || payload.targetPlayerId === action.playerId) return state;
-
-          const stealAmount = Math.min(2, targetPlayer.resourceCubes);
-          updatedPlayers = {
-            ...updatedPlayers,
-            [payload.targetPlayerId]: {
-              ...targetPlayer,
-              resourceCubes: targetPlayer.resourceCubes - stealAmount,
-            },
-          };
-          updatedPlayer.resourceCubes += stealAmount;
-          resultDescription = `Stole ${stealAmount} cube(s) from ${targetPlayer.name}!`;
-          break;
-        }
 
         case "STEAL_CARD": {
           if (!payload.targetPlayerId) return state;
@@ -745,33 +682,21 @@ function reducer(
           break;
         }
 
-        case "DELAY_BUILD": {
-          if (!payload.targetPlayerId || !payload.targetRocketId) return state;
+        case "STEAL_RESOURCES": {
+          if (!payload.targetPlayerId) return state;
           const targetPlayer = state.players[payload.targetPlayerId];
           if (!targetPlayer || payload.targetPlayerId === action.playerId) return state;
 
-          const targetRocketIndex = targetPlayer.rockets.findIndex(
-            (r) => r.id === payload.targetRocketId && r.status === "building"
-          );
-          if (targetRocketIndex === -1) return state;
-
-          const targetRocket = targetPlayer.rockets[targetRocketIndex];
-          const newBuildTime = targetRocket.buildTimeRemaining + 1;
-
-          const updatedRockets = [...targetPlayer.rockets];
-          updatedRockets[targetRocketIndex] = {
-            ...updatedRockets[targetRocketIndex],
-            buildTimeRemaining: newBuildTime,
-          };
-
+          const stealAmount = Math.min(2, targetPlayer.resourceCubes);
           updatedPlayers = {
             ...updatedPlayers,
             [payload.targetPlayerId]: {
               ...targetPlayer,
-              rockets: updatedRockets,
+              resourceCubes: targetPlayer.resourceCubes - stealAmount,
             },
           };
-          resultDescription = `Sabotaged ${targetPlayer.name}'s rocket! Now ${newBuildTime} turn(s) remaining.`;
+          updatedPlayer.resourceCubes += stealAmount;
+          resultDescription = `Stole ${stealAmount} cube(s) from ${targetPlayer.name}!`;
           break;
         }
 
@@ -815,40 +740,40 @@ function reducer(
       // Get raw values from payload
       const rawPower = payload.power;
       const rawAccuracy = payload.accuracy;
-      const rawBuildTime = payload.buildTimeBase;
+      const rawBuildTimeCost = payload.buildTimeBase; // Now represents cost, not timer
 
-      // Basic validation
-      if (rawBuildTime < 1 || rawPower < 1 || rawAccuracy < 1) return state;
+      // Basic validation (Build Time Cost range is 1-4)
+      if (rawBuildTimeCost < 1 || rawBuildTimeCost > 4 || rawPower < 1 || rawAccuracy < 1) return state;
 
       // Clamp to player's caps (enforced server-side to prevent cheating)
       const power = Math.min(rawPower, player.upgrades.powerCap);
       const accuracy = Math.min(rawAccuracy, player.upgrades.accuracyCap);
-      const buildTimeBase = Math.min(rawBuildTime, player.upgrades.buildTimeCap);
+      const buildTimeCost = rawBuildTimeCost; // Build Time Cost is always 1-4, no cap needed
 
-      // Apply upgrades to clamped inputs
-      const effectiveBuildTime = Math.max(1, buildTimeBase - player.upgrades.buildTimeBonus);
+      // Apply upgrades to power and accuracy
       const effectivePower = power + player.upgrades.powerBonus;
-      const effectiveAccuracy = Math.min(6, accuracy + player.upgrades.accuracyBonus);
+      const effectiveAccuracy = Math.min(3, accuracy + player.upgrades.accuracyBonus);
 
-      // Calculate cost using clamped values
-      const cost = calculateRocketCost(buildTimeBase, power, accuracy);
+      // Calculate total cost (power + accuracy + build time cost)
+      const cost = calculateRocketCost(buildTimeCost, power, accuracy);
       if (player.resourceCubes < cost) return state;
 
-      // Check max concurrent rockets
+      // Check max concurrent rockets (only count ready rockets now since no building state)
       const activeRockets = player.rockets.filter(
-        (r) => r.status === "building" || r.status === "ready"
+        (r) => r.status === "ready"
       ).length;
       const maxRockets = player.maxConcurrentRockets + player.upgrades.maxRocketsBonus;
       if (activeRockets >= maxRockets) return state;
 
+      // Rockets are immediately ready (Build Time is a cost, not a timer)
       const newRocket: Rocket = {
         id: `rocket-${action.playerId}-${ctx.now()}`,
-        buildTimeBase,
-        buildTimeRemaining: effectiveBuildTime,
+        buildTimeBase: buildTimeCost,
+        buildTimeRemaining: 0, // No longer used - rockets are instant
         power: effectivePower,
         accuracy: effectiveAccuracy,
         costCubes: cost,
-        status: effectiveBuildTime <= 0 ? "ready" : "building",
+        status: "ready", // Always ready immediately
       };
 
       const updatedPlayer = {
@@ -946,8 +871,8 @@ function reducer(
       let trophyCard: StrengthCard | null = null;
       let finalDestroyerId = state.finalDestroyerId;
 
-      // Check power vs strength
-      if (rocket.power > activeStrengthCard.currentStrength) {
+      // Check power vs strength (Rules: destroy if power >= strength)
+      if (rocket.power >= activeStrengthCard.currentStrength) {
         // Destroyed!
         destroyed = true;
         trophyCard = activeStrengthCard;
@@ -958,10 +883,10 @@ function reducer(
           finalDestroyerId = action.playerId;
         }
       } else {
-        // Partial damage
+        // Partial damage (Rules: reduce strength by rocket's power)
         updatedStrengthCard = {
           ...activeStrengthCard,
-          currentStrength: activeStrengthCard.currentStrength - 1,
+          currentStrength: activeStrengthCard.currentStrength - rocket.power,
         };
       }
 
