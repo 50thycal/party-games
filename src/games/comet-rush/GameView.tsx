@@ -439,6 +439,7 @@ function LaunchResultDisplay({
     power: number;
     strengthBefore: number;
     destroyed: boolean;
+    baseStrength: number;
   };
   playerName: string;
 }) {
@@ -465,7 +466,7 @@ function LaunchResultDisplay({
       </div>
       <div className="mt-2 font-bold text-lg">
         {result.destroyed ? (
-          <span className="text-green-400">DESTROYED! (+{result.strengthBefore} points)</span>
+          <span className="text-green-400">DESTROYED! (+{result.baseStrength} points)</span>
         ) : result.hit ? (
           <span className="text-yellow-400">HIT! Comet damaged</span>
         ) : (
