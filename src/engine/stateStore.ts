@@ -5,16 +5,17 @@ import type { VersionedRoomState } from "./database";
 /**
  * State store for rooms with database persistence and optimistic locking.
  *
- * This module provides the same interface as the old in-memory store,
- * but now uses SQLite for persistence and version-based optimistic locking
- * to prevent race conditions.
+ * This module provides the interface for room state management using Turso (libSQL)
+ * for persistence and version-based optimistic locking to prevent race conditions.
  */
 
 /**
  * Get room state by room code
  */
-export function getRoomState(roomCode: string): RoomState | undefined {
-  const versionedState = db.getRoomState(roomCode);
+export async function getRoomState(
+  roomCode: string
+): Promise<RoomState | undefined> {
+  const versionedState = await db.getRoomState(roomCode);
   if (!versionedState) return undefined;
 
   // Return without version for backward compatibility
@@ -27,17 +28,20 @@ export function getRoomState(roomCode: string): RoomState | undefined {
 /**
  * Get room state with version (for optimistic locking)
  */
-export function getVersionedRoomState(
+export async function getVersionedRoomState(
   roomCode: string
-): VersionedRoomState | undefined {
-  return db.getRoomState(roomCode);
+): Promise<VersionedRoomState | undefined> {
+  return await db.getRoomState(roomCode);
 }
 
 /**
  * Set room state (creates new room without version check)
  */
-export function setRoomState(roomCode: string, state: RoomState): void {
-  const result = db.setRoomState(roomCode, state);
+export async function setRoomState(
+  roomCode: string,
+  state: RoomState
+): Promise<void> {
+  const result = await db.setRoomState(roomCode, state);
   if (!result.success) {
     throw new Error(
       `Failed to create room ${roomCode}: room already exists or conflict occurred`
@@ -56,40 +60,41 @@ export function setRoomState(roomCode: string, state: RoomState): void {
  * @param expectedVersion - The version we expect (from the last read)
  * @returns Object with success status and current version
  */
-export function updateRoomState(
+export async function updateRoomState(
   roomCode: string,
   state: RoomState,
   expectedVersion: number
-): { success: boolean; currentVersion?: number } {
-  return db.setRoomState(roomCode, state, expectedVersion);
+): Promise<{ success: boolean; currentVersion?: number }> {
+  return await db.setRoomState(roomCode, state, expectedVersion);
 }
 
 /**
  * Delete a room
  */
-export function deleteRoom(roomCode: string): boolean {
-  return db.deleteRoom(roomCode);
+export async function deleteRoom(roomCode: string): Promise<boolean> {
+  return await db.deleteRoom(roomCode);
 }
 
 /**
  * Check if a room exists
  */
-export function hasRoom(roomCode: string): boolean {
-  return db.hasRoom(roomCode);
+export async function hasRoom(roomCode: string): Promise<boolean> {
+  return await db.hasRoom(roomCode);
 }
 
 /**
  * Generate a unique 4-letter room code (A-Z)
  */
-export function generateRoomCode(): string {
-  return db.generateRoomCode();
+export async function generateRoomCode(): Promise<string> {
+  return await db.generateRoomCode();
 }
 
 /**
  * List all rooms (useful for debugging)
  */
-export function listRooms(): RoomState[] {
-  return db.listRooms().map((versionedState) => ({
+export async function listRooms(): Promise<RoomState[]> {
+  const versionedRooms = await db.listRooms();
+  return versionedRooms.map((versionedState) => ({
     room: versionedState.room,
     gameState: versionedState.gameState,
   }));
@@ -102,6 +107,8 @@ export function listRooms(): RoomState[] {
  * @param maxAgeMs - Maximum age in milliseconds (default: 24 hours)
  * @returns Number of rooms deleted
  */
-export function cleanupOldRooms(maxAgeMs: number = 24 * 60 * 60 * 1000): number {
-  return db.cleanupOldRooms(maxAgeMs);
+export async function cleanupOldRooms(
+  maxAgeMs: number = 24 * 60 * 60 * 1000
+): Promise<number> {
+  return await db.cleanupOldRooms(maxAgeMs);
 }

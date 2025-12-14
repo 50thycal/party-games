@@ -1,66 +1,86 @@
-import Database from "better-sqlite3";
+import { createClient, type Client } from "@libsql/client";
 import type { RoomState } from "./types";
-import path from "path";
-import fs from "fs";
 
 /**
- * SQLite database layer for persistent room state storage with optimistic locking.
+ * Turso (libSQL) database layer for persistent room state storage with optimistic locking.
  *
- * This replaces the in-memory store with a persistent database that:
- * - Survives server restarts (locally)
- * - Prevents race conditions with version-based optimistic locking
- * - Provides ACID guarantees for concurrent operations
+ * This provides:
+ * - Shared persistence across all Vercel serverless instances
+ * - Version-based optimistic locking to prevent race conditions
+ * - ACID guarantees for concurrent operations
  *
- * NOTE: On Vercel, uses /tmp (ephemeral) since /var/task is read-only.
- * For true production persistence, migrate to Turso, Vercel Postgres, or Vercel KV.
+ * Requires env vars from Vercel Turso Cloud integration:
+ * - TURSO_DATABASE_URL
+ * - TURSO_AUTH_TOKEN
  */
 
-// Database file location - use /tmp on Vercel (ephemeral but writable)
-const DB_DIR = process.env.VERCEL
-  ? "/tmp/data"
-  : path.join(process.cwd(), "data");
-const DB_PATH = path.join(DB_DIR, "party-games.db");
-
-// Singleton database instance
-let dbInstance: Database.Database | null = null;
+// Singleton Turso client instance
+let clientInstance: Client | null = null;
+let schemaInitialized = false;
 
 /**
- * Get or create the singleton database instance
+ * Get or create the singleton Turso client
  */
-function getDb(): Database.Database {
-  if (dbInstance) {
-    return dbInstance;
+function getClient(): Client {
+  if (clientInstance) {
+    return clientInstance;
   }
 
-  // Ensure data directory exists
-  if (!fs.existsSync(DB_DIR)) {
-    fs.mkdirSync(DB_DIR, { recursive: true });
-  }
+  // Validate required env vars
+  const url = process.env.TURSO_DATABASE_URL;
+  const authToken = process.env.TURSO_AUTH_TOKEN;
 
-  // Initialize database connection
-  dbInstance = new Database(DB_PATH);
-
-  // Enable WAL mode for better concurrent access
-  dbInstance.pragma("journal_mode = WAL");
-
-  // Create schema if not exists
-  dbInstance.exec(`
-    CREATE TABLE IF NOT EXISTS room_states (
-      room_code TEXT PRIMARY KEY,
-      game_id TEXT NOT NULL,
-      host_id TEXT NOT NULL,
-      players TEXT NOT NULL,
-      game_state TEXT NOT NULL,
-      version INTEGER NOT NULL DEFAULT 1,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
+  if (!url || !authToken) {
+    throw new Error(
+      "Missing TURSO_DATABASE_URL or TURSO_AUTH_TOKEN. " +
+        "Ensure Turso integration is connected on Vercel or run 'vercel env pull' for local dev."
     );
+  }
 
-    CREATE INDEX IF NOT EXISTS idx_room_states_created_at ON room_states(created_at);
-    CREATE INDEX IF NOT EXISTS idx_room_states_updated_at ON room_states(updated_at);
-  `);
+  // Create Turso client
+  clientInstance = createClient({
+    url,
+    authToken,
+  });
 
-  return dbInstance;
+  return clientInstance;
+}
+
+/**
+ * Initialize database schema (creates tables if not exist)
+ * Called lazily on first database operation
+ */
+async function ensureSchema(): Promise<void> {
+  if (schemaInitialized) {
+    return;
+  }
+
+  const client = getClient();
+
+  try {
+    await client.batch(
+      [
+        {
+          sql: `CREATE TABLE IF NOT EXISTS rooms (
+            room_code TEXT PRIMARY KEY,
+            state_json TEXT NOT NULL,
+            version INTEGER NOT NULL DEFAULT 1,
+            updated_at INTEGER NOT NULL
+          )`,
+          args: [],
+        },
+        {
+          sql: "CREATE INDEX IF NOT EXISTS idx_rooms_updated_at ON rooms(updated_at)",
+          args: [],
+        },
+      ],
+      "write"
+    );
+    schemaInitialized = true;
+  } catch (err) {
+    console.error("Failed to initialize Turso schema:", err);
+    throw err;
+  }
 }
 
 // Extended RoomState type with version for optimistic locking
@@ -71,109 +91,78 @@ export type VersionedRoomState = RoomState & {
 /**
  * Get room state by room code
  */
-export function getRoomState(roomCode: string): VersionedRoomState | undefined {
-  const db = getDb();
+export async function getRoomState(
+  roomCode: string
+): Promise<VersionedRoomState | undefined> {
+  await ensureSchema();
+  const client = getClient();
 
-  const row = db
-    .prepare(
-      `SELECT room_code, game_id, host_id, players, game_state, version, created_at, updated_at
-       FROM room_states
-       WHERE room_code = ?`
-    )
-    .get(roomCode) as
-    | {
-        room_code: string;
-        game_id: string;
-        host_id: string;
-        players: string;
-        game_state: string;
-        version: number;
-        created_at: number;
-        updated_at: number;
-      }
-    | undefined;
+  const result = await client.execute({
+    sql: "SELECT room_code, state_json, version, updated_at FROM rooms WHERE room_code = ?",
+    args: [roomCode],
+  });
 
-  if (!row) return undefined;
+  if (result.rows.length === 0) {
+    return undefined;
+  }
 
-  const players = JSON.parse(row.players);
+  const row = result.rows[0];
+  const stateJson = row.state_json as string;
+  const version = row.version as number;
+
+  const roomState = JSON.parse(stateJson) as RoomState;
 
   return {
-    room: {
-      roomCode: row.room_code,
-      gameId: row.game_id,
-      hostId: row.host_id,
-      players,
-      createdAt: row.created_at,
-    },
-    gameState: JSON.parse(row.game_state),
-    version: row.version,
+    ...roomState,
+    version,
   };
 }
 
 /**
  * Set room state with optimistic locking.
- * Returns true if successful, false if version conflict occurred.
+ * Returns success status and current version.
  *
  * @param roomCode - The room code to update
  * @param state - The new state to save
  * @param expectedVersion - The version we expect (for conflict detection). If undefined, creates new room.
  */
-export function setRoomState(
+export async function setRoomState(
   roomCode: string,
   state: RoomState,
   expectedVersion?: number
-): { success: boolean; currentVersion?: number } {
-  const db = getDb();
+): Promise<{ success: boolean; currentVersion?: number }> {
+  await ensureSchema();
+  const client = getClient();
   const now = Date.now();
+  const stateJson = JSON.stringify(state);
 
   if (expectedVersion === undefined) {
     // Creating new room - no version check needed
     try {
-      db.prepare(
-        `INSERT INTO room_states (
-          room_code, game_id, host_id, players, game_state, version, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, 1, ?, ?)`
-      ).run(
-        roomCode,
-        state.room.gameId,
-        state.room.hostId,
-        JSON.stringify(state.room.players),
-        JSON.stringify(state.gameState),
-        state.room.createdAt,
-        now
-      );
+      await client.execute({
+        sql: "INSERT INTO rooms (room_code, state_json, version, updated_at) VALUES (?, ?, 1, ?)",
+        args: [roomCode, stateJson, now],
+      });
       return { success: true, currentVersion: 1 };
     } catch (err) {
-      // Room already exists
-      const current = getRoomState(roomCode);
+      // Room already exists (PRIMARY KEY constraint violation)
+      const current = await getRoomState(roomCode);
       return { success: false, currentVersion: current?.version };
     }
   } else {
     // Updating existing room - use optimistic locking
-    const result = db
-      .prepare(
-        `UPDATE room_states
-         SET game_id = ?,
-             host_id = ?,
-             players = ?,
-             game_state = ?,
-             version = version + 1,
-             updated_at = ?
-         WHERE room_code = ? AND version = ?`
-      )
-      .run(
-        state.room.gameId,
-        state.room.hostId,
-        JSON.stringify(state.room.players),
-        JSON.stringify(state.gameState),
-        now,
-        roomCode,
-        expectedVersion
-      );
+    const result = await client.execute({
+      sql: `UPDATE rooms
+            SET state_json = ?,
+                version = version + 1,
+                updated_at = ?
+            WHERE room_code = ? AND version = ?`,
+      args: [stateJson, now, roomCode, expectedVersion],
+    });
 
-    if (result.changes === 0) {
+    if (result.rowsAffected === 0) {
       // No rows updated - either room doesn't exist or version mismatch
-      const current = getRoomState(roomCode);
+      const current = await getRoomState(roomCode);
       return { success: false, currentVersion: current?.version };
     }
 
@@ -184,29 +173,33 @@ export function setRoomState(
 /**
  * Delete a room
  */
-export function deleteRoom(roomCode: string): boolean {
-  const db = getDb();
-  const result = db
-    .prepare(`DELETE FROM room_states WHERE room_code = ?`)
-    .run(roomCode);
-  return result.changes > 0;
+export async function deleteRoom(roomCode: string): Promise<boolean> {
+  await ensureSchema();
+  const client = getClient();
+  const result = await client.execute({
+    sql: "DELETE FROM rooms WHERE room_code = ?",
+    args: [roomCode],
+  });
+  return result.rowsAffected > 0;
 }
 
 /**
  * Check if a room exists
  */
-export function hasRoom(roomCode: string): boolean {
-  const db = getDb();
-  const result = db
-    .prepare(`SELECT 1 FROM room_states WHERE room_code = ? LIMIT 1`)
-    .get(roomCode);
-  return result !== undefined;
+export async function hasRoom(roomCode: string): Promise<boolean> {
+  await ensureSchema();
+  const client = getClient();
+  const result = await client.execute({
+    sql: "SELECT 1 FROM rooms WHERE room_code = ? LIMIT 1",
+    args: [roomCode],
+  });
+  return result.rows.length > 0;
 }
 
 /**
  * Generate a unique 4-letter room code (A-Z)
  */
-export function generateRoomCode(): string {
+export async function generateRoomCode(): Promise<string> {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   let code: string;
 
@@ -216,7 +209,7 @@ export function generateRoomCode(): string {
     for (let i = 0; i < 4; i++) {
       code += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-  } while (hasRoom(code));
+  } while (await hasRoom(code));
 
   return code;
 }
@@ -224,57 +217,48 @@ export function generateRoomCode(): string {
 /**
  * List all rooms (useful for debugging)
  */
-export function listRooms(): VersionedRoomState[] {
-  const db = getDb();
-  const rows = db
-    .prepare(
-      `SELECT room_code, game_id, host_id, players, game_state, version, created_at, updated_at
-       FROM room_states
-       ORDER BY created_at DESC`
-    )
-    .all() as Array<{
-    room_code: string;
-    game_id: string;
-    host_id: string;
-    players: string;
-    game_state: string;
-    version: number;
-    created_at: number;
-    updated_at: number;
-  }>;
+export async function listRooms(): Promise<VersionedRoomState[]> {
+  await ensureSchema();
+  const client = getClient();
+  const result = await client.execute({
+    sql: "SELECT room_code, state_json, version, updated_at FROM rooms ORDER BY updated_at DESC",
+    args: [],
+  });
 
-  return rows.map((row) => ({
-    room: {
-      roomCode: row.room_code,
-      gameId: row.game_id,
-      hostId: row.host_id,
-      players: JSON.parse(row.players),
-      createdAt: row.created_at,
-    },
-    gameState: JSON.parse(row.game_state),
-    version: row.version,
-  }));
+  return result.rows.map((row) => {
+    const stateJson = row.state_json as string;
+    const version = row.version as number;
+    const roomState = JSON.parse(stateJson) as RoomState;
+
+    return {
+      ...roomState,
+      version,
+    };
+  });
 }
 
 /**
  * Clean up old rooms (optional - can be used for maintenance)
  * Deletes rooms older than the specified age in milliseconds
  */
-export function cleanupOldRooms(maxAgeMs: number): number {
-  const db = getDb();
+export async function cleanupOldRooms(maxAgeMs: number): Promise<number> {
+  await ensureSchema();
+  const client = getClient();
   const cutoffTime = Date.now() - maxAgeMs;
-  const result = db
-    .prepare(`DELETE FROM room_states WHERE updated_at < ?`)
-    .run(cutoffTime);
-  return result.changes;
+  const result = await client.execute({
+    sql: "DELETE FROM rooms WHERE updated_at < ?",
+    args: [cutoffTime],
+  });
+  return result.rowsAffected;
 }
 
 /**
- * Close database connection gracefully
+ * Close database connection gracefully (for cleanup)
  */
 export function closeDatabase(): void {
-  if (dbInstance) {
-    dbInstance.close();
-    dbInstance = null;
+  if (clientInstance) {
+    clientInstance.close();
+    clientInstance = null;
+    schemaInitialized = false;
   }
 }

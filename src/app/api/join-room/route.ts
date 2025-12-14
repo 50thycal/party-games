@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
 
     // Retry loop for handling concurrent joins with optimistic locking
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-      const current = getVersionedRoomState(roomCode);
+      const current = await getVersionedRoomState(roomCode);
       if (!current) {
         return Response.json(
           { ok: false, errorCode: "ROOM_NOT_FOUND", message: "Room not found." },
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
       };
 
       // Try to update with optimistic locking
-      const result = updateRoomState(roomCode, updatedState, currentVersion);
+      const result = await updateRoomState(roomCode, updatedState, currentVersion);
 
       if (result.success) {
         // Success!

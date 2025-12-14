@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     const gameId = body.gameId?.trim() || "number-guess";
 
     // Generate unique room code (generateRoomCode already checks for uniqueness)
-    const roomCode = generateRoomCode();
+    const roomCode = await generateRoomCode();
 
     const hostPlayer: Player = {
       id: playerId,
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
       gameState: null,
     };
 
-    setRoomState(roomCode, roomState);
+    await setRoomState(roomCode, roomState);
 
     return Response.json(
       {
