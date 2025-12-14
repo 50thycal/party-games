@@ -635,19 +635,17 @@ function reducer(
         case "POWER":
           updatedPlayer.upgrades = {
             ...updatedPlayer.upgrades,
-            powerBonus: updatedPlayer.upgrades.powerBonus + 1,
             powerCap: updatedPlayer.upgrades.powerCap + 1,
           };
-          resultDescription = `Rocket power upgraded! Future rockets get +${updatedPlayer.upgrades.powerBonus} power (cap now ${updatedPlayer.upgrades.powerCap}).`;
+          resultDescription = `Rocket power upgraded! Max power increased to ${updatedPlayer.upgrades.powerCap}.`;
           break;
 
         case "ACCURACY":
           updatedPlayer.upgrades = {
             ...updatedPlayer.upgrades,
-            accuracyBonus: updatedPlayer.upgrades.accuracyBonus + 1,
             accuracyCap: updatedPlayer.upgrades.accuracyCap + 1,
           };
-          resultDescription = `Targeting upgraded! Future rockets get +${updatedPlayer.upgrades.accuracyBonus} accuracy (cap now ${updatedPlayer.upgrades.accuracyCap}).`;
+          resultDescription = `Targeting upgraded! Max accuracy increased to ${updatedPlayer.upgrades.accuracyCap}.`;
           break;
 
         case "INCOME":
@@ -762,9 +760,9 @@ function reducer(
       const accuracy = Math.min(rawAccuracy, player.upgrades.accuracyCap);
       const buildTimeCost = Math.min(rawBuildTimeCost, player.upgrades.buildTimeCap); // Build Time Cost is 1-3
 
-      // Apply upgrades to power and accuracy
-      const effectivePower = power + player.upgrades.powerBonus;
-      const effectiveAccuracy = Math.min(6, accuracy + player.upgrades.accuracyBonus); // Cap at 6 (guaranteed hit on d6)
+      // Use the chosen values (caps already limit what can be chosen)
+      const effectivePower = power;
+      const effectiveAccuracy = Math.min(6, accuracy); // Cap at 6 (guaranteed hit on d6)
 
       // Calculate total cost (power + accuracy + build time cost)
       const cost = calculateRocketCost(buildTimeCost, power, accuracy);
