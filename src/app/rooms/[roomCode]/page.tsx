@@ -59,6 +59,20 @@ export default function RoomPage() {
     async function fetchRoom() {
       try {
         const res = await fetch(`/api/get-room?roomCode=${roomCode}`);
+
+        // Handle 404 (API route not found - likely old deployment)
+        if (res.status === 404) {
+          console.error("API route not found (404). Server may need redeployment.");
+          if (!cancelled) {
+            setError(
+              "Server endpoints not found. The app may need to be redeployed. Please contact the host or try again later."
+            );
+            setRoom(null);
+            setGameState(null);
+          }
+          return; // Stop polling on 404
+        }
+
         const json = (await res.json()) as GetRoomResponse;
 
         if (cancelled) return;
