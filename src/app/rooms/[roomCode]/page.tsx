@@ -28,6 +28,9 @@ type GameActionResponse =
   | { ok: true; data: { room: RoomDto; gameState: unknown } }
   | { ok: false; errorCode: string; message?: string };
 
+const MAX_ACTION_RETRIES = 3;
+const INITIAL_RETRY_DELAY_MS = 100;
+
 export default function RoomPage() {
   const params = useParams<{ roomCode: string }>();
   const roomCode = params.roomCode?.toUpperCase();
@@ -36,6 +39,8 @@ export default function RoomPage() {
   const [gameState, setGameState] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
   const [currentPlayerId, setCurrentPlayerId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Load current player identity
   useEffect(() => {
@@ -85,29 +90,84 @@ export default function RoomPage() {
     };
   }, [roomCode]);
 
-  // Generic action dispatcher - passed to game views
+  // Auto-dismiss action errors after 5 seconds
+  useEffect(() => {
+    if (actionError) {
+      const timer = setTimeout(() => setActionError(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [actionError]);
+
+  // Generic action dispatcher with retry logic and exponential backoff
   async function dispatchAction(type: string, payload?: Record<string, unknown>) {
-    if (!room || !currentPlayerId) return;
+    if (!room || !currentPlayerId || isSubmitting) return;
 
-    const res = await fetch("/api/game-action", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        roomCode: room.roomCode,
-        playerId: currentPlayerId,
-        type,
-        payload,
-      }),
-    });
+    setIsSubmitting(true);
+    setActionError(null);
 
-    const json = (await res.json()) as GameActionResponse;
-    if (!json.ok) {
-      console.error("Action failed:", json);
-      return;
+    for (let attempt = 0; attempt < MAX_ACTION_RETRIES; attempt++) {
+      try {
+        const res = await fetch("/api/game-action", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            roomCode: room.roomCode,
+            playerId: currentPlayerId,
+            type,
+            payload,
+          }),
+        });
+
+        const json = (await res.json()) as GameActionResponse;
+
+        if (!json.ok) {
+          // Handle specific error codes
+          if (json.errorCode === "CONCURRENT_UPDATE_CONFLICT") {
+            // This is a transient error, retry with exponential backoff
+            if (attempt < MAX_ACTION_RETRIES - 1) {
+              const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt);
+              await new Promise((resolve) => setTimeout(resolve, delay));
+              continue;
+            } else {
+              setActionError(
+                "Too many players acting at once. Please try again in a moment."
+              );
+              setIsSubmitting(false);
+              return;
+            }
+          } else if (json.errorCode === "ACTION_NOT_ALLOWED") {
+            setActionError(json.message ?? "That action is not allowed right now.");
+            setIsSubmitting(false);
+            return;
+          } else {
+            setActionError(json.message ?? "Action failed. Please try again.");
+            setIsSubmitting(false);
+            return;
+          }
+        }
+
+        // Success! Update state and exit
+        setRoom(json.data.room);
+        setGameState(json.data.gameState);
+        setIsSubmitting(false);
+        return;
+      } catch (err) {
+        console.error("Network error in dispatchAction:", err);
+
+        // Network error - retry with exponential backoff
+        if (attempt < MAX_ACTION_RETRIES - 1) {
+          const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        } else {
+          setActionError("Network error. Please check your connection and try again.");
+          setIsSubmitting(false);
+          return;
+        }
+      }
     }
 
-    setRoom(json.data.room);
-    setGameState(json.data.gameState);
+    setIsSubmitting(false);
   }
 
   // Error states
@@ -153,6 +213,13 @@ export default function RoomPage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8">
       <div className="w-full max-w-md">
+        {/* Action Error Toast */}
+        {actionError && (
+          <div className="mb-4 bg-red-900 border border-red-700 rounded-lg p-4 text-sm">
+            <p className="text-red-100">{actionError}</p>
+          </div>
+        )}
+
         {/* Header */}
         <header className="text-center mb-8">
           <p className="text-gray-400 text-sm mb-2">Room Code</p>
@@ -209,6 +276,11 @@ export default function RoomPage() {
                 : "Loading player identity..."}
             </p>
           </section>
+        )}
+
+        {/* Submitting indicator */}
+        {isSubmitting && (
+          <p className="text-xs text-gray-400 text-center mb-4">Submitting action...</p>
         )}
 
         {/* Game info */}

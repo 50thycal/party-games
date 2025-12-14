@@ -2,6 +2,9 @@ import { NextRequest } from "next/server";
 import { applyActionToRoom } from "@/engine/applyActionToRoom";
 import type { BaseAction } from "@/engine/types";
 
+// Force Node.js runtime (required for SQLite/better-sqlite3)
+export const runtime = "nodejs";
+
 type GameActionBody = {
   roomCode?: string;
   playerId?: string;
