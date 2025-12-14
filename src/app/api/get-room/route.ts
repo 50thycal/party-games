@@ -1,6 +1,9 @@
 import { NextRequest } from "next/server";
 import { getRoomState } from "@/engine/stateStore";
 
+// Force Node.js runtime (required for SQLite/better-sqlite3)
+export const runtime = "nodejs";
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);

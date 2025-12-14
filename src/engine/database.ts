@@ -7,13 +7,18 @@ import fs from "fs";
  * SQLite database layer for persistent room state storage with optimistic locking.
  *
  * This replaces the in-memory store with a persistent database that:
- * - Survives server restarts
+ * - Survives server restarts (locally)
  * - Prevents race conditions with version-based optimistic locking
  * - Provides ACID guarantees for concurrent operations
+ *
+ * NOTE: On Vercel, uses /tmp (ephemeral) since /var/task is read-only.
+ * For true production persistence, migrate to Turso, Vercel Postgres, or Vercel KV.
  */
 
-// Database file location
-const DB_DIR = path.join(process.cwd(), "data");
+// Database file location - use /tmp on Vercel (ephemeral but writable)
+const DB_DIR = process.env.VERCEL
+  ? "/tmp/data"
+  : path.join(process.cwd(), "data");
 const DB_PATH = path.join(DB_DIR, "party-games.db");
 
 // Singleton database instance

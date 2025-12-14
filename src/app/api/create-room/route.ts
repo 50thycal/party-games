@@ -2,6 +2,9 @@ import { NextRequest } from "next/server";
 import { generateRoomCode, setRoomState } from "@/engine/stateStore";
 import type { Player, Room, RoomState } from "@/engine/types";
 
+// Force Node.js runtime (required for SQLite/better-sqlite3)
+export const runtime = "nodejs";
+
 type CreateRoomBody = {
   playerId?: string;
   name?: string;

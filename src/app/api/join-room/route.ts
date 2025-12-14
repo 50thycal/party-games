@@ -2,6 +2,9 @@ import { NextRequest } from "next/server";
 import { getVersionedRoomState, updateRoomState } from "@/engine/stateStore";
 import type { Player, RoomState } from "@/engine/types";
 
+// Force Node.js runtime (required for SQLite/better-sqlite3)
+export const runtime = "nodejs";
+
 type JoinRoomBody = {
   roomCode?: string;
   playerId?: string;
