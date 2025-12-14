@@ -13,15 +13,15 @@ const RETRY_DELAY_MS = 10;
  * Apply an action to a room's game state with optimistic locking and automatic retries.
  * This prevents race conditions when multiple players submit actions simultaneously.
  */
-export function applyActionToRoom(params: {
+export async function applyActionToRoom(params: {
   roomCode: string;
   action: BaseAction;
-}): ApplyActionResult {
+}): Promise<ApplyActionResult> {
   const roomCode = params.roomCode.toUpperCase();
 
   // Retry loop for handling version conflicts
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    const versionedRoomState = getVersionedRoomState(roomCode);
+    const versionedRoomState = await getVersionedRoomState(roomCode);
 
     if (!versionedRoomState) {
       return {
@@ -78,7 +78,11 @@ export function applyActionToRoom(params: {
     };
 
     // Try to update with optimistic locking
-    const result = updateRoomState(roomCode, updatedRoomState, currentVersion);
+    const result = await updateRoomState(
+      roomCode,
+      updatedRoomState,
+      currentVersion
+    );
 
     if (result.success) {
       // Success! Return the updated state
@@ -100,8 +104,7 @@ export function applyActionToRoom(params: {
   return {
     ok: false,
     errorCode: "CONCURRENT_UPDATE_CONFLICT",
-    message:
-      "Too many concurrent updates. Please try again in a moment.",
+    message: "Too many concurrent updates. Please try again in a moment.",
     status: 409,
   };
 }

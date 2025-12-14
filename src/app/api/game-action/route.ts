@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       payload: body.payload,
     };
 
-    const result = applyActionToRoom({
+    const result = await applyActionToRoom({
       roomCode: rawCode,
       action,
     });

@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     }
 
     const roomCode = rawCode.toUpperCase();
-    const state = getRoomState(roomCode);
+    const state = await getRoomState(roomCode);
 
     if (!state) {
       return Response.json(
