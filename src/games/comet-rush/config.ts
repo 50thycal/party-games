@@ -609,7 +609,7 @@ function reducer(
       }
 
       const player = state.players[action.playerId];
-      if (!player || player.hasPlayedResearchThisTurn) return state;
+      if (!player) return state;
 
       // Validate all cards are in hand and share setKey
       const cardsToPlay = payload.cardIds
