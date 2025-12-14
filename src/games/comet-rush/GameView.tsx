@@ -412,13 +412,11 @@ function BuildRocketForm({
 
         <button
           onClick={() => onBuild(buildTime, power, accuracy)}
-          disabled={!canAfford || !hasSlot || isBuilding || player.hasBuiltRocketThisTurn}
+          disabled={!canAfford || !hasSlot || isBuilding}
           className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
         >
           {isBuilding
             ? "Building..."
-            : player.hasBuiltRocketThisTurn
-            ? "Already built this turn"
             : !hasSlot
             ? "No rocket slots"
             : !canAfford
@@ -1115,11 +1113,11 @@ export function CometRushGameView({
                       key={rocket.id}
                       rocket={rocket}
                       onLaunch={
-                        isMyTurn && !player.hasLaunchedRocketThisTurn
+                        isMyTurn
                           ? () => handleLaunchRocket(rocket.id)
                           : undefined
                       }
-                      canLaunch={isMyTurn && !player.hasLaunchedRocketThisTurn}
+                      canLaunch={isMyTurn}
                       isLaunching={isLaunching}
                     />
                   ))}
@@ -1134,9 +1132,6 @@ export function CometRushGameView({
           <div className="mb-4">
             <h3 className="text-lg font-semibold text-slate-50 mb-3">
               Research Cards ({player.hand.length})
-              {player.hasPlayedResearchThisTurn && (
-                <span className="text-xs text-slate-400 ml-2">(played this turn)</span>
-              )}
             </h3>
             {player.hand.length === 0 ? (
               <p className="text-sm text-slate-400">No cards in hand.</p>
@@ -1148,7 +1143,7 @@ export function CometRushGameView({
                     card={card}
                     isSelected={selectedCardIds.includes(card.id)}
                     onToggle={() => {
-                      if (isMyTurn && !player.hasPlayedResearchThisTurn && !isCycleMode) {
+                      if (isMyTurn && !isCycleMode) {
                         toggleCardSelection(card.id);
                       }
                     }}
@@ -1158,7 +1153,7 @@ export function CometRushGameView({
             )}
 
             {/* Play Research Set Controls */}
-            {isMyTurn && selectedCardIds.length > 0 && !player.hasPlayedResearchThisTurn && (
+            {isMyTurn && selectedCardIds.length > 0 && (
               <div className="mt-4 p-3 bg-gray-900 rounded-lg">
                 <div className="text-sm text-gray-400 mb-2">
                   Selected: {selectedCardIds.length} cards
