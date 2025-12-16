@@ -34,6 +34,7 @@ export default function CreatePage() {
       playerNames[i] || ""
     );
     setPlayerNames(newNames);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playerCount]);
 
   async function handleSubmit(e: FormEvent) {

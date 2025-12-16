@@ -144,6 +144,7 @@ function createTestRoom(players: Player[]): Room {
     players,
     gameId: "comet-rush",
     createdAt: Date.now(),
+    mode: "simulation",
   };
 }
 
