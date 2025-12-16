@@ -407,18 +407,33 @@ function chooseRocketToBuild(
     buildTimeCost = Math.min(3, Math.max(1, Math.min(buildTimeCap, player.resourceCubes - 6)));
   }
 
-  // Determine power and accuracy based on personality
+  // Determine power and accuracy based on personality and available budget
+  // After upgrades, powerCap and accuracyCap can go from 3 up to 6
   let targetPower: number;
   let targetAccuracy: number;
 
+  // Calculate remaining budget after build time cost
+  const remainingBudget = player.resourceCubes - buildTimeCost;
+
+  // Minimum rocket needs at least 1 power and 1 accuracy (cost = 2)
+  if (remainingBudget < 2) return null;
+
   if (config.prefersPowerOverAccuracy) {
     // Firehose/Bruiser: max power first, then accuracy
-    targetPower = Math.min(powerCap, 3);
-    targetAccuracy = Math.min(accuracyCap, Math.max(1, 3 - (3 - player.upgrades.accuracyBonus)));
+    // Use full powerCap (can be 3-6 after upgrades)
+    targetPower = Math.min(powerCap, remainingBudget - 1); // Leave at least 1 for accuracy
+    targetPower = Math.max(1, targetPower); // Minimum 1
+    // Remaining budget goes to accuracy, up to accuracyCap
+    targetAccuracy = Math.min(accuracyCap, remainingBudget - targetPower);
+    targetAccuracy = Math.max(1, targetAccuracy); // Minimum 1
   } else {
     // Engineer/Sniper: max accuracy first, then power
-    targetAccuracy = Math.min(accuracyCap, 3);
-    targetPower = Math.min(powerCap, Math.max(1, 3 - (3 - player.upgrades.powerBonus)));
+    // Use full accuracyCap (can be 3-6 after upgrades)
+    targetAccuracy = Math.min(accuracyCap, remainingBudget - 1); // Leave at least 1 for power
+    targetAccuracy = Math.max(1, targetAccuracy); // Minimum 1
+    // Remaining budget goes to power, up to powerCap
+    targetPower = Math.min(powerCap, remainingBudget - targetAccuracy);
+    targetPower = Math.max(1, targetPower); // Minimum 1
   }
 
   return {
