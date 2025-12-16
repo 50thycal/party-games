@@ -6,10 +6,13 @@ import type {
   CometRushState,
   CometRushPlayerState,
   Rocket,
-  ResearchCard,
+  GameCard,
+  EngineeringCard,
+  PoliticalCard,
   StrengthCard,
   TurnMeta,
-  ResearchResult,
+  CardResult,
+  CardDeckType,
 } from "./config";
 import { calculateScores } from "./config";
 
@@ -17,7 +20,7 @@ import { calculateScores } from "./config";
 // TURN WIZARD TYPES
 // ============================================================================
 
-type TurnWizardStep = "announce" | "showIncome" | "promptDraw" | "showCard" | null;
+type TurnWizardStep = "announce" | "showIncome" | "chooseDeck" | "showCard" | null;
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -39,12 +42,16 @@ function CometTrack({
   activeStrengthCard,
   movementDeckCount,
   strengthDeckCount,
+  engineeringDeckCount,
+  politicalDeckCount,
 }: {
   distanceToImpact: number;
   lastMovementCard: { moveSpaces: number } | null;
   activeStrengthCard: StrengthCard | null;
   movementDeckCount: number;
   strengthDeckCount: number;
+  engineeringDeckCount: number;
+  politicalDeckCount: number;
 }) {
   const percentage = Math.max(0, Math.min(100, (distanceToImpact / 18) * 100));
 
@@ -57,18 +64,18 @@ function CometTrack({
 
   const DeckChip = ({ label, count, borderColor }: { label: string; count: number; borderColor: string }) => (
     <div className="flex flex-col items-center">
-      <div className="relative h-10 w-14">
+      <div className="relative h-8 w-12">
         {/* Back card shadow */}
         <div className="absolute inset-0 translate-x-0.5 translate-y-0.5 rounded-md border border-slate-700 bg-slate-900/70" />
         {/* Front card */}
         <div className={`absolute inset-0 rounded-md border ${borderColor} bg-slate-800/90 flex items-center justify-center`}>
-          <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-200">
+          <span className="text-[8px] font-semibold uppercase tracking-wide text-slate-200">
             {label}
           </span>
         </div>
       </div>
       {/* Count badge */}
-      <div className="mt-1 rounded-full bg-black/80 px-2 py-0.5 text-[10px] font-bold text-slate-100 border border-slate-700">
+      <div className="mt-0.5 rounded-full bg-black/80 px-1.5 py-0.5 text-[9px] font-bold text-slate-100 border border-slate-700">
         {count}
       </div>
     </div>
@@ -120,9 +127,11 @@ function CometTrack({
         </div>
 
         {/* Right side - compact deck chips */}
-        <div className="flex flex-col items-center gap-2 pt-1">
+        <div className="grid grid-cols-2 gap-1.5 pt-1">
           <DeckChip label="Move" count={movementDeckCount} borderColor="border-cyan-500" />
           <DeckChip label="Str" count={strengthDeckCount} borderColor="border-amber-500" />
+          <DeckChip label="Eng" count={engineeringDeckCount} borderColor="border-emerald-500" />
+          <DeckChip label="Pol" count={politicalDeckCount} borderColor="border-rose-500" />
         </div>
       </div>
     </div>
@@ -147,29 +156,26 @@ function ResourceDisplay({ player }: { player: CometRushPlayerState }) {
 function UpgradesDisplay({ player }: { player: CometRushPlayerState }) {
   const upgrades = player.upgrades;
   const hasUpgrades =
-    upgrades.powerBonus > 0 ||
-    upgrades.accuracyBonus > 0 ||
-    upgrades.buildTimeBonus > 0 ||
+    upgrades.powerCap > 3 ||
+    upgrades.accuracyCap > 3 ||
     upgrades.incomeBonus > 0 ||
-    upgrades.maxRocketsBonus > 0;
+    upgrades.salvageBonus > 0 ||
+    player.hasRerollToken ||
+    player.isEmbargoed ||
+    player.mustRerollNextLaunch;
 
   if (!hasUpgrades) return null;
 
   return (
     <div className="flex flex-wrap gap-2 mb-4">
-      {upgrades.powerBonus > 0 && (
+      {upgrades.powerCap > 3 && (
         <span className="px-2 py-1 bg-red-900/50 border border-red-700 rounded text-xs">
-          Power +{upgrades.powerBonus}
+          Power Cap {upgrades.powerCap}
         </span>
       )}
-      {upgrades.accuracyBonus > 0 && (
+      {upgrades.accuracyCap > 3 && (
         <span className="px-2 py-1 bg-blue-900/50 border border-blue-700 rounded text-xs">
-          Accuracy +{upgrades.accuracyBonus}
-        </span>
-      )}
-      {upgrades.buildTimeBonus > 0 && (
-        <span className="px-2 py-1 bg-green-900/50 border border-green-700 rounded text-xs">
-          Build -{upgrades.buildTimeBonus}
+          Accuracy Cap {upgrades.accuracyCap}
         </span>
       )}
       {upgrades.incomeBonus > 0 && (
@@ -177,9 +183,24 @@ function UpgradesDisplay({ player }: { player: CometRushPlayerState }) {
           Income +{upgrades.incomeBonus}
         </span>
       )}
-      {upgrades.maxRocketsBonus > 0 && (
-        <span className="px-2 py-1 bg-purple-900/50 border border-purple-700 rounded text-xs">
-          Slots +{upgrades.maxRocketsBonus}
+      {upgrades.salvageBonus > 0 && (
+        <span className="px-2 py-1 bg-green-900/50 border border-green-700 rounded text-xs">
+          Salvage +{upgrades.salvageBonus}
+        </span>
+      )}
+      {player.hasRerollToken && (
+        <span className="px-2 py-1 bg-cyan-900/50 border border-cyan-700 rounded text-xs">
+          Re-roll Ready
+        </span>
+      )}
+      {player.isEmbargoed && (
+        <span className="px-2 py-1 bg-orange-900/50 border border-orange-700 rounded text-xs">
+          Embargoed!
+        </span>
+      )}
+      {player.mustRerollNextLaunch && (
+        <span className="px-2 py-1 bg-pink-900/50 border border-pink-700 rounded text-xs">
+          Sabotaged!
         </span>
       )}
     </div>
@@ -243,22 +264,20 @@ function RocketCard({
   );
 }
 
-function ResearchCardDisplay({
+function GameCardDisplay({
   card,
   isSelected,
   onToggle,
 }: {
-  card: ResearchCard;
+  card: GameCard;
   isSelected: boolean;
   onToggle: () => void;
 }) {
-  const typeColors: Record<ResearchCard["type"], string> = {
-    ROCKET_UPGRADE: "from-emerald-700/70 to-emerald-900/80",
-    COMET_INSIGHT: "from-sky-700/70 to-sky-900/80",
-    SABOTAGE: "from-rose-700/70 to-rose-900/80",
-  };
-
-  const gradient = typeColors[card.type];
+  const isEngineering = card.deck === "engineering";
+  const gradient = isEngineering
+    ? "from-emerald-700/70 to-emerald-900/80"
+    : "from-rose-700/70 to-rose-900/80";
+  const deckLabel = isEngineering ? "ENG" : "POL";
 
   return (
     <button
@@ -282,9 +301,10 @@ function ResearchCardDisplay({
             {card.description}
           </div>
         </div>
-        <div className="text-right text-[10px] uppercase tracking-wide text-slate-300">
-          <div className="font-semibold">{card.setKey}</div>
-          <div className="mt-1">Need {card.setSizeRequired}</div>
+        <div className={`text-[10px] uppercase tracking-wide px-2 py-1 rounded ${
+          isEngineering ? "bg-emerald-600/50 text-emerald-200" : "bg-rose-600/50 text-rose-200"
+        }`}>
+          {deckLabel}
         </div>
       </div>
     </button>
@@ -690,19 +710,18 @@ export function CometRushGameView({
   const [isBuilding, setIsBuilding] = useState(false);
   const [isLaunching, setIsLaunching] = useState(false);
   const [isEndingTurn, setIsEndingTurn] = useState(false);
-  const [isPlayingResearch, setIsPlayingResearch] = useState(false);
+  const [isPlayingCard, setIsPlayingCard] = useState(false);
   const [isPlayingAgain, setIsPlayingAgain] = useState(false);
-  const [isCycling, setIsCycling] = useState(false);
-  const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
-  const [cycleCardIds, setCycleCardIds] = useState<string[]>([]);
-  const [isCycleMode, setIsCycleMode] = useState(false);
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [targetPlayerId, setTargetPlayerId] = useState<string>("");
   const [targetRocketId, setTargetRocketId] = useState<string>("");
+  const [peekChoice, setPeekChoice] = useState<"strength" | "movement" | null>(null);
 
   // Turn wizard state
   const [turnWizardStep, setTurnWizardStep] = useState<TurnWizardStep>(null);
   const [isBeginningTurn, setIsBeginningTurn] = useState(false);
   const [isDrawingCard, setIsDrawingCard] = useState(false);
+  const [selectedDeck, setSelectedDeck] = useState<CardDeckType | null>(null);
   const prevTurnMetaRef = useRef<TurnMeta | null>(null);
 
   const gameState = state as CometRushState;
@@ -714,24 +733,21 @@ export function CometRushGameView({
 
   // Effect to detect turn start and trigger wizard
   useEffect(() => {
-    // Only show wizard in playing phase and when it's my turn
     if (phase !== "playing" || !isMyTurn || !turnMeta) return;
 
-    // Check if this is a new turn for me (turnMeta changed to my player)
     const prevMeta = prevTurnMetaRef.current;
     const isNewTurn =
       turnMeta.playerId === playerId &&
       (!prevMeta || prevMeta.playerId !== playerId || prevMeta.incomeGained !== turnMeta.incomeGained);
 
     if (isNewTurn && turnMeta.incomeGained === 0 && turnMeta.lastDrawnCardId === null) {
-      // Fresh turn start - show "It's your turn" announcement
       setTurnWizardStep("announce");
     }
 
     prevTurnMetaRef.current = turnMeta;
   }, [phase, isMyTurn, turnMeta, playerId]);
 
-  // Begin turn handler - triggers income and rocket tick
+  // Begin turn handler
   async function handleBeginTurn() {
     setIsBeginningTurn(true);
     try {
@@ -742,25 +758,26 @@ export function CometRushGameView({
     }
   }
 
-  // Draw turn card handler
-  async function handleDrawTurnCard() {
+  // Draw card from chosen deck
+  async function handleDrawCard(deck: CardDeckType) {
     setIsDrawingCard(true);
+    setSelectedDeck(deck);
     try {
-      await dispatchAction("DRAW_TURN_CARD");
+      await dispatchAction("DRAW_CARD", { deck });
       setTurnWizardStep("showCard");
     } finally {
       setIsDrawingCard(false);
     }
   }
 
-  // Dismiss wizard
   function dismissWizard() {
     setTurnWizardStep(null);
+    setSelectedDeck(null);
   }
 
-  // Clear research result popup
-  async function handleClearResearchResult() {
-    await dispatchAction("CLEAR_RESEARCH_RESULT");
+  // Clear card result popup
+  async function handleClearCardResult() {
+    await dispatchAction("CLEAR_CARD_RESULT");
   }
 
   async function handleStartGame() {
@@ -799,21 +816,23 @@ export function CometRushGameView({
     }
   }
 
-  async function handlePlayResearch() {
-    if (selectedCardIds.length === 0) return;
+  async function handlePlayCard() {
+    if (!selectedCardId) return;
 
-    setIsPlayingResearch(true);
+    setIsPlayingCard(true);
     try {
-      await dispatchAction("PLAY_RESEARCH_SET", {
-        cardIds: selectedCardIds,
+      await dispatchAction("PLAY_CARD", {
+        cardId: selectedCardId,
         targetPlayerId: targetPlayerId || undefined,
         targetRocketId: targetRocketId || undefined,
+        peekChoice: peekChoice || undefined,
       });
-      setSelectedCardIds([]);
+      setSelectedCardId(null);
       setTargetPlayerId("");
       setTargetRocketId("");
+      setPeekChoice(null);
     } finally {
-      setIsPlayingResearch(false);
+      setIsPlayingCard(false);
     }
   }
 
@@ -827,41 +846,56 @@ export function CometRushGameView({
   }
 
   function toggleCardSelection(cardId: string) {
-    setSelectedCardIds((prev) =>
-      prev.includes(cardId) ? prev.filter((id) => id !== cardId) : [...prev, cardId]
-    );
+    setSelectedCardId((prev) => (prev === cardId ? null : cardId));
+    setTargetPlayerId("");
+    setTargetRocketId("");
+    setPeekChoice(null);
   }
 
-  function toggleCycleCardSelection(cardId: string) {
-    setCycleCardIds((prev) =>
-      prev.includes(cardId) ? prev.filter((id) => id !== cardId) : [...prev, cardId]
-    );
-  }
+  // Get selected card info
+  const selectedCard = player?.hand.find((c) => c.id === selectedCardId) ?? null;
 
-  async function handleCycleResearch() {
-    if (cycleCardIds.length !== 3) return;
+  // Determine what targeting is needed for the selected card
+  const getCardRequirements = (card: GameCard | null) => {
+    if (!card) return { needsTargetPlayer: false, needsTargetRocket: false, needsPeekChoice: false, needsOwnRocket: false };
 
-    setIsCycling(true);
-    try {
-      await dispatchAction("CYCLE_RESEARCH", { cardIds: cycleCardIds });
-      setCycleCardIds([]);
-      setIsCycleMode(false);
-    } finally {
-      setIsCycling(false);
+    if (card.deck === "engineering") {
+      const engCard = card as EngineeringCard;
+      switch (engCard.cardType) {
+        case "STREAMLINED_ASSEMBLY":
+          return { needsTargetPlayer: false, needsTargetRocket: false, needsPeekChoice: false, needsOwnRocket: true };
+        case "COMET_RESEARCH":
+          return { needsTargetPlayer: false, needsTargetRocket: false, needsPeekChoice: true, needsOwnRocket: false };
+        default:
+          return { needsTargetPlayer: false, needsTargetRocket: false, needsPeekChoice: false, needsOwnRocket: false };
+      }
+    } else {
+      const polCard = card as PoliticalCard;
+      switch (polCard.cardType) {
+        case "RESOURCE_SEIZURE":
+        case "TECHNOLOGY_THEFT":
+        case "EMBARGO":
+        case "SABOTAGE":
+          return { needsTargetPlayer: true, needsTargetRocket: false, needsPeekChoice: false, needsOwnRocket: false };
+        case "REGULATORY_REVIEW":
+          return { needsTargetPlayer: true, needsTargetRocket: true, needsPeekChoice: false, needsOwnRocket: false };
+        default:
+          return { needsTargetPlayer: false, needsTargetRocket: false, needsPeekChoice: false, needsOwnRocket: false };
+      }
     }
-  }
+  };
 
-  // Check if selected cards form a valid set
-  const selectedCards = player?.hand.filter((c) => selectedCardIds.includes(c.id)) ?? [];
-  const canPlaySet =
-    selectedCards.length > 0 &&
-    selectedCards.every((c) => c.setKey === selectedCards[0].setKey) &&
-    selectedCards.length >= selectedCards[0].setSizeRequired;
+  const cardRequirements = getCardRequirements(selectedCard);
 
-  // Check if we need target selection
-  const needsTargetPlayer = selectedCards[0]?.tag === "STEAL_RESOURCES" ||
-    selectedCards[0]?.tag === "STEAL_CARD";
-  const needsTargetRocket = false; // No cards require rocket targeting now
+  // Check if card can be played
+  const canPlayCard = () => {
+    if (!selectedCard) return false;
+    if (cardRequirements.needsTargetPlayer && !targetPlayerId) return false;
+    if (cardRequirements.needsTargetRocket && !targetRocketId) return false;
+    if (cardRequirements.needsPeekChoice && !peekChoice) return false;
+    if (cardRequirements.needsOwnRocket && !targetRocketId) return false;
+    return true;
+  };
 
   const otherPlayers = Object.values(gameState?.players ?? {}).filter((p) => p.id !== playerId);
 
@@ -927,17 +961,24 @@ export function CometRushGameView({
                 {turnWizardStep === "showIncome" && turnMeta && (
                   <div className="text-center">
                     <div className="text-5xl mb-4">💰</div>
-                    <h2 className="text-xl font-bold text-yellow-400 mb-2">Income Received!</h2>
+                    <h2 className="text-xl font-bold text-yellow-400 mb-2">
+                      {player?.isEmbargoed ? "Embargoed!" : "Income Received!"}
+                    </h2>
                     <div className="bg-gray-900 rounded-lg p-4 mb-4">
                       <div className="text-3xl font-bold text-yellow-300">
-                        +{turnMeta.incomeGained} cubes
+                        {player?.isEmbargoed ? "0" : `+${turnMeta.incomeGained}`} cubes
                       </div>
                       <div className="text-gray-400 text-sm mt-1">
                         Total: {turnMeta.newTotalCubes} cubes
                       </div>
+                      {player?.isEmbargoed && (
+                        <div className="text-orange-400 text-sm mt-2">
+                          You were embargoed and received no income this turn.
+                        </div>
+                      )}
                     </div>
                     <button
-                      onClick={() => setTurnWizardStep("promptDraw")}
+                      onClick={() => setTurnWizardStep("chooseDeck")}
                       className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
                     >
                       Continue
@@ -945,38 +986,51 @@ export function CometRushGameView({
                   </div>
                 )}
 
-                {/* Step 3: Prompt to draw card */}
-                {turnWizardStep === "promptDraw" && (
+                {/* Step 3: Choose which deck to draw from */}
+                {turnWizardStep === "chooseDeck" && (
                   <div className="text-center">
                     <div className="text-5xl mb-4">🃏</div>
-                    <h2 className="text-xl font-bold text-blue-400 mb-2">Draw Research Card</h2>
-                    <p className="text-gray-400 mb-6">
-                      {gameState.researchDeck.length > 0
-                        ? `${gameState.researchDeck.length} cards remaining in deck`
-                        : gameState.researchDiscard.length > 0
-                        ? `Deck empty - will reshuffle ${gameState.researchDiscard.length} discarded cards`
-                        : "No cards available!"}
-                    </p>
-                    <button
-                      onClick={handleDrawTurnCard}
-                      disabled={isDrawingCard || (gameState.researchDeck.length === 0 && gameState.researchDiscard.length === 0)}
-                      className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-                    >
-                      {isDrawingCard
-                        ? "Drawing..."
-                        : gameState.researchDeck.length === 0 && gameState.researchDiscard.length === 0
-                        ? "No Cards Left"
-                        : gameState.researchDeck.length === 0
-                        ? "Draw Card (Reshuffle)"
-                        : "Draw Card"}
-                    </button>
-                    {gameState.researchDeck.length === 0 && gameState.researchDiscard.length === 0 && (
+                    <h2 className="text-xl font-bold text-blue-400 mb-2">Draw a Card</h2>
+                    <p className="text-gray-400 mb-4">Choose which deck to draw from:</p>
+
+                    <div className="space-y-3 mb-4">
+                      {/* Engineering Deck */}
                       <button
-                        onClick={dismissWizard}
-                        className="w-full mt-3 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+                        onClick={() => handleDrawCard("engineering")}
+                        disabled={isDrawingCard || (gameState.engineeringDeck.length === 0 && gameState.engineeringDiscard.length === 0)}
+                        className="w-full bg-emerald-700 hover:bg-emerald-600 disabled:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors border border-emerald-500"
                       >
-                        Continue Without Drawing
+                        <div className="flex justify-between items-center">
+                          <span>Engineering Deck</span>
+                          <span className="text-sm opacity-80">
+                            {gameState.engineeringDeck.length} cards
+                          </span>
+                        </div>
+                        <div className="text-xs text-emerald-200 mt-1">
+                          Upgrades, efficiency, risk management
+                        </div>
                       </button>
+
+                      {/* Political Deck */}
+                      <button
+                        onClick={() => handleDrawCard("political")}
+                        disabled={isDrawingCard || (gameState.politicalDeck.length === 0 && gameState.politicalDiscard.length === 0)}
+                        className="w-full bg-rose-700 hover:bg-rose-600 disabled:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors border border-rose-500"
+                      >
+                        <div className="flex justify-between items-center">
+                          <span>Political Deck</span>
+                          <span className="text-sm opacity-80">
+                            {gameState.politicalDeck.length} cards
+                          </span>
+                        </div>
+                        <div className="text-xs text-rose-200 mt-1">
+                          Interaction, disruption, funding
+                        </div>
+                      </button>
+                    </div>
+
+                    {isDrawingCard && (
+                      <div className="text-gray-400">Drawing card...</div>
                     )}
                   </div>
                 )}
@@ -995,21 +1049,20 @@ export function CometRushGameView({
                           <p className="text-gray-400 mb-6">No card was drawn.</p>
                         );
                       }
-                      const typeColors: Record<ResearchCard["type"], string> = {
-                        ROCKET_UPGRADE: "border-green-600 bg-green-900/40",
-                        COMET_INSIGHT: "border-blue-600 bg-blue-900/40",
-                        SABOTAGE: "border-red-600 bg-red-900/40",
-                      };
+                      const isEngineering = drawnCard.deck === "engineering";
+                      const borderClass = isEngineering
+                        ? "border-emerald-600 bg-emerald-900/40"
+                        : "border-rose-600 bg-rose-900/40";
                       return (
                         <div
-                          className={`border-2 rounded-xl p-4 mb-4 ${typeColors[drawnCard.type]}`}
+                          className={`border-2 rounded-xl p-4 mb-4 ${borderClass}`}
                         >
                           <div className="font-bold text-lg">{drawnCard.name}</div>
                           <div className="text-sm text-gray-300 mt-1">
                             {drawnCard.description}
                           </div>
-                          <div className="text-xs text-gray-400 mt-2">
-                            {drawnCard.setKey} • Need {drawnCard.setSizeRequired}
+                          <div className={`text-xs mt-2 ${isEngineering ? "text-emerald-400" : "text-rose-400"}`}>
+                            {isEngineering ? "Engineering" : "Political"}
                           </div>
                         </div>
                       );
@@ -1026,22 +1079,22 @@ export function CometRushGameView({
             </div>
           )}
 
-          {/* Research Result Popup */}
-          {gameState.lastResearchResult &&
-            gameState.lastResearchResult.playerId === playerId && (
+          {/* Card Result Popup */}
+          {gameState.lastCardResult &&
+            gameState.lastCardResult.playerId === playerId && (
               <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60">
                 <div className="w-full max-w-sm rounded-2xl bg-slate-900 p-4 m-4 border border-slate-700 shadow-xl">
                   <div className="text-center">
                     <div className="text-4xl mb-3">📜</div>
                     <h2 className="text-sm font-semibold text-slate-50 uppercase tracking-wide">
-                      Research Result
+                      {gameState.lastCardResult.cardName}
                     </h2>
                     <p className="mt-3 text-sm text-slate-200">
-                      {gameState.lastResearchResult.description}
+                      {gameState.lastCardResult.description}
                     </p>
                     <button
                       className="mt-4 w-full rounded-lg bg-sky-600 hover:bg-sky-700 px-3 py-2 text-sm font-semibold text-white transition-colors"
-                      onClick={handleClearResearchResult}
+                      onClick={handleClearCardResult}
                     >
                       OK
                     </button>
@@ -1080,6 +1133,8 @@ export function CometRushGameView({
             activeStrengthCard={gameState.activeStrengthCard}
             movementDeckCount={gameState.movementDeck.length}
             strengthDeckCount={gameState.strengthDeck.length}
+            engineeringDeckCount={gameState.engineeringDeck.length}
+            politicalDeckCount={gameState.politicalDeck.length}
           />
 
           {/* Last Launch Result */}
@@ -1133,22 +1188,22 @@ export function CometRushGameView({
           {/* Build Rocket (only on my turn) */}
           {isMyTurn && <BuildRocketForm player={player} onBuild={handleBuildRocket} isBuilding={isBuilding} />}
 
-          {/* Research Cards */}
+          {/* Your Cards */}
           <div className="mb-4">
             <h3 className="text-lg font-semibold text-slate-50 mb-3">
-              Research Cards ({player.hand.length})
+              Your Cards ({player.hand.length})
             </h3>
             {player.hand.length === 0 ? (
               <p className="text-sm text-slate-400">No cards in hand.</p>
             ) : (
               <div className="space-y-2">
                 {player.hand.map((card) => (
-                  <ResearchCardDisplay
+                  <GameCardDisplay
                     key={card.id}
                     card={card}
-                    isSelected={selectedCardIds.includes(card.id)}
+                    isSelected={selectedCardId === card.id}
                     onToggle={() => {
-                      if (isMyTurn && !isCycleMode) {
+                      if (isMyTurn) {
                         toggleCardSelection(card.id);
                       }
                     }}
@@ -1157,46 +1212,43 @@ export function CometRushGameView({
               </div>
             )}
 
-            {/* Play Research Set Controls */}
-            {isMyTurn && selectedCardIds.length > 0 && (
+            {/* Play Card Controls */}
+            {isMyTurn && selectedCard && (
               <div className="mt-4 p-3 bg-gray-900 rounded-lg">
-                <div className="text-sm text-gray-400 mb-2">
-                  Selected: {selectedCardIds.length} cards
-                  {canPlaySet ? (
-                    <span className="text-green-400 ml-2">Valid set!</span>
-                  ) : (
-                    <span className="text-red-400 ml-2">
-                      Need {selectedCards[0]?.setSizeRequired ?? "?"} matching cards
-                    </span>
-                  )}
+                <div className="text-sm text-gray-300 mb-3">
+                  Playing: <span className="font-semibold text-white">{selectedCard.name}</span>
                 </div>
 
-                {/* Target Selection for Sabotage */}
-                {canPlaySet && needsTargetPlayer && (
-                  <div className="mb-2">
-                    <label className="text-sm text-gray-400">Target Player:</label>
+                {/* Target Player Selection */}
+                {cardRequirements.needsTargetPlayer && (
+                  <div className="mb-3">
+                    <label className="text-sm text-gray-400 block mb-1">Target Player:</label>
                     <select
                       value={targetPlayerId}
-                      onChange={(e) => setTargetPlayerId(e.target.value)}
-                      className="w-full mt-1 bg-gray-800 border border-gray-600 rounded p-2"
+                      onChange={(e) => {
+                        setTargetPlayerId(e.target.value);
+                        setTargetRocketId("");
+                      }}
+                      className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-sm"
                     >
                       <option value="">Select player...</option>
                       {otherPlayers.map((p) => (
                         <option key={p.id} value={p.id}>
-                          {p.name}
+                          {p.name} ({p.resourceCubes} cubes, {p.hand.length} cards)
                         </option>
                       ))}
                     </select>
                   </div>
                 )}
 
-                {canPlaySet && needsTargetRocket && targetPlayerId && (
-                  <div className="mb-2">
-                    <label className="text-sm text-gray-400">Target Rocket:</label>
+                {/* Target Rocket Selection (for Regulatory Review) */}
+                {cardRequirements.needsTargetRocket && targetPlayerId && (
+                  <div className="mb-3">
+                    <label className="text-sm text-gray-400 block mb-1">Target Rocket:</label>
                     <select
                       value={targetRocketId}
                       onChange={(e) => setTargetRocketId(e.target.value)}
-                      className="w-full mt-1 bg-gray-800 border border-gray-600 rounded p-2"
+                      className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-sm"
                     >
                       <option value="">Select rocket...</option>
                       {gameState.players[targetPlayerId]?.rockets
@@ -1210,81 +1262,79 @@ export function CometRushGameView({
                   </div>
                 )}
 
-                <button
-                  onClick={handlePlayResearch}
-                  disabled={
-                    !canPlaySet ||
-                    isPlayingResearch ||
-                    (needsTargetPlayer && !targetPlayerId) ||
-                    (needsTargetRocket && !targetRocketId)
-                  }
-                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded transition-colors"
-                >
-                  {isPlayingResearch ? "Playing..." : "Play Research Set"}
-                </button>
-              </div>
-            )}
+                {/* Own Rocket Selection (for Streamlined Assembly) */}
+                {cardRequirements.needsOwnRocket && (
+                  <div className="mb-3">
+                    <label className="text-sm text-gray-400 block mb-1">Target Your Rocket:</label>
+                    <select
+                      value={targetRocketId}
+                      onChange={(e) => setTargetRocketId(e.target.value)}
+                      className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-sm"
+                    >
+                      <option value="">Select rocket...</option>
+                      {player.rockets
+                        .filter((r) => r.status === "building")
+                        .map((r) => (
+                          <option key={r.id} value={r.id}>
+                            Power {r.power}, Acc {r.accuracy} ({r.buildTimeRemaining} turns left)
+                          </option>
+                        ))}
+                    </select>
+                    {player.rockets.filter((r) => r.status === "building").length === 0 && (
+                      <p className="text-xs text-orange-400 mt-1">No rockets currently building.</p>
+                    )}
+                  </div>
+                )}
 
-            {/* Cycle Research (3-for-1 trade) */}
-            {isMyTurn && player.hand.length >= 3 && !isCycleMode && (
-              <button
-                onClick={() => {
-                  setIsCycleMode(true);
-                  setCycleCardIds([]);
-                  setSelectedCardIds([]);
-                }}
-                className="w-full mt-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded transition-colors"
-              >
-                Trade 3 Cards for 1
-              </button>
-            )}
+                {/* Peek Choice (for Comet Research) */}
+                {cardRequirements.needsPeekChoice && (
+                  <div className="mb-3">
+                    <label className="text-sm text-gray-400 block mb-1">What to Peek:</label>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setPeekChoice("strength")}
+                        className={`flex-1 py-2 px-3 rounded text-sm font-semibold transition-colors ${
+                          peekChoice === "strength"
+                            ? "bg-amber-600 text-white"
+                            : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                        }`}
+                      >
+                        Comet Strength
+                      </button>
+                      <button
+                        onClick={() => setPeekChoice("movement")}
+                        className={`flex-1 py-2 px-3 rounded text-sm font-semibold transition-colors ${
+                          peekChoice === "movement"
+                            ? "bg-cyan-600 text-white"
+                            : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                        }`}
+                      >
+                        Comet Movement
+                      </button>
+                    </div>
+                  </div>
+                )}
 
-            {/* Cycle Mode UI */}
-            {isMyTurn && isCycleMode && (
-              <div className="mt-4 p-3 bg-purple-900/30 border border-purple-600 rounded-lg">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-sm font-semibold text-purple-300">
-                    Select 3 cards to discard
-                  </span>
+                <div className="flex gap-2">
                   <button
                     onClick={() => {
-                      setIsCycleMode(false);
-                      setCycleCardIds([]);
+                      setSelectedCardId(null);
+                      setTargetPlayerId("");
+                      setTargetRocketId("");
+                      setPeekChoice(null);
                     }}
-                    className="text-gray-400 hover:text-white text-sm"
+                    className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded transition-colors"
                   >
                     Cancel
                   </button>
+                  <button
+                    onClick={handlePlayCard}
+                    disabled={!canPlayCard() || isPlayingCard}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded transition-colors"
+                  >
+                    {isPlayingCard ? "Playing..." : "Play Card"}
+                  </button>
                 </div>
-                <div className="grid grid-cols-1 gap-2 mb-3">
-                  {player.hand.map((card) => (
-                    <div
-                      key={card.id}
-                      onClick={() => toggleCycleCardSelection(card.id)}
-                      className={`border rounded-lg p-2 cursor-pointer transition-all ${
-                        cycleCardIds.includes(card.id)
-                          ? "border-purple-400 bg-purple-900/50 ring-2 ring-purple-400"
-                          : "border-gray-600 bg-gray-800 hover:border-gray-500"
-                      }`}
-                    >
-                      <div className="font-semibold text-sm">{card.name}</div>
-                      <div className="text-xs text-gray-400">{card.description}</div>
-                    </div>
-                  ))}
-                </div>
-                <div className="text-sm text-gray-400 mb-2">
-                  Selected: {cycleCardIds.length}/3
-                  {cycleCardIds.length === 3 && (
-                    <span className="text-green-400 ml-2">Ready to trade!</span>
-                  )}
-                </div>
-                <button
-                  onClick={handleCycleResearch}
-                  disabled={cycleCardIds.length !== 3 || isCycling}
-                  className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded transition-colors"
-                >
-                  {isCycling ? "Trading..." : "Discard 3, Draw 1"}
-                </button>
               </div>
             )}
           </div>
