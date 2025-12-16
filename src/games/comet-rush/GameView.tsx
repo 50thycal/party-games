@@ -1432,16 +1432,37 @@ export function CometRushGameView({
             activePlayerId={activePlayerId}
           />
 
-          {/* End Turn Button */}
-          {isMyTurn && (
-            <button
-              onClick={handleEndTurn}
-              disabled={isEndingTurn}
-              className="w-full bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-            >
-              {isEndingTurn ? "Ending turn..." : "End Turn"}
-            </button>
-          )}
+          {/* Bottom spacing for fixed bar */}
+          <div className="h-20" />
+
+          {/* Fixed Bottom Bar */}
+          <div className="fixed bottom-0 left-0 right-0 z-20 bg-slate-900 border-t border-slate-700 px-4 py-3 safe-area-bottom">
+            <div className="max-w-lg mx-auto flex items-center gap-3">
+              <button
+                onClick={() => {
+                  if (confirm("Are you sure you want to leave the room?")) {
+                    window.location.href = "/";
+                  }
+                }}
+                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 font-medium rounded-lg transition-colors text-sm"
+              >
+                Leave
+              </button>
+              {isMyTurn ? (
+                <button
+                  onClick={handleEndTurn}
+                  disabled={isEndingTurn}
+                  className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                >
+                  {isEndingTurn ? "Ending..." : "End Turn"}
+                </button>
+              ) : (
+                <div className="flex-1 text-center py-3 text-slate-500 text-sm">
+                  Waiting for {gameState.players[activePlayerId ?? ""]?.name ?? "..."}
+                </div>
+              )}
+            </div>
+          </div>
         </>
       )}
 
