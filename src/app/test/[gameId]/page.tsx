@@ -8,8 +8,10 @@ import {
   CometRushState,
   CometRushAction,
   CometRushPlayerState,
-  ResearchCard,
-  ResearchType,
+  GameCard,
+  EngineeringCard,
+  PoliticalCard,
+  CardDeckType,
   calculateScores,
 } from "@/games/comet-rush/config";
 import type { Player, GameContext, Room } from "@/engine/types";
@@ -172,46 +174,43 @@ function createGameContext(
 // BOT INTELLIGENCE HELPERS
 // ============================================================================
 
-type ResearchSetOption = {
-  setKey: string;
-  type: ResearchCard["type"];
-  cards: ResearchCard[];
-};
-
-function getPlayableResearchSets(
+// Cards that can be played without targets (simple effects)
+function getSimplePlayableCards(
   player: CometRushPlayerState,
-): ResearchSetOption[] {
-  const bySetKey = new Map<
-    string,
-    { card: ResearchCard; type: ResearchCard["type"]; setSizeRequired: number }[]
-  >();
-
-  for (const card of player.hand) {
-    const key = card.setKey;
-    if (!key) continue;
-    const bucket = bySetKey.get(key) ?? [];
-    bucket.push({
-      card,
-      type: card.type,
-      setSizeRequired: card.setSizeRequired ?? 1,
-    });
-    bySetKey.set(key, bucket);
-  }
-
-  const result: ResearchSetOption[] = [];
-
-  for (const [setKey, bucket] of Array.from(bySetKey.entries())) {
-    const setSizeRequired = bucket[0].setSizeRequired || 1;
-    if (bucket.length >= setSizeRequired) {
-      result.push({
-        setKey,
-        type: bucket[0].type,
-        cards: bucket.slice(0, setSizeRequired).map((b) => b.card),
-      });
+): GameCard[] {
+  return player.hand.filter((card) => {
+    if (card.deck === "engineering") {
+      const engCard = card as EngineeringCard;
+      // These cards don't need targets
+      return ["BOOST_POWER", "IMPROVE_ACCURACY", "MASS_PRODUCTION", "INCREASE_INCOME", "ROCKET_SALVAGE", "REROLL_PROTOCOL"].includes(engCard.cardType);
+    } else {
+      const polCard = card as PoliticalCard;
+      // These cards don't need targets (or give resources to everyone)
+      return ["EMERGENCY_FUNDING", "PUBLIC_DONATION_DRIVE", "INTERNATIONAL_GRANT"].includes(polCard.cardType);
     }
-  }
+  });
+}
 
-  return result;
+// Cards that need a target player
+function getTargetPlayerCards(
+  player: CometRushPlayerState,
+): PoliticalCard[] {
+  return player.hand
+    .filter((card) => card.deck === "political")
+    .filter((card) => {
+      const polCard = card as PoliticalCard;
+      return ["RESOURCE_SEIZURE", "TECHNOLOGY_THEFT", "EMBARGO", "SABOTAGE"].includes(polCard.cardType);
+    }) as PoliticalCard[];
+}
+
+// Get Engineering cards in hand
+function getEngineeringCards(player: CometRushPlayerState): EngineeringCard[] {
+  return player.hand.filter((c) => c.deck === "engineering") as EngineeringCard[];
+}
+
+// Get Political cards in hand
+function getPoliticalCards(player: CometRushPlayerState): PoliticalCard[] {
+  return player.hand.filter((c) => c.deck === "political") as PoliticalCard[];
 }
 
 // ============================================================================
@@ -222,50 +221,60 @@ type BotPersonality = "engineer" | "sniper" | "firehose" | "bruiser";
 
 interface PersonalityConfig {
   name: string;
-  researchPriority: string[];
-  minAccuracyToLaunch: number; // Min accuracy before launching (unless urgent)
+  preferEngineering: boolean;  // Prefer Engineering deck over Political
+  cardPriorities: string[];    // Card types to prioritize (engineering first, then political)
+  minAccuracyToLaunch: number;
   prefersPowerOverAccuracy: boolean;
-  buildTimeCostPreference: "cheap" | "balanced" | "instant"; // BTC preference
-  minHealthToAttack: number | null; // Only attack if segment HP <= this (null = always attack)
-  fillsAllSlots: boolean; // Tries to keep all rocket slots full
+  buildTimeCostPreference: "cheap" | "balanced" | "instant";
+  minHealthToAttack: number | null;
+  fillsAllSlots: boolean;
+  aggressiveness: number;      // 0-1, how likely to play attack cards
 }
 
 const PERSONALITIES: Record<BotPersonality, PersonalityConfig> = {
   engineer: {
     name: "Engineer",
-    researchPriority: ["ACCURACY", "POWER", "INCOME", "PEEK_STRENGTH", "STEAL_RESOURCES", "STEAL_CARD"],
-    minAccuracyToLaunch: 3, // 50% hit chance
-    prefersPowerOverAccuracy: false,
-    buildTimeCostPreference: "balanced",
-    minHealthToAttack: null, // Launches whenever ready
-    fillsAllSlots: true,
-  },
-  sniper: {
-    name: "Sniper",
-    researchPriority: ["STEAL_RESOURCES", "STEAL_CARD", "PEEK_STRENGTH", "ACCURACY", "POWER", "INCOME"],
+    preferEngineering: true,
+    cardPriorities: ["IMPROVE_ACCURACY", "BOOST_POWER", "INCREASE_INCOME", "ROCKET_SALVAGE", "COMET_RESEARCH"],
     minAccuracyToLaunch: 3,
     prefersPowerOverAccuracy: false,
     buildTimeCostPreference: "balanced",
-    minHealthToAttack: 3, // Only attacks weakened segments
+    minHealthToAttack: null,
+    fillsAllSlots: true,
+    aggressiveness: 0.2,
+  },
+  sniper: {
+    name: "Sniper",
+    preferEngineering: false,
+    cardPriorities: ["RESOURCE_SEIZURE", "TECHNOLOGY_THEFT", "IMPROVE_ACCURACY", "COMET_RESEARCH", "EMBARGO"],
+    minAccuracyToLaunch: 3,
+    prefersPowerOverAccuracy: false,
+    buildTimeCostPreference: "balanced",
+    minHealthToAttack: 3,
     fillsAllSlots: false,
+    aggressiveness: 0.7,
   },
   firehose: {
     name: "Firehose",
-    researchPriority: ["INCOME", "POWER", "ACCURACY", "PEEK_STRENGTH", "STEAL_RESOURCES", "STEAL_CARD"],
-    minAccuracyToLaunch: 2, // 33% hit chance, doesn't care
+    preferEngineering: true,
+    cardPriorities: ["INCREASE_INCOME", "BOOST_POWER", "EMERGENCY_FUNDING", "MASS_PRODUCTION", "ROCKET_SALVAGE"],
+    minAccuracyToLaunch: 2,
     prefersPowerOverAccuracy: true,
-    buildTimeCostPreference: "cheap", // Prefers BTC=1 for cheap rockets
-    minHealthToAttack: null, // Launches at everything
+    buildTimeCostPreference: "cheap",
+    minHealthToAttack: null,
     fillsAllSlots: true,
+    aggressiveness: 0.3,
   },
   bruiser: {
     name: "Bruiser",
-    researchPriority: ["POWER", "ACCURACY", "INCOME", "PEEK_STRENGTH", "STEAL_RESOURCES", "STEAL_CARD"],
-    minAccuracyToLaunch: 2, // Doesn't care about accuracy
+    preferEngineering: true,
+    cardPriorities: ["BOOST_POWER", "IMPROVE_ACCURACY", "SABOTAGE", "STREAMLINED_ASSEMBLY", "MASS_PRODUCTION"],
+    minAccuracyToLaunch: 2,
     prefersPowerOverAccuracy: true,
-    buildTimeCostPreference: "instant", // Wants rockets NOW
-    minHealthToAttack: null, // Launches at everything to break through
+    buildTimeCostPreference: "instant",
+    minHealthToAttack: null,
     fillsAllSlots: false,
+    aggressiveness: 0.5,
   },
 };
 
@@ -277,33 +286,88 @@ function getPlayerPersonality(playerId: string): BotPersonality {
   return personalities[playerNum % personalities.length];
 }
 
-const RESEARCH_PRIORITY: string[] = [
-  "INCOME",
-  "POWER",
-  "ACCURACY",
-  "PEEK_STRENGTH",
-  "STEAL_RESOURCES",
-  "STEAL_CARD",
-];
-
-function chooseResearchSetToPlay(
+// Choose a card to play based on personality priorities
+function chooseCardToPlay(
   player: CometRushPlayerState,
-): ResearchSetOption | null {
-  const options = getPlayableResearchSets(player);
-  if (options.length === 0) return null;
+  personality: BotPersonality,
+  state: CometRushState,
+  otherPlayers: CometRushPlayerState[],
+): { card: GameCard; targetPlayerId?: string; peekChoice?: "strength" | "movement" } | null {
+  const config = PERSONALITIES[personality];
+  const simpleCards = getSimplePlayableCards(player);
+  const targetCards = getTargetPlayerCards(player);
 
-  // Sort by our priority list
-  options.sort((a, b) => {
-    const pa = RESEARCH_PRIORITY.indexOf(a.setKey);
-    const pb = RESEARCH_PRIORITY.indexOf(b.setKey);
-    return (pa === -1 ? 999 : pa) - (pb === -1 ? 999 : pb);
-  });
+  // Combine all playable cards
+  const allPlayable = [...simpleCards, ...targetCards];
+  if (allPlayable.length === 0) return null;
 
-  // 70% of the time we play the "best" one, otherwise random
-  const best = options[0];
-  if (Math.random() < 0.7 || options.length === 1) return best;
+  // Find best card based on priorities
+  let bestCard: GameCard | null = null;
+  let bestPriority = 999;
 
-  return options[1 + Math.floor(Math.random() * (options.length - 1))];
+  for (const card of allPlayable) {
+    const cardType = card.deck === "engineering"
+      ? (card as EngineeringCard).cardType
+      : (card as PoliticalCard).cardType;
+    const priority = config.cardPriorities.indexOf(cardType);
+    if (priority !== -1 && priority < bestPriority) {
+      bestPriority = priority;
+      bestCard = card;
+    }
+  }
+
+  // If no priority match, pick random
+  if (!bestCard) {
+    bestCard = allPlayable[Math.floor(Math.random() * allPlayable.length)];
+  }
+
+  // Determine if we need a target
+  let targetPlayerId: string | undefined;
+  let peekChoice: "strength" | "movement" | undefined;
+
+  if (bestCard.deck === "political") {
+    const polCard = bestCard as PoliticalCard;
+    if (["RESOURCE_SEIZURE", "TECHNOLOGY_THEFT", "EMBARGO", "SABOTAGE"].includes(polCard.cardType)) {
+      // Pick target player (prefer player with most resources)
+      if (otherPlayers.length > 0) {
+        const sorted = [...otherPlayers].sort((a, b) => b.resourceCubes - a.resourceCubes);
+        targetPlayerId = sorted[0].id;
+      } else {
+        return null; // Can't play without target
+      }
+    }
+  } else if (bestCard.deck === "engineering") {
+    const engCard = bestCard as EngineeringCard;
+    if (engCard.cardType === "COMET_RESEARCH") {
+      // Prefer strength peek
+      peekChoice = Math.random() < 0.7 ? "strength" : "movement";
+    }
+  }
+
+  return { card: bestCard, targetPlayerId, peekChoice };
+}
+
+// Choose which deck to draw from
+function chooseDeckToDraw(
+  personality: BotPersonality,
+  state: CometRushState,
+): CardDeckType {
+  const config = PERSONALITIES[personality];
+
+  // Check deck availability
+  const engAvailable = state.engineeringDeck.length > 0 || state.engineeringDiscard.length > 0;
+  const polAvailable = state.politicalDeck.length > 0 || state.politicalDiscard.length > 0;
+
+  if (!engAvailable && !polAvailable) return "engineering"; // Fallback
+  if (!engAvailable) return "political";
+  if (!polAvailable) return "engineering";
+
+  // Use personality preference with some randomness
+  if (config.preferEngineering) {
+    return Math.random() < 0.7 ? "engineering" : "political";
+  } else {
+    return Math.random() < 0.7 ? "political" : "engineering";
+  }
 }
 
 type RocketConfig = {
@@ -398,14 +462,16 @@ function chooseRocketToLaunch(
 function formatHand(player: CometRushPlayerState): string {
   if (player.hand.length === 0) return "-";
 
-  // Count cards by setKey
+  // Count cards by type
   const counts = new Map<string, number>();
   for (const card of player.hand) {
-    const key = card.setKey || "UNKNOWN";
+    const key = card.deck === "engineering"
+      ? (card as EngineeringCard).cardType.substring(0, 3).toUpperCase()
+      : (card as PoliticalCard).cardType.substring(0, 3).toUpperCase();
     counts.set(key, (counts.get(key) || 0) + 1);
   }
 
-  // Format as "POWx2, ACCx1, ..."
+  // Format as "BOOx2, IMPx1, ..."
   const entries = Array.from(counts.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   return entries.map(([key, count]) => `${key}x${count}`).join(", ");
 }
@@ -447,38 +513,18 @@ function canDestroyActiveSegment(
   return ready.some((r) => r.power > state.activeStrengthCard!.currentStrength);
 }
 
-function hasPowerOrAccuracyResearch(player: CometRushPlayerState): boolean {
-  const sets = getPlayableResearchSets(player);
-  return sets.some((s) => s.setKey === "POWER" || s.setKey === "ACCURACY");
+function hasUpgradeCards(player: CometRushPlayerState): boolean {
+  return player.hand.some((card) => {
+    if (card.deck === "engineering") {
+      const engCard = card as EngineeringCard;
+      return ["BOOST_POWER", "IMPROVE_ACCURACY"].includes(engCard.cardType);
+    }
+    return false;
+  });
 }
 
-function choosePriorityResearchSet(
-  player: CometRushPlayerState,
-  personality: BotPersonality,
-  priorityTypes: string[],
-  distanceToImpact?: number
-): ResearchSetOption | null {
-  const config = PERSONALITIES[personality];
-  let options = getPlayableResearchSets(player);
-  if (options.length === 0) return null;
-
-  // Late game: filter out economy upgrades when distance is critical
-  if (distanceToImpact !== undefined && distanceToImpact <= 4) {
-    options = options.filter((s) => s.setKey !== "INCOME");
-    if (options.length === 0) return null;
-  }
-
-  // Use personality-specific priorities if no explicit priorities given
-  const priorities = priorityTypes.length > 0 ? priorityTypes : config.researchPriority;
-
-  // First, try to find a priority type
-  for (const priority of priorities) {
-    const match = options.find((s) => s.setKey === priority);
-    if (match) return match;
-  }
-
-  // Otherwise return first available
-  return options[0];
+function getPlayableCardCount(player: CometRushPlayerState): number {
+  return getSimplePlayableCards(player).length + getTargetPlayerCards(player).length;
 }
 
 function botWantsAnotherRocket(
@@ -635,7 +681,7 @@ function simulateBotTurn(
       : "-";
 
     // Bot decision context
-    const playableSets = player ? getPlayableResearchSets(player).length : 0;
+    const playableSets = player ? getPlayableCardCount(player) : 0;
     const canBuildRocket = player ? (() => {
       const maxSlots = player.maxConcurrentRockets + player.upgrades.maxRocketsBonus;
       const readyCount = player.rockets.filter(
@@ -691,12 +737,16 @@ function simulateBotTurn(
     addLog("BEGIN_TURN", `Income: +${currentState.turnMeta?.incomeGained ?? 0} cubes (total: ${player?.resourceCubes ?? 0})`, "BEGIN_TURN: mandatory");
   }
 
-  // 2. DRAW_TURN_CARD (always)
-  if (dispatch({ type: "DRAW_TURN_CARD", playerId })) {
+  // Get bot personality for this player
+  const personality = getPlayerPersonality(playerId);
+
+  // 2. DRAW_CARD - choose deck based on personality
+  const deckToDraw = chooseDeckToDraw(personality, currentState);
+  if (dispatch({ type: "DRAW_CARD", playerId, payload: { deck: deckToDraw } })) {
     turnActionIndex++;
     const cardId = currentState.turnMeta?.lastDrawnCardId;
-    console.log(`[${playerId}] Action ${turnActionIndex}: DRAW_TURN_CARD - ${cardId ?? "none"}`);
-    addLog("DRAW_TURN_CARD", cardId ? `Drew card ${cardId}` : "No cards to draw", "DRAW: mandatory");
+    console.log(`[${playerId}] Action ${turnActionIndex}: DRAW_CARD (${deckToDraw}) - ${cardId ?? "none"}`);
+    addLog("DRAW_CARD", cardId ? `Drew card ${cardId} from ${deckToDraw}` : "No cards to draw", `DRAW: chose ${deckToDraw}`);
   }
 
   // 3. Evaluate actions in priority order
@@ -708,15 +758,11 @@ function simulateBotTurn(
     }
     return { state: currentState, seed: currentSeed, rocketsBuilt, rocketsLaunched };
   }
-
-  // Get bot personality for this player
-  const personality = getPlayerPersonality(playerId);
   const personalityName = PERSONALITIES[personality].name;
   console.log(`[${playerId}] 🤖 Playing as ${personalityName}`);
 
   let launchCount = 0;
   let buildCount = 0;
-  let researchPlayed = false;
 
   // ====================
   // PHASE 1: LAUNCH ALL READY ROCKETS
@@ -727,9 +773,9 @@ function simulateBotTurn(
   const currentSlots = player.rockets.filter((r) => r.status === "ready" || r.status === "building").length;
   const canBuild = player.resourceCubes >= 3 && currentSlots < maxSlots;
   const canLaunch = hasReadyRocket(player);
-  const canResearch = getPlayableResearchSets(player).length > 0 && !player.hasPlayedResearchThisTurn;
+  const canPlayCards = getPlayableCardCount(player) > 0;
 
-  console.log(`[${playerId}] PHASE 1 START - Legal actions: LAUNCH=${canLaunch} (ready:${player.rockets.filter(r => r.status === "ready").length}), BUILD=${canBuild} (slots:${currentSlots}/${maxSlots}, res:${player.resourceCubes}), RESEARCH=${canResearch} (sets:${getPlayableResearchSets(player).length})`);
+  console.log(`[${playerId}] PHASE 1 START - Legal actions: LAUNCH=${canLaunch} (ready:${player.rockets.filter(r => r.status === "ready").length}), BUILD=${canBuild} (slots:${currentSlots}/${maxSlots}, res:${player.resourceCubes}), CARDS=${canPlayCards} (${getPlayableCardCount(player)})`);
 
   // Launch ALL ready rockets - no restrictions
   let launchIterations = 0;
@@ -865,31 +911,34 @@ function simulateBotTurn(
   }
 
   // ====================
-  // PHASE 3: RESEARCH (can happen regardless of launches/builds)
+  // PHASE 3: PLAY CARDS (can play multiple cards per turn)
   // ====================
 
-  console.log(`[${playerId}] PHASE 3 START - RESEARCH check: hasPlayed=${player.hasPlayedResearchThisTurn}, hasPowerAcc=${hasPowerOrAccuracyResearch(player)}, sets=${getPlayableResearchSets(player).length}`);
+  const otherPlayers = Object.values(currentState.players).filter((p) => p.id !== playerId);
+  console.log(`[${playerId}] PHASE 3 START - CARDS check: hasUpgrade=${hasUpgradeCards(player)}, playable=${getPlayableCardCount(player)}`);
 
-  // Play research if we have a valid set and haven't played this turn
-  if (!player.hasPlayedResearchThisTurn) {
-    // Try POWER or ACCURACY first (combat upgrades)
-    let choice = hasPowerOrAccuracyResearch(player)
-      ? choosePriorityResearchSet(player, personality, ["POWER", "ACCURACY"], currentState.distanceToImpact)
-      : null;
+  // Play cards (can play multiple per turn)
+  let cardsPlayed = 0;
+  let cardIterations = 0;
+  while (cardIterations < 5) { // Limit to 5 cards per turn to avoid loops
+    cardIterations++;
+    const cardChoice = chooseCardToPlay(player, personality, currentState, otherPlayers);
+    if (!cardChoice) break;
 
-    // Fall back to any other research
-    if (!choice) {
-      choice = choosePriorityResearchSet(player, personality, [], currentState.distanceToImpact);
-    }
+    const payload = {
+      cardId: cardChoice.card.id,
+      targetPlayerId: cardChoice.targetPlayerId,
+      peekChoice: cardChoice.peekChoice,
+    };
 
-    if (choice) {
-      if (dispatch({ type: "PLAY_RESEARCH_SET", playerId, payload: { cardIds: choice.cards.map((c) => c.id) } })) {
-        turnActionIndex++;
-        researchPlayed = true;
-        console.log(`[${playerId}] Action ${turnActionIndex}: PLAY_RESEARCH_SET - ${choice.setKey} (${choice.cards.length} cards)`);
-        addLog("PLAY_RESEARCH_SET", `${choice.setKey} (${choice.cards.length} cards)`, `PLAY_RESEARCH: ${choice.setKey} available`);
-        player = currentState.players[playerId];
-      }
+    if (dispatch({ type: "PLAY_CARD", playerId, payload })) {
+      turnActionIndex++;
+      cardsPlayed++;
+      console.log(`[${playerId}] Action ${turnActionIndex}: PLAY_CARD - ${cardChoice.card.name}`);
+      addLog("PLAY_CARD", `${cardChoice.card.name}`, `PLAY_CARD: ${cardChoice.card.deck}`);
+      player = currentState.players[playerId];
+    } else {
+      break; // If action fails, stop trying
     }
   }
 
@@ -897,18 +946,18 @@ function simulateBotTurn(
   const currentSlotsAtEnd = player.rockets.filter((r) => r.status === "ready" || r.status === "building").length;
   const canBuildAtEnd = player.resourceCubes >= 3 && currentSlotsAtEnd < maxSlots;
   const canLaunchAtEnd = hasReadyRocket(player);
-  const canResearchAtEnd = getPlayableResearchSets(player).length > 0 && !player.hasPlayedResearchThisTurn;
+  const canPlayCardsAtEnd = getPlayableCardCount(player) > 0;
 
-  const totalActions = launchCount + buildCount + (researchPlayed ? 1 : 0);
+  const totalActions = launchCount + buildCount + cardsPlayed;
   const endReason = totalActions > 0
-    ? `Ending turn after ${totalActions} action(s) (launched:${launchCount}, built:${buildCount}, research:${researchPlayed ? 1 : 0})`
-    : `Ending turn - NO actions possible (canLaunch:${canLaunchAtEnd}, canBuild:${canBuildAtEnd}, canResearch:${canResearchAtEnd}, res:${player.resourceCubes}, slots:${currentSlotsAtEnd}/${maxSlots})`;
+    ? `Ending turn after ${totalActions} action(s) (launched:${launchCount}, built:${buildCount}, cards:${cardsPlayed})`
+    : `Ending turn - NO actions possible (canLaunch:${canLaunchAtEnd}, canBuild:${canBuildAtEnd}, canPlayCards:${canPlayCardsAtEnd}, res:${player.resourceCubes}, slots:${currentSlotsAtEnd}/${maxSlots})`;
 
   console.log(`[${playerId}] END_TURN - ${endReason}`);
 
   const endDecision = totalActions > 0
     ? "END_TURN: actions completed"
-    : `END_TURN: no action (ready:${hasReadyRocket(player)}, canBuild:${canBuildAtEnd}, sets:${getPlayableResearchSets(player).length})`;
+    : `END_TURN: no action (ready:${hasReadyRocket(player)}, canBuild:${canBuildAtEnd}, cards:${getPlayableCardCount(player)})`;
   if (dispatch({ type: "END_TURN", playerId })) {
     turnActionIndex++;
     addLog("END_TURN", `Distance to impact: ${currentState.distanceToImpact}`, endDecision);
