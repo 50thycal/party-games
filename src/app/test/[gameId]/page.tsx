@@ -1983,6 +1983,7 @@ export default function TestGamePage() {
                         ))}
                       </select>
                     </th>
+                    <th className="px-2 py-1"></th>
                     <th className="px-2 py-1">
                       <select
                         className="w-full rounded bg-slate-800 px-1 py-0.5 text-[11px] text-slate-200"
