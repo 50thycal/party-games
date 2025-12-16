@@ -70,7 +70,7 @@ function GameStateHeader({
         : "text-green-400";
 
   return (
-    <div className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur-sm border-b border-slate-700 px-4 py-3 -mx-4 mb-4">
+    <div className="sticky top-0 z-10 bg-slate-900 border-b border-slate-700 px-4 py-3 -mx-4 mb-4">
       {/* Row 1: Round + Turn */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
@@ -965,138 +965,118 @@ export function CometRushGameView({
       {/* PLAYING PHASE */}
       {phase === "playing" && gameState && player && (
         <>
-          {/* Turn Wizard Modal */}
+          {/* Turn Start Overlay - Consolidated single-screen */}
           {turnWizardStep && isMyTurn && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-              <div className="bg-gray-800 border border-gray-600 rounded-2xl p-6 m-4 max-w-sm w-full shadow-2xl">
-                {/* Step 1: Announce turn */}
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+              <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 m-4 max-w-sm w-full shadow-2xl">
+                {/* Header */}
+                <div className="text-center mb-4">
+                  <h2 className="text-2xl font-bold text-green-400">Your Turn!</h2>
+                  <p className="text-slate-500 text-sm">Round {gameState.round}</p>
+                </div>
+
+                {/* Step 1: Begin turn (collect income) */}
                 {turnWizardStep === "announce" && (
                   <div className="text-center">
-                    <div className="text-5xl mb-4">🚀</div>
-                    <h2 className="text-2xl font-bold text-green-400 mb-2">Your Turn!</h2>
-                    <p className="text-gray-400 mb-6">
-                      Round {gameState.round}
+                    <p className="text-slate-400 mb-6">
+                      Collect your income and draw a card.
                     </p>
                     <button
                       onClick={handleBeginTurn}
                       disabled={isBeginningTurn}
-                      className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                      className="w-full bg-green-600 hover:bg-green-700 disabled:bg-slate-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
                     >
                       {isBeginningTurn ? "Starting..." : "Begin Turn"}
                     </button>
                   </div>
                 )}
 
-                {/* Step 2: Show income gained */}
-                {turnWizardStep === "showIncome" && turnMeta && (
-                  <div className="text-center">
-                    <div className="text-5xl mb-4">💰</div>
-                    <h2 className="text-xl font-bold text-yellow-400 mb-2">
-                      {player?.isEmbargoed ? "Embargoed!" : "Income Received!"}
-                    </h2>
-                    <div className="bg-gray-900 rounded-lg p-4 mb-4">
-                      <div className="text-3xl font-bold text-yellow-300">
-                        {player?.isEmbargoed ? "0" : `+${turnMeta.incomeGained}`} cubes
-                      </div>
-                      <div className="text-gray-400 text-sm mt-1">
-                        Total: {turnMeta.newTotalCubes} cubes
-                      </div>
+                {/* Step 2+3: Income + Deck Choice (combined) */}
+                {(turnWizardStep === "showIncome" || turnWizardStep === "chooseDeck") && turnMeta && (
+                  <div>
+                    {/* Income display - compact */}
+                    <div className="flex items-center justify-center gap-3 mb-4 py-2 px-4 bg-slate-800 rounded-lg">
+                      <span className="text-yellow-400">●</span>
+                      <span className="text-lg font-bold text-yellow-300">
+                        {player?.isEmbargoed ? "+0" : `+${turnMeta.incomeGained}`}
+                      </span>
+                      <span className="text-slate-400 text-sm">
+                        → {turnMeta.newTotalCubes} cubes
+                      </span>
                       {player?.isEmbargoed && (
-                        <div className="text-orange-400 text-sm mt-2">
-                          You were embargoed and received no income this turn.
-                        </div>
+                        <span className="text-xs text-orange-400">(Embargoed)</span>
                       )}
                     </div>
-                    <button
-                      onClick={() => setTurnWizardStep("chooseDeck")}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-                    >
-                      Continue
-                    </button>
-                  </div>
-                )}
 
-                {/* Step 3: Choose which deck to draw from */}
-                {turnWizardStep === "chooseDeck" && (
-                  <div className="text-center">
-                    <div className="text-5xl mb-4">🃏</div>
-                    <h2 className="text-xl font-bold text-blue-400 mb-2">Draw a Card</h2>
-                    <p className="text-gray-400 mb-4">Choose which deck to draw from:</p>
-
-                    <div className="space-y-3 mb-4">
-                      {/* Engineering Deck */}
+                    {/* Deck choice */}
+                    <p className="text-center text-slate-400 text-sm mb-3">Draw a card:</p>
+                    <div className="space-y-2">
                       <button
                         onClick={() => handleDrawCard("engineering")}
                         disabled={isDrawingCard || (gameState.engineeringDeck.length === 0 && gameState.engineeringDiscard.length === 0)}
-                        className="w-full bg-emerald-700 hover:bg-emerald-600 disabled:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors border border-emerald-500"
+                        className="w-full bg-emerald-800 hover:bg-emerald-700 disabled:bg-slate-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors border border-emerald-600"
                       >
                         <div className="flex justify-between items-center">
-                          <span>Engineering Deck</span>
-                          <span className="text-sm opacity-80">
-                            {gameState.engineeringDeck.length} cards
-                          </span>
-                        </div>
-                        <div className="text-xs text-emerald-200 mt-1">
-                          Upgrades, efficiency, risk management
+                          <span>Engineering</span>
+                          <span className="text-xs opacity-70">{gameState.engineeringDeck.length} left</span>
                         </div>
                       </button>
-
-                      {/* Political Deck */}
                       <button
                         onClick={() => handleDrawCard("political")}
                         disabled={isDrawingCard || (gameState.politicalDeck.length === 0 && gameState.politicalDiscard.length === 0)}
-                        className="w-full bg-rose-700 hover:bg-rose-600 disabled:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors border border-rose-500"
+                        className="w-full bg-rose-800 hover:bg-rose-700 disabled:bg-slate-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors border border-rose-600"
                       >
                         <div className="flex justify-between items-center">
-                          <span>Political Deck</span>
-                          <span className="text-sm opacity-80">
-                            {gameState.politicalDeck.length} cards
-                          </span>
-                        </div>
-                        <div className="text-xs text-rose-200 mt-1">
-                          Interaction, disruption, funding
+                          <span>Political</span>
+                          <span className="text-xs opacity-70">{gameState.politicalDeck.length} left</span>
                         </div>
                       </button>
                     </div>
-
                     {isDrawingCard && (
-                      <div className="text-gray-400">Drawing card...</div>
+                      <div className="text-center text-slate-500 text-sm mt-3">Drawing...</div>
                     )}
                   </div>
                 )}
 
-                {/* Step 4: Show drawn card */}
+                {/* Step 4: Show drawn card + dismiss */}
                 {turnWizardStep === "showCard" && turnMeta && (
-                  <div className="text-center">
-                    <div className="text-5xl mb-4">✨</div>
-                    <h2 className="text-xl font-bold text-green-400 mb-2">Card Drawn!</h2>
+                  <div>
+                    {/* Income reminder - smaller */}
+                    <div className="flex items-center justify-center gap-2 mb-3 text-sm text-slate-500">
+                      <span className="text-yellow-500">●</span>
+                      <span>+{turnMeta.incomeGained} cubes received</span>
+                    </div>
+
+                    {/* Drawn card */}
                     {(() => {
                       const drawnCard = player.hand.find(
                         (c) => c.id === turnMeta.lastDrawnCardId
                       );
                       if (!drawnCard) {
-                        return (
-                          <p className="text-gray-400 mb-6">No card was drawn.</p>
-                        );
+                        return <p className="text-slate-400 text-center mb-4">No card drawn.</p>;
                       }
                       const isEngineering = drawnCard.deck === "engineering";
-                      const borderClass = isEngineering
-                        ? "border-emerald-600 bg-emerald-900/40"
-                        : "border-rose-600 bg-rose-900/40";
                       return (
                         <div
-                          className={`border-2 rounded-xl p-4 mb-4 ${borderClass}`}
+                          className={`border rounded-xl p-4 mb-4 ${
+                            isEngineering
+                              ? "border-emerald-600 bg-emerald-900/30"
+                              : "border-rose-600 bg-rose-900/30"
+                          }`}
                         >
-                          <div className="font-bold text-lg">{drawnCard.name}</div>
-                          <div className="text-sm text-gray-300 mt-1">
-                            {drawnCard.description}
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-bold text-white">{drawnCard.name}</span>
+                            <span className={`text-xs px-2 py-0.5 rounded ${
+                              isEngineering ? "bg-emerald-800 text-emerald-300" : "bg-rose-800 text-rose-300"
+                            }`}>
+                              {isEngineering ? "ENG" : "POL"}
+                            </span>
                           </div>
-                          <div className={`text-xs mt-2 ${isEngineering ? "text-emerald-400" : "text-rose-400"}`}>
-                            {isEngineering ? "Engineering" : "Political"}
-                          </div>
+                          <p className="text-sm text-slate-300">{drawnCard.description}</p>
                         </div>
                       );
                     })()}
+
                     <button
                       onClick={dismissWizard}
                       className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
