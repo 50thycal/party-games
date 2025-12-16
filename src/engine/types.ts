@@ -16,6 +16,7 @@ export type Room = {
   hostId: string;
   players: Player[];
   createdAt: number;
+  mode: "multiplayer" | "simulation" | "hotseat";
 };
 
 // Base action shape - games extend this

@@ -109,6 +109,7 @@ export interface LaunchResult {
   strengthBefore: number;
   strengthAfter: number;
   destroyed: boolean;
+  baseStrength: number; // Original strength value (for scoring display)
 }
 
 export interface TurnMeta {
@@ -847,6 +848,7 @@ function reducer(
           strengthBefore: state.activeStrengthCard?.currentStrength ?? 0,
           strengthAfter: state.activeStrengthCard?.currentStrength ?? 0,
           destroyed: false,
+          baseStrength: state.activeStrengthCard?.baseStrength ?? 0,
         };
 
         const updatedPlayer = {
@@ -925,6 +927,7 @@ function reducer(
         strengthBefore: activeStrengthCard.currentStrength,
         strengthAfter: destroyed ? 0 : (updatedStrengthCard?.currentStrength ?? 0),
         destroyed,
+        baseStrength: activeStrengthCard.baseStrength,
       };
 
       const updatedPlayer = {
@@ -1006,7 +1009,13 @@ function reducer(
       }
 
       let researchDeck = [...state.researchDeck];
-      const researchDiscard = [...state.researchDiscard, ...discarded];
+      let researchDiscard = [...state.researchDiscard, ...discarded];
+
+      // If deck is empty, shuffle discard pile into deck (before drawing)
+      if (researchDeck.length === 0 && researchDiscard.length > 0) {
+        researchDeck = shuffle(researchDiscard, ctx.random);
+        researchDiscard = [];
+      }
 
       // Draw 1 replacement card if available
       let drawn: ResearchCard | undefined;
