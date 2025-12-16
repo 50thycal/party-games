@@ -267,10 +267,12 @@ export default function RoomPage() {
   }
 
   // Derived state
-  const isHost = currentPlayerId === room.hostId;
   const effectivePlayerId = room.mode === "hotseat" || room.mode === "simulation"
     ? activePlayerId
     : currentPlayerId;
+  const isHost = (room.mode === "hotseat" || room.mode === "simulation")
+    ? activePlayerId === room.hostId
+    : currentPlayerId === room.hostId;
 
   // Get the game view component
   const GameView = getGameView(room.gameId);

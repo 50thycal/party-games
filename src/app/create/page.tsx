@@ -142,7 +142,7 @@ export default function CreatePage() {
           <label className="block text-sm text-gray-400 mb-2">
             2. Select Mode
           </label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => setMode("multiplayer")}
@@ -153,17 +153,6 @@ export default function CreatePage() {
               }`}
             >
               Multiplayer
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("simulation")}
-              className={`py-3 px-4 rounded-lg border transition-colors ${
-                mode === "simulation"
-                  ? "bg-blue-600 border-blue-500 text-white"
-                  : "bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-600"
-              }`}
-            >
-              Simulation
             </button>
             <button
               type="button"
@@ -179,7 +168,6 @@ export default function CreatePage() {
           </div>
           <p className="mt-2 text-xs text-gray-500">
             {mode === "multiplayer" && "Play online with friends by sharing a room code"}
-            {mode === "simulation" && "Watch AI players compete automatically"}
             {mode === "hotseat" && "Pass and play on one device"}
           </p>
         </div>
@@ -201,8 +189,8 @@ export default function CreatePage() {
           </div>
         )}
 
-        {/* Simulation/Hotseat: Player Count */}
-        {(mode === "simulation" || mode === "hotseat") && (
+        {/* Hotseat: Player Count */}
+        {mode === "hotseat" && (
           <div>
             <label htmlFor="player-count" className="block text-sm text-gray-400 mb-2">
               3. Number of Players
