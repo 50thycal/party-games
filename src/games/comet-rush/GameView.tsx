@@ -953,20 +953,24 @@ export function CometRushGameView({
                     <p className="text-gray-400 mb-6">
                       {gameState.researchDeck.length > 0
                         ? `${gameState.researchDeck.length} cards remaining in deck`
-                        : "Deck is empty!"}
+                        : gameState.researchDiscard.length > 0
+                        ? `Deck empty - will reshuffle ${gameState.researchDiscard.length} discarded cards`
+                        : "No cards available!"}
                     </p>
                     <button
                       onClick={handleDrawTurnCard}
-                      disabled={isDrawingCard || gameState.researchDeck.length === 0}
+                      disabled={isDrawingCard || (gameState.researchDeck.length === 0 && gameState.researchDiscard.length === 0)}
                       className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
                     >
                       {isDrawingCard
                         ? "Drawing..."
-                        : gameState.researchDeck.length === 0
+                        : gameState.researchDeck.length === 0 && gameState.researchDiscard.length === 0
                         ? "No Cards Left"
+                        : gameState.researchDeck.length === 0
+                        ? "Draw Card (Reshuffle)"
                         : "Draw Card"}
                     </button>
-                    {gameState.researchDeck.length === 0 && (
+                    {gameState.researchDeck.length === 0 && gameState.researchDiscard.length === 0 && (
                       <button
                         onClick={dismissWizard}
                         className="w-full mt-3 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
