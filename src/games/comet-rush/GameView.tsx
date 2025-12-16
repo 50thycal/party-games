@@ -36,104 +36,134 @@ function calculateRocketCost(buildTimeCost: number, power: number, accuracy: num
 // SUB-COMPONENTS
 // ============================================================================
 
-function CometTrack({
+// Consolidated header showing all read-only game state
+function GameStateHeader({
+  round,
+  isMyTurn,
+  activePlayerName,
   distanceToImpact,
-  lastMovementCard,
   activeStrengthCard,
-  movementDeckCount,
-  strengthDeckCount,
-  engineeringDeckCount,
-  politicalDeckCount,
+  playerCubes,
+  playerIncome,
 }: {
+  round: number;
+  isMyTurn: boolean;
+  activePlayerName: string;
   distanceToImpact: number;
-  lastMovementCard: { moveSpaces: number } | null;
-  activeStrengthCard: StrengthCard | null;
-  movementDeckCount: number;
-  strengthDeckCount: number;
-  engineeringDeckCount: number;
-  politicalDeckCount: number;
+  activeStrengthCard: { currentStrength: number; baseStrength: number } | null;
+  playerCubes: number;
+  playerIncome: number;
 }) {
   const percentage = Math.max(0, Math.min(100, (distanceToImpact / 18) * 100));
-
   const dangerColor =
     distanceToImpact <= 6
       ? "bg-red-500"
       : distanceToImpact <= 12
-      ? "bg-yellow-500"
-      : "bg-green-500";
+        ? "bg-yellow-500"
+        : "bg-green-500";
 
-  const DeckChip = ({ label, count, borderColor }: { label: string; count: number; borderColor: string }) => (
-    <div className="flex flex-col items-center">
-      <div className="relative h-8 w-12">
-        {/* Back card shadow */}
-        <div className="absolute inset-0 translate-x-0.5 translate-y-0.5 rounded-md border border-slate-700 bg-slate-900/70" />
-        {/* Front card */}
-        <div className={`absolute inset-0 rounded-md border ${borderColor} bg-slate-800/90 flex items-center justify-center`}>
-          <span className="text-[8px] font-semibold uppercase tracking-wide text-slate-200">
-            {label}
-          </span>
-        </div>
-      </div>
-      {/* Count badge */}
-      <div className="mt-0.5 rounded-full bg-black/80 px-1.5 py-0.5 text-[9px] font-bold text-slate-100 border border-slate-700">
-        {count}
-      </div>
-    </div>
-  );
+  const dangerText =
+    distanceToImpact <= 6
+      ? "text-red-400"
+      : distanceToImpact <= 12
+        ? "text-yellow-400"
+        : "text-green-400";
 
   return (
-    <div className="bg-slate-900/60 rounded-xl border border-slate-700 p-4 mb-4">
-      <div className="flex items-start justify-between gap-4">
-        {/* Left side - distance info */}
+    <div className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur-sm border-b border-slate-700 px-4 py-3 -mx-4 mb-4">
+      {/* Row 1: Round + Turn */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Round {round}
+          </span>
+        </div>
+        <div
+          className={`px-3 py-1 rounded-full text-sm font-semibold ${
+            isMyTurn
+              ? "bg-green-900/80 text-green-300 border border-green-600"
+              : "bg-slate-800 text-slate-400 border border-slate-600"
+          }`}
+        >
+          {isMyTurn ? "Your Turn" : `${activePlayerName}'s Turn`}
+        </div>
+      </div>
+
+      {/* Row 2: Comet distance + Strength */}
+      <div className="flex items-center gap-4 mb-3">
+        {/* Comet distance */}
         <div className="flex-1">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Comet Distance</span>
-            <span className="font-bold text-lg">
-              {distanceToImpact} / 18
-              {lastMovementCard && (
-                <span className="text-red-400 text-sm ml-2">
-                  (-{lastMovementCard.moveSpaces})
-                </span>
-              )}
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-slate-500">Comet</span>
+            <span className={`text-sm font-bold ${dangerText}`}>
+              {distanceToImpact}/18
             </span>
           </div>
-          <div className="w-full bg-slate-700 rounded-full h-3 overflow-hidden">
+          <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
             <div
               className={`h-full ${dangerColor} transition-all duration-500`}
               style={{ width: `${percentage}%` }}
             />
           </div>
-          <div className="flex justify-between text-xs text-slate-500 mt-1">
-            <span>Impact!</span>
-            <span>Safe</span>
-          </div>
-
-          {activeStrengthCard && (
-            <div className="mt-3 p-3 bg-amber-900/30 border border-amber-600/60 rounded-lg">
-              <div className="text-xs uppercase tracking-wide text-amber-400 mb-1">Active Comet Segment</div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-300 text-sm">Strength:</span>
-                <span className="text-xl font-bold text-amber-300">
-                  {activeStrengthCard.currentStrength}
-                  {activeStrengthCard.currentStrength !== activeStrengthCard.baseStrength && (
-                    <span className="text-xs text-amber-400/70 ml-1">
-                      (was {activeStrengthCard.baseStrength})
-                    </span>
-                  )}
-                </span>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Right side - compact deck chips */}
-        <div className="grid grid-cols-2 gap-1.5 pt-1">
-          <DeckChip label="Move" count={movementDeckCount} borderColor="border-cyan-500" />
-          <DeckChip label="Str" count={strengthDeckCount} borderColor="border-amber-500" />
-          <DeckChip label="Eng" count={engineeringDeckCount} borderColor="border-emerald-500" />
-          <DeckChip label="Pol" count={politicalDeckCount} borderColor="border-rose-500" />
+        {/* Strength */}
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-900/40 border border-amber-700/50 rounded-lg">
+          <span className="text-xs text-amber-400">STR</span>
+          <span className="text-lg font-bold text-amber-300">
+            {activeStrengthCard?.currentStrength ?? "—"}
+          </span>
         </div>
       </div>
+
+      {/* Row 3: Resources */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-yellow-400">●</span>
+          <span className="font-bold text-lg text-white">{playerCubes}</span>
+          <span className="text-slate-500 text-sm">cubes</span>
+          <span className="text-slate-600 text-sm">
+            (+{playerIncome}/round)
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Simplified deck info display (distance/strength now in header)
+function DeckInfo({
+  lastMovementCard,
+  movementDeckCount,
+  strengthDeckCount,
+  engineeringDeckCount,
+  politicalDeckCount,
+}: {
+  lastMovementCard: { moveSpaces: number } | null;
+  movementDeckCount: number;
+  strengthDeckCount: number;
+  engineeringDeckCount: number;
+  politicalDeckCount: number;
+}) {
+  const DeckChip = ({ label, count, borderColor }: { label: string; count: number; borderColor: string }) => (
+    <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-800/80 border border-slate-700">
+      <div className={`w-2 h-2 rounded-full ${borderColor.replace('border-', 'bg-')}`} />
+      <span className="text-xs text-slate-400">{label}</span>
+      <span className="text-xs font-semibold text-slate-200">{count}</span>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 mb-4">
+      {lastMovementCard && (
+        <div className="px-2 py-1 rounded-md bg-red-900/40 border border-red-700/50 text-xs text-red-300">
+          Last move: -{lastMovementCard.moveSpaces}
+        </div>
+      )}
+      <DeckChip label="Move" count={movementDeckCount} borderColor="border-cyan-500" />
+      <DeckChip label="Str" count={strengthDeckCount} borderColor="border-amber-500" />
+      <DeckChip label="Eng" count={engineeringDeckCount} borderColor="border-emerald-500" />
+      <DeckChip label="Pol" count={politicalDeckCount} borderColor="border-rose-500" />
     </div>
   );
 }
@@ -1103,34 +1133,20 @@ export function CometRushGameView({
               </div>
             )}
 
-          {/* Turn Indicator - sticky */}
-          <div
-            className={`sticky top-0 z-10 mb-4 p-3 rounded-xl text-center font-semibold backdrop-blur-sm ${
-              isMyTurn
-                ? "bg-green-900/80 border border-green-500 shadow-lg shadow-green-500/20"
-                : "bg-gray-800/90 border border-gray-700"
-            }`}
-          >
-            <div className="flex items-center justify-center gap-3">
-              <span className="text-xs text-gray-400 uppercase tracking-wide">
-                Round {gameState.round}
-              </span>
-              <span className="text-gray-600">|</span>
-              {isMyTurn ? (
-                <span className="text-green-300">Your Turn!</span>
-              ) : (
-                <span className="text-gray-300">
-                  Waiting for {gameState.players[activePlayerId ?? ""]?.name ?? "..."}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Comet Track */}
-          <CometTrack
+          {/* Consolidated Game State Header */}
+          <GameStateHeader
+            round={gameState.round}
+            isMyTurn={isMyTurn}
+            activePlayerName={gameState.players[activePlayerId ?? ""]?.name ?? "..."}
             distanceToImpact={gameState.distanceToImpact}
-            lastMovementCard={gameState.lastMovementCard}
             activeStrengthCard={gameState.activeStrengthCard}
+            playerCubes={player.resourceCubes}
+            playerIncome={player.baseIncome + player.upgrades.incomeBonus}
+          />
+
+          {/* Deck counts and last movement */}
+          <DeckInfo
+            lastMovementCard={gameState.lastMovementCard}
             movementDeckCount={gameState.movementDeck.length}
             strengthDeckCount={gameState.strengthDeck.length}
             engineeringDeckCount={gameState.engineeringDeck.length}
@@ -1149,9 +1165,6 @@ export function CometRushGameView({
 
           {/* Peek Info (private) */}
           <PeekInfo player={player} />
-
-          {/* Resources */}
-          <ResourceDisplay player={player} />
 
           {/* Upgrades */}
           <UpgradesDisplay player={player} />
