@@ -1102,30 +1102,6 @@ export function CometRushGameView({
       {/* PLAYING PHASE */}
       {phase === "playing" && gameState && player && (
         <>
-          {/* Card Result Popup */}
-          {gameState.lastCardResult &&
-            gameState.lastCardResult.playerId === playerId && (
-              <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60">
-                <div className="w-full max-w-sm rounded-2xl bg-slate-900 p-4 m-4 border border-slate-700 shadow-xl">
-                  <div className="text-center">
-                    <div className="text-4xl mb-3">📜</div>
-                    <h2 className="text-sm font-semibold text-slate-50 uppercase tracking-wide">
-                      {gameState.lastCardResult.cardName}
-                    </h2>
-                    <p className="mt-3 text-sm text-slate-200">
-                      {gameState.lastCardResult.description}
-                    </p>
-                    <button
-                      className="mt-4 w-full rounded-lg bg-sky-600 hover:bg-sky-700 px-3 py-2 text-sm font-semibold text-white transition-colors"
-                      onClick={handleClearCardResult}
-                    >
-                      OK
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
           {/* Consolidated Game State Header */}
           <GameStateHeader
             round={gameState.round}
@@ -1145,6 +1121,27 @@ export function CometRushGameView({
             engineeringDeckCount={gameState.engineeringDeck.length}
             politicalDeckCount={gameState.politicalDeck.length}
           />
+
+          {/* Card Result - Inline notification */}
+          {gameState.lastCardResult &&
+            gameState.lastCardResult.playerId === playerId && (
+              <div className="mb-4 rounded-xl border border-amber-600 bg-amber-900/30 p-4">
+                <div className="text-center">
+                  <h3 className="text-sm font-semibold text-amber-300 uppercase tracking-wide mb-2">
+                    {gameState.lastCardResult.cardName}
+                  </h3>
+                  <p className="text-sm text-slate-200">
+                    {gameState.lastCardResult.description}
+                  </p>
+                  <button
+                    className="mt-3 w-full rounded-lg bg-amber-600 hover:bg-amber-700 px-3 py-2 text-sm font-semibold text-white transition-colors"
+                    onClick={handleClearCardResult}
+                  >
+                    OK
+                  </button>
+                </div>
+              </div>
+            )}
 
           {/* Turn Start Card - Inline, appears when it's your turn and wizard is active */}
           {isMyTurn && turnWizardStep && (
@@ -1492,7 +1489,7 @@ export function CometRushGameView({
           />
 
           {/* Bottom spacing for fixed bar */}
-          <div className="h-20" />
+          <div className="h-32" />
 
           {/* Fixed Bottom Bar */}
           <div
