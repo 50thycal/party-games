@@ -1489,7 +1489,7 @@ export function CometRushGameView({
           />
 
           {/* Bottom spacing for fixed bar */}
-          <div className="h-32" />
+          <div className="h-48" />
 
           {/* Fixed Bottom Bar */}
           <div
