@@ -1016,143 +1016,6 @@ export function CometRushGameView({
       {/* PLAYING PHASE */}
       {phase === "playing" && gameState && player && (
         <>
-          {/* Turn Start Overlay - Consolidated single-screen */}
-          {turnWizardStep && isMyTurn && (
-            <div
-              className="bg-black/80"
-              style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                zIndex: 9999,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 m-4 max-w-sm w-full shadow-2xl">
-                {/* Header */}
-                <div className="text-center mb-4">
-                  <h2 className="text-2xl font-bold text-green-400">Your Turn!</h2>
-                  <p className="text-slate-500 text-sm">Round {gameState.round}</p>
-                </div>
-
-                {/* Step 1: Begin turn (collect income) */}
-                {turnWizardStep === "announce" && (
-                  <div className="text-center">
-                    <p className="text-slate-400 mb-6">
-                      Collect your income and draw a card.
-                    </p>
-                    <button
-                      onClick={handleBeginTurn}
-                      disabled={isBeginningTurn}
-                      className="w-full bg-green-600 hover:bg-green-700 disabled:bg-slate-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-                    >
-                      {isBeginningTurn ? "Starting..." : "Begin Turn"}
-                    </button>
-                  </div>
-                )}
-
-                {/* Step 2+3: Income + Deck Choice (combined) */}
-                {(turnWizardStep === "showIncome" || turnWizardStep === "chooseDeck") && turnMeta && (
-                  <div>
-                    {/* Income display - compact */}
-                    <div className="flex items-center justify-center gap-3 mb-4 py-2 px-4 bg-slate-800 rounded-lg">
-                      <span className="text-yellow-400">●</span>
-                      <span className="text-lg font-bold text-yellow-300">
-                        {player?.isEmbargoed ? "+0" : `+${turnMeta.incomeGained}`}
-                      </span>
-                      <span className="text-slate-400 text-sm">
-                        → {turnMeta.newTotalCubes} cubes
-                      </span>
-                      {player?.isEmbargoed && (
-                        <span className="text-xs text-orange-400">(Embargoed)</span>
-                      )}
-                    </div>
-
-                    {/* Deck choice */}
-                    <p className="text-center text-slate-400 text-sm mb-3">Draw a card:</p>
-                    <div className="space-y-2">
-                      <button
-                        onClick={() => handleDrawCard("engineering")}
-                        disabled={isDrawingCard || (gameState.engineeringDeck.length === 0 && gameState.engineeringDiscard.length === 0)}
-                        className="w-full bg-emerald-800 hover:bg-emerald-700 disabled:bg-slate-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors border border-emerald-600"
-                      >
-                        <div className="flex justify-between items-center">
-                          <span>Engineering</span>
-                          <span className="text-xs opacity-70">{gameState.engineeringDeck.length} left</span>
-                        </div>
-                      </button>
-                      <button
-                        onClick={() => handleDrawCard("political")}
-                        disabled={isDrawingCard || (gameState.politicalDeck.length === 0 && gameState.politicalDiscard.length === 0)}
-                        className="w-full bg-rose-800 hover:bg-rose-700 disabled:bg-slate-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors border border-rose-600"
-                      >
-                        <div className="flex justify-between items-center">
-                          <span>Political</span>
-                          <span className="text-xs opacity-70">{gameState.politicalDeck.length} left</span>
-                        </div>
-                      </button>
-                    </div>
-                    {isDrawingCard && (
-                      <div className="text-center text-slate-500 text-sm mt-3">Drawing...</div>
-                    )}
-                  </div>
-                )}
-
-                {/* Step 4: Show drawn card + dismiss */}
-                {turnWizardStep === "showCard" && turnMeta && (
-                  <div>
-                    {/* Income reminder - smaller */}
-                    <div className="flex items-center justify-center gap-2 mb-3 text-sm text-slate-500">
-                      <span className="text-yellow-500">●</span>
-                      <span>+{turnMeta.incomeGained} cubes received</span>
-                    </div>
-
-                    {/* Drawn card */}
-                    {(() => {
-                      const drawnCard = player.hand.find(
-                        (c) => c.id === turnMeta.lastDrawnCardId
-                      );
-                      if (!drawnCard) {
-                        return <p className="text-slate-400 text-center mb-4">No card drawn.</p>;
-                      }
-                      const isEngineering = drawnCard.deck === "engineering";
-                      return (
-                        <div
-                          className={`border rounded-xl p-4 mb-4 ${
-                            isEngineering
-                              ? "border-emerald-600 bg-emerald-900/30"
-                              : "border-rose-600 bg-rose-900/30"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-bold text-white">{drawnCard.name}</span>
-                            <span className={`text-xs px-2 py-0.5 rounded ${
-                              isEngineering ? "bg-emerald-800 text-emerald-300" : "bg-rose-800 text-rose-300"
-                            }`}>
-                              {isEngineering ? "ENG" : "POL"}
-                            </span>
-                          </div>
-                          <p className="text-sm text-slate-300">{drawnCard.description}</p>
-                        </div>
-                      );
-                    })()}
-
-                    <button
-                      onClick={dismissWizard}
-                      className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-                    >
-                      Start Playing
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
           {/* Card Result Popup */}
           {gameState.lastCardResult &&
             gameState.lastCardResult.playerId === playerId && (
@@ -1196,6 +1059,93 @@ export function CometRushGameView({
             engineeringDeckCount={gameState.engineeringDeck.length}
             politicalDeckCount={gameState.politicalDeck.length}
           />
+
+          {/* Turn Start Card - Inline, appears when it's your turn and wizard is active */}
+          {isMyTurn && turnWizardStep && (
+            <div className="mb-4 rounded-xl border border-green-600 bg-green-900/30 p-4">
+              {/* Step 1: Announce turn */}
+              {turnWizardStep === "announce" && (
+                <div className="text-center">
+                  <div className="text-lg font-semibold text-green-300 mb-2">
+                    Your Turn!
+                  </div>
+                  <p className="text-sm text-slate-300 mb-4">
+                    Collect income and draw a card to begin.
+                  </p>
+                  <button
+                    onClick={handleBeginTurn}
+                    disabled={isBeginningTurn}
+                    className="w-full bg-green-600 hover:bg-green-700 disabled:bg-slate-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                  >
+                    {isBeginningTurn ? "Starting..." : "Begin Turn"}
+                  </button>
+                </div>
+              )}
+
+              {/* Step 2+3: Show income and choose deck */}
+              {(turnWizardStep === "showIncome" || turnWizardStep === "chooseDeck") && (
+                <div>
+                  <div className="text-center mb-4">
+                    <div className="text-3xl font-bold text-yellow-400">
+                      +{turnMeta?.incomeGained ?? 0}
+                    </div>
+                    <div className="text-sm text-slate-400">cubes collected</div>
+                  </div>
+                  <div className="text-sm text-slate-300 mb-3 text-center">
+                    Choose a deck to draw from:
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => handleDrawCard("engineering")}
+                      disabled={isDrawingCard}
+                      className="bg-emerald-700 hover:bg-emerald-600 disabled:bg-slate-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
+                    >
+                      {isDrawingCard && selectedDeck === "engineering" ? "Drawing..." : "Engineering"}
+                    </button>
+                    <button
+                      onClick={() => handleDrawCard("political")}
+                      disabled={isDrawingCard}
+                      className="bg-rose-700 hover:bg-rose-600 disabled:bg-slate-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
+                    >
+                      {isDrawingCard && selectedDeck === "political" ? "Drawing..." : "Political"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 4: Show drawn card */}
+              {turnWizardStep === "showCard" && turnMeta?.lastDrawnCardId && (
+                <div className="text-center">
+                  <div className="text-sm text-slate-400 mb-2">Card drawn:</div>
+                  {(() => {
+                    const drawnCard = player.hand.find(c => c.id === turnMeta.lastDrawnCardId);
+                    if (!drawnCard) return null;
+                    const isEngineering = drawnCard.deck === "engineering";
+                    return (
+                      <div className={`rounded-xl border p-3 mb-4 ${
+                        isEngineering
+                          ? "bg-emerald-900/50 border-emerald-600"
+                          : "bg-rose-900/50 border-rose-600"
+                      }`}>
+                        <div className="font-semibold text-slate-100">
+                          {drawnCard.name}
+                        </div>
+                        <div className="text-sm text-slate-300 mt-1">
+                          {drawnCard.description}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  <button
+                    onClick={dismissWizard}
+                    className="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                  >
+                    Start Playing
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Last Launch Result */}
           {gameState.lastLaunchResult && (

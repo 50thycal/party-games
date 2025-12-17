@@ -303,8 +303,8 @@ export default function RoomPage() {
           </header>
         )}
 
-        {/* Hotseat Player Switcher - only show in lobby */}
-        {room.mode === "hotseat" && activePlayerId && (!gameState || (gameState as { phase?: string })?.phase === "lobby") && (
+        {/* Hotseat Player Switcher - always show in hotseat mode */}
+        {room.mode === "hotseat" && activePlayerId && (
           <section className="bg-blue-900 border border-blue-700 rounded-lg p-4 mb-6">
             <div className="flex items-center justify-between gap-4">
               <div className="flex-1">
