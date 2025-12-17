@@ -1018,7 +1018,20 @@ export function CometRushGameView({
         <>
           {/* Turn Start Overlay - Consolidated single-screen */}
           {turnWizardStep && isMyTurn && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+            <div
+              className="bg-black/80"
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                zIndex: 9999,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
               <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 m-4 max-w-sm w-full shadow-2xl">
                 {/* Header */}
                 <div className="text-center mb-4">
@@ -1436,7 +1449,18 @@ export function CometRushGameView({
           <div className="h-20" />
 
           {/* Fixed Bottom Bar */}
-          <div className="fixed bottom-0 left-0 right-0 z-20 bg-slate-900 border-t border-slate-700 px-4 py-3 safe-area-bottom">
+          <div
+            className="bg-slate-900 border-t border-slate-700"
+            style={{
+              position: 'fixed',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              zIndex: 100,
+              padding: '12px 16px',
+              paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
+            }}
+          >
             <div className="max-w-lg mx-auto flex items-center gap-3">
               <button
                 onClick={() => {
