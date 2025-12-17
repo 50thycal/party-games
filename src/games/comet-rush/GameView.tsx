@@ -575,47 +575,119 @@ function LaunchResultDisplay({
   );
 }
 
-function PeekInfo({ player }: { player: CometRushPlayerState }) {
-  if (!player.peekedMovementCard && !player.peekedStrengthCard) return null;
+// Collapsible section for secondary info
+function CollapsibleSection({
+  title,
+  summary,
+  isExpanded,
+  onToggle,
+  variant = "default",
+  children,
+}: {
+  title: string;
+  summary?: string;
+  isExpanded: boolean;
+  onToggle: () => void;
+  variant?: "default" | "info" | "trophy";
+  children: React.ReactNode;
+}) {
+  const variantStyles = {
+    default: "bg-slate-800/50 border-slate-700 hover:border-slate-600",
+    info: "bg-blue-900/30 border-blue-700 hover:border-blue-600",
+    trophy: "bg-purple-900/30 border-purple-700 hover:border-purple-600",
+  };
 
   return (
-    <div className="mb-4 p-3 bg-blue-900/30 border border-blue-600 rounded-lg">
-      <div className="text-sm text-blue-400 mb-2">Secret Intel (only you can see)</div>
-      {player.peekedMovementCard && (
-        <div className="text-sm">
-          Next movement: <span className="font-bold">-{player.peekedMovementCard.moveSpaces}</span>
+    <div className={`rounded-xl border mb-3 ${variantStyles[variant]}`}>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full px-3 py-2 flex items-center justify-between text-left"
+      >
+        <div className="flex items-center gap-2">
+          <span className={`text-sm transition-transform duration-200 ${isExpanded ? "rotate-90" : ""}`}>
+            ▶
+          </span>
+          <span className="text-sm font-medium text-slate-200">{title}</span>
         </div>
-      )}
-      {player.peekedStrengthCard && (
-        <div className="text-sm">
-          Next strength card: <span className="font-bold">{player.peekedStrengthCard.baseStrength}</span>
+        {summary && <span className="text-xs text-slate-400">{summary}</span>}
+      </button>
+      {isExpanded && (
+        <div className="px-3 pb-3 border-t border-slate-700/50">
+          <div className="pt-2">{children}</div>
         </div>
       )}
     </div>
   );
 }
 
-function TrophiesDisplay({ trophies }: { trophies: StrengthCard[] }) {
+function PeekInfo({
+  player,
+  isExpanded,
+  onToggle,
+}: {
+  player: CometRushPlayerState;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
+  if (!player.peekedMovementCard && !player.peekedStrengthCard) return null;
+
+  const intelCount = (player.peekedMovementCard ? 1 : 0) + (player.peekedStrengthCard ? 1 : 0);
+
+  return (
+    <CollapsibleSection
+      title="Secret Intel"
+      summary={`${intelCount} peeked`}
+      isExpanded={isExpanded}
+      onToggle={onToggle}
+      variant="info"
+    >
+      {player.peekedMovementCard && (
+        <div className="text-sm text-slate-300">
+          Next movement: <span className="font-bold text-cyan-400">-{player.peekedMovementCard.moveSpaces}</span>
+        </div>
+      )}
+      {player.peekedStrengthCard && (
+        <div className="text-sm text-slate-300">
+          Next strength: <span className="font-bold text-amber-400">{player.peekedStrengthCard.baseStrength}</span>
+        </div>
+      )}
+    </CollapsibleSection>
+  );
+}
+
+function TrophiesDisplay({
+  trophies,
+  isExpanded,
+  onToggle,
+}: {
+  trophies: StrengthCard[];
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
   if (trophies.length === 0) return null;
 
   const totalPoints = trophies.reduce((sum, t) => sum + t.baseStrength, 0);
 
   return (
-    <div className="mb-4">
-      <div className="text-sm text-gray-400 mb-2">
-        Trophies ({totalPoints} points)
-      </div>
+    <CollapsibleSection
+      title="Trophies"
+      summary={`${totalPoints} pts`}
+      isExpanded={isExpanded}
+      onToggle={onToggle}
+      variant="trophy"
+    >
       <div className="flex flex-wrap gap-2">
         {trophies.map((trophy) => (
           <span
             key={trophy.id}
-            className="px-2 py-1 bg-purple-900/50 border border-purple-600 rounded text-sm font-bold"
+            className="px-2 py-1 bg-purple-900/50 border border-purple-500 rounded text-sm font-bold text-purple-200"
           >
             {trophy.baseStrength}
           </span>
         ))}
       </div>
-    </div>
+    </CollapsibleSection>
   );
 }
 
@@ -623,18 +695,26 @@ function OtherPlayersDisplay({
   players,
   currentPlayerId,
   activePlayerId,
+  isExpanded,
+  onToggle,
 }: {
   players: Record<string, CometRushPlayerState>;
   currentPlayerId: string;
   activePlayerId: string | null;
+  isExpanded: boolean;
+  onToggle: () => void;
 }) {
   const otherPlayers = Object.values(players).filter((p) => p.id !== currentPlayerId);
 
   if (otherPlayers.length === 0) return null;
 
   return (
-    <div className="mb-4">
-      <h3 className="text-lg font-semibold text-gray-50 mb-3">Other Players</h3>
+    <CollapsibleSection
+      title="Other Players"
+      summary={`${otherPlayers.length} players`}
+      isExpanded={isExpanded}
+      onToggle={onToggle}
+    >
       <div className="space-y-2">
         {otherPlayers.map((p) => {
           const readyRockets = p.rockets.filter((r) => r.status === "ready").length;
@@ -685,7 +765,7 @@ function OtherPlayersDisplay({
           );
         })}
       </div>
-    </div>
+    </CollapsibleSection>
   );
 }
 
@@ -797,6 +877,12 @@ export function CometRushGameView({
 
   // Action panel accordion state - only one can be open at a time
   const [expandedAction, setExpandedAction] = useState<ActionPanelType>(null);
+
+  // Secondary info collapsible sections state
+  const [expandedInfo, setExpandedInfo] = useState<"peek" | "trophies" | "players" | null>(null);
+  const toggleInfoSection = (section: "peek" | "trophies" | "players") => {
+    setExpandedInfo(expandedInfo === section ? null : section);
+  };
 
   // Turn wizard state
   const [turnWizardStep, setTurnWizardStep] = useState<TurnWizardStep>(null);
@@ -1157,14 +1243,22 @@ export function CometRushGameView({
             />
           )}
 
-          {/* Peek Info (private) */}
-          <PeekInfo player={player} />
+          {/* Peek Info (private) - collapsible */}
+          <PeekInfo
+            player={player}
+            isExpanded={expandedInfo === "peek"}
+            onToggle={() => toggleInfoSection("peek")}
+          />
 
           {/* Upgrades */}
           <UpgradesDisplay player={player} />
 
-          {/* Trophies */}
-          <TrophiesDisplay trophies={player.trophies} />
+          {/* Trophies - collapsible */}
+          <TrophiesDisplay
+            trophies={player.trophies}
+            isExpanded={expandedInfo === "trophies"}
+            onToggle={() => toggleInfoSection("trophies")}
+          />
 
           {/* Action Panels - Accordion Style */}
           {(() => {
@@ -1388,11 +1482,13 @@ export function CometRushGameView({
             );
           })()}
 
-          {/* Other Players */}
+          {/* Other Players - collapsible */}
           <OtherPlayersDisplay
             players={gameState.players}
             currentPlayerId={playerId}
             activePlayerId={activePlayerId}
+            isExpanded={expandedInfo === "players"}
+            onToggle={() => toggleInfoSection("players")}
           />
 
           {/* Bottom spacing for fixed bar */}
