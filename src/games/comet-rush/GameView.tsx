@@ -36,104 +36,186 @@ function calculateRocketCost(buildTimeCost: number, power: number, accuracy: num
 // SUB-COMPONENTS
 // ============================================================================
 
-function CometTrack({
+// Consolidated header showing all read-only game state
+function GameStateHeader({
+  round,
+  isMyTurn,
+  activePlayerName,
   distanceToImpact,
-  lastMovementCard,
   activeStrengthCard,
-  movementDeckCount,
-  strengthDeckCount,
-  engineeringDeckCount,
-  politicalDeckCount,
+  playerCubes,
+  playerIncome,
 }: {
+  round: number;
+  isMyTurn: boolean;
+  activePlayerName: string;
   distanceToImpact: number;
-  lastMovementCard: { moveSpaces: number } | null;
-  activeStrengthCard: StrengthCard | null;
-  movementDeckCount: number;
-  strengthDeckCount: number;
-  engineeringDeckCount: number;
-  politicalDeckCount: number;
+  activeStrengthCard: { currentStrength: number; baseStrength: number } | null;
+  playerCubes: number;
+  playerIncome: number;
 }) {
   const percentage = Math.max(0, Math.min(100, (distanceToImpact / 18) * 100));
-
   const dangerColor =
     distanceToImpact <= 6
       ? "bg-red-500"
       : distanceToImpact <= 12
-      ? "bg-yellow-500"
-      : "bg-green-500";
+        ? "bg-yellow-500"
+        : "bg-green-500";
 
-  const DeckChip = ({ label, count, borderColor }: { label: string; count: number; borderColor: string }) => (
-    <div className="flex flex-col items-center">
-      <div className="relative h-8 w-12">
-        {/* Back card shadow */}
-        <div className="absolute inset-0 translate-x-0.5 translate-y-0.5 rounded-md border border-slate-700 bg-slate-900/70" />
-        {/* Front card */}
-        <div className={`absolute inset-0 rounded-md border ${borderColor} bg-slate-800/90 flex items-center justify-center`}>
-          <span className="text-[8px] font-semibold uppercase tracking-wide text-slate-200">
-            {label}
-          </span>
-        </div>
-      </div>
-      {/* Count badge */}
-      <div className="mt-0.5 rounded-full bg-black/80 px-1.5 py-0.5 text-[9px] font-bold text-slate-100 border border-slate-700">
-        {count}
-      </div>
-    </div>
-  );
+  const dangerText =
+    distanceToImpact <= 6
+      ? "text-red-400"
+      : distanceToImpact <= 12
+        ? "text-yellow-400"
+        : "text-green-400";
 
   return (
-    <div className="bg-slate-900/60 rounded-xl border border-slate-700 p-4 mb-4">
-      <div className="flex items-start justify-between gap-4">
-        {/* Left side - distance info */}
+    <div className="sticky top-0 z-10 bg-slate-900 border-b border-slate-700 px-4 py-3 -mx-4 mb-4">
+      {/* Row 1: Round + Turn */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Round {round}
+          </span>
+        </div>
+        <div
+          className={`px-3 py-1 rounded-full text-sm font-semibold ${
+            isMyTurn
+              ? "bg-green-900/80 text-green-300 border border-green-600"
+              : "bg-slate-800 text-slate-400 border border-slate-600"
+          }`}
+        >
+          {isMyTurn ? "Your Turn" : `${activePlayerName}'s Turn`}
+        </div>
+      </div>
+
+      {/* Row 2: Comet distance + Strength */}
+      <div className="flex items-center gap-4 mb-3">
+        {/* Comet distance */}
         <div className="flex-1">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Comet Distance</span>
-            <span className="font-bold text-lg">
-              {distanceToImpact} / 18
-              {lastMovementCard && (
-                <span className="text-red-400 text-sm ml-2">
-                  (-{lastMovementCard.moveSpaces})
-                </span>
-              )}
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-slate-500">Comet</span>
+            <span className={`text-sm font-bold ${dangerText}`}>
+              {distanceToImpact}/18
             </span>
           </div>
-          <div className="w-full bg-slate-700 rounded-full h-3 overflow-hidden">
+          <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
             <div
               className={`h-full ${dangerColor} transition-all duration-500`}
               style={{ width: `${percentage}%` }}
             />
           </div>
-          <div className="flex justify-between text-xs text-slate-500 mt-1">
-            <span>Impact!</span>
-            <span>Safe</span>
-          </div>
-
-          {activeStrengthCard && (
-            <div className="mt-3 p-3 bg-amber-900/30 border border-amber-600/60 rounded-lg">
-              <div className="text-xs uppercase tracking-wide text-amber-400 mb-1">Active Comet Segment</div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-300 text-sm">Strength:</span>
-                <span className="text-xl font-bold text-amber-300">
-                  {activeStrengthCard.currentStrength}
-                  {activeStrengthCard.currentStrength !== activeStrengthCard.baseStrength && (
-                    <span className="text-xs text-amber-400/70 ml-1">
-                      (was {activeStrengthCard.baseStrength})
-                    </span>
-                  )}
-                </span>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Right side - compact deck chips */}
-        <div className="grid grid-cols-2 gap-1.5 pt-1">
-          <DeckChip label="Move" count={movementDeckCount} borderColor="border-cyan-500" />
-          <DeckChip label="Str" count={strengthDeckCount} borderColor="border-amber-500" />
-          <DeckChip label="Eng" count={engineeringDeckCount} borderColor="border-emerald-500" />
-          <DeckChip label="Pol" count={politicalDeckCount} borderColor="border-rose-500" />
+        {/* Strength */}
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-900/40 border border-amber-700/50 rounded-lg">
+          <span className="text-xs text-amber-400">STR</span>
+          <span className="text-lg font-bold text-amber-300">
+            {activeStrengthCard?.currentStrength ?? "—"}
+          </span>
         </div>
       </div>
+
+      {/* Row 3: Resources */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-yellow-400">●</span>
+          <span className="font-bold text-lg text-white">{playerCubes}</span>
+          <span className="text-slate-500 text-sm">cubes</span>
+          <span className="text-slate-600 text-sm">
+            (+{playerIncome}/round)
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Simplified deck info display (distance/strength now in header)
+function DeckInfo({
+  lastMovementCard,
+  movementDeckCount,
+  strengthDeckCount,
+  engineeringDeckCount,
+  politicalDeckCount,
+}: {
+  lastMovementCard: { moveSpaces: number } | null;
+  movementDeckCount: number;
+  strengthDeckCount: number;
+  engineeringDeckCount: number;
+  politicalDeckCount: number;
+}) {
+  const DeckChip = ({ label, count, borderColor }: { label: string; count: number; borderColor: string }) => (
+    <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-800/80 border border-slate-700">
+      <div className={`w-2 h-2 rounded-full ${borderColor.replace('border-', 'bg-')}`} />
+      <span className="text-xs text-slate-400">{label}</span>
+      <span className="text-xs font-semibold text-slate-200">{count}</span>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 mb-4">
+      {lastMovementCard && (
+        <div className="px-2 py-1 rounded-md bg-red-900/40 border border-red-700/50 text-xs text-red-300">
+          Last move: -{lastMovementCard.moveSpaces}
+        </div>
+      )}
+      <DeckChip label="Move" count={movementDeckCount} borderColor="border-cyan-500" />
+      <DeckChip label="Str" count={strengthDeckCount} borderColor="border-amber-500" />
+      <DeckChip label="Eng" count={engineeringDeckCount} borderColor="border-emerald-500" />
+      <DeckChip label="Pol" count={politicalDeckCount} borderColor="border-rose-500" />
+    </div>
+  );
+}
+
+// Accordion-style action panel - only one can be open at a time
+type ActionPanelType = "build" | "launch" | "cards" | null;
+
+function ActionPanel({
+  type,
+  title,
+  summary,
+  isExpanded,
+  onToggle,
+  disabled,
+  children,
+}: {
+  type: ActionPanelType;
+  title: string;
+  summary: string;
+  isExpanded: boolean;
+  onToggle: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={`rounded-xl border transition-all duration-200 ${
+      isExpanded
+        ? "bg-slate-800 border-slate-600"
+        : "bg-slate-800/50 border-slate-700 hover:border-slate-600"
+    } ${disabled ? "opacity-50" : ""}`}>
+      <button
+        type="button"
+        onClick={onToggle}
+        disabled={disabled}
+        className="w-full px-4 py-3 flex items-center justify-between text-left"
+      >
+        <div className="flex items-center gap-3">
+          <span className={`text-lg transition-transform duration-200 ${isExpanded ? "rotate-90" : ""}`}>
+            ▶
+          </span>
+          <span className="font-semibold text-slate-100">{title}</span>
+        </div>
+        <span className="text-sm text-slate-400">{summary}</span>
+      </button>
+
+      {isExpanded && (
+        <div className="px-4 pb-4 border-t border-slate-700">
+          <div className="pt-4">
+            {children}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -343,10 +425,7 @@ function BuildRocketForm({
   const effectiveBuildTime = buildTime; // Build time is now just a cost, no reduction needed
 
   return (
-    <div className="bg-gray-900 rounded-lg p-4 mb-4">
-      <h3 className="font-semibold mb-4">Build New Rocket</h3>
-
-      <div className="space-y-4">
+    <div className="space-y-4">
         <div>
           <div className="flex justify-between mb-1">
             <span className="text-sm text-gray-400">Build Cost</span>
@@ -430,20 +509,19 @@ function BuildRocketForm({
           </div>
         </div>
 
-        <button
-          onClick={() => onBuild(buildTime, power, accuracy)}
-          disabled={!canAfford || !hasSlot || isBuilding}
-          className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-        >
-          {isBuilding
-            ? "Building..."
-            : !hasSlot
-            ? "No rocket slots"
-            : !canAfford
-            ? "Not enough cubes"
-            : "Build Rocket"}
-        </button>
-      </div>
+      <button
+        onClick={() => onBuild(buildTime, power, accuracy)}
+        disabled={!canAfford || !hasSlot || isBuilding}
+        className="w-full bg-green-600 hover:bg-green-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+      >
+        {isBuilding
+          ? "Building..."
+          : !hasSlot
+          ? "No rocket slots"
+          : !canAfford
+          ? "Not enough cubes"
+          : "Build Rocket"}
+      </button>
     </div>
   );
 }
@@ -497,47 +575,119 @@ function LaunchResultDisplay({
   );
 }
 
-function PeekInfo({ player }: { player: CometRushPlayerState }) {
-  if (!player.peekedMovementCard && !player.peekedStrengthCard) return null;
+// Collapsible section for secondary info
+function CollapsibleSection({
+  title,
+  summary,
+  isExpanded,
+  onToggle,
+  variant = "default",
+  children,
+}: {
+  title: string;
+  summary?: string;
+  isExpanded: boolean;
+  onToggle: () => void;
+  variant?: "default" | "info" | "trophy";
+  children: React.ReactNode;
+}) {
+  const variantStyles = {
+    default: "bg-slate-800/50 border-slate-700 hover:border-slate-600",
+    info: "bg-blue-900/30 border-blue-700 hover:border-blue-600",
+    trophy: "bg-purple-900/30 border-purple-700 hover:border-purple-600",
+  };
 
   return (
-    <div className="mb-4 p-3 bg-blue-900/30 border border-blue-600 rounded-lg">
-      <div className="text-sm text-blue-400 mb-2">Secret Intel (only you can see)</div>
-      {player.peekedMovementCard && (
-        <div className="text-sm">
-          Next movement: <span className="font-bold">-{player.peekedMovementCard.moveSpaces}</span>
+    <div className={`rounded-xl border mb-3 ${variantStyles[variant]}`}>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full px-3 py-2 flex items-center justify-between text-left"
+      >
+        <div className="flex items-center gap-2">
+          <span className={`text-sm transition-transform duration-200 ${isExpanded ? "rotate-90" : ""}`}>
+            ▶
+          </span>
+          <span className="text-sm font-medium text-slate-200">{title}</span>
         </div>
-      )}
-      {player.peekedStrengthCard && (
-        <div className="text-sm">
-          Next strength card: <span className="font-bold">{player.peekedStrengthCard.baseStrength}</span>
+        {summary && <span className="text-xs text-slate-400">{summary}</span>}
+      </button>
+      {isExpanded && (
+        <div className="px-3 pb-3 border-t border-slate-700/50">
+          <div className="pt-2">{children}</div>
         </div>
       )}
     </div>
   );
 }
 
-function TrophiesDisplay({ trophies }: { trophies: StrengthCard[] }) {
+function PeekInfo({
+  player,
+  isExpanded,
+  onToggle,
+}: {
+  player: CometRushPlayerState;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
+  if (!player.peekedMovementCard && !player.peekedStrengthCard) return null;
+
+  const intelCount = (player.peekedMovementCard ? 1 : 0) + (player.peekedStrengthCard ? 1 : 0);
+
+  return (
+    <CollapsibleSection
+      title="Secret Intel"
+      summary={`${intelCount} peeked`}
+      isExpanded={isExpanded}
+      onToggle={onToggle}
+      variant="info"
+    >
+      {player.peekedMovementCard && (
+        <div className="text-sm text-slate-300">
+          Next movement: <span className="font-bold text-cyan-400">-{player.peekedMovementCard.moveSpaces}</span>
+        </div>
+      )}
+      {player.peekedStrengthCard && (
+        <div className="text-sm text-slate-300">
+          Next strength: <span className="font-bold text-amber-400">{player.peekedStrengthCard.baseStrength}</span>
+        </div>
+      )}
+    </CollapsibleSection>
+  );
+}
+
+function TrophiesDisplay({
+  trophies,
+  isExpanded,
+  onToggle,
+}: {
+  trophies: StrengthCard[];
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
   if (trophies.length === 0) return null;
 
   const totalPoints = trophies.reduce((sum, t) => sum + t.baseStrength, 0);
 
   return (
-    <div className="mb-4">
-      <div className="text-sm text-gray-400 mb-2">
-        Trophies ({totalPoints} points)
-      </div>
+    <CollapsibleSection
+      title="Trophies"
+      summary={`${totalPoints} pts`}
+      isExpanded={isExpanded}
+      onToggle={onToggle}
+      variant="trophy"
+    >
       <div className="flex flex-wrap gap-2">
         {trophies.map((trophy) => (
           <span
             key={trophy.id}
-            className="px-2 py-1 bg-purple-900/50 border border-purple-600 rounded text-sm font-bold"
+            className="px-2 py-1 bg-purple-900/50 border border-purple-500 rounded text-sm font-bold text-purple-200"
           >
             {trophy.baseStrength}
           </span>
         ))}
       </div>
-    </div>
+    </CollapsibleSection>
   );
 }
 
@@ -545,18 +695,26 @@ function OtherPlayersDisplay({
   players,
   currentPlayerId,
   activePlayerId,
+  isExpanded,
+  onToggle,
 }: {
   players: Record<string, CometRushPlayerState>;
   currentPlayerId: string;
   activePlayerId: string | null;
+  isExpanded: boolean;
+  onToggle: () => void;
 }) {
   const otherPlayers = Object.values(players).filter((p) => p.id !== currentPlayerId);
 
   if (otherPlayers.length === 0) return null;
 
   return (
-    <div className="mb-4">
-      <h3 className="text-lg font-semibold text-gray-50 mb-3">Other Players</h3>
+    <CollapsibleSection
+      title="Other Players"
+      summary={`${otherPlayers.length} players`}
+      isExpanded={isExpanded}
+      onToggle={onToggle}
+    >
       <div className="space-y-2">
         {otherPlayers.map((p) => {
           const readyRockets = p.rockets.filter((r) => r.status === "ready").length;
@@ -607,7 +765,7 @@ function OtherPlayersDisplay({
           );
         })}
       </div>
-    </div>
+    </CollapsibleSection>
   );
 }
 
@@ -716,6 +874,15 @@ export function CometRushGameView({
   const [targetPlayerId, setTargetPlayerId] = useState<string>("");
   const [targetRocketId, setTargetRocketId] = useState<string>("");
   const [peekChoice, setPeekChoice] = useState<"strength" | "movement" | null>(null);
+
+  // Action panel accordion state - only one can be open at a time
+  const [expandedAction, setExpandedAction] = useState<ActionPanelType>(null);
+
+  // Secondary info collapsible sections state
+  const [expandedInfo, setExpandedInfo] = useState<"peek" | "trophies" | "players" | null>(null);
+  const toggleInfoSection = (section: "peek" | "trophies" | "players") => {
+    setExpandedInfo(expandedInfo === section ? null : section);
+  };
 
   // Turn wizard state
   const [turnWizardStep, setTurnWizardStep] = useState<TurnWizardStep>(null);
@@ -935,207 +1102,133 @@ export function CometRushGameView({
       {/* PLAYING PHASE */}
       {phase === "playing" && gameState && player && (
         <>
-          {/* Turn Wizard Modal */}
-          {turnWizardStep && isMyTurn && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-              <div className="bg-gray-800 border border-gray-600 rounded-2xl p-6 m-4 max-w-sm w-full shadow-2xl">
-                {/* Step 1: Announce turn */}
-                {turnWizardStep === "announce" && (
-                  <div className="text-center">
-                    <div className="text-5xl mb-4">🚀</div>
-                    <h2 className="text-2xl font-bold text-green-400 mb-2">Your Turn!</h2>
-                    <p className="text-gray-400 mb-6">
-                      Round {gameState.round}
-                    </p>
-                    <button
-                      onClick={handleBeginTurn}
-                      disabled={isBeginningTurn}
-                      className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-                    >
-                      {isBeginningTurn ? "Starting..." : "Begin Turn"}
-                    </button>
-                  </div>
-                )}
-
-                {/* Step 2: Show income gained */}
-                {turnWizardStep === "showIncome" && turnMeta && (
-                  <div className="text-center">
-                    <div className="text-5xl mb-4">💰</div>
-                    <h2 className="text-xl font-bold text-yellow-400 mb-2">
-                      {player?.isEmbargoed ? "Embargoed!" : "Income Received!"}
-                    </h2>
-                    <div className="bg-gray-900 rounded-lg p-4 mb-4">
-                      <div className="text-3xl font-bold text-yellow-300">
-                        {player?.isEmbargoed ? "0" : `+${turnMeta.incomeGained}`} cubes
-                      </div>
-                      <div className="text-gray-400 text-sm mt-1">
-                        Total: {turnMeta.newTotalCubes} cubes
-                      </div>
-                      {player?.isEmbargoed && (
-                        <div className="text-orange-400 text-sm mt-2">
-                          You were embargoed and received no income this turn.
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => setTurnWizardStep("chooseDeck")}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-                    >
-                      Continue
-                    </button>
-                  </div>
-                )}
-
-                {/* Step 3: Choose which deck to draw from */}
-                {turnWizardStep === "chooseDeck" && (
-                  <div className="text-center">
-                    <div className="text-5xl mb-4">🃏</div>
-                    <h2 className="text-xl font-bold text-blue-400 mb-2">Draw a Card</h2>
-                    <p className="text-gray-400 mb-4">Choose which deck to draw from:</p>
-
-                    <div className="space-y-3 mb-4">
-                      {/* Engineering Deck */}
-                      <button
-                        onClick={() => handleDrawCard("engineering")}
-                        disabled={isDrawingCard || (gameState.engineeringDeck.length === 0 && gameState.engineeringDiscard.length === 0)}
-                        className="w-full bg-emerald-700 hover:bg-emerald-600 disabled:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors border border-emerald-500"
-                      >
-                        <div className="flex justify-between items-center">
-                          <span>Engineering Deck</span>
-                          <span className="text-sm opacity-80">
-                            {gameState.engineeringDeck.length} cards
-                          </span>
-                        </div>
-                        <div className="text-xs text-emerald-200 mt-1">
-                          Upgrades, efficiency, risk management
-                        </div>
-                      </button>
-
-                      {/* Political Deck */}
-                      <button
-                        onClick={() => handleDrawCard("political")}
-                        disabled={isDrawingCard || (gameState.politicalDeck.length === 0 && gameState.politicalDiscard.length === 0)}
-                        className="w-full bg-rose-700 hover:bg-rose-600 disabled:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors border border-rose-500"
-                      >
-                        <div className="flex justify-between items-center">
-                          <span>Political Deck</span>
-                          <span className="text-sm opacity-80">
-                            {gameState.politicalDeck.length} cards
-                          </span>
-                        </div>
-                        <div className="text-xs text-rose-200 mt-1">
-                          Interaction, disruption, funding
-                        </div>
-                      </button>
-                    </div>
-
-                    {isDrawingCard && (
-                      <div className="text-gray-400">Drawing card...</div>
-                    )}
-                  </div>
-                )}
-
-                {/* Step 4: Show drawn card */}
-                {turnWizardStep === "showCard" && turnMeta && (
-                  <div className="text-center">
-                    <div className="text-5xl mb-4">✨</div>
-                    <h2 className="text-xl font-bold text-green-400 mb-2">Card Drawn!</h2>
-                    {(() => {
-                      const drawnCard = player.hand.find(
-                        (c) => c.id === turnMeta.lastDrawnCardId
-                      );
-                      if (!drawnCard) {
-                        return (
-                          <p className="text-gray-400 mb-6">No card was drawn.</p>
-                        );
-                      }
-                      const isEngineering = drawnCard.deck === "engineering";
-                      const borderClass = isEngineering
-                        ? "border-emerald-600 bg-emerald-900/40"
-                        : "border-rose-600 bg-rose-900/40";
-                      return (
-                        <div
-                          className={`border-2 rounded-xl p-4 mb-4 ${borderClass}`}
-                        >
-                          <div className="font-bold text-lg">{drawnCard.name}</div>
-                          <div className="text-sm text-gray-300 mt-1">
-                            {drawnCard.description}
-                          </div>
-                          <div className={`text-xs mt-2 ${isEngineering ? "text-emerald-400" : "text-rose-400"}`}>
-                            {isEngineering ? "Engineering" : "Political"}
-                          </div>
-                        </div>
-                      );
-                    })()}
-                    <button
-                      onClick={dismissWizard}
-                      className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-                    >
-                      Start Playing
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Card Result Popup */}
-          {gameState.lastCardResult &&
-            gameState.lastCardResult.playerId === playerId && (
-              <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60">
-                <div className="w-full max-w-sm rounded-2xl bg-slate-900 p-4 m-4 border border-slate-700 shadow-xl">
-                  <div className="text-center">
-                    <div className="text-4xl mb-3">📜</div>
-                    <h2 className="text-sm font-semibold text-slate-50 uppercase tracking-wide">
-                      {gameState.lastCardResult.cardName}
-                    </h2>
-                    <p className="mt-3 text-sm text-slate-200">
-                      {gameState.lastCardResult.description}
-                    </p>
-                    <button
-                      className="mt-4 w-full rounded-lg bg-sky-600 hover:bg-sky-700 px-3 py-2 text-sm font-semibold text-white transition-colors"
-                      onClick={handleClearCardResult}
-                    >
-                      OK
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-          {/* Turn Indicator - sticky */}
-          <div
-            className={`sticky top-0 z-10 mb-4 p-3 rounded-xl text-center font-semibold backdrop-blur-sm ${
-              isMyTurn
-                ? "bg-green-900/80 border border-green-500 shadow-lg shadow-green-500/20"
-                : "bg-gray-800/90 border border-gray-700"
-            }`}
-          >
-            <div className="flex items-center justify-center gap-3">
-              <span className="text-xs text-gray-400 uppercase tracking-wide">
-                Round {gameState.round}
-              </span>
-              <span className="text-gray-600">|</span>
-              {isMyTurn ? (
-                <span className="text-green-300">Your Turn!</span>
-              ) : (
-                <span className="text-gray-300">
-                  Waiting for {gameState.players[activePlayerId ?? ""]?.name ?? "..."}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Comet Track */}
-          <CometTrack
+          {/* Consolidated Game State Header */}
+          <GameStateHeader
+            round={gameState.round}
+            isMyTurn={isMyTurn}
+            activePlayerName={gameState.players[activePlayerId ?? ""]?.name ?? "..."}
             distanceToImpact={gameState.distanceToImpact}
-            lastMovementCard={gameState.lastMovementCard}
             activeStrengthCard={gameState.activeStrengthCard}
+            playerCubes={player.resourceCubes}
+            playerIncome={player.baseIncome + player.upgrades.incomeBonus}
+          />
+
+          {/* Deck counts and last movement */}
+          <DeckInfo
+            lastMovementCard={gameState.lastMovementCard}
             movementDeckCount={gameState.movementDeck.length}
             strengthDeckCount={gameState.strengthDeck.length}
             engineeringDeckCount={gameState.engineeringDeck.length}
             politicalDeckCount={gameState.politicalDeck.length}
           />
+
+          {/* Card Result - Inline notification */}
+          {gameState.lastCardResult &&
+            gameState.lastCardResult.playerId === playerId && (
+              <div className="mb-4 rounded-xl border border-amber-600 bg-amber-900/30 p-4">
+                <div className="text-center">
+                  <h3 className="text-sm font-semibold text-amber-300 uppercase tracking-wide mb-2">
+                    {gameState.lastCardResult.cardName}
+                  </h3>
+                  <p className="text-sm text-slate-200">
+                    {gameState.lastCardResult.description}
+                  </p>
+                  <button
+                    className="mt-3 w-full rounded-lg bg-amber-600 hover:bg-amber-700 px-3 py-2 text-sm font-semibold text-white transition-colors"
+                    onClick={handleClearCardResult}
+                  >
+                    OK
+                  </button>
+                </div>
+              </div>
+            )}
+
+          {/* Turn Start Card - Inline, appears when it's your turn and wizard is active */}
+          {isMyTurn && turnWizardStep && (
+            <div className="mb-4 rounded-xl border border-green-600 bg-green-900/30 p-4">
+              {/* Step 1: Announce turn */}
+              {turnWizardStep === "announce" && (
+                <div className="text-center">
+                  <div className="text-lg font-semibold text-green-300 mb-2">
+                    Your Turn!
+                  </div>
+                  <p className="text-sm text-slate-300 mb-4">
+                    Collect income and draw a card to begin.
+                  </p>
+                  <button
+                    onClick={handleBeginTurn}
+                    disabled={isBeginningTurn}
+                    className="w-full bg-green-600 hover:bg-green-700 disabled:bg-slate-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                  >
+                    {isBeginningTurn ? "Starting..." : "Begin Turn"}
+                  </button>
+                </div>
+              )}
+
+              {/* Step 2+3: Show income and choose deck */}
+              {(turnWizardStep === "showIncome" || turnWizardStep === "chooseDeck") && (
+                <div>
+                  <div className="text-center mb-4">
+                    <div className="text-3xl font-bold text-yellow-400">
+                      +{turnMeta?.incomeGained ?? 0}
+                    </div>
+                    <div className="text-sm text-slate-400">cubes collected</div>
+                  </div>
+                  <div className="text-sm text-slate-300 mb-3 text-center">
+                    Choose a deck to draw from:
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => handleDrawCard("engineering")}
+                      disabled={isDrawingCard}
+                      className="bg-emerald-700 hover:bg-emerald-600 disabled:bg-slate-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
+                    >
+                      {isDrawingCard && selectedDeck === "engineering" ? "Drawing..." : "Engineering"}
+                    </button>
+                    <button
+                      onClick={() => handleDrawCard("political")}
+                      disabled={isDrawingCard}
+                      className="bg-rose-700 hover:bg-rose-600 disabled:bg-slate-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
+                    >
+                      {isDrawingCard && selectedDeck === "political" ? "Drawing..." : "Political"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 4: Show drawn card */}
+              {turnWizardStep === "showCard" && turnMeta?.lastDrawnCardId && (
+                <div className="text-center">
+                  <div className="text-sm text-slate-400 mb-2">Card drawn:</div>
+                  {(() => {
+                    const drawnCard = player.hand.find(c => c.id === turnMeta.lastDrawnCardId);
+                    if (!drawnCard) return null;
+                    const isEngineering = drawnCard.deck === "engineering";
+                    return (
+                      <div className={`rounded-xl border p-3 mb-4 ${
+                        isEngineering
+                          ? "bg-emerald-900/50 border-emerald-600"
+                          : "bg-rose-900/50 border-rose-600"
+                      }`}>
+                        <div className="font-semibold text-slate-100">
+                          {drawnCard.name}
+                        </div>
+                        <div className="text-sm text-slate-300 mt-1">
+                          {drawnCard.description}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  <button
+                    onClick={dismissWizard}
+                    className="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                  >
+                    Start Playing
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Last Launch Result */}
           {gameState.lastLaunchResult && (
@@ -1147,215 +1240,296 @@ export function CometRushGameView({
             />
           )}
 
-          {/* Peek Info (private) */}
-          <PeekInfo player={player} />
-
-          {/* Resources */}
-          <ResourceDisplay player={player} />
+          {/* Peek Info (private) - collapsible */}
+          <PeekInfo
+            player={player}
+            isExpanded={expandedInfo === "peek"}
+            onToggle={() => toggleInfoSection("peek")}
+          />
 
           {/* Upgrades */}
           <UpgradesDisplay player={player} />
 
-          {/* Trophies */}
-          <TrophiesDisplay trophies={player.trophies} />
+          {/* Trophies - collapsible */}
+          <TrophiesDisplay
+            trophies={player.trophies}
+            isExpanded={expandedInfo === "trophies"}
+            onToggle={() => toggleInfoSection("trophies")}
+          />
 
-          {/* My Rockets */}
-          <section className="bg-gray-800/60 border border-gray-700 rounded-xl p-4 mb-4">
-            <h3 className="text-lg font-semibold text-gray-50 mb-4">Your Rockets</h3>
-            {player.rockets.length === 0 ? (
-              <p className="text-sm text-gray-400">No rockets yet. Build one below!</p>
-            ) : (
-              <div className="space-y-2">
-                {player.rockets
-                  .filter((r) => r.status !== "spent")
-                  .map((rocket) => (
-                    <RocketCard
-                      key={rocket.id}
-                      rocket={rocket}
-                      onLaunch={
-                        isMyTurn
-                          ? () => handleLaunchRocket(rocket.id)
-                          : undefined
-                      }
-                      canLaunch={isMyTurn}
-                      isLaunching={isLaunching}
-                    />
-                  ))}
-              </div>
-            )}
-          </section>
+          {/* Action Panels - Accordion Style */}
+          {(() => {
+            const activeRockets = player.rockets.filter((r) => r.status === "ready" || r.status === "building");
+            const readyRockets = player.rockets.filter((r) => r.status === "ready");
+            const buildingRockets = player.rockets.filter((r) => r.status === "building");
+            const maxRockets = player.maxConcurrentRockets + player.upgrades.maxRocketsBonus;
 
-          {/* Build Rocket (only on my turn) */}
-          {isMyTurn && <BuildRocketForm player={player} onBuild={handleBuildRocket} isBuilding={isBuilding} />}
+            const togglePanel = (panel: ActionPanelType) => {
+              setExpandedAction(expandedAction === panel ? null : panel);
+              // Clear card selection when switching panels
+              if (panel !== "cards") {
+                setSelectedCardId(null);
+                setTargetPlayerId("");
+                setTargetRocketId("");
+                setPeekChoice(null);
+              }
+            };
 
-          {/* Your Cards */}
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold text-slate-50 mb-3">
-              Your Cards ({player.hand.length})
-            </h3>
-            {player.hand.length === 0 ? (
-              <p className="text-sm text-slate-400">No cards in hand.</p>
-            ) : (
-              <div className="space-y-2">
-                {player.hand.map((card) => (
-                  <GameCardDisplay
-                    key={card.id}
-                    card={card}
-                    isSelected={selectedCardId === card.id}
-                    onToggle={() => {
-                      if (isMyTurn) {
-                        toggleCardSelection(card.id);
-                      }
-                    }}
-                  />
-                ))}
-              </div>
-            )}
+            return (
+              <div className="space-y-2 mb-4">
+                {/* Build Rocket Panel */}
+                <ActionPanel
+                  type="build"
+                  title="Build Rocket"
+                  summary={`${activeRockets.length}/${maxRockets} slots`}
+                  isExpanded={expandedAction === "build"}
+                  onToggle={() => togglePanel("build")}
+                  disabled={!isMyTurn}
+                >
+                  <BuildRocketForm player={player} onBuild={handleBuildRocket} isBuilding={isBuilding} />
+                </ActionPanel>
 
-            {/* Play Card Controls */}
-            {isMyTurn && selectedCard && (
-              <div className="mt-4 p-3 bg-gray-900 rounded-lg">
-                <div className="text-sm text-gray-300 mb-3">
-                  Playing: <span className="font-semibold text-white">{selectedCard.name}</span>
-                </div>
-
-                {/* Target Player Selection */}
-                {cardRequirements.needsTargetPlayer && (
-                  <div className="mb-3">
-                    <label className="text-sm text-gray-400 block mb-1">Target Player:</label>
-                    <select
-                      value={targetPlayerId}
-                      onChange={(e) => {
-                        setTargetPlayerId(e.target.value);
-                        setTargetRocketId("");
-                      }}
-                      className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-sm"
-                    >
-                      <option value="">Select player...</option>
-                      {otherPlayers.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} ({p.resourceCubes} cubes, {p.hand.length} cards)
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {/* Target Rocket Selection (for Regulatory Review) */}
-                {cardRequirements.needsTargetRocket && targetPlayerId && (
-                  <div className="mb-3">
-                    <label className="text-sm text-gray-400 block mb-1">Target Rocket:</label>
-                    <select
-                      value={targetRocketId}
-                      onChange={(e) => setTargetRocketId(e.target.value)}
-                      className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-sm"
-                    >
-                      <option value="">Select rocket...</option>
-                      {gameState.players[targetPlayerId]?.rockets
-                        .filter((r) => r.status === "building")
-                        .map((r) => (
-                          <option key={r.id} value={r.id}>
-                            Power {r.power}, Acc {r.accuracy} ({r.buildTimeRemaining} turns left)
-                          </option>
-                        ))}
-                    </select>
-                  </div>
-                )}
-
-                {/* Own Rocket Selection (for Streamlined Assembly) */}
-                {cardRequirements.needsOwnRocket && (
-                  <div className="mb-3">
-                    <label className="text-sm text-gray-400 block mb-1">Target Your Rocket:</label>
-                    <select
-                      value={targetRocketId}
-                      onChange={(e) => setTargetRocketId(e.target.value)}
-                      className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-sm"
-                    >
-                      <option value="">Select rocket...</option>
+                {/* Launch Rocket Panel */}
+                <ActionPanel
+                  type="launch"
+                  title="Launch Rocket"
+                  summary={readyRockets.length > 0 ? `${readyRockets.length} ready` : buildingRockets.length > 0 ? `${buildingRockets.length} building` : "none"}
+                  isExpanded={expandedAction === "launch"}
+                  onToggle={() => togglePanel("launch")}
+                  disabled={!isMyTurn && readyRockets.length === 0}
+                >
+                  {player.rockets.filter((r) => r.status !== "spent").length === 0 ? (
+                    <p className="text-sm text-slate-400">No rockets yet. Build one first!</p>
+                  ) : (
+                    <div className="space-y-2">
                       {player.rockets
-                        .filter((r) => r.status === "building")
-                        .map((r) => (
-                          <option key={r.id} value={r.id}>
-                            Power {r.power}, Acc {r.accuracy} ({r.buildTimeRemaining} turns left)
-                          </option>
+                        .filter((r) => r.status !== "spent")
+                        .map((rocket) => (
+                          <RocketCard
+                            key={rocket.id}
+                            rocket={rocket}
+                            onLaunch={
+                              isMyTurn
+                                ? () => handleLaunchRocket(rocket.id)
+                                : undefined
+                            }
+                            canLaunch={isMyTurn}
+                            isLaunching={isLaunching}
+                          />
                         ))}
-                    </select>
-                    {player.rockets.filter((r) => r.status === "building").length === 0 && (
-                      <p className="text-xs text-orange-400 mt-1">No rockets currently building.</p>
-                    )}
-                  </div>
-                )}
-
-                {/* Peek Choice (for Comet Research) */}
-                {cardRequirements.needsPeekChoice && (
-                  <div className="mb-3">
-                    <label className="text-sm text-gray-400 block mb-1">What to Peek:</label>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setPeekChoice("strength")}
-                        className={`flex-1 py-2 px-3 rounded text-sm font-semibold transition-colors ${
-                          peekChoice === "strength"
-                            ? "bg-amber-600 text-white"
-                            : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                        }`}
-                      >
-                        Comet Strength
-                      </button>
-                      <button
-                        onClick={() => setPeekChoice("movement")}
-                        className={`flex-1 py-2 px-3 rounded text-sm font-semibold transition-colors ${
-                          peekChoice === "movement"
-                            ? "bg-cyan-600 text-white"
-                            : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                        }`}
-                      >
-                        Comet Movement
-                      </button>
                     </div>
-                  </div>
-                )}
+                  )}
+                </ActionPanel>
 
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      setSelectedCardId(null);
-                      setTargetPlayerId("");
-                      setTargetRocketId("");
-                      setPeekChoice(null);
-                    }}
-                    className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handlePlayCard}
-                    disabled={!canPlayCard() || isPlayingCard}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded transition-colors"
-                  >
-                    {isPlayingCard ? "Playing..." : "Play Card"}
-                  </button>
-                </div>
+                {/* Play Card Panel */}
+                <ActionPanel
+                  type="cards"
+                  title="Play Card"
+                  summary={`${player.hand.length} cards`}
+                  isExpanded={expandedAction === "cards"}
+                  onToggle={() => togglePanel("cards")}
+                  disabled={!isMyTurn && player.hand.length === 0}
+                >
+                  {player.hand.length === 0 ? (
+                    <p className="text-sm text-slate-400">No cards in hand.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {player.hand.map((card) => (
+                        <GameCardDisplay
+                          key={card.id}
+                          card={card}
+                          isSelected={selectedCardId === card.id}
+                          onToggle={() => {
+                            if (isMyTurn) {
+                              toggleCardSelection(card.id);
+                            }
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Play Card Controls */}
+                  {isMyTurn && selectedCard && (
+                    <div className="mt-4 p-3 bg-slate-900 rounded-lg">
+                      <div className="text-sm text-slate-300 mb-3">
+                        Playing: <span className="font-semibold text-white">{selectedCard.name}</span>
+                      </div>
+
+                      {/* Target Player Selection */}
+                      {cardRequirements.needsTargetPlayer && (
+                        <div className="mb-3">
+                          <label className="text-sm text-slate-400 block mb-1">Target Player:</label>
+                          <select
+                            value={targetPlayerId}
+                            onChange={(e) => {
+                              setTargetPlayerId(e.target.value);
+                              setTargetRocketId("");
+                            }}
+                            className="w-full bg-slate-800 border border-slate-600 rounded p-2 text-sm"
+                          >
+                            <option value="">Select player...</option>
+                            {otherPlayers.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.name} ({p.resourceCubes} cubes, {p.hand.length} cards)
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {/* Target Rocket Selection (for Regulatory Review) */}
+                      {cardRequirements.needsTargetRocket && targetPlayerId && (
+                        <div className="mb-3">
+                          <label className="text-sm text-slate-400 block mb-1">Target Rocket:</label>
+                          <select
+                            value={targetRocketId}
+                            onChange={(e) => setTargetRocketId(e.target.value)}
+                            className="w-full bg-slate-800 border border-slate-600 rounded p-2 text-sm"
+                          >
+                            <option value="">Select rocket...</option>
+                            {gameState.players[targetPlayerId]?.rockets
+                              .filter((r) => r.status === "building")
+                              .map((r) => (
+                                <option key={r.id} value={r.id}>
+                                  Power {r.power}, Acc {r.accuracy} ({r.buildTimeRemaining} turns left)
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {/* Own Rocket Selection (for Streamlined Assembly) */}
+                      {cardRequirements.needsOwnRocket && (
+                        <div className="mb-3">
+                          <label className="text-sm text-slate-400 block mb-1">Target Your Rocket:</label>
+                          <select
+                            value={targetRocketId}
+                            onChange={(e) => setTargetRocketId(e.target.value)}
+                            className="w-full bg-slate-800 border border-slate-600 rounded p-2 text-sm"
+                          >
+                            <option value="">Select rocket...</option>
+                            {player.rockets
+                              .filter((r) => r.status === "building")
+                              .map((r) => (
+                                <option key={r.id} value={r.id}>
+                                  Power {r.power}, Acc {r.accuracy} ({r.buildTimeRemaining} turns left)
+                                </option>
+                              ))}
+                          </select>
+                          {player.rockets.filter((r) => r.status === "building").length === 0 && (
+                            <p className="text-xs text-orange-400 mt-1">No rockets currently building.</p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Peek Choice (for Comet Research) */}
+                      {cardRequirements.needsPeekChoice && (
+                        <div className="mb-3">
+                          <label className="text-sm text-slate-400 block mb-1">What to Peek:</label>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setPeekChoice("strength")}
+                              className={`flex-1 py-2 px-3 rounded text-sm font-semibold transition-colors ${
+                                peekChoice === "strength"
+                                  ? "bg-amber-600 text-white"
+                                  : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                              }`}
+                            >
+                              Comet Strength
+                            </button>
+                            <button
+                              onClick={() => setPeekChoice("movement")}
+                              className={`flex-1 py-2 px-3 rounded text-sm font-semibold transition-colors ${
+                                peekChoice === "movement"
+                                  ? "bg-cyan-600 text-white"
+                                  : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                              }`}
+                            >
+                              Comet Movement
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setSelectedCardId(null);
+                            setTargetPlayerId("");
+                            setTargetRocketId("");
+                            setPeekChoice(null);
+                          }}
+                          className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-semibold py-2 px-4 rounded transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handlePlayCard}
+                          disabled={!canPlayCard() || isPlayingCard}
+                          className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded transition-colors"
+                        >
+                          {isPlayingCard ? "Playing..." : "Play Card"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </ActionPanel>
               </div>
-            )}
-          </div>
+            );
+          })()}
 
-          {/* Other Players */}
+          {/* Other Players - collapsible */}
           <OtherPlayersDisplay
             players={gameState.players}
             currentPlayerId={playerId}
             activePlayerId={activePlayerId}
+            isExpanded={expandedInfo === "players"}
+            onToggle={() => toggleInfoSection("players")}
           />
 
-          {/* End Turn Button */}
-          {isMyTurn && (
-            <button
-              onClick={handleEndTurn}
-              disabled={isEndingTurn}
-              className="w-full bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-            >
-              {isEndingTurn ? "Ending turn..." : "End Turn"}
-            </button>
-          )}
+          {/* Bottom spacing for fixed bar */}
+          <div className="h-64" />
+
+          {/* Fixed Bottom Bar */}
+          <div
+            className="bg-slate-900 border-t border-slate-700"
+            style={{
+              position: 'fixed',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              zIndex: 100,
+              padding: '12px 16px',
+              paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
+            }}
+          >
+            <div className="max-w-lg mx-auto flex items-center gap-3">
+              <button
+                onClick={() => {
+                  if (confirm("Are you sure you want to leave the room?")) {
+                    window.location.href = "/";
+                  }
+                }}
+                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 font-medium rounded-lg transition-colors text-sm"
+              >
+                Leave
+              </button>
+              {isMyTurn ? (
+                <button
+                  onClick={handleEndTurn}
+                  disabled={isEndingTurn}
+                  className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                >
+                  {isEndingTurn ? "Ending..." : "End Turn"}
+                </button>
+              ) : (
+                <div className="flex-1 text-center py-3 text-slate-500 text-sm">
+                  Waiting for {gameState.players[activePlayerId ?? ""]?.name ?? "..."}
+                </div>
+              )}
+            </div>
+          </div>
         </>
       )}
 

@@ -277,9 +277,12 @@ export default function RoomPage() {
   // Get the game view component
   const GameView = getGameView(room.gameId);
 
+  // Check if we're in gameplay mode (not lobby)
+  const isInGameplay = gameState && (gameState as { phase?: string })?.phase !== "lobby";
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <div className="w-full max-w-md">
+    <main className={`min-h-screen ${isInGameplay ? "p-4" : "flex flex-col items-center justify-center p-8"}`}>
+      <div className={`w-full ${isInGameplay ? "max-w-lg mx-auto" : "max-w-md"}`}>
         {/* Action Error Toast */}
         {actionError && (
           <div className="mb-4 bg-red-900 border border-red-700 rounded-lg p-4 text-sm">
@@ -287,18 +290,20 @@ export default function RoomPage() {
           </div>
         )}
 
-        {/* Header */}
-        <header className="text-center mb-8">
-          <p className="text-gray-400 text-sm mb-2">Room Code</p>
-          <h1 className="text-4xl font-bold tracking-widest mb-2">{room.roomCode}</h1>
-          <p className="text-gray-400 text-sm">
-            {room.mode === "multiplayer" && "Share this code with friends to let them join"}
-            {room.mode === "simulation" && "Simulation Mode - AI Players"}
-            {room.mode === "hotseat" && "Hotseat Mode - Pass and Play"}
-          </p>
-        </header>
+        {/* Header - only show in lobby, hidden during gameplay */}
+        {(!gameState || (gameState as { phase?: string })?.phase === "lobby") && (
+          <header className="text-center mb-8">
+            <p className="text-gray-400 text-sm mb-2">Room Code</p>
+            <h1 className="text-4xl font-bold tracking-widest mb-2">{room.roomCode}</h1>
+            <p className="text-gray-400 text-sm">
+              {room.mode === "multiplayer" && "Share this code with friends to let them join"}
+              {room.mode === "simulation" && "Simulation Mode - AI Players"}
+              {room.mode === "hotseat" && "Hotseat Mode - Pass and Play"}
+            </p>
+          </header>
+        )}
 
-        {/* Hotseat Player Switcher */}
+        {/* Hotseat Player Switcher - always show in hotseat mode */}
         {room.mode === "hotseat" && activePlayerId && (
           <section className="bg-blue-900 border border-blue-700 rounded-lg p-4 mb-6">
             <div className="flex items-center justify-between gap-4">
@@ -326,47 +331,49 @@ export default function RoomPage() {
           </section>
         )}
 
-        {/* Players list */}
-        <section className="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-6">
-          <h2 className="font-semibold mb-4">Players ({room.players.length})</h2>
+        {/* Players list - only show in lobby, hidden during gameplay */}
+        {(!gameState || (gameState as { phase?: string })?.phase === "lobby") && (
+          <section className="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-6">
+            <h2 className="font-semibold mb-4">Players ({room.players.length})</h2>
 
-          {room.players.length === 0 ? (
-            <p className="text-gray-500 text-sm">No players yet.</p>
-          ) : (
-            <ul className="space-y-2">
-              {room.players.map((player) => {
-                const isActive = room.mode === "hotseat" && player.id === activePlayerId;
-                return (
-                  <li
-                    key={player.id}
-                    className={`flex items-center justify-between py-2 px-3 rounded-lg ${
-                      isActive
-                        ? "bg-blue-900 border border-blue-700"
-                        : "bg-gray-900"
-                    }`}
-                  >
-                    <span className="flex items-center gap-2">
-                      {player.name}
-                      {player.id === room.hostId && (
-                        <span className="text-xs bg-amber-600 text-white px-2 py-0.5 rounded">
-                          Host
-                        </span>
-                      )}
-                      {player.id === currentPlayerId && room.mode === "multiplayer" && (
-                        <span className="text-xs text-gray-400">(You)</span>
-                      )}
-                      {isActive && (
-                        <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded">
-                          Active
-                        </span>
-                      )}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
+            {room.players.length === 0 ? (
+              <p className="text-gray-500 text-sm">No players yet.</p>
+            ) : (
+              <ul className="space-y-2">
+                {room.players.map((player) => {
+                  const isActive = room.mode === "hotseat" && player.id === activePlayerId;
+                  return (
+                    <li
+                      key={player.id}
+                      className={`flex items-center justify-between py-2 px-3 rounded-lg ${
+                        isActive
+                          ? "bg-blue-900 border border-blue-700"
+                          : "bg-gray-900"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        {player.name}
+                        {player.id === room.hostId && (
+                          <span className="text-xs bg-amber-600 text-white px-2 py-0.5 rounded">
+                            Host
+                          </span>
+                        )}
+                        {player.id === currentPlayerId && room.mode === "multiplayer" && (
+                          <span className="text-xs text-gray-400">(You)</span>
+                        )}
+                        {isActive && (
+                          <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded">
+                            Active
+                          </span>
+                        )}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+        )}
 
         {/* Game View - renders game-specific UI */}
         {GameView && effectivePlayerId ? (
@@ -392,17 +399,22 @@ export default function RoomPage() {
           <p className="text-xs text-gray-400 text-center mb-4">Submitting action...</p>
         )}
 
-        {/* Game info */}
-        <p className="text-xs text-gray-500 text-center mb-6">
-          Game: <code className="bg-gray-800 px-2 py-1 rounded">{room.gameId}</code>
-        </p>
+        {/* Game info and Leave Room - only show when not in active gameplay */}
+        {/* The GameView handles these controls during gameplay with a fixed bottom bar */}
+        {(!gameState || (gameState as { phase?: string })?.phase === "lobby") && (
+          <>
+            <p className="text-xs text-gray-500 text-center mb-6">
+              Game: <code className="bg-gray-800 px-2 py-1 rounded">{room.gameId}</code>
+            </p>
 
-        <Link
-          href="/"
-          className="block text-center text-gray-400 hover:text-white transition-colors"
-        >
-          Leave Room
-        </Link>
+            <Link
+              href="/"
+              className="block text-center text-gray-400 hover:text-white transition-colors"
+            >
+              Leave Room
+            </Link>
+          </>
+        )}
       </div>
     </main>
   );
