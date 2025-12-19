@@ -903,11 +903,14 @@ export function CometRushGameView({
     if (phase !== "playing" || !isMyTurn || !turnMeta) return;
 
     const prevMeta = prevTurnMetaRef.current;
+    // Detect new turn: it's my turn AND (no previous meta OR different player OR previous turn had a drawn card)
+    // Using lastDrawnCardId is more reliable than incomeGained since embargoed players have 0 income
     const isNewTurn =
       turnMeta.playerId === playerId &&
-      (!prevMeta || prevMeta.playerId !== playerId || prevMeta.incomeGained !== turnMeta.incomeGained);
+      turnMeta.lastDrawnCardId === null &&
+      (!prevMeta || prevMeta.playerId !== playerId || prevMeta.lastDrawnCardId !== null);
 
-    if (isNewTurn && turnMeta.incomeGained === 0 && turnMeta.lastDrawnCardId === null) {
+    if (isNewTurn && turnMeta.incomeGained === 0) {
       setTurnWizardStep("announce");
     }
 
@@ -1169,10 +1172,26 @@ export function CometRushGameView({
               {(turnWizardStep === "showIncome" || turnWizardStep === "chooseDeck") && (
                 <div>
                   <div className="text-center mb-4">
-                    <div className="text-3xl font-bold text-yellow-400">
-                      +{turnMeta?.incomeGained ?? 0}
-                    </div>
-                    <div className="text-sm text-slate-400">cubes collected</div>
+                    {turnMeta?.wasEmbargoed ? (
+                      <>
+                        <div className="text-2xl font-bold text-red-400">
+                          Embargoed!
+                        </div>
+                        <div className="text-sm text-red-300 mb-2">
+                          Another player blocked your income this turn
+                        </div>
+                        <div className="text-xl font-bold text-slate-500">
+                          +0 cubes
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-3xl font-bold text-yellow-400">
+                          +{turnMeta?.incomeGained ?? 0}
+                        </div>
+                        <div className="text-sm text-slate-400">cubes collected</div>
+                      </>
+                    )}
                   </div>
                   <div className="text-sm text-slate-300 mb-3 text-center">
                     Choose a deck to draw from:
@@ -1488,8 +1507,8 @@ export function CometRushGameView({
             onToggle={() => toggleInfoSection("players")}
           />
 
-          {/* Bottom spacing for fixed bar */}
-          <div className="h-64" />
+          {/* Bottom spacing for fixed bar - extra tall to accommodate expanded action panels */}
+          <div className="h-96" />
 
           {/* Fixed Bottom Bar */}
           <div

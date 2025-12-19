@@ -156,6 +156,7 @@ export interface TurnMeta {
   newTotalCubes: number;
   lastDrawnCardId: string | null;
   lastDrawnDeck: CardDeckType | null;  // Which deck the card was drawn from
+  wasEmbargoed: boolean;  // True if player was embargoed this turn (for UI notification)
 }
 
 export interface CardResult {
@@ -605,6 +606,7 @@ function reducer(
           newTotalCubes: updatedPlayers[firstPlayerId]?.resourceCubes ?? 0,
           lastDrawnCardId: null,
           lastDrawnDeck: null,
+          wasEmbargoed: false,
         },
       };
     }
@@ -658,6 +660,7 @@ function reducer(
           newTotalCubes,
           lastDrawnCardId: null,
           lastDrawnDeck: null,
+          wasEmbargoed: player.isEmbargoed,
         },
       };
     }
@@ -1420,6 +1423,7 @@ function reducer(
           newTotalCubes: nextPlayer.resourceCubes,
           lastDrawnCardId: null,
           lastDrawnDeck: null,
+          wasEmbargoed: false,
         } : null,
       };
     }
