@@ -206,6 +206,9 @@ export interface CometRushState {
   // Player who destroyed the final strength card (bonus points)
   finalDestroyerId: string | null;
 
+  // Total strength cards in play (scales with player count)
+  totalStrengthCards: number;
+
   // Endgame / scoring
   winnerIds: string[];
 
@@ -266,7 +269,16 @@ const STARTING_CUBES = 20;
 const BASE_INCOME = 5;
 const BASE_DISTANCE_TO_IMPACT = 18;
 const BASE_MAX_ROCKETS = 3;
-const TOTAL_STRENGTH_CARDS = 5; // 6 cards created, 1 removed as hidden, 5 to destroy
+
+// Strength card scaling by player count:
+// - 2 players: 4 strength cards
+// - 3 players: 5 strength cards (baseline)
+// - 4 players: 6 strength cards
+function getStrengthCardCount(playerCount: number): number {
+  if (playerCount <= 2) return 4;
+  if (playerCount >= 4) return 6;
+  return 5; // 3 players is baseline
+}
 
 // ============================================================================
 // DECK CREATION HELPERS
@@ -286,11 +298,13 @@ function createMovementDeck(): MovementCard[] {
   return cards;
 }
 
-function createStrengthDeck(): StrengthCard[] {
+function createStrengthDeck(count: number): StrengthCard[] {
   const cards: StrengthCard[] = [];
   let idCounter = 1;
-  // Create 6 strength cards with values 4-9
-  for (let strength = 4; strength <= 9; strength++) {
+  // Create strength cards with values starting from 4
+  // For 4 cards: values 4-7, for 5 cards: values 4-8, for 6 cards: values 4-9
+  for (let i = 0; i < count; i++) {
+    const strength = 4 + i;
     cards.push({
       id: `S${idCounter++}`,
       baseStrength: strength,
@@ -511,6 +525,7 @@ function initialState(players: Player[]): CometRushState {
     turnMeta: null,
     lastCardResult: null,
     finalDestroyerId: null,
+    totalStrengthCards: 0, // Set during START_GAME based on player count
     winnerIds: [],
     earthDestroyed: false,
     cometDestroyed: false,
@@ -535,14 +550,15 @@ function reducer(
       const isHost = ctx.room.hostId === ctx.playerId;
       if (!isHost || state.phase !== "lobby") return state;
 
+      // Calculate strength card count based on player count
+      const playerCount = state.playerOrder.length;
+      const strengthCardCount = getStrengthCardCount(playerCount);
+
       // Build and shuffle decks
       const movementDeck = shuffle(createMovementDeck(), ctx.random);
-      const fullStrengthDeck = shuffle(createStrengthDeck(), ctx.random);
+      const strengthDeck = shuffle(createStrengthDeck(strengthCardCount), ctx.random);
       const engineeringDeck = shuffle(createEngineeringDeck(), ctx.random);
       const politicalDeck = shuffle(createPoliticalDeck(), ctx.random);
-
-      // Remove one strength card (hidden card) - players don't know the comet's true total
-      const strengthDeck = fullStrengthDeck.slice(1);
 
       // Deal initial hands: 2 Engineering + 2 Political cards each
       const updatedPlayers = { ...state.players };
@@ -574,6 +590,7 @@ function reducer(
         round: 1,
         movementDeck,
         strengthDeck,
+        totalStrengthCards: strengthCardCount,
         engineeringDeck: currentEngineeringDeck,
         engineeringDiscard: [],
         politicalDeck: currentPoliticalDeck,
@@ -1286,7 +1303,7 @@ function reducer(
         0
       ) + (destroyed ? 1 : 0);
 
-      const cometDestroyed = totalDestroyed >= TOTAL_STRENGTH_CARDS && !updatedStrengthCard && strengthDeck.length === 0;
+      const cometDestroyed = totalDestroyed >= state.totalStrengthCards && !updatedStrengthCard && strengthDeck.length === 0;
 
       if (cometDestroyed) {
         const newState = {
