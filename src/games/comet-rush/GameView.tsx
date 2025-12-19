@@ -1507,8 +1507,8 @@ export function CometRushGameView({
             onToggle={() => toggleInfoSection("players")}
           />
 
-          {/* Bottom spacing for fixed bar - extra tall to accommodate expanded action panels */}
-          <div className="h-96" />
+          {/* Extra bottom spacing for expanded action panels */}
+          <div className="h-48" />
 
           {/* Fixed Bottom Bar */}
           <div

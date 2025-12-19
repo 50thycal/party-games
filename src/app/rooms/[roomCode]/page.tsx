@@ -281,7 +281,10 @@ export default function RoomPage() {
   const isInGameplay = gameState && (gameState as { phase?: string })?.phase !== "lobby";
 
   return (
-    <main className={`min-h-screen ${isInGameplay ? "p-4" : "flex flex-col items-center justify-center p-8"}`}>
+    <main
+      className={`min-h-screen ${isInGameplay ? "p-4" : "flex flex-col items-center justify-center p-8"}`}
+      style={isInGameplay ? { paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' } : undefined}
+    >
       <div className={`w-full ${isInGameplay ? "max-w-lg mx-auto" : "max-w-md"}`}>
         {/* Action Error Toast */}
         {actionError && (
