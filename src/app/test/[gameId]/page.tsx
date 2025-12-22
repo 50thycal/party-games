@@ -1628,6 +1628,32 @@ function runLLMCometRushSimulation(
             continue;
           }
 
+          // Get card type for validation
+          const cardType = (cardInHand as { cardType?: string }).cardType;
+
+          // Validate required targets based on card type
+          const needsTargetPlayer = ["RESOURCE_SEIZURE", "TECHNOLOGY_THEFT", "EMBARGO", "SABOTAGE", "REGULATORY_REVIEW"];
+          const needsTargetRocket = ["STREAMLINED_ASSEMBLY", "REGULATORY_REVIEW"];
+          const needsPeekChoice = ["COMET_RESEARCH"];
+
+          if (needsTargetPlayer.includes(cardType || "") && !payload.targetPlayerId) {
+            console.warn(`[LLM] PLAY_CARD rejected: ${cardType} requires targetPlayerId`);
+            actionHistory.push(`PLAY_FAILED(missing_targetPlayerId:${cardType})`);
+            continue;
+          }
+
+          if (needsTargetRocket.includes(cardType || "") && !payload.targetRocketId) {
+            console.warn(`[LLM] PLAY_CARD rejected: ${cardType} requires targetRocketId`);
+            actionHistory.push(`PLAY_FAILED(missing_targetRocketId:${cardType})`);
+            continue;
+          }
+
+          if (needsPeekChoice.includes(cardType || "") && !payload.peekChoice) {
+            console.warn(`[LLM] PLAY_CARD rejected: ${cardType} requires peekChoice ("strength" or "movement")`);
+            actionHistory.push(`PLAY_FAILED(missing_peekChoice:${cardType})`);
+            continue;
+          }
+
           const handSizeBefore = player?.hand.length ?? 0;
 
           const cardPayload = {

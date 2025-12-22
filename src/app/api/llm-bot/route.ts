@@ -155,6 +155,120 @@ ${rockets || "  (none)"}
 ${hand || "  (empty)"}`;
 }
 
+// Analyze which cards can actually be played right now
+function analyzePlayableCards(state: CometRushState, playerId: string): string[] {
+  const player = state.players[playerId];
+  const otherPlayers = Object.values(state.players).filter(p => p.id !== playerId);
+  const playableCards: string[] = [];
+
+  for (const card of player.hand) {
+    const cardType = card.deck === "engineering"
+      ? (card as { cardType: string }).cardType
+      : (card as { cardType: string }).cardType;
+
+    // Check if card can be played based on its requirements
+    switch (cardType) {
+      // Cards that need no target - always playable
+      case "BOOST_POWER":
+        if (player.upgrades.powerCap < 6) {
+          playableCards.push(`${card.id}: ${card.name} - just use cardId, no target needed`);
+        } else {
+          playableCards.push(`${card.id}: ${card.name} - CANNOT PLAY (power cap already 6)`);
+        }
+        break;
+      case "IMPROVE_ACCURACY":
+        if (player.upgrades.accuracyCap < 6) {
+          playableCards.push(`${card.id}: ${card.name} - just use cardId, no target needed`);
+        } else {
+          playableCards.push(`${card.id}: ${card.name} - CANNOT PLAY (accuracy cap already 6)`);
+        }
+        break;
+      case "INCREASE_INCOME":
+        if (player.upgrades.incomeBonus < 3) {
+          playableCards.push(`${card.id}: ${card.name} - just use cardId, no target needed`);
+        } else {
+          playableCards.push(`${card.id}: ${card.name} - CANNOT PLAY (income bonus already +3)`);
+        }
+        break;
+      case "ROCKET_SALVAGE":
+        if (player.upgrades.salvageBonus < 3) {
+          playableCards.push(`${card.id}: ${card.name} - just use cardId, no target needed`);
+        } else {
+          playableCards.push(`${card.id}: ${card.name} - CANNOT PLAY (salvage bonus already +3)`);
+        }
+        break;
+      case "MASS_PRODUCTION": {
+        const buildingRockets = player.rockets.filter(r => r.status === "building");
+        if (buildingRockets.length > 0) {
+          playableCards.push(`${card.id}: ${card.name} - just use cardId (affects ${buildingRockets.length} building rocket(s))`);
+        } else {
+          playableCards.push(`${card.id}: ${card.name} - CANNOT PLAY (no rockets building)`);
+        }
+        break;
+      }
+      case "REROLL_PROTOCOL":
+      case "EMERGENCY_FUNDING":
+      case "PUBLIC_DONATION_DRIVE":
+      case "INTERNATIONAL_GRANT":
+        playableCards.push(`${card.id}: ${card.name} - just use cardId, no target needed`);
+        break;
+
+      // Cards that need targetRocketId (your own building rocket)
+      case "STREAMLINED_ASSEMBLY": {
+        const buildingRockets = player.rockets.filter(r => r.status === "building");
+        if (buildingRockets.length > 0) {
+          const targets = buildingRockets.map(r => r.id).join(", ");
+          playableCards.push(`${card.id}: ${card.name} - needs targetRocketId (your building rockets: ${targets})`);
+        } else {
+          playableCards.push(`${card.id}: ${card.name} - CANNOT PLAY (no rockets building)`);
+        }
+        break;
+      }
+
+      // Cards that need peekChoice
+      case "COMET_RESEARCH":
+        playableCards.push(`${card.id}: ${card.name} - needs peekChoice: "strength" or "movement"`);
+        break;
+
+      // Cards that need targetPlayerId (another player)
+      case "RESOURCE_SEIZURE":
+      case "TECHNOLOGY_THEFT":
+      case "EMBARGO":
+      case "SABOTAGE": {
+        if (otherPlayers.length > 0) {
+          const targets = otherPlayers.map(p => p.id).join(", ");
+          playableCards.push(`${card.id}: ${card.name} - needs targetPlayerId (opponents: ${targets})`);
+        } else {
+          playableCards.push(`${card.id}: ${card.name} - CANNOT PLAY (no other players)`);
+        }
+        break;
+      }
+
+      // Cards that need targetPlayerId AND targetRocketId (opponent's building rocket)
+      case "REGULATORY_REVIEW": {
+        const opponentsWithBuildingRockets = otherPlayers.filter(
+          p => p.rockets.some(r => r.status === "building")
+        );
+        if (opponentsWithBuildingRockets.length > 0) {
+          const targets = opponentsWithBuildingRockets.map(p => {
+            const buildingIds = p.rockets.filter(r => r.status === "building").map(r => r.id);
+            return `${p.id} (rockets: ${buildingIds.join(", ")})`;
+          }).join("; ");
+          playableCards.push(`${card.id}: ${card.name} - needs targetPlayerId AND targetRocketId (${targets})`);
+        } else {
+          playableCards.push(`${card.id}: ${card.name} - CANNOT PLAY (no opponents have building rockets)`);
+        }
+        break;
+      }
+
+      default:
+        playableCards.push(`${card.id}: ${card.name} - just use cardId`);
+    }
+  }
+
+  return playableCards;
+}
+
 function formatGameState(state: CometRushState, playerId: string): string {
   const player = state.players[playerId];
   const otherPlayers = Object.values(state.players).filter(p => p.id !== playerId);
@@ -200,6 +314,11 @@ function formatGameState(state: CometRushState, playerId: string): string {
     }
   }
 
+  // Get playable cards analysis
+  const playableCards = analyzePlayableCards(state, playerId);
+  const actuallyPlayable = playableCards.filter(c => !c.includes("CANNOT PLAY"));
+  const unplayable = playableCards.filter(c => c.includes("CANNOT PLAY"));
+
   return `
 === GAME STATE (Round ${state.round}) ===
 
@@ -218,6 +337,10 @@ AVAILABLE ACTIONS:
   - Rocket slots available: ${slotsAvailable} of ${maxRockets} (only ready/building count, spent rockets free up slots)
   - Can build: ${slotsAvailable > 0 && cubes >= 3 ? "YES" : "NO"} (have ${cubes} cubes, power cap ${powerCap}, accuracy cap ${accuracyCap})
 ${affordableConfigs.length > 0 ? "  - Affordable rocket builds:\n    " + affordableConfigs.join("\n    ") : "  - Cannot afford any rockets"}
+
+PLAYABLE CARDS (${actuallyPlayable.length} of ${player.hand.length}):
+${actuallyPlayable.length > 0 ? actuallyPlayable.map(c => "  - " + c).join("\n") : "  (none playable right now)"}
+${unplayable.length > 0 ? "\nCANNOT PLAY:\n" + unplayable.map(c => "  - " + c).join("\n") : ""}
 
 DECK STATUS:
   Engineering deck: ${state.engineeringDeck.length} cards
