@@ -18,10 +18,16 @@ export const runtime = "nodejs";
 const SYSTEM_PROMPT = `You are playing Comet Rush, a cooperative/competitive rocket-building board game. Your goal is to help destroy the comet before it reaches Earth while scoring the most points.
 
 ## GAME OVERVIEW
-- A comet is approaching Earth. Players build and launch rockets to destroy it.
-- The comet has multiple "strength segments" that must be destroyed one by one.
-- Each segment has HP that must be reduced to 0 by rocket hits.
-- The game ends when either: (1) all comet segments are destroyed (players win), or (2) the comet reaches Earth (distance = 0, players lose).
+- A comet is approaching Earth (starts 18 spaces away). Players build and launch rockets to destroy it.
+- The comet has multiple "strength segments" (4-6 depending on player count) that must be destroyed one by one.
+- Each segment has HP (starting from 4 and increasing). A rocket must deal damage ≥ remaining HP to destroy it.
+- After ALL players take a turn, the comet moves 1-3 spaces closer (drawn from movement deck).
+- The game ends when either: (1) all comet segments are destroyed (players win), or (2) the comet reaches Earth (distance ≤ 0, everyone loses).
+
+## STARTING CONDITIONS
+- Each player starts with: 20 resource cubes, 5 income per turn, 2 Engineering cards, 2 Political cards
+- Power cap: 3 (can be raised to 6 with BOOST_POWER cards)
+- Accuracy cap: 3 (can be raised to 6 with IMPROVE_ACCURACY cards)
 
 ## YOUR TURN STRUCTURE
 Each turn you MUST take actions in this order:
@@ -31,48 +37,54 @@ Each turn you MUST take actions in this order:
    - LAUNCH_ROCKET: Launch a ready rocket at the comet
    - BUILD_ROCKET: Spend cubes to build a new rocket
    - PLAY_CARD: Play a card from your hand
-4. END_TURN (mandatory) - Pass to next player, comet moves closer
+4. END_TURN (mandatory) - Pass to next player
 
 ## ROCKET MECHANICS
-- Rockets cost: Power + Accuracy + BuildTimeCost in cubes
-- Power (1-6): Damage dealt on hit
-- Accuracy (1-6): You must roll ≤ accuracy on 1d6 to hit
-- BuildTimeCost (1-3): 1=instant ready, 2=ready next turn, 3=ready in 2 turns
-- You can have max 4 rockets at once (any status)
+- Rockets cost: Power + Accuracy + BuildTimeCost in cubes (e.g., P3/A3/BTC3 = 9 cubes)
+- Power (1 to your power cap): Damage dealt on hit. Must equal or exceed segment's remaining HP to destroy it.
+- Accuracy (1 to your accuracy cap): You roll 1d6; hit if roll ≤ accuracy. Higher = more reliable.
+- BuildTimeCost (1-3): Determines BOTH cube cost AND build delay:
+  - BTC 3 = costs 3 extra cubes but rocket is INSTANTLY ready (0 turns wait)
+  - BTC 2 = costs 2 extra cubes, rocket ready NEXT turn (1 turn wait)
+  - BTC 1 = costs 1 extra cube, rocket ready in 2 TURNS (2 turn wait)
+- You can have max 3 active rockets (building + ready). Spent/launched rockets don't count toward this limit.
 
 ## CARD TYPES
 
 ### Engineering Cards (boost your capabilities):
 - BOOST_POWER: Permanently raise your power cap by 1 (max 6)
 - IMPROVE_ACCURACY: Permanently raise your accuracy cap by 1 (max 6)
-- STREAMLINED_ASSEMBLY: Reduce build time of one of your building rockets by 1
+- STREAMLINED_ASSEMBLY: Reduce build time of one of your building rockets by 1. Requires targetRocketId.
 - MASS_PRODUCTION: Reduce build time of ALL your building rockets by 1
-- INCREASE_INCOME: +1 income permanently (stacks up to 3)
-- ROCKET_SALVAGE: +1 cube refund per launch (stacks up to 3)
-- REROLL_PROTOCOL: Get a re-roll token (use after a miss to re-roll)
-- COMET_RESEARCH: Peek at top Strength or Movement card
+- INCREASE_INCOME: +1 income permanently (stacks up to +3)
+- ROCKET_SALVAGE: +1 cube refund per launch (stacks up to +3)
+- REROLL_PROTOCOL: Get a re-roll token (automatically used after a miss)
+- COMET_RESEARCH: Peek at top Strength or Movement card. Requires peekChoice: "strength" or "movement".
 
 ### Political Cards (interaction & resources):
-- RESOURCE_SEIZURE: Steal 2 cubes from target player
-- TECHNOLOGY_THEFT: Steal a random card from target player
-- EMBARGO: Target player gains no income next turn
-- SABOTAGE: Force target player to re-roll their next launch
-- REGULATORY_REVIEW: Add +1 build time to target player's rocket
-- EMERGENCY_FUNDING: Gain 6 cubes immediately
-- PUBLIC_DONATION_DRIVE: Gain 1 cube per rocket you own
-- INTERNATIONAL_GRANT: You gain 5 cubes, all others gain 1
+- RESOURCE_SEIZURE: Steal 2 cubes from target player. Requires targetPlayerId.
+- TECHNOLOGY_THEFT: Steal a random card from target player. Requires targetPlayerId.
+- EMBARGO: Target player gains no income next turn. Requires targetPlayerId.
+- SABOTAGE: Force target player to re-roll their next launch. Requires targetPlayerId.
+- REGULATORY_REVIEW: Add +1 build time to target player's building rocket. Requires targetPlayerId AND targetRocketId.
+- EMERGENCY_FUNDING: Gain your current income (base + bonus) immediately
+- PUBLIC_DONATION_DRIVE: Gain 1 cube per active rocket you have (building + ready)
+- INTERNATIONAL_GRANT: You gain 5 cubes, all other players gain 1 cube each
 
 ## WINNING & SCORING
 - If comet destroyed: Player with most trophy points wins
 - Trophy points = sum of base strength of segments YOU destroyed
-- Bonus: +3 points for destroying the final segment
+- Bonus: +5 points for destroying the FINAL segment (game-winning hit)
+- If comet reaches Earth: Everyone loses, but highest score is "best loser"
 
 ## STRATEGY TIPS
-- Balance offense (rockets) with economy (income cards)
-- High accuracy is often better than high power early game
-- Save sabotage/embargo for critical moments
-- STREAMLINED_ASSEMBLY can make a building rocket ready faster
-- COMET_RESEARCH helps plan for comet strength/movement
+- Early game priority: Raise accuracy cap to 5-6 first (83-100% hit chance is much better than 50%)
+- Power only matters for destroying segments - a P1 rocket still deals 1 damage on hit
+- BTC 3 (instant) rockets cost more but let you respond immediately; good for finishing off weak segments
+- BTC 1 (cheap) rockets are economical for building up your rocket fleet over time
+- INCREASE_INCOME cards compound over time - playing them early gives the most benefit
+- Political cards against the leader can balance the game; save EMBARGO/SABOTAGE for critical moments
+- COMET_RESEARCH (peek at movement) helps predict how many turns remain before impact
 
 ## RESPONSE FORMAT
 You must respond with valid JSON only:
@@ -129,12 +141,15 @@ function formatPlayerState(player: CometRushPlayerState, isYou: boolean): string
   if (player.isEmbargoed) upgrades.push("EMBARGOED (no income this turn)");
   if (player.mustRerollNextLaunch) upgrades.push("SABOTAGED (must re-roll next launch)");
 
+  const maxRockets = player.maxConcurrentRockets;
+  const slotsAvailable = maxRockets - activeRockets;
+
   return `${prefix}:
   Resources: ${player.resourceCubes} cubes
   Base Income: ${player.baseIncome} + ${player.upgrades.incomeBonus} bonus = ${player.baseIncome + player.upgrades.incomeBonus}/turn
   Upgrades: ${upgrades.length > 0 ? upgrades.join(", ") : "none"}
   Trophies: ${player.trophies.length} segments (${player.trophies.reduce((sum, t) => sum + t.baseStrength, 0)} points)
-  Rockets: ${activeRockets} active (${readyRockets.length} ready, ${buildingRockets.length} building), ${spentRockets.length} spent, ${4 - activeRockets} slots free
+  Rockets: ${activeRockets}/${maxRockets} active (${readyRockets.length} ready, ${buildingRockets.length} building), ${spentRockets.length} spent, ${slotsAvailable} slots free
 ${rockets || "  (none)"}
   Hand:
 ${hand || "  (empty)"}`;
@@ -151,7 +166,8 @@ function formatGameState(state: CometRushState, playerId: string): string {
   const readyRockets = player.rockets.filter(r => r.status === "ready");
   const buildingRockets = player.rockets.filter(r => r.status === "building");
   const activeRocketCount = readyRockets.length + buildingRockets.length;
-  const slotsAvailable = 4 - activeRocketCount;
+  const maxRockets = player.maxConcurrentRockets;
+  const slotsAvailable = maxRockets - activeRocketCount;
 
   // Calculate what rockets the player can actually afford
   const cubes = player.resourceCubes;
@@ -199,7 +215,7 @@ ${otherPlayers.map(p => formatPlayerState(p, false)).join("\n\n")}
 
 AVAILABLE ACTIONS:
   - Ready rockets to launch: ${readyRockets.length > 0 ? readyRockets.map(r => `"${r.id}" (P${r.power}/A${r.accuracy})`).join(", ") : "none"}
-  - Rocket slots available: ${slotsAvailable} of 4 (only ready/building count, spent rockets free up slots)
+  - Rocket slots available: ${slotsAvailable} of ${maxRockets} (only ready/building count, spent rockets free up slots)
   - Can build: ${slotsAvailable > 0 && cubes >= 3 ? "YES" : "NO"} (have ${cubes} cubes, power cap ${powerCap}, accuracy cap ${accuracyCap})
 ${affordableConfigs.length > 0 ? "  - Affordable rocket builds:\n    " + affordableConfigs.join("\n    ") : "  - Cannot afford any rockets"}
 
@@ -226,8 +242,9 @@ function getValidActions(state: CometRushState, playerId: string): string[] {
     actions.push("LAUNCH_ROCKET");
   }
 
-  // Check if can build
-  const canBuild = player.rockets.length < 4 && player.resourceCubes >= 3;
+  // Check if can build (only active rockets count toward limit)
+  const activeRockets = player.rockets.filter(r => r.status === "ready" || r.status === "building").length;
+  const canBuild = activeRockets < player.maxConcurrentRockets && player.resourceCubes >= 3;
   if (canBuild) {
     actions.push("BUILD_ROCKET");
   }
