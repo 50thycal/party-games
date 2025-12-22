@@ -48,6 +48,8 @@ interface SimLogEntry {
   canBuildRocket: boolean;
   rocketSlotFull: boolean;
   hasReadyRocket: boolean;
+  // LLM bot reasoning (optional)
+  reasoning?: string;
 }
 
 interface SimulationAnalytics {
@@ -1215,6 +1217,415 @@ function runCometRushSimulation(
 }
 
 // ============================================================================
+// LLM BOT SIMULATION
+// ============================================================================
+
+interface LLMBotResponse {
+  ok: boolean;
+  action?: string;
+  payload?: Record<string, unknown>;
+  reasoning?: string;
+  error?: string;
+}
+
+async function callLLMBot(
+  state: CometRushState,
+  playerId: string,
+  turnPhase: "begin" | "draw" | "actions" | "end",
+  actionHistory: string[]
+): Promise<LLMBotResponse> {
+  try {
+    const response = await fetch("/api/llm-bot", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ state, playerId, turnPhase, actionHistory }),
+    });
+    return await response.json();
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Network error" };
+  }
+}
+
+function runLLMCometRushSimulation(
+  playerCount: number,
+  maxRounds: number = MAX_ROUNDS_PER_GAME,
+  onProgress?: (message: string) => void
+): Promise<{ summary: SimSummary; log: SimLogEntry[]; aborted?: boolean }> {
+  return new Promise((resolve) => {
+    console.log(`[LLM Simulation] Starting game with ${playerCount} players, maxRounds=${maxRounds}`);
+    onProgress?.(`Starting LLM game with ${playerCount} players...`);
+
+    const players = createTestPlayers(playerCount);
+    const room = createTestRoom(players);
+    let seed = Date.now();
+
+    // Create initial state
+    let state = cometRushGame.initialState(players);
+
+    // Start game (as host)
+    const hostCtx = createGameContext(room, players[0].id, seed++);
+    state = cometRushGame.reducer(state, { type: "START_GAME", playerId: players[0].id }, hostCtx);
+
+    const log: SimLogEntry[] = [];
+    let totalRocketsBuilt = 0;
+    let totalRocketsLaunched = 0;
+
+    // Analytics tracking
+    const builtRockets: RocketRecord[] = [];
+    const launchedRockets: LaunchRecord[] = [];
+
+    // Calculate initial comet state
+    const initialMovementCardsLeft = state.movementDeck.length;
+    const initialStrengthCardsLeft = state.strengthDeck.length;
+    const initialTotalMovementValueLeft = state.distanceToImpact;
+    const initialTotalStrengthValueLeft = state.strengthDeck.reduce(
+      (sum, card) => sum + card.baseStrength,
+      0,
+    ) + (state.activeStrengthCard?.currentStrength ?? 0);
+
+    log.push({
+      id: 0,
+      round: 1,
+      playerId: "SYSTEM",
+      playerLabel: "SYSTEM",
+      personality: "LLM",
+      action: "START_GAME",
+      actionType: "START_GAME",
+      details: `Game started with ${playerCount} players (LLM mode)`,
+      summary: `Game started with ${playerCount} players (LLM mode)`,
+      movementCardsLeft: initialMovementCardsLeft,
+      strengthCardsLeft: initialStrengthCardsLeft,
+      totalMovementValueLeft: initialTotalMovementValueLeft,
+      totalStrengthValueLeft: initialTotalStrengthValueLeft,
+      resources: 0,
+      hand: "-",
+      buildQueue: "[]",
+      readyRockets: "[]",
+      activeSegment: "-",
+      segmentHP: "-",
+      decision: "START_GAME",
+      playableSets: 0,
+      canBuildRocket: false,
+      rocketSlotFull: false,
+      hasReadyRocket: false,
+    });
+
+    // Run simulation loop with safety caps - ASYNC version
+    let safetyCounter = 0;
+    let actionCounter = 0;
+    const maxIterations = maxRounds * playerCount;
+    let aborted = false;
+
+    // Helper to add log entries
+    const addLLMLog = (
+      playerId: string,
+      actionType: string,
+      details: string,
+      decision: string,
+      reasoning?: string
+    ) => {
+      const player = state.players[playerId];
+      if (!player) return;
+
+      const hand = player.hand.map((c) => {
+        const type = c.deck === "engineering"
+          ? (c as EngineeringCard).cardType
+          : (c as PoliticalCard).cardType;
+        const abbrev = type.substring(0, 3).toUpperCase();
+        return abbrev;
+      });
+      const handCounts: Record<string, number> = {};
+      hand.forEach((h) => {
+        handCounts[h] = (handCounts[h] || 0) + 1;
+      });
+      const handStr = Object.entries(handCounts)
+        .map(([k, v]) => `${k}x${v}`)
+        .join(", ") || "-";
+
+      const buildQueue = player.rockets
+        .filter((r) => r.status === "building")
+        .map((r) => `P${r.power}/A${r.accuracy}`)
+        .join(", ");
+      const readyRockets = player.rockets
+        .filter((r) => r.status === "ready")
+        .map((r) => `P${r.power}/A${r.accuracy}`)
+        .join(", ");
+
+      const activeSegment = state.activeStrengthCard
+        ? `${state.activeStrengthCard.id}`
+        : "-";
+      const segmentHP = state.activeStrengthCard
+        ? `${state.activeStrengthCard.currentStrength}`
+        : "-";
+
+      const maxSlots = player.maxConcurrentRockets + player.upgrades.maxRocketsBonus;
+      const currentSlots = player.rockets.filter(
+        (r) => r.status === "ready" || r.status === "building"
+      ).length;
+      const canBuild = player.resourceCubes >= 3 && currentSlots < maxSlots;
+
+      log.push({
+        id: log.length,
+        round: state.round,
+        playerId,
+        playerLabel: playerId,
+        personality: "LLM",
+        action: actionType,
+        actionType,
+        details,
+        summary: details,
+        movementCardsLeft: state.movementDeck.length,
+        strengthCardsLeft: state.strengthDeck.length,
+        totalMovementValueLeft: state.distanceToImpact,
+        totalStrengthValueLeft: state.strengthDeck.reduce((sum, c) => sum + c.baseStrength, 0) +
+          (state.activeStrengthCard?.currentStrength ?? 0),
+        resources: player.resourceCubes,
+        hand: handStr,
+        buildQueue: `[${buildQueue}]`,
+        readyRockets: `[${readyRockets}]`,
+        activeSegment,
+        segmentHP,
+        decision,
+        playableSets: player.hand.length,
+        canBuildRocket: canBuild,
+        rocketSlotFull: currentSlots >= maxSlots,
+        hasReadyRocket: player.rockets.some((r) => r.status === "ready"),
+        reasoning,
+      });
+    };
+
+    async function runLLMTurn() {
+      // Check exit conditions
+      if (state.phase !== "playing" || safetyCounter >= maxIterations || actionCounter >= MAX_ACTIONS_PER_GAME) {
+        // Simulation complete - finalize
+        if (state.phase === "playing" && safetyCounter >= maxIterations) {
+          console.warn(`[LLM Simulation] ABORTED: Hit MAX_ROUNDS (${maxRounds}) at round ${state.round}`);
+          aborted = true;
+        }
+        if (actionCounter >= MAX_ACTIONS_PER_GAME) {
+          console.warn(`[LLM Simulation] ABORTED: Hit MAX_ACTIONS_PER_GAME (${MAX_ACTIONS_PER_GAME}) at round ${state.round}`);
+          aborted = true;
+        }
+
+        console.log(`[LLM Simulation] Finished: ${state.phase}, rounds=${state.round}, actions=${actionCounter}, aborted=${aborted}`);
+
+        // Compute analytics
+        const analytics = computeAnalytics(builtRockets, launchedRockets, state);
+
+        // Build summary
+        const scores = calculateScores(state);
+        const winner = state.winnerIds.length > 0
+          ? state.winnerIds.map((id) => state.players[id]?.name ?? id).join(", ")
+          : null;
+
+        const summary: SimSummary = {
+          totalRounds: state.round,
+          winner,
+          earthDestroyed: state.earthDestroyed,
+          cometDestroyed: state.cometDestroyed,
+          playerScores: Object.fromEntries(
+            Object.entries(scores).map(([id, score]) => [state.players[id]?.name ?? id, score])
+          ),
+          totalRocketsBuilt,
+          totalRocketsLaunched,
+          analytics,
+        };
+
+        // Assign IDs to log entries
+        const logWithIds = log.map((entry, index) => ({
+          ...entry,
+          id: index + 1,
+        }));
+
+        resolve({ summary, log: logWithIds, aborted });
+        return;
+      }
+
+      // Run one turn
+      safetyCounter++;
+      const activePlayerId = state.playerOrder[state.activePlayerIndex];
+      const actionHistory: string[] = [];
+
+      onProgress?.(`Round ${state.round}: ${activePlayerId}'s turn...`);
+
+      // Dispatch helper
+      const dispatch = (action: CometRushAction): boolean => {
+        const ctx = createGameContext(room, activePlayerId, seed++);
+        const allowed = cometRushGame.isActionAllowed?.(state, action, ctx) ?? true;
+        if (allowed) {
+          state = cometRushGame.reducer(state, action, ctx);
+          actionCounter++;
+          return true;
+        }
+        return false;
+      };
+
+      // Phase 1: BEGIN_TURN
+      let llmResult = await callLLMBot(state, activePlayerId, "begin", actionHistory);
+      if (llmResult.ok && llmResult.action === "BEGIN_TURN") {
+        if (dispatch({ type: "BEGIN_TURN", playerId: activePlayerId })) {
+          const player = state.players[activePlayerId];
+          actionHistory.push("BEGIN_TURN");
+          addLLMLog(
+            activePlayerId,
+            "BEGIN_TURN",
+            `Income: +${state.turnMeta?.incomeGained ?? 0} cubes (total: ${player?.resourceCubes ?? 0})`,
+            "LLM chose BEGIN_TURN",
+            llmResult.reasoning
+          );
+        }
+      } else {
+        // Fallback: force BEGIN_TURN
+        dispatch({ type: "BEGIN_TURN", playerId: activePlayerId });
+        actionHistory.push("BEGIN_TURN");
+        addLLMLog(activePlayerId, "BEGIN_TURN", "Forced BEGIN_TURN", "Fallback", llmResult.reasoning || llmResult.error);
+      }
+
+      // Phase 2: DRAW_CARD
+      llmResult = await callLLMBot(state, activePlayerId, "draw", actionHistory);
+      if (llmResult.ok && llmResult.action === "DRAW_CARD" && llmResult.payload?.deck) {
+        const deck = llmResult.payload.deck as CardDeckType;
+        if (dispatch({ type: "DRAW_CARD", playerId: activePlayerId, payload: { deck } })) {
+          const cardId = state.turnMeta?.lastDrawnCardId;
+          actionHistory.push(`DRAW_CARD(${deck})`);
+          addLLMLog(
+            activePlayerId,
+            "DRAW_CARD",
+            `Drew from ${deck}: ${cardId ?? "none"}`,
+            `LLM chose ${deck}`,
+            llmResult.reasoning
+          );
+        }
+      } else {
+        // Fallback: draw engineering
+        dispatch({ type: "DRAW_CARD", playerId: activePlayerId, payload: { deck: "engineering" } });
+        actionHistory.push("DRAW_CARD(engineering)");
+        addLLMLog(activePlayerId, "DRAW_CARD", "Fallback draw", "Fallback", llmResult.reasoning || llmResult.error);
+      }
+
+      // Phase 3: Free actions (loop until END_TURN)
+      let freeActionCount = 0;
+      const maxFreeActions = 20;
+
+      while (freeActionCount < maxFreeActions) {
+        freeActionCount++;
+        llmResult = await callLLMBot(state, activePlayerId, "actions", actionHistory);
+
+        if (!llmResult.ok) {
+          console.warn(`[LLM] Error in actions phase: ${llmResult.error}`);
+          break;
+        }
+
+        const action = llmResult.action;
+        const payload = llmResult.payload || {};
+
+        if (action === "END_TURN") {
+          if (dispatch({ type: "END_TURN", playerId: activePlayerId })) {
+            addLLMLog(
+              activePlayerId,
+              "END_TURN",
+              `Distance to impact: ${state.distanceToImpact}`,
+              "LLM chose END_TURN",
+              llmResult.reasoning
+            );
+          }
+          break;
+        }
+
+        if (action === "LAUNCH_ROCKET" && payload.rocketId) {
+          const rocketId = payload.rocketId as string;
+          const player = state.players[activePlayerId];
+          const rocket = player?.rockets.find((r) => r.id === rocketId);
+          const rocketStats = rocket ? { power: rocket.power, accuracy: rocket.accuracy, buildTimeBase: rocket.buildTimeBase } : null;
+
+          if (dispatch({ type: "LAUNCH_ROCKET", playerId: activePlayerId, payload: { rocketId } })) {
+            totalRocketsLaunched++;
+            const result = state.lastLaunchResult;
+            if (result && rocketStats) {
+              const damage = result.destroyed
+                ? result.strengthBefore
+                : (result.hit ? Math.max(0, result.strengthBefore - result.strengthAfter) : 0);
+              launchedRockets.push({ ...rocketStats, hit: result.hit, damage, destroyed: result.destroyed });
+              const hitMiss = result.hit ? "HIT" : "MISS";
+              const destroyed = result.destroyed ? " - DESTROYED!" : "";
+              actionHistory.push(`LAUNCH(${hitMiss})`);
+              addLLMLog(
+                activePlayerId,
+                "LAUNCH_ROCKET",
+                `Roll ${result.diceRoll} vs ${result.accuracyNeeded}: ${hitMiss}${destroyed}`,
+                "LLM chose LAUNCH",
+                llmResult.reasoning
+              );
+            }
+          }
+          continue;
+        }
+
+        if (action === "BUILD_ROCKET" && payload.power && payload.accuracy && payload.buildTimeCost) {
+          const config = {
+            power: payload.power as number,
+            accuracy: payload.accuracy as number,
+            buildTimeBase: payload.buildTimeCost as number,
+          };
+          if (dispatch({ type: "BUILD_ROCKET", playerId: activePlayerId, payload: config })) {
+            totalRocketsBuilt++;
+            builtRockets.push(config);
+            actionHistory.push(`BUILD(P${config.power}/A${config.accuracy})`);
+            addLLMLog(
+              activePlayerId,
+              "BUILD_ROCKET",
+              `P=${config.power}, A=${config.accuracy}, BTC=${config.buildTimeBase}`,
+              "LLM chose BUILD",
+              llmResult.reasoning
+            );
+          }
+          continue;
+        }
+
+        if (action === "PLAY_CARD" && payload.cardId) {
+          const cardPayload = {
+            cardId: payload.cardId as string,
+            targetPlayerId: payload.targetPlayerId as string | undefined,
+            targetRocketId: payload.targetRocketId as string | undefined,
+            peekChoice: payload.peekChoice as "strength" | "movement" | undefined,
+          };
+          if (dispatch({ type: "PLAY_CARD", playerId: activePlayerId, payload: cardPayload })) {
+            const cardResult = state.lastCardResult;
+            actionHistory.push(`PLAY(${cardResult?.cardName ?? payload.cardId})`);
+            addLLMLog(
+              activePlayerId,
+              "PLAY_CARD",
+              cardResult?.description ?? `Played ${payload.cardId}`,
+              "LLM chose PLAY_CARD",
+              llmResult.reasoning
+            );
+          }
+          continue;
+        }
+
+        // Unknown action - end turn as fallback
+        console.warn(`[LLM] Unknown action: ${action}, forcing END_TURN`);
+        dispatch({ type: "END_TURN", playerId: activePlayerId });
+        addLLMLog(activePlayerId, "END_TURN", "Forced END_TURN (unknown action)", "Fallback");
+        break;
+      }
+
+      // If we hit max free actions without ending turn, force it
+      if (freeActionCount >= maxFreeActions) {
+        dispatch({ type: "END_TURN", playerId: activePlayerId });
+        addLLMLog(activePlayerId, "END_TURN", "Forced END_TURN (max actions)", "Fallback");
+      }
+
+      // Continue to next turn
+      setTimeout(runLLMTurn, 0);
+    }
+
+    // Start the async loop
+    runLLMTurn();
+  });
+}
+
+// ============================================================================
 // COMPONENT
 // ============================================================================
 
@@ -1227,6 +1638,10 @@ export default function TestGamePage() {
   const [summary, setSummary] = useState<SimSummary | null>(null);
   const [log, setLog] = useState<SimLogEntry[]>([]);
   const [isRunning, setIsRunning] = useState(false);
+
+  // LLM bot mode
+  const [useLLMBot, setUseLLMBot] = useState(false);
+  const [llmProgress, setLLMProgress] = useState<string | null>(null);
 
   // All simulation runs
   const [simRows, setSimRows] = useState<SimRow[]>([]);
@@ -1261,9 +1676,14 @@ export default function TestGamePage() {
     setIsRunning(true);
     setSummary(null);
     setLog([]);
+    setLLMProgress(null);
 
-    // Run async simulation
-    const result = await runCometRushSimulation(playerCount);
+    // Run async simulation (LLM or hardcoded)
+    const result = useLLMBot
+      ? await runLLMCometRushSimulation(playerCount, MAX_ROUNDS_PER_GAME, setLLMProgress)
+      : await runCometRushSimulation(playerCount);
+
+    setLLMProgress(null);
 
     // Add aborted flag to summary if present
     const summaryWithAborted: SimSummary = {
@@ -1297,7 +1717,7 @@ export default function TestGamePage() {
 
     setSimRows((prev) => [...prev, row]);
     setNextId((id) => id + 1);
-  }, [playerCount, nextId]);
+  }, [playerCount, nextId, useLLMBot]);
 
   // Sorting logic
   const handleSort = useCallback((column: SortKey) => {
@@ -1524,6 +1944,7 @@ export default function TestGamePage() {
       "slotFull",
       "hasReady",
       "details",
+      "reasoning",
     ];
 
     const lines = [
@@ -1550,6 +1971,7 @@ export default function TestGamePage() {
           row.rocketSlotFull,
           row.hasReadyRocket,
           row.summary.replace(/\s+/g, " "),
+          (row.reasoning || "").replace(/\s+/g, " "),
         ].join("\t"),
       ),
     ];
@@ -1568,20 +1990,45 @@ export default function TestGamePage() {
       <h1 className="text-3xl font-bold mb-2">Test: {gameId}</h1>
       <p className="text-gray-400 mb-6">{playerCount} players</p>
 
-      <div className="flex gap-4 mb-8">
-        <button
-          onClick={runSimulation}
-          disabled={isRunning}
-          className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
-        >
-          {isRunning ? "Running..." : "Run Simulation"}
-        </button>
-        <Link
-          href="/test"
-          className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
-        >
-          Back
-        </Link>
+      <div className="flex flex-col items-center gap-4 mb-8">
+        <div className="flex gap-4 items-center">
+          <button
+            onClick={runSimulation}
+            disabled={isRunning}
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
+          >
+            {isRunning ? "Running..." : "Run Simulation"}
+          </button>
+          <Link
+            href="/test"
+            className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
+          >
+            Back
+          </Link>
+        </div>
+
+        {/* LLM Bot Toggle */}
+        <label className="flex items-center gap-3 cursor-pointer">
+          <span className="text-sm text-gray-400">Hardcoded Bots</span>
+          <div className="relative">
+            <input
+              type="checkbox"
+              checked={useLLMBot}
+              onChange={(e) => setUseLLMBot(e.target.checked)}
+              disabled={isRunning}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+          </div>
+          <span className="text-sm text-gray-400">LLM Bots (GPT-4o-mini)</span>
+        </label>
+
+        {/* LLM Progress */}
+        {llmProgress && (
+          <div className="text-sm text-purple-400 animate-pulse">
+            {llmProgress}
+          </div>
+        )}
       </div>
 
       {/* Simulation Runs Table */}
@@ -2014,6 +2461,7 @@ export default function TestGamePage() {
                         (logSortDir === "asc" ? "↑" : "↓")}
                     </th>
                     <th className="px-2 py-1">Details</th>
+                    <th className="px-2 py-1 text-purple-400">Reasoning</th>
                   </tr>
 
                   {/* Filter row */}
@@ -2129,6 +2577,7 @@ export default function TestGamePage() {
                         placeholder="search"
                       />
                     </th>
+                    <th className="px-2 py-1"></th>
                   </tr>
                 </thead>
 
@@ -2136,7 +2585,7 @@ export default function TestGamePage() {
                   {filteredActionLog.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={12}
+                        colSpan={13}
                         className="px-2 py-3 text-center text-[11px] text-slate-500"
                       >
                         No actions to display.
@@ -2187,6 +2636,18 @@ export default function TestGamePage() {
                         </td>
                         <td className="px-2 py-1 text-[11px] text-slate-200">
                           {row.summary}
+                        </td>
+                        <td className="px-2 py-1 text-[11px] text-purple-300 max-w-xs">
+                          {row.reasoning ? (
+                            <span
+                              className="block truncate cursor-help"
+                              title={row.reasoning}
+                            >
+                              {row.reasoning}
+                            </span>
+                          ) : (
+                            <span className="text-slate-600">-</span>
+                          )}
                         </td>
                       </tr>
                     ))
