@@ -1506,9 +1506,20 @@ function runLLMCometRushSimulation(
       // Phase 3: Free actions (loop until END_TURN)
       let freeActionCount = 0;
       const maxFreeActions = 20;
+      let consecutiveFailures = 0;
+      let lastFailedAction = "";
 
       while (freeActionCount < maxFreeActions) {
         freeActionCount++;
+
+        // If we've had 3+ consecutive failures, force end turn
+        if (consecutiveFailures >= 3) {
+          console.warn(`[LLM] 3 consecutive failures, forcing END_TURN`);
+          dispatch({ type: "END_TURN", playerId: activePlayerId });
+          addLLMLog(activePlayerId, "END_TURN", "Forced END_TURN (repeated failures)", "Fallback");
+          break;
+        }
+
         llmResult = await callLLMBot(state, activePlayerId, "actions", actionHistory);
 
         if (!llmResult.ok) {
@@ -1532,6 +1543,9 @@ function runLLMCometRushSimulation(
           break;
         }
 
+        // Track if this action succeeds or fails
+        let actionSucceeded = false;
+
         if (action === "LAUNCH_ROCKET" && payload.rocketId) {
           const rocketId = payload.rocketId as string;
           const player = state.players[activePlayerId];
@@ -1540,6 +1554,7 @@ function runLLMCometRushSimulation(
 
           if (dispatch({ type: "LAUNCH_ROCKET", playerId: activePlayerId, payload: { rocketId } })) {
             totalRocketsLaunched++;
+            actionSucceeded = true;
             const result = state.lastLaunchResult;
             if (result && rocketStats) {
               const damage = result.destroyed
@@ -1558,56 +1573,112 @@ function runLLMCometRushSimulation(
               );
             }
           }
-          continue;
         }
 
         if (action === "BUILD_ROCKET" && payload.power && payload.accuracy && payload.buildTimeCost) {
+          const player = state.players[activePlayerId];
+          const rocketsBefore = player?.rockets.length ?? 0;
+          const resourcesBefore = player?.resourceCubes ?? 0;
+
           const config = {
             power: payload.power as number,
             accuracy: payload.accuracy as number,
             buildTimeBase: payload.buildTimeCost as number,
           };
-          if (dispatch({ type: "BUILD_ROCKET", playerId: activePlayerId, payload: config })) {
-            totalRocketsBuilt++;
-            builtRockets.push(config);
-            actionHistory.push(`BUILD(P${config.power}/A${config.accuracy})`);
-            addLLMLog(
-              activePlayerId,
-              "BUILD_ROCKET",
-              `P=${config.power}, A=${config.accuracy}, BTC=${config.buildTimeBase}`,
-              "LLM chose BUILD",
-              llmResult.reasoning
-            );
+
+          // Validate cost before attempting
+          const cost = config.power + config.accuracy + config.buildTimeBase;
+          if (cost > resourcesBefore) {
+            console.warn(`[LLM] BUILD_ROCKET rejected: cost ${cost} > resources ${resourcesBefore}`);
+            actionHistory.push(`BUILD_FAILED(insufficient_cubes)`);
+            // Don't continue - let the bot try something else or end turn
+          } else if (dispatch({ type: "BUILD_ROCKET", playerId: activePlayerId, payload: config })) {
+            const playerAfter = state.players[activePlayerId];
+            const rocketsAfter = playerAfter?.rockets.length ?? 0;
+
+            // Verify state actually changed
+            if (rocketsAfter > rocketsBefore) {
+              totalRocketsBuilt++;
+              builtRockets.push(config);
+              actionSucceeded = true;
+              actionHistory.push(`BUILD(P${config.power}/A${config.accuracy})`);
+              addLLMLog(
+                activePlayerId,
+                "BUILD_ROCKET",
+                `P=${config.power}, A=${config.accuracy}, BTC=${config.buildTimeBase}`,
+                "LLM chose BUILD",
+                llmResult.reasoning
+              );
+            } else {
+              console.warn(`[LLM] BUILD_ROCKET dispatched but no state change`);
+              actionHistory.push(`BUILD_FAILED(no_change)`);
+            }
           }
-          continue;
         }
 
         if (action === "PLAY_CARD" && payload.cardId) {
+          const player = state.players[activePlayerId];
+          const cardId = payload.cardId as string;
+
+          // Validate card exists in hand
+          const cardInHand = player?.hand.find(c => c.id === cardId);
+          if (!cardInHand) {
+            console.warn(`[LLM] PLAY_CARD rejected: card ${cardId} not in hand`);
+            actionHistory.push(`PLAY_FAILED(card_not_found:${cardId})`);
+            continue;
+          }
+
+          const handSizeBefore = player?.hand.length ?? 0;
+
           const cardPayload = {
-            cardId: payload.cardId as string,
+            cardId,
             targetPlayerId: payload.targetPlayerId as string | undefined,
             targetRocketId: payload.targetRocketId as string | undefined,
             peekChoice: payload.peekChoice as "strength" | "movement" | undefined,
           };
           if (dispatch({ type: "PLAY_CARD", playerId: activePlayerId, payload: cardPayload })) {
-            const cardResult = state.lastCardResult;
-            actionHistory.push(`PLAY(${cardResult?.cardName ?? payload.cardId})`);
-            addLLMLog(
-              activePlayerId,
-              "PLAY_CARD",
-              cardResult?.description ?? `Played ${payload.cardId}`,
-              "LLM chose PLAY_CARD",
-              llmResult.reasoning
-            );
+            const playerAfter = state.players[activePlayerId];
+            const handSizeAfter = playerAfter?.hand.length ?? 0;
+
+            // Verify card was consumed
+            if (handSizeAfter < handSizeBefore) {
+              actionSucceeded = true;
+              const cardResult = state.lastCardResult;
+              actionHistory.push(`PLAY(${cardResult?.cardName ?? cardId})`);
+              addLLMLog(
+                activePlayerId,
+                "PLAY_CARD",
+                cardResult?.description ?? `Played ${cardId}`,
+                "LLM chose PLAY_CARD",
+                llmResult.reasoning
+              );
+            } else {
+              console.warn(`[LLM] PLAY_CARD dispatched but card not consumed`);
+              actionHistory.push(`PLAY_FAILED(not_consumed:${cardId})`);
+            }
           }
-          continue;
         }
 
-        // Unknown action - end turn as fallback
-        console.warn(`[LLM] Unknown action: ${action}, forcing END_TURN`);
-        dispatch({ type: "END_TURN", playerId: activePlayerId });
-        addLLMLog(activePlayerId, "END_TURN", "Forced END_TURN (unknown action)", "Fallback");
-        break;
+        // If no known action matched, it's an unknown action
+        if (!actionSucceeded && action !== "LAUNCH_ROCKET" && action !== "BUILD_ROCKET" && action !== "PLAY_CARD") {
+          console.warn(`[LLM] Unknown action: ${action}, forcing END_TURN`);
+          dispatch({ type: "END_TURN", playerId: activePlayerId });
+          addLLMLog(activePlayerId, "END_TURN", "Forced END_TURN (unknown action)", "Fallback");
+          break;
+        }
+
+        // Track consecutive failures
+        if (actionSucceeded) {
+          consecutiveFailures = 0;
+          lastFailedAction = "";
+        } else {
+          if (action === lastFailedAction) {
+            consecutiveFailures++;
+          } else {
+            consecutiveFailures = 1;
+            lastFailedAction = action || "";
+          }
+        }
       }
 
       // If we hit max free actions without ending turn, force it
