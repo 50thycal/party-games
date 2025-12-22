@@ -99,6 +99,12 @@ IMPORTANT: Only suggest actions that are valid given the current game state. Che
 function formatPlayerState(player: CometRushPlayerState, isYou: boolean): string {
   const prefix = isYou ? "YOU" : player.name;
 
+  // Count rockets by status
+  const readyRockets = player.rockets.filter(r => r.status === "ready");
+  const buildingRockets = player.rockets.filter(r => r.status === "building");
+  const spentRockets = player.rockets.filter(r => r.status === "spent" || r.status === "launched");
+  const activeRockets = readyRockets.length + buildingRockets.length;
+
   const rockets = player.rockets.map(r => {
     const status = r.status === "building"
       ? `building (${r.buildTimeRemaining} turns left)`
@@ -106,11 +112,12 @@ function formatPlayerState(player: CometRushPlayerState, isYou: boolean): string
     return `  - Rocket ${r.id}: P${r.power}/A${r.accuracy} [${status}]`;
   }).join("\n");
 
+  // Show actual card IDs for the player
   const hand = isYou ? player.hand.map(c => {
     const type = c.deck === "engineering"
       ? (c as EngineeringCard).cardType
       : (c as PoliticalCard).cardType;
-    return `  - ${c.id}: ${c.name} (${type}) - ${c.description}`;
+    return `  - ID="${c.id}": ${c.name} (${type}) - ${c.description}`;
   }).join("\n") : `  (${player.hand.length} cards)`;
 
   const upgrades = [];
@@ -127,7 +134,7 @@ function formatPlayerState(player: CometRushPlayerState, isYou: boolean): string
   Base Income: ${player.baseIncome} + ${player.upgrades.incomeBonus} bonus = ${player.baseIncome + player.upgrades.incomeBonus}/turn
   Upgrades: ${upgrades.length > 0 ? upgrades.join(", ") : "none"}
   Trophies: ${player.trophies.length} segments (${player.trophies.reduce((sum, t) => sum + t.baseStrength, 0)} points)
-  Rockets (${player.rockets.length}/4):
+  Rockets: ${activeRockets} active (${readyRockets.length} ready, ${buildingRockets.length} building), ${spentRockets.length} spent, ${4 - activeRockets} slots free
 ${rockets || "  (none)"}
   Hand:
 ${hand || "  (empty)"}`;
@@ -139,12 +146,43 @@ function formatGameState(state: CometRushState, playerId: string): string {
 
   const activeSegment = state.activeStrengthCard
     ? `Segment HP: ${state.activeStrengthCard.currentStrength}/${state.activeStrengthCard.baseStrength}`
-    : "No active segment";
+    : "No active segment (next will appear when you destroy current or there is none)";
 
   const readyRockets = player.rockets.filter(r => r.status === "ready");
   const buildingRockets = player.rockets.filter(r => r.status === "building");
-  const canBuildMore = player.rockets.length < 4;
-  const minRocketCost = 3; // power 1 + accuracy 1 + build 1
+  const activeRocketCount = readyRockets.length + buildingRockets.length;
+  const slotsAvailable = 4 - activeRocketCount;
+
+  // Calculate what rockets the player can actually afford
+  const cubes = player.resourceCubes;
+  const powerCap = player.upgrades.powerCap;
+  const accuracyCap = player.upgrades.accuracyCap;
+
+  // Find max affordable rocket within caps
+  let affordableConfigs: string[] = [];
+  if (slotsAvailable > 0 && cubes >= 3) {
+    // Instant rocket (BTC=3): costs power + accuracy + 3
+    const maxInstantBudget = cubes - 3;
+    if (maxInstantBudget >= 2) {
+      const p = Math.min(powerCap, Math.floor(maxInstantBudget / 2) + 1);
+      const a = Math.min(accuracyCap, maxInstantBudget - p + 2);
+      affordableConfigs.push(`Instant (BTC=3): up to P${Math.min(p, powerCap)}/A${Math.min(a, accuracyCap)} for ${p + a + 3} cubes`);
+    }
+    // 1-turn rocket (BTC=2): costs power + accuracy + 2
+    const maxOneTurnBudget = cubes - 2;
+    if (maxOneTurnBudget >= 2) {
+      const p = Math.min(powerCap, Math.floor(maxOneTurnBudget / 2) + 1);
+      const a = Math.min(accuracyCap, maxOneTurnBudget - p + 2);
+      affordableConfigs.push(`1-turn delay (BTC=2): up to P${Math.min(p, powerCap)}/A${Math.min(a, accuracyCap)} for ${p + a + 2} cubes`);
+    }
+    // 2-turn rocket (BTC=1): costs power + accuracy + 1
+    const maxTwoTurnBudget = cubes - 1;
+    if (maxTwoTurnBudget >= 2) {
+      const p = Math.min(powerCap, Math.floor(maxTwoTurnBudget / 2) + 1);
+      const a = Math.min(accuracyCap, maxTwoTurnBudget - p + 2);
+      affordableConfigs.push(`2-turn delay (BTC=1): up to P${Math.min(p, powerCap)}/A${Math.min(a, accuracyCap)} for ${p + a + 1} cubes`);
+    }
+  }
 
   return `
 === GAME STATE (Round ${state.round}) ===
@@ -160,10 +198,10 @@ OTHER PLAYERS:
 ${otherPlayers.map(p => formatPlayerState(p, false)).join("\n\n")}
 
 AVAILABLE ACTIONS:
-  - Ready rockets to launch: ${readyRockets.length > 0 ? readyRockets.map(r => r.id).join(", ") : "none"}
-  - Can build new rocket: ${canBuildMore && player.resourceCubes >= minRocketCost ? "YES" : "NO"} (need ${minRocketCost}+ cubes, have ${player.resourceCubes})
-  - Rocket slots available: ${4 - player.rockets.length}
-  - Power cap: ${player.upgrades.powerCap}, Accuracy cap: ${player.upgrades.accuracyCap}
+  - Ready rockets to launch: ${readyRockets.length > 0 ? readyRockets.map(r => `"${r.id}" (P${r.power}/A${r.accuracy})`).join(", ") : "none"}
+  - Rocket slots available: ${slotsAvailable} of 4 (only ready/building count, spent rockets free up slots)
+  - Can build: ${slotsAvailable > 0 && cubes >= 3 ? "YES" : "NO"} (have ${cubes} cubes, power cap ${powerCap}, accuracy cap ${accuracyCap})
+${affordableConfigs.length > 0 ? "  - Affordable rocket builds:\n    " + affordableConfigs.join("\n    ") : "  - Cannot afford any rockets"}
 
 DECK STATUS:
   Engineering deck: ${state.engineeringDeck.length} cards
