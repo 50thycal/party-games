@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/cn";
 import { motion, AnimatePresence } from "framer-motion";
 import type { MovementCard } from "../../config";
+import { MissionButton } from "../controls/MissionButton";
 
 interface RoundEndSequenceProps {
   movementCard: MovementCard;
@@ -19,6 +20,7 @@ interface RoundEndSequenceProps {
  * 1. Movement card flips to reveal movement value
  * 2. Comet advances on the track
  * 3. New distance displayed
+ * 4. Player clicks Continue to dismiss
  */
 export function RoundEndSequence({
   movementCard,
@@ -31,16 +33,15 @@ export function RoundEndSequence({
   const [phase, setPhase] = useState<"intro" | "flip" | "advance" | "complete">("intro");
 
   useEffect(() => {
-    // Phase timings
+    // Phase timings - animation only, no auto-dismiss
     const timers = [
       setTimeout(() => setPhase("flip"), 800),
       setTimeout(() => setPhase("advance"), 1800),
       setTimeout(() => setPhase("complete"), 3000),
-      setTimeout(() => onComplete?.(), 3500),
     ];
 
     return () => timers.forEach(clearTimeout);
-  }, [onComplete]);
+  }, []);
 
   const moveSpaces = movementCard.moveSpaces;
   const isDanger = newDistance <= 6;
@@ -194,17 +195,22 @@ export function RoundEndSequence({
           )}
         </AnimatePresence>
 
-        {/* Continue prompt */}
+        {/* Continue button */}
         <AnimatePresence>
           {phase === "complete" && (
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center mt-6"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-6"
             >
-              <span className="text-xs text-mission-steel animate-pulse">
-                Continuing to next round...
-              </span>
+              <MissionButton
+                onClick={onComplete}
+                variant="success"
+                size="lg"
+                className="w-full"
+              >
+                Continue to Round {round + 1}
+              </MissionButton>
             </motion.div>
           )}
         </AnimatePresence>
