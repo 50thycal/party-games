@@ -15,6 +15,7 @@ interface CometTrackProps {
 /**
  * Top-down comet approach tracking display
  * Shows the comet's position on an 18-space track toward Earth
+ * Comet starts on the RIGHT and moves LEFT toward Earth
  * Styled like a radar or mission tracking display
  */
 export function CometTrack({
@@ -25,9 +26,12 @@ export function CometTrack({
   className,
 }: CometTrackProps) {
   const dangerLevel = getDangerLevel(distanceToImpact);
-  const cometPosition = maxDistance - distanceToImpact;
 
-  // Create track segments
+  // Comet position: at distance 18, comet is at index 17 (right side)
+  // At distance 1, comet is at index 0 (left side, near Earth)
+  const cometPosition = distanceToImpact - 1;
+
+  // Create track segments (0 = near Earth/left, 17 = far/right)
   const segments = Array.from({ length: maxDistance }, (_, i) => i);
 
   return (
@@ -66,7 +70,7 @@ export function CometTrack({
 
         {/* Track with segments */}
         <div className="relative flex items-center gap-0.5 py-2">
-          {/* Earth indicator */}
+          {/* Earth indicator (LEFT side - impact zone) */}
           <div className="flex flex-col items-center mr-1">
             <div className="w-6 h-6 rounded-full bg-blue-600 border-2 border-blue-400 flex items-center justify-center text-[10px]">
               🌍
@@ -78,8 +82,12 @@ export function CometTrack({
           <div className="flex-1 flex items-center">
             {segments.map((index) => {
               const isComet = index === cometPosition;
-              const isPassed = index < cometPosition;
-              const segmentDanger = getDangerLevel(maxDistance - index);
+              // Segments the comet has already passed (to the right of current position)
+              const isPassed = index > cometPosition;
+
+              // Danger zones: low indices are near Earth (dangerous)
+              const isInCriticalZone = index < 6;
+              const isInWarningZone = index >= 6 && index < 12;
 
               return (
                 <div
@@ -90,11 +98,12 @@ export function CometTrack({
                   <div
                     className={cn(
                       "w-full h-2 border-r border-mission-steel-dark/50",
-                      isPassed && "bg-mission-red/30",
-                      !isPassed && !isComet && "bg-mission-panel-light/30",
-                      // Danger zone coloring
-                      index < 6 && "bg-mission-red/20",
-                      index >= 6 && index < 12 && "bg-mission-amber/10"
+                      // Base coloring for danger zones (always visible)
+                      isInCriticalZone && "bg-mission-red/20",
+                      isInWarningZone && "bg-mission-amber/10",
+                      !isInCriticalZone && !isInWarningZone && "bg-mission-panel-light/30",
+                      // Highlight passed segments
+                      isPassed && "bg-mission-steel-dark/40"
                     )}
                   >
                     {isComet && (
@@ -112,10 +121,10 @@ export function CometTrack({
                     )}
                   </div>
 
-                  {/* Distance labels (every 3 units) */}
+                  {/* Distance labels (every 3 units) - show distance from Earth */}
                   {(index + 1) % 3 === 0 && (
                     <span className="text-[8px] text-mission-steel mt-1">
-                      {maxDistance - index}
+                      {index + 1}
                     </span>
                   )}
                 </div>
@@ -123,9 +132,11 @@ export function CometTrack({
             })}
           </div>
 
-          {/* Comet origin */}
+          {/* Start indicator (RIGHT side - where comet begins) */}
           <div className="flex flex-col items-center ml-1">
-            <div className="w-4 h-4 rounded-full bg-mission-steel-dark border border-mission-steel" />
+            <div className="w-4 h-4 rounded-full bg-mission-steel-dark border border-mission-steel flex items-center justify-center">
+              <span className="text-[8px]">☄️</span>
+            </div>
             <span className="text-[8px] text-mission-steel mt-0.5">START</span>
           </div>
         </div>
