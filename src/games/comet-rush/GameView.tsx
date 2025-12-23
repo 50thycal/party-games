@@ -492,6 +492,9 @@ function LaunchResultDisplay({
   result,
   playerName,
   onDismiss,
+  onUseReroll,
+  onDeclineReroll,
+  isCurrentPlayer,
 }: {
   result: {
     diceRoll: number;
@@ -501,9 +504,14 @@ function LaunchResultDisplay({
     strengthBefore: number;
     destroyed: boolean;
     baseStrength: number;
+    canReroll?: boolean;
+    isReroll?: boolean;
   };
   playerName: string;
   onDismiss?: () => void;
+  onUseReroll?: () => void;
+  onDeclineReroll?: () => void;
+  isCurrentPlayer?: boolean;
 }) {
   const [showDice, setShowDice] = useState(true);
 
@@ -530,6 +538,9 @@ function LaunchResultDisplay({
           <div className="text-center">
             <span className="label-embossed text-[10px] block mb-2">
               {playerName}&apos;s LAUNCH RESULT
+              {result.isReroll && (
+                <span className="ml-2 text-mission-amber">(REROLL)</span>
+              )}
             </span>
 
             <DiceResultBadge
@@ -555,6 +566,49 @@ function LaunchResultDisplay({
                 <div className="text-mission-red">
                   <span className="text-3xl block mb-1">💨</span>
                   <span className="led-segment text-xl">TRAJECTORY MISS</span>
+
+                  {/* Reroll option for current player */}
+                  {result.canReroll && isCurrentPlayer && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 }}
+                      className="mt-4 pt-4 border-t border-mission-steel-dark"
+                    >
+                      <p className="text-sm text-mission-cream/80 mb-3">
+                        You have a reroll token! Try again?
+                      </p>
+                      <div className="flex gap-2 justify-center">
+                        <MissionButton
+                          onClick={onUseReroll}
+                          variant="success"
+                          size="md"
+                        >
+                          Use Reroll
+                        </MissionButton>
+                        <MissionButton
+                          onClick={onDeclineReroll}
+                          variant="danger"
+                          size="md"
+                        >
+                          Accept Miss
+                        </MissionButton>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Show other players that reroll is pending */}
+                  {result.canReroll && !isCurrentPlayer && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="mt-4 pt-4 border-t border-mission-steel-dark"
+                    >
+                      <p className="text-sm text-mission-amber animate-pulse">
+                        Waiting for {playerName} to decide on reroll...
+                      </p>
+                    </motion.div>
+                  )}
                 </div>
               )}
             </div>
@@ -848,6 +902,14 @@ export function CometRushGameView({
     }
   }
 
+  async function handleUseReroll() {
+    await dispatchAction("USE_REROLL");
+  }
+
+  async function handleDeclineReroll() {
+    await dispatchAction("DECLINE_REROLL");
+  }
+
   async function handleEndTurn() {
     setIsEndingTurn(true);
     try {
@@ -1075,10 +1137,14 @@ export function CometRushGameView({
             {/* Launch Result */}
             {gameState.lastLaunchResult && (
               <LaunchResultDisplay
+                key={`${gameState.lastLaunchResult.rocketId}-${gameState.lastLaunchResult.diceRoll}-${gameState.lastLaunchResult.isReroll}`}
                 result={gameState.lastLaunchResult}
                 playerName={
                   gameState.players[gameState.lastLaunchResult.playerId]?.name ?? "Unknown"
                 }
+                isCurrentPlayer={gameState.lastLaunchResult.playerId === playerId}
+                onUseReroll={handleUseReroll}
+                onDeclineReroll={handleDeclineReroll}
               />
             )}
 
