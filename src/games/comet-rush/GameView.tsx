@@ -26,6 +26,7 @@ import { StatusLight } from "./components/controls/StatusLight";
 import { DiceRoll, DiceResultBadge } from "./components/animations/DiceRoll";
 import { CardDrawAnimation, GameCardDisplay } from "./components/animations/CardDrawAnimation";
 import { RoundEndSequence, MovementCardReveal } from "./components/animations/RoundEndSequence";
+import { RocketLaunchAnimation } from "./components/animations/RocketLaunchAnimation";
 import { getDangerLevel } from "./theme/missionControl";
 
 // ============================================================================
@@ -429,11 +430,25 @@ function TurnWizard({
       {(step === "showIncome" || step === "chooseDeck") && (
         <div>
           <div className="text-center mb-4">
-            <span className="label-embossed text-[10px] block mb-1">INCOME RECEIVED</span>
-            <span className="led-segment text-4xl text-mission-amber">
-              +{turnMeta?.incomeGained ?? 0}
-            </span>
-            <span className="text-sm text-mission-steel block mt-1">cubes</span>
+            {turnMeta?.wasEmbargoed ? (
+              <>
+                <span className="label-embossed text-[10px] block mb-1 text-mission-red">EMBARGO IN EFFECT</span>
+                <span className="led-segment text-4xl text-mission-red">
+                  +0
+                </span>
+                <span className="text-sm text-mission-red block mt-1">
+                  Income blocked by opponent!
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="label-embossed text-[10px] block mb-1">INCOME RECEIVED</span>
+                <span className="led-segment text-4xl text-mission-amber">
+                  +{turnMeta?.incomeGained ?? 0}
+                </span>
+                <span className="text-sm text-mission-steel block mt-1">cubes</span>
+              </>
+            )}
           </div>
 
           <div className="text-center mb-3">
@@ -910,6 +925,10 @@ export function CometRushGameView({
     await dispatchAction("DECLINE_REROLL");
   }
 
+  async function handleForcedReroll() {
+    await dispatchAction("FORCED_REROLL");
+  }
+
   async function handleEndTurn() {
     setIsEndingTurn(true);
     try {
@@ -1134,17 +1153,27 @@ export function CometRushGameView({
               />
             )}
 
-            {/* Launch Result */}
+            {/* Launch Result with Animation */}
             {gameState.lastLaunchResult && (
-              <LaunchResultDisplay
-                key={`${gameState.lastLaunchResult.rocketId}-${gameState.lastLaunchResult.diceRoll}-${gameState.lastLaunchResult.isReroll}`}
-                result={gameState.lastLaunchResult}
+              <RocketLaunchAnimation
+                key={`${gameState.lastLaunchResult.rocketId}-${gameState.lastLaunchResult.diceRoll}-${gameState.lastLaunchResult.isReroll}-${gameState.lastLaunchResult.mustReroll}`}
+                diceRoll={gameState.lastLaunchResult.diceRoll}
+                accuracyNeeded={gameState.lastLaunchResult.accuracyNeeded}
+                isHit={gameState.lastLaunchResult.hit}
+                power={gameState.lastLaunchResult.power}
+                destroyed={gameState.lastLaunchResult.destroyed}
+                baseStrength={gameState.lastLaunchResult.baseStrength}
                 playerName={
                   gameState.players[gameState.lastLaunchResult.playerId]?.name ?? "Unknown"
                 }
+                isReroll={gameState.lastLaunchResult.isReroll}
+                isSabotaged={gameState.lastLaunchResult.mustReroll}
+                canReroll={gameState.lastLaunchResult.canReroll}
+                mustReroll={gameState.lastLaunchResult.mustReroll}
                 isCurrentPlayer={gameState.lastLaunchResult.playerId === playerId}
                 onUseReroll={handleUseReroll}
                 onDeclineReroll={handleDeclineReroll}
+                onMustReroll={handleForcedReroll}
               />
             )}
 
@@ -1324,143 +1353,145 @@ export function CometRushGameView({
                 ) : (
                   <div className="space-y-2">
                     {player.hand.map((card) => (
-                      <GameCardDisplay
-                        key={card.id}
-                        card={card}
-                        isSelected={selectedCardId === card.id}
-                        onSelect={() => {
-                          if (isMyTurn) toggleCardSelection(card.id);
-                        }}
-                        disabled={!isMyTurn}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {/* Play Card Controls */}
-                {isMyTurn && selectedCard && (
-                  <div className="mt-4 panel-retro p-3">
-                    <div className="text-sm text-mission-cream mb-3">
-                      Playing: <span className="font-bold text-mission-green">{selectedCard.name}</span>
-                    </div>
-
-                    {/* Target Player Selection */}
-                    {cardRequirements.needsTargetPlayer && (
-                      <div className="mb-3">
-                        <span className="label-embossed text-[10px] block mb-1">TARGET PLAYER</span>
-                        <select
-                          value={targetPlayerId}
-                          onChange={(e) => {
-                            setTargetPlayerId(e.target.value);
-                            setTargetRocketId("");
+                      <div key={card.id}>
+                        <GameCardDisplay
+                          card={card}
+                          isSelected={selectedCardId === card.id}
+                          onSelect={() => {
+                            if (isMyTurn) toggleCardSelection(card.id);
                           }}
-                          className="w-full bg-mission-dark border border-mission-steel rounded p-2 text-sm text-mission-cream"
-                        >
-                          <option value="">Select target...</option>
-                          {otherPlayers.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.name} ({p.resourceCubes} cubes, {p.hand.length} cards)
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
+                          disabled={!isMyTurn}
+                        />
 
-                    {/* Target Rocket Selection */}
-                    {cardRequirements.needsTargetRocket && targetPlayerId && (
-                      <div className="mb-3">
-                        <span className="label-embossed text-[10px] block mb-1">TARGET ROCKET</span>
-                        <select
-                          value={targetRocketId}
-                          onChange={(e) => setTargetRocketId(e.target.value)}
-                          className="w-full bg-mission-dark border border-mission-steel rounded p-2 text-sm text-mission-cream"
-                        >
-                          <option value="">Select rocket...</option>
-                          {gameState.players[targetPlayerId]?.rockets
-                            .filter((r) => r.status === "building")
-                            .map((r) => (
-                              <option key={r.id} value={r.id}>
-                                Power {r.power}, Acc {r.accuracy} ({r.buildTimeRemaining} turns)
-                              </option>
-                            ))}
-                        </select>
-                      </div>
-                    )}
+                        {/* Inline Play Controls - shown directly below selected card */}
+                        {isMyTurn && selectedCardId === card.id && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="mt-2 ml-2 border-l-2 border-mission-green pl-3 py-2"
+                          >
+                            {/* Target Player Selection */}
+                            {cardRequirements.needsTargetPlayer && (
+                              <div className="mb-3">
+                                <span className="label-embossed text-[10px] block mb-1">TARGET PLAYER</span>
+                                <select
+                                  value={targetPlayerId}
+                                  onChange={(e) => {
+                                    setTargetPlayerId(e.target.value);
+                                    setTargetRocketId("");
+                                  }}
+                                  className="w-full bg-mission-dark border border-mission-steel rounded p-2 text-sm text-mission-cream"
+                                >
+                                  <option value="">Select target...</option>
+                                  {otherPlayers.map((p) => (
+                                    <option key={p.id} value={p.id}>
+                                      {p.name} ({p.resourceCubes} cubes, {p.hand.length} cards)
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
 
-                    {/* Own Rocket Selection */}
-                    {cardRequirements.needsOwnRocket && (
-                      <div className="mb-3">
-                        <span className="label-embossed text-[10px] block mb-1">YOUR ROCKET</span>
-                        <select
-                          value={targetRocketId}
-                          onChange={(e) => setTargetRocketId(e.target.value)}
-                          className="w-full bg-mission-dark border border-mission-steel rounded p-2 text-sm text-mission-cream"
-                        >
-                          <option value="">Select rocket...</option>
-                          {player.rockets
-                            .filter((r) => r.status === "building")
-                            .map((r) => (
-                              <option key={r.id} value={r.id}>
-                                Power {r.power}, Acc {r.accuracy} ({r.buildTimeRemaining} turns)
-                              </option>
-                            ))}
-                        </select>
-                        {player.rockets.filter((r) => r.status === "building").length === 0 && (
-                          <p className="text-xs text-mission-amber mt-1">No rockets building.</p>
+                            {/* Target Rocket Selection */}
+                            {cardRequirements.needsTargetRocket && targetPlayerId && (
+                              <div className="mb-3">
+                                <span className="label-embossed text-[10px] block mb-1">TARGET ROCKET</span>
+                                <select
+                                  value={targetRocketId}
+                                  onChange={(e) => setTargetRocketId(e.target.value)}
+                                  className="w-full bg-mission-dark border border-mission-steel rounded p-2 text-sm text-mission-cream"
+                                >
+                                  <option value="">Select rocket...</option>
+                                  {gameState.players[targetPlayerId]?.rockets
+                                    .filter((r) => r.status === "building")
+                                    .map((r) => (
+                                      <option key={r.id} value={r.id}>
+                                        Power {r.power}, Acc {r.accuracy} ({r.buildTimeRemaining} turns)
+                                      </option>
+                                    ))}
+                                </select>
+                              </div>
+                            )}
+
+                            {/* Own Rocket Selection */}
+                            {cardRequirements.needsOwnRocket && (
+                              <div className="mb-3">
+                                <span className="label-embossed text-[10px] block mb-1">YOUR ROCKET</span>
+                                <select
+                                  value={targetRocketId}
+                                  onChange={(e) => setTargetRocketId(e.target.value)}
+                                  className="w-full bg-mission-dark border border-mission-steel rounded p-2 text-sm text-mission-cream"
+                                >
+                                  <option value="">Select rocket...</option>
+                                  {player.rockets
+                                    .filter((r) => r.status === "building")
+                                    .map((r) => (
+                                      <option key={r.id} value={r.id}>
+                                        Power {r.power}, Acc {r.accuracy} ({r.buildTimeRemaining} turns)
+                                      </option>
+                                    ))}
+                                </select>
+                                {player.rockets.filter((r) => r.status === "building").length === 0 && (
+                                  <p className="text-xs text-mission-amber mt-1">No rockets building.</p>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Peek Choice */}
+                            {cardRequirements.needsPeekChoice && (
+                              <div className="mb-3">
+                                <span className="label-embossed text-[10px] block mb-2">INTEL TYPE</span>
+                                <div className="flex gap-2">
+                                  <MissionButton
+                                    onClick={() => setPeekChoice("strength")}
+                                    variant={peekChoice === "strength" ? "warning" : "primary"}
+                                    size="sm"
+                                    className="flex-1"
+                                  >
+                                    Strength
+                                  </MissionButton>
+                                  <MissionButton
+                                    onClick={() => setPeekChoice("movement")}
+                                    variant={peekChoice === "movement" ? "success" : "primary"}
+                                    size="sm"
+                                    className="flex-1"
+                                  >
+                                    Movement
+                                  </MissionButton>
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="flex gap-2">
+                              <MissionButton
+                                onClick={() => {
+                                  setSelectedCardId(null);
+                                  setTargetPlayerId("");
+                                  setTargetRocketId("");
+                                  setPeekChoice(null);
+                                }}
+                                variant="primary"
+                                size="sm"
+                                className="flex-1"
+                              >
+                                Cancel
+                              </MissionButton>
+                              <MissionButton
+                                onClick={handlePlayCard}
+                                disabled={!canPlayCard() || isPlayingCard}
+                                variant="success"
+                                size="sm"
+                                className="flex-1"
+                                isLoading={isPlayingCard}
+                              >
+                                {isPlayingCard ? "Playing..." : "Execute"}
+                              </MissionButton>
+                            </div>
+                          </motion.div>
                         )}
                       </div>
-                    )}
-
-                    {/* Peek Choice */}
-                    {cardRequirements.needsPeekChoice && (
-                      <div className="mb-3">
-                        <span className="label-embossed text-[10px] block mb-2">INTEL TYPE</span>
-                        <div className="flex gap-2">
-                          <MissionButton
-                            onClick={() => setPeekChoice("strength")}
-                            variant={peekChoice === "strength" ? "warning" : "primary"}
-                            size="sm"
-                            className="flex-1"
-                          >
-                            Strength
-                          </MissionButton>
-                          <MissionButton
-                            onClick={() => setPeekChoice("movement")}
-                            variant={peekChoice === "movement" ? "success" : "primary"}
-                            size="sm"
-                            className="flex-1"
-                          >
-                            Movement
-                          </MissionButton>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex gap-2">
-                      <MissionButton
-                        onClick={() => {
-                          setSelectedCardId(null);
-                          setTargetPlayerId("");
-                          setTargetRocketId("");
-                          setPeekChoice(null);
-                        }}
-                        variant="primary"
-                        size="md"
-                        className="flex-1"
-                      >
-                        Cancel
-                      </MissionButton>
-                      <MissionButton
-                        onClick={handlePlayCard}
-                        disabled={!canPlayCard() || isPlayingCard}
-                        variant="success"
-                        size="md"
-                        className="flex-1"
-                        isLoading={isPlayingCard}
-                      >
-                        {isPlayingCard ? "Playing..." : "Execute"}
-                      </MissionButton>
-                    </div>
+                    ))}
                   </div>
                 )}
               </ActionPanel>

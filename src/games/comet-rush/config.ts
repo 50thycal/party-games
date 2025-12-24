@@ -150,6 +150,7 @@ export interface LaunchResult {
   baseStrength: number; // Original strength value (for scoring display)
   canReroll: boolean; // True if player missed AND has reroll token available
   isReroll: boolean; // True if this result is from using a reroll
+  mustReroll: boolean; // True if player was sabotaged and must reroll (forced)
 }
 
 export interface TurnMeta {
@@ -158,6 +159,7 @@ export interface TurnMeta {
   newTotalCubes: number;
   lastDrawnCardId: string | null;
   lastDrawnDeck: CardDeckType | null;  // Which deck the card was drawn from
+  wasEmbargoed: boolean;  // True if income was blocked due to embargo
 }
 
 export interface CardResult {
@@ -232,6 +234,7 @@ export type CometRushActionType =
   | "LAUNCH_ROCKET"
   | "USE_REROLL"          // Use re-roll token after a failed launch
   | "DECLINE_REROLL"      // Decline to use re-roll token, accept miss
+  | "FORCED_REROLL"       // Forced reroll due to sabotage
   | "END_TURN"
   | "CLEAR_CARD_RESULT"   // Dismiss card result popup
   | "PLAY_AGAIN";
@@ -608,6 +611,7 @@ function reducer(
           newTotalCubes: updatedPlayers[firstPlayerId]?.resourceCubes ?? 0,
           lastDrawnCardId: null,
           lastDrawnDeck: null,
+          wasEmbargoed: false,
         },
       };
     }
@@ -622,7 +626,8 @@ function reducer(
       if (!player) return state;
 
       // Calculate income (skip if embargoed)
-      const income = player.isEmbargoed ? 0 : (player.baseIncome + player.upgrades.incomeBonus);
+      const wasEmbargoed = player.isEmbargoed;
+      const income = wasEmbargoed ? 0 : (player.baseIncome + player.upgrades.incomeBonus);
       const newTotalCubes = player.resourceCubes + income;
 
       // Advance rocket build timers
@@ -661,6 +666,7 @@ function reducer(
           newTotalCubes,
           lastDrawnCardId: null,
           lastDrawnDeck: null,
+          wasEmbargoed,
         },
       };
     }
@@ -1181,21 +1187,44 @@ function reducer(
       const rocket = player.rockets[rocketIndex];
 
       // Roll 1d6 for accuracy
-      let diceRoll = roll1d6(ctx.random);
-      let hit = diceRoll <= rocket.accuracy;
+      const diceRoll = roll1d6(ctx.random);
+      const hit = diceRoll <= rocket.accuracy;
 
-      // Handle sabotage (must re-roll - forced, not optional)
-      if (player.mustRerollNextLaunch) {
-        diceRoll = roll1d6(ctx.random);
-        hit = diceRoll <= rocket.accuracy;
-      }
+      // Check if player was sabotaged - they must reroll (don't auto-reroll, let UI handle it)
+      const mustReroll = player.mustRerollNextLaunch;
 
-      // Check if player CAN reroll (has token and missed)
+      // Check if player CAN reroll (has token, missed, and not already forced to reroll)
       // Note: We don't auto-use it - player must manually trigger USE_REROLL action
-      const canReroll = !hit && player.hasRerollToken && !player.mustRerollNextLaunch;
+      const canReroll = !hit && player.hasRerollToken && !mustReroll;
 
       // Calculate salvage bonus
       const salvageBonus = player.upgrades.salvageBonus;
+
+      // If sabotaged, show first roll but don't process it - wait for forced reroll
+      if (mustReroll) {
+        // Don't mark rocket as spent yet - they need to reroll
+        const launchResult: LaunchResult = {
+          playerId: action.playerId,
+          rocketId: rocket.id,
+          diceRoll,
+          accuracyNeeded: rocket.accuracy,
+          hit, // Show what they would have gotten
+          power: rocket.power,
+          strengthBefore: state.activeStrengthCard?.currentStrength ?? 0,
+          strengthAfter: state.activeStrengthCard?.currentStrength ?? 0,
+          destroyed: false,
+          baseStrength: state.activeStrengthCard?.baseStrength ?? 0,
+          canReroll: false,
+          isReroll: false,
+          mustReroll: true, // Force reroll due to sabotage
+        };
+
+        // Don't consume mustRerollNextLaunch yet - wait for actual reroll
+        return {
+          ...state,
+          lastLaunchResult: launchResult,
+        };
+      }
 
       if (!hit) {
         const updatedRockets = [...player.rockets];
@@ -1217,6 +1246,7 @@ function reducer(
           baseStrength: state.activeStrengthCard?.baseStrength ?? 0,
           canReroll, // Player can choose to reroll if they have token
           isReroll: false,
+          mustReroll: false,
         };
 
         const updatedPlayer = {
@@ -1225,7 +1255,7 @@ function reducer(
           hasLaunchedRocketThisTurn: !canReroll, // Don't end turn if they can still reroll
           resourceCubes: player.resourceCubes + (canReroll ? 0 : salvageBonus), // Salvage after final result
           hasRerollToken: player.hasRerollToken, // Keep token until they use it or decline
-          mustRerollNextLaunch: false, // Consumed
+          mustRerollNextLaunch: false,
         };
 
         return {
@@ -1291,6 +1321,7 @@ function reducer(
         baseStrength: activeStrengthCard.baseStrength,
         canReroll: false, // Hit - no reroll needed
         isReroll: false,
+        mustReroll: false,
       };
 
       const updatedPlayer = {
@@ -1299,7 +1330,7 @@ function reducer(
         trophies: updatedTrophies,
         hasLaunchedRocketThisTurn: true,
         resourceCubes: player.resourceCubes + salvageBonus,
-        hasRerollToken: false,
+        hasRerollToken: player.hasRerollToken, // Keep token on hit
         mustRerollNextLaunch: false,
       };
 
@@ -1388,6 +1419,7 @@ function reducer(
           baseStrength: state.activeStrengthCard?.baseStrength ?? 0,
           canReroll: false, // Already used reroll
           isReroll: true,
+          mustReroll: false,
         };
 
         const updatedPlayer = {
@@ -1454,6 +1486,7 @@ function reducer(
         baseStrength: activeStrengthCard.baseStrength,
         canReroll: false,
         isReroll: true,
+        mustReroll: false,
       };
 
       const updatedPlayer = {
@@ -1544,6 +1577,187 @@ function reducer(
       };
     }
 
+    case "FORCED_REROLL": {
+      // Player was sabotaged and must reroll their launch
+      if (state.phase !== "playing") return state;
+
+      const player = state.players[action.playerId];
+      if (!player) return state;
+
+      // Must have a pending launch result that requires forced reroll
+      const lastResult = state.lastLaunchResult;
+      if (!lastResult) return state;
+      if (lastResult.playerId !== action.playerId) return state;
+      if (!lastResult.mustReroll) return state;
+      if (!player.mustRerollNextLaunch) return state;
+
+      // Find the rocket (should still be ready since we didn't mark it spent)
+      const rocketIndex = player.rockets.findIndex(
+        (r) => r.id === lastResult.rocketId && r.status === "ready"
+      );
+      if (rocketIndex === -1) return state;
+
+      const rocket = player.rockets[rocketIndex];
+
+      // Re-roll the dice (this is the actual launch roll)
+      const diceRoll = roll1d6(ctx.random);
+      const hit = diceRoll <= rocket.accuracy;
+
+      // Check if player CAN use optional reroll token after forced reroll
+      const canReroll = !hit && player.hasRerollToken;
+
+      // Calculate salvage bonus
+      const salvageBonus = player.upgrades.salvageBonus;
+
+      if (!hit) {
+        const updatedRockets = [...player.rockets];
+        updatedRockets[rocketIndex] = {
+          ...rocket,
+          status: "spent",
+        };
+
+        const launchResult: LaunchResult = {
+          playerId: action.playerId,
+          rocketId: rocket.id,
+          diceRoll,
+          accuracyNeeded: rocket.accuracy,
+          hit: false,
+          power: rocket.power,
+          strengthBefore: state.activeStrengthCard?.currentStrength ?? 0,
+          strengthAfter: state.activeStrengthCard?.currentStrength ?? 0,
+          destroyed: false,
+          baseStrength: state.activeStrengthCard?.baseStrength ?? 0,
+          canReroll, // Player can still use token if they have one
+          isReroll: true, // This was a forced reroll
+          mustReroll: false,
+        };
+
+        const updatedPlayer = {
+          ...player,
+          rockets: updatedRockets,
+          hasLaunchedRocketThisTurn: !canReroll,
+          resourceCubes: player.resourceCubes + (canReroll ? 0 : salvageBonus),
+          hasRerollToken: player.hasRerollToken,
+          mustRerollNextLaunch: false, // Consumed
+        };
+
+        return {
+          ...state,
+          players: {
+            ...state.players,
+            [action.playerId]: updatedPlayer,
+          },
+          lastLaunchResult: launchResult,
+        };
+      }
+
+      // HIT on forced reroll: Process strength damage
+      let activeStrengthCard = state.activeStrengthCard;
+      let strengthDeck = [...state.strengthDeck];
+
+      if (!activeStrengthCard) {
+        if (strengthDeck.length === 0) return state;
+        activeStrengthCard = strengthDeck[0];
+        strengthDeck = strengthDeck.slice(1);
+      }
+
+      let updatedStrengthCard: StrengthCard | null = activeStrengthCard;
+      let destroyed = false;
+      let trophyCard: StrengthCard | null = null;
+      let finalDestroyerId = state.finalDestroyerId;
+
+      if (rocket.power >= activeStrengthCard.currentStrength) {
+        destroyed = true;
+        trophyCard = activeStrengthCard;
+        updatedStrengthCard = null;
+
+        if (strengthDeck.length === 0) {
+          finalDestroyerId = action.playerId;
+        }
+      } else {
+        updatedStrengthCard = {
+          ...activeStrengthCard,
+          currentStrength: activeStrengthCard.currentStrength - rocket.power,
+        };
+      }
+
+      const updatedRockets = [...player.rockets];
+      updatedRockets[rocketIndex] = {
+        ...rocket,
+        status: "spent",
+      };
+
+      const updatedTrophies = trophyCard
+        ? [...player.trophies, trophyCard]
+        : player.trophies;
+
+      const launchResult: LaunchResult = {
+        playerId: action.playerId,
+        rocketId: rocket.id,
+        diceRoll,
+        accuracyNeeded: rocket.accuracy,
+        hit: true,
+        power: rocket.power,
+        strengthBefore: activeStrengthCard.currentStrength,
+        strengthAfter: destroyed ? 0 : (updatedStrengthCard?.currentStrength ?? 0),
+        destroyed,
+        baseStrength: activeStrengthCard.baseStrength,
+        canReroll: false,
+        isReroll: true,
+        mustReroll: false,
+      };
+
+      const updatedPlayer = {
+        ...player,
+        rockets: updatedRockets,
+        trophies: updatedTrophies,
+        hasLaunchedRocketThisTurn: true,
+        resourceCubes: player.resourceCubes + salvageBonus,
+        hasRerollToken: player.hasRerollToken,
+        mustRerollNextLaunch: false,
+      };
+
+      const totalDestroyed = Object.values(state.players).reduce(
+        (sum, p) => sum + p.trophies.length,
+        0
+      ) + (destroyed ? 1 : 0);
+
+      const cometDestroyed = totalDestroyed >= state.totalStrengthCards && !updatedStrengthCard && strengthDeck.length === 0;
+
+      if (cometDestroyed) {
+        const newState = {
+          ...state,
+          strengthDeck,
+          activeStrengthCard: updatedStrengthCard,
+          players: {
+            ...state.players,
+            [action.playerId]: updatedPlayer,
+          },
+          lastLaunchResult: launchResult,
+          finalDestroyerId,
+          phase: "gameOver" as CometRushPhase,
+          cometDestroyed: true,
+          earthDestroyed: false,
+        };
+        return {
+          ...newState,
+          winnerIds: determineWinners(newState),
+        };
+      }
+
+      return {
+        ...state,
+        strengthDeck,
+        activeStrengthCard: updatedStrengthCard,
+        players: {
+          ...state.players,
+          [action.playerId]: updatedPlayer,
+        },
+        lastLaunchResult: launchResult,
+        finalDestroyerId,
+      };
+    }
+
     case "CLEAR_CARD_RESULT": {
       if (!state.lastCardResult) return state;
       if (state.lastCardResult.playerId !== action.playerId) return state;
@@ -1619,6 +1833,7 @@ function reducer(
           newTotalCubes: nextPlayer.resourceCubes,
           lastDrawnCardId: null,
           lastDrawnDeck: null,
+          wasEmbargoed: false,
         } : null,
       };
     }
