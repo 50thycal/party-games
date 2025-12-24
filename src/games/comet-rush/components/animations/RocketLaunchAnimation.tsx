@@ -25,6 +25,7 @@ interface RocketLaunchAnimationProps {
 }
 
 type AnimationPhase =
+  | "waiting_for_roll"
   | "dice_rolling"
   | "dice_result"
   | "rocket_launching"
@@ -34,6 +35,7 @@ type AnimationPhase =
 
 /**
  * Full rocket launch animation sequence:
+ * 0. Wait for player to click Roll button
  * 1. Dice roll (trajectory calculation)
  * 2. Rocket launch from pad
  * 3. Rocket flying toward comet
@@ -59,8 +61,18 @@ export function RocketLaunchAnimation({
   onMustReroll,
   className,
 }: RocketLaunchAnimationProps) {
-  const [phase, setPhase] = useState<AnimationPhase>("dice_rolling");
+  // Start in waiting phase for current player, skip to rolling for spectators
+  const [phase, setPhase] = useState<AnimationPhase>(
+    isCurrentPlayer ? "waiting_for_roll" : "dice_rolling"
+  );
   const [displayValue, setDisplayValue] = useState(1);
+
+  // Handle roll button click
+  const handleRollClick = () => {
+    if (phase === "waiting_for_roll") {
+      setPhase("dice_rolling");
+    }
+  };
 
   // Dice rolling animation
   useEffect(() => {
@@ -143,6 +155,7 @@ export function RocketLaunchAnimation({
     return patterns[value] || patterns[1];
   };
 
+  const showWaitingPhase = phase === "waiting_for_roll";
   const showDicePhase = phase === "dice_rolling" || phase === "dice_result";
   const showRocketPhase = phase === "rocket_launching" || phase === "rocket_flying" || phase === "impact";
   const showCompletePhase = phase === "complete";
@@ -155,8 +168,59 @@ export function RocketLaunchAnimation({
         {isSabotaged && <span className="ml-2 text-mission-red">(SABOTAGED)</span>}
       </span>
 
-      {/* Phase 1: Dice Roll */}
+      {/* Phase 0: Waiting for Roll */}
       <AnimatePresence mode="wait">
+        {showWaitingPhase && (
+          <motion.div
+            key="waiting"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <div className="relative bg-mission-dark rounded border-2 border-mission-steel-dark p-6 overflow-hidden">
+              <div className="text-center">
+                <div className="mb-4">
+                  <span className="text-4xl">🎯</span>
+                </div>
+                <div className="text-mission-cream mb-2">
+                  <span className="led-segment text-lg">TRAJECTORY CALCULATION</span>
+                </div>
+                <p className="text-sm text-mission-steel mb-4">
+                  Need to roll ≤{accuracyNeeded} to hit target
+                </p>
+
+                {isCurrentPlayer && (
+                  <motion.button
+                    onClick={handleRollClick}
+                    className="btn-mission px-8 py-3 bg-mission-amber text-mission-dark font-bold rounded-lg text-lg"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    animate={{
+                      boxShadow: [
+                        "0 0 10px rgba(255,191,0,0.3)",
+                        "0 0 20px rgba(255,191,0,0.6)",
+                        "0 0 10px rgba(255,191,0,0.3)",
+                      ],
+                    }}
+                    transition={{
+                      boxShadow: { duration: 1.5, repeat: Infinity },
+                    }}
+                  >
+                    🎲 ROLL DICE
+                  </motion.button>
+                )}
+
+                {!isCurrentPlayer && (
+                  <p className="text-sm text-mission-amber animate-pulse">
+                    Waiting for {playerName} to roll...
+                  </p>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Phase 1: Dice Roll */}
         {showDicePhase && (
           <motion.div
             key="dice"
