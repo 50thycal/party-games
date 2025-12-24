@@ -61,10 +61,8 @@ export function RocketLaunchAnimation({
   onMustReroll,
   className,
 }: RocketLaunchAnimationProps) {
-  // Start in waiting phase for current player, skip to rolling for spectators
-  const [phase, setPhase] = useState<AnimationPhase>(
-    isCurrentPlayer ? "waiting_for_roll" : "dice_rolling"
-  );
+  // Start in waiting phase for all players - current player clicks button, spectators wait
+  const [phase, setPhase] = useState<AnimationPhase>("waiting_for_roll");
   const [displayValue, setDisplayValue] = useState(1);
 
   // Handle roll button click
@@ -73,6 +71,18 @@ export function RocketLaunchAnimation({
       setPhase("dice_rolling");
     }
   };
+
+  // Auto-advance spectators after a delay (giving current player time to click)
+  useEffect(() => {
+    if (phase !== "waiting_for_roll" || isCurrentPlayer) return;
+
+    // Spectators wait 2 seconds then auto-start the animation
+    const timeout = setTimeout(() => {
+      setPhase("dice_rolling");
+    }, 2000);
+
+    return () => clearTimeout(timeout);
+  }, [phase, isCurrentPlayer]);
 
   // Dice rolling animation
   useEffect(() => {

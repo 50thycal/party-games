@@ -101,10 +101,12 @@ function BuildRocketForm({
   player,
   onBuild,
   isBuilding,
+  isMyTurn,
 }: {
   player: CometRushPlayerState;
   onBuild: (buildTime: number, power: number, accuracy: number) => void;
   isBuilding: boolean;
+  isMyTurn: boolean;
 }) {
   const [buildTime, setBuildTime] = useState(2);
   const [power, setPower] = useState(1);
@@ -204,7 +206,7 @@ function BuildRocketForm({
 
       <MissionButton
         onClick={() => onBuild(buildTime, power, accuracy)}
-        disabled={!canAfford || !hasSlot || isBuilding}
+        disabled={!canAfford || !hasSlot || isBuilding || !isMyTurn}
         variant="success"
         size="lg"
         className="w-full"
@@ -212,11 +214,13 @@ function BuildRocketForm({
       >
         {isBuilding
           ? "Building..."
-          : !hasSlot
-            ? "No Slots Available"
-            : !canAfford
-              ? "Insufficient Cubes"
-              : "Initiate Construction"}
+          : !isMyTurn
+            ? "Wait for Your Turn"
+            : !hasSlot
+              ? "No Slots Available"
+              : !canAfford
+                ? "Insufficient Cubes"
+                : "Initiate Construction"}
       </MissionButton>
     </div>
   );
@@ -1247,6 +1251,7 @@ export function CometRushGameView({
     })),
     isActive: p.id === activePlayerId,
     isCurrentUser: p.id === playerId,
+    score: p.trophies.reduce((sum, t) => sum + t.baseStrength, 0),
   }));
 
   return (
@@ -1525,13 +1530,13 @@ export function CometRushGameView({
                 summary={`${player.rockets.filter((r) => r.status === "ready" || r.status === "building").length}/${player.maxConcurrentRockets + player.upgrades.maxRocketsBonus} slots`}
                 isExpanded={expandedAction === "build"}
                 onToggle={() => setExpandedAction(expandedAction === "build" ? null : "build")}
-                disabled={!isMyTurn}
                 variant="build"
               >
                 <BuildRocketForm
                   player={player}
                   onBuild={handleBuildRocket}
                   isBuilding={isBuilding}
+                  isMyTurn={isMyTurn}
                 />
               </ActionPanel>
 
@@ -1547,7 +1552,6 @@ export function CometRushGameView({
                 }
                 isExpanded={expandedAction === "launch"}
                 onToggle={() => setExpandedAction(expandedAction === "launch" ? null : "launch")}
-                disabled={!isMyTurn && player.rockets.filter((r) => r.status === "ready").length === 0}
                 variant="launch"
               >
                 {player.rockets.filter((r) => r.status !== "spent").length === 0 ? (
@@ -1583,7 +1587,6 @@ export function CometRushGameView({
                     setPeekChoice(null);
                   }
                 }}
-                disabled={!isMyTurn && player.hand.length === 0}
                 variant="cards"
               >
                 {player.hand.length === 0 ? (

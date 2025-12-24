@@ -1268,30 +1268,80 @@ function reducer(
       // Calculate salvage bonus
       const salvageBonus = player.upgrades.salvageBonus;
 
-      // If sabotaged, show first roll but don't process it - wait for forced reroll
+      // If sabotaged and HIT, show first roll but don't process it - wait for forced reroll
+      // If sabotaged and MISSED, consume the rocket - they don't get another chance
       if (mustReroll) {
-        // Don't mark rocket as spent yet - they need to reroll
-        const launchResult: LaunchResult = {
-          playerId: action.playerId,
-          rocketId: rocket.id,
-          diceRoll,
-          accuracyNeeded: rocket.accuracy,
-          hit, // Show what they would have gotten
-          power: rocket.power,
-          strengthBefore: state.activeStrengthCard?.currentStrength ?? 0,
-          strengthAfter: state.activeStrengthCard?.currentStrength ?? 0,
-          destroyed: false,
-          baseStrength: state.activeStrengthCard?.baseStrength ?? 0,
-          canReroll: false,
-          isReroll: false,
-          mustReroll: true, // Force reroll due to sabotage
-        };
+        if (hit) {
+          // HIT while sabotaged - must reroll, don't consume rocket yet
+          const launchResult: LaunchResult = {
+            playerId: action.playerId,
+            rocketId: rocket.id,
+            diceRoll,
+            accuracyNeeded: rocket.accuracy,
+            hit, // Show what they would have gotten
+            power: rocket.power,
+            strengthBefore: state.activeStrengthCard?.currentStrength ?? 0,
+            strengthAfter: state.activeStrengthCard?.currentStrength ?? 0,
+            destroyed: false,
+            baseStrength: state.activeStrengthCard?.baseStrength ?? 0,
+            canReroll: false,
+            isReroll: false,
+            mustReroll: true, // Force reroll due to sabotage
+          };
 
-        // Don't consume mustRerollNextLaunch yet - wait for actual reroll
-        return {
-          ...state,
-          lastLaunchResult: launchResult,
-        };
+          // Don't consume mustRerollNextLaunch yet - wait for actual reroll
+          return {
+            ...state,
+            lastLaunchResult: launchResult,
+          };
+        } else {
+          // MISSED while sabotaged - consume rocket, clear sabotage, no reroll opportunity
+          const updatedRockets = [...player.rockets];
+          updatedRockets[rocketIndex] = {
+            ...rocket,
+            status: "spent",
+          };
+
+          const launchResult: LaunchResult = {
+            playerId: action.playerId,
+            rocketId: rocket.id,
+            diceRoll,
+            accuracyNeeded: rocket.accuracy,
+            hit: false,
+            power: rocket.power,
+            strengthBefore: state.activeStrengthCard?.currentStrength ?? 0,
+            strengthAfter: state.activeStrengthCard?.currentStrength ?? 0,
+            destroyed: false,
+            baseStrength: state.activeStrengthCard?.baseStrength ?? 0,
+            canReroll: false, // No reroll on sabotaged miss
+            isReroll: false,
+            mustReroll: true, // Still show as sabotaged in UI
+          };
+
+          const updatedPlayer = {
+            ...player,
+            rockets: updatedRockets,
+            hasLaunchedRocketThisTurn: true,
+            resourceCubes: player.resourceCubes + salvageBonus,
+            mustRerollNextLaunch: false, // Consume the sabotage
+          };
+
+          const sabotageMissState = {
+            ...state,
+            players: {
+              ...state.players,
+              [action.playerId]: updatedPlayer,
+            },
+            lastLaunchResult: launchResult,
+          };
+
+          // Add action log entry for sabotaged miss
+          const sabotageMissLogEntry = logLaunchRocket(sabotageMissState, action.playerId, launchResult);
+          return {
+            ...sabotageMissState,
+            actionLog: [...sabotageMissState.actionLog, sabotageMissLogEntry],
+          };
+        }
       }
 
       if (!hit) {
