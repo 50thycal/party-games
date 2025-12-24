@@ -990,6 +990,10 @@ export function CometRushGameView({
   const prevRoundRef = useRef<number>(0);
   const prevDistanceRef = useRef<number>(18);
 
+  // Track launch animation completion for trophy display timing
+  const [launchAnimationComplete, setLaunchAnimationComplete] = useState(false);
+  const prevLaunchResultRef = useRef<string | null>(null);
+
   // Game state
   const gameState = state as CometRushState;
   const phase = gameState?.phase ?? "lobby";
@@ -1039,6 +1043,19 @@ export function CometRushGameView({
 
     prevTurnMetaRef.current = turnMeta;
   }, [phase, isMyTurn, turnMeta, playerId]);
+
+  // Reset launch animation state when a new launch result comes in
+  useEffect(() => {
+    const currentKey = gameState?.lastLaunchResult
+      ? `${gameState.lastLaunchResult.rocketId}-${gameState.lastLaunchResult.diceRoll}-${gameState.lastLaunchResult.isReroll}`
+      : null;
+
+    if (currentKey !== prevLaunchResultRef.current) {
+      // New launch result - reset animation complete state
+      setLaunchAnimationComplete(false);
+      prevLaunchResultRef.current = currentKey;
+    }
+  }, [gameState?.lastLaunchResult]);
 
   // Action handlers
   async function handleStartGame() {
@@ -1362,6 +1379,7 @@ export function CometRushGameView({
                 onUseReroll={handleUseReroll}
                 onDeclineReroll={handleDeclineReroll}
                 onMustReroll={handleForcedReroll}
+                onComplete={() => setLaunchAnimationComplete(true)}
               />
             )}
 
@@ -1450,13 +1468,14 @@ export function CometRushGameView({
 
             {/* Trophies Display */}
             {(() => {
-              // Hide newly earned trophy while launch animation is showing
-              const isShowingDestroyResult =
+              // Hide newly earned trophy while launch animation is still playing
+              const isAnimatingDestroy =
                 gameState.lastLaunchResult?.destroyed &&
-                gameState.lastLaunchResult?.playerId === playerId;
+                gameState.lastLaunchResult?.playerId === playerId &&
+                !launchAnimationComplete;
 
-              // If showing destroy result, hide the most recently earned trophy
-              const displayTrophies = isShowingDestroyResult
+              // If animation is still playing, hide the most recently earned trophy
+              const displayTrophies = isAnimatingDestroy
                 ? player.trophies.slice(0, -1)
                 : player.trophies;
 

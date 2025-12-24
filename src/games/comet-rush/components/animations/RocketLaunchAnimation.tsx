@@ -192,7 +192,7 @@ export function RocketLaunchAnimation({
                 {isCurrentPlayer && (
                   <motion.button
                     onClick={handleRollClick}
-                    className="btn-mission px-8 py-3 bg-mission-amber text-mission-dark font-bold rounded-lg text-lg"
+                    className="btn-mission px-8 py-3 bg-mission-amber text-black font-bold rounded-lg text-lg"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     animate={{
@@ -350,7 +350,7 @@ export function RocketLaunchAnimation({
                       </p>
                       <button
                         onClick={onMustReroll}
-                        className="btn-mission px-6 py-2 bg-mission-amber text-mission-dark font-bold rounded"
+                        className="btn-mission px-6 py-2 bg-mission-amber text-black font-bold rounded"
                       >
                         Reroll Trajectory
                       </button>
@@ -371,13 +371,13 @@ export function RocketLaunchAnimation({
                       <div className="flex gap-2 justify-center">
                         <button
                           onClick={onUseReroll}
-                          className="btn-mission px-4 py-2 bg-mission-green text-mission-dark font-bold rounded"
+                          className="btn-mission px-4 py-2 bg-mission-green text-black font-bold rounded"
                         >
                           Use Reroll
                         </button>
                         <button
                           onClick={onDeclineReroll}
-                          className="btn-mission px-4 py-2 bg-mission-red text-mission-cream font-bold rounded"
+                          className="btn-mission px-4 py-2 bg-mission-red text-white font-bold rounded"
                         >
                           Accept Miss
                         </button>
