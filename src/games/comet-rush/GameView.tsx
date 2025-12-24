@@ -28,6 +28,9 @@ import { CardDrawAnimation, GameCardDisplay } from "./components/animations/Card
 import { RoundEndSequence, MovementCardReveal } from "./components/animations/RoundEndSequence";
 import { RocketLaunchAnimation } from "./components/animations/RocketLaunchAnimation";
 import { getDangerLevel } from "./theme/missionControl";
+import { ActionLogDisplay, ActionLogCompact } from "./components/ActionLogDisplay";
+import { PlayerAnalytics } from "./components/PlayerAnalytics";
+import { calculatePlayerStats, calculateGameAnalytics } from "./actionLog";
 
 // ============================================================================
 // TURN WIZARD TYPES
@@ -880,13 +883,22 @@ function GameOverScreen({
   isPlayingAgain: boolean;
 }) {
   const scores = calculateScores(state);
-  const sortedScores = Object.entries(scores).sort(([, a], [, b]) => b - a);
   const isWinner = state.winnerIds?.includes(playerId);
   const earthDestroyed = state.earthDestroyed;
 
+  // Calculate analytics
+  const analytics = calculateGameAnalytics(
+    state.actionLog,
+    state,
+    scores,
+    state.winnerIds,
+    state.gameStartTime
+  );
+
   return (
-    <div className="text-center">
-      <div className="mb-6">
+    <div>
+      {/* Outcome Header */}
+      <div className="text-center mb-6">
         {earthDestroyed ? (
           <>
             <span className="text-5xl block mb-2">🌍💥</span>
@@ -906,46 +918,26 @@ function GameOverScreen({
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          className="mb-6"
+          className="mb-6 text-center"
         >
           <span className="text-4xl">🏆</span>
           <p className="text-mission-amber font-bold mt-2">YOU WIN!</p>
         </motion.div>
       )}
 
-      <div className="panel-retro p-4 mb-6">
-        <span className="label-embossed text-[10px] block mb-3">FINAL SCORES</span>
-        <div className="space-y-2">
-          {sortedScores.map(([pid, score], index) => {
-            const playerInfo = room.players.find((p) => p.id === pid);
-            const isCurrentPlayer = pid === playerId;
-            return (
-              <div
-                key={pid}
-                className={cn(
-                  "flex items-center justify-between p-2 rounded",
-                  isCurrentPlayer && "bg-mission-green/20 border border-mission-green/50",
-                  index === 0 && "border border-mission-amber/50"
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">
-                    {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : ""}
-                  </span>
-                  <span className={cn(
-                    "font-bold",
-                    isCurrentPlayer && "text-mission-green"
-                  )}>
-                    {playerInfo?.name ?? "Unknown"}
-                  </span>
-                </div>
-                <span className="led-segment text-xl text-mission-amber">{score}</span>
-              </div>
-            );
-          })}
-        </div>
+      {/* Player Analytics and Stats */}
+      <PlayerAnalytics analytics={analytics} className="mb-6" />
+
+      {/* Action Log */}
+      <div className="mb-6">
+        <ActionLogDisplay
+          actionLog={state.actionLog}
+          playerCount={state.playerOrder.length}
+          maxHeight="300px"
+        />
       </div>
 
+      {/* Play Again Button */}
       {isHost && (
         <MissionButton
           onClick={onPlayAgain}
@@ -960,7 +952,7 @@ function GameOverScreen({
       )}
 
       {!isHost && (
-        <p className="text-mission-steel text-sm">Waiting for host to start new mission...</p>
+        <p className="text-mission-steel text-sm text-center">Waiting for host to start new mission...</p>
       )}
     </div>
   );
@@ -1587,6 +1579,16 @@ export function CometRushGameView({
                 )}
               </ActionPanel>
             </div>
+
+            {/* Host-only Action Log (during gameplay) */}
+            {isHost && gameState.actionLog.length > 0 && (
+              <ActionLogCompact
+                actionLog={gameState.actionLog}
+                playerCount={gameState.playerOrder.length}
+                isHost={isHost}
+                className="mb-4"
+              />
+            )}
           </>
         )}
 
