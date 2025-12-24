@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/cn";
 import type { GameViewProps } from "@/games/views";
@@ -994,6 +994,11 @@ export function CometRushGameView({
   const [launchAnimationComplete, setLaunchAnimationComplete] = useState(false);
   const prevLaunchResultRef = useRef<string | null>(null);
 
+  // Memoized callback to prevent animation re-renders
+  const handleLaunchAnimationComplete = useCallback(() => {
+    setLaunchAnimationComplete(true);
+  }, []);
+
   // Game state
   const gameState = state as CometRushState;
   const phase = gameState?.phase ?? "lobby";
@@ -1379,7 +1384,7 @@ export function CometRushGameView({
                 onUseReroll={handleUseReroll}
                 onDeclineReroll={handleDeclineReroll}
                 onMustReroll={handleForcedReroll}
-                onComplete={() => setLaunchAnimationComplete(true)}
+                onComplete={handleLaunchAnimationComplete}
               />
             )}
 
