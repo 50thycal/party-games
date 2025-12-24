@@ -1,5 +1,19 @@
 import { defineGame } from "@/engine/defineGame";
 import type { BaseAction, GamePhase, GameContext, Player } from "@/engine/types";
+import type { MultiplayerLogEntry } from "./actionLog";
+import {
+  resetLogIdCounter,
+  logBeginTurn,
+  logDrawCard,
+  logPlayCard,
+  logBuildRocket,
+  logLaunchRocket,
+  logUseReroll,
+  logDeclineReroll,
+  logEndTurn,
+  logRoundEnd,
+  logGameOver,
+} from "./actionLog";
 
 /**
  * COMET RUSH - A cooperative/competitive rocket-building game
@@ -219,6 +233,10 @@ export interface CometRushState {
   // Game outcome
   earthDestroyed: boolean;
   cometDestroyed: boolean;
+
+  // Action logging for multiplayer
+  actionLog: MultiplayerLogEntry[];
+  gameStartTime: number;
 }
 
 // ============================================================================
@@ -535,6 +553,8 @@ function initialState(players: Player[]): CometRushState {
     winnerIds: [],
     earthDestroyed: false,
     cometDestroyed: false,
+    actionLog: [],
+    gameStartTime: 0,
   };
 }
 
@@ -555,6 +575,9 @@ function reducer(
     case "START_GAME": {
       const isHost = ctx.room.hostId === ctx.playerId;
       if (!isHost || state.phase !== "lobby") return state;
+
+      // Reset log ID counter for new game
+      resetLogIdCounter();
 
       // Calculate strength card count based on player count
       const playerCount = state.playerOrder.length;
@@ -613,6 +636,8 @@ function reducer(
           lastDrawnDeck: null,
           wasEmbargoed: false,
         },
+        actionLog: [],
+        gameStartTime: ctx.now(),
       };
     }
 
@@ -654,7 +679,7 @@ function reducer(
         isEmbargoed: false, // Clear embargo after applying
       };
 
-      return {
+      const beginTurnState = {
         ...state,
         players: {
           ...state.players,
@@ -668,6 +693,13 @@ function reducer(
           lastDrawnDeck: null,
           wasEmbargoed,
         },
+      };
+
+      // Add action log entry
+      const beginTurnLogEntry = logBeginTurn(beginTurnState, action.playerId, income, wasEmbargoed);
+      return {
+        ...beginTurnState,
+        actionLog: [...beginTurnState.actionLog, beginTurnLogEntry],
       };
     }
 
@@ -730,7 +762,7 @@ function reducer(
         hand: newHand,
       };
 
-      return {
+      const drawCardState = {
         ...state,
         engineeringDeck,
         engineeringDiscard,
@@ -745,6 +777,14 @@ function reducer(
           lastDrawnCardId: drawnCardId,
           lastDrawnDeck: deckType,
         },
+      };
+
+      // Add action log entry
+      const drawnCard = newHand.find(c => c.id === drawnCardId);
+      const drawCardLogEntry = logDrawCard(drawCardState, action.playerId, deckType, drawnCard?.name ?? null);
+      return {
+        ...drawCardState,
+        actionLog: [...drawCardState.actionLog, drawCardLogEntry],
       };
     }
 
@@ -1088,7 +1128,7 @@ function reducer(
       updatedPlayer.hand = updatedPlayer.hand.filter((c) => c.id !== payload.cardId);
       updatedPlayers[action.playerId] = updatedPlayer;
 
-      return {
+      const playCardState = {
         ...state,
         players: updatedPlayers,
         engineeringDiscard,
@@ -1101,6 +1141,20 @@ function reducer(
               cardName: card.name,
             }
           : null,
+      };
+
+      // Add action log entry
+      const targetPlayer = payload.targetPlayerId ? state.players[payload.targetPlayerId] : null;
+      const playCardLogEntry = logPlayCard(
+        playCardState,
+        action.playerId,
+        card.name,
+        targetPlayer?.name,
+        resultDescription
+      );
+      return {
+        ...playCardState,
+        actionLog: [...playCardState.actionLog, playCardLogEntry],
       };
     }
 
@@ -1158,12 +1212,26 @@ function reducer(
         hasBuiltRocketThisTurn: true,
       };
 
-      return {
+      const buildRocketState = {
         ...state,
         players: {
           ...state.players,
           [action.playerId]: updatedPlayer,
         },
+      };
+
+      // Add action log entry
+      const buildRocketLogEntry = logBuildRocket(
+        buildRocketState,
+        action.playerId,
+        effectivePower,
+        effectiveAccuracy,
+        buildTimeCost,
+        cost
+      );
+      return {
+        ...buildRocketState,
+        actionLog: [...buildRocketState.actionLog, buildRocketLogEntry],
       };
     }
 
@@ -1258,13 +1326,20 @@ function reducer(
           mustRerollNextLaunch: false,
         };
 
-        return {
+        const launchMissState = {
           ...state,
           players: {
             ...state.players,
             [action.playerId]: updatedPlayer,
           },
           lastLaunchResult: launchResult,
+        };
+
+        // Add action log entry for miss
+        const launchMissLogEntry = logLaunchRocket(launchMissState, action.playerId, launchResult);
+        return {
+          ...launchMissState,
+          actionLog: [...launchMissState.actionLog, launchMissLogEntry],
         };
       }
 
@@ -1356,13 +1431,20 @@ function reducer(
           cometDestroyed: true,
           earthDestroyed: false,
         };
-        return {
+        const finalState = {
           ...newState,
           winnerIds: determineWinners(newState),
         };
+        // Add action log entries for launch and game over
+        const launchHitLogEntry = logLaunchRocket(finalState, action.playerId, launchResult);
+        const gameOverLogEntry = logGameOver(finalState, "cometDestroyed");
+        return {
+          ...finalState,
+          actionLog: [...finalState.actionLog, launchHitLogEntry, gameOverLogEntry],
+        };
       }
 
-      return {
+      const launchHitState = {
         ...state,
         strengthDeck,
         activeStrengthCard: updatedStrengthCard,
@@ -1372,6 +1454,13 @@ function reducer(
         },
         lastLaunchResult: launchResult,
         finalDestroyerId,
+      };
+
+      // Add action log entry for hit
+      const launchHitLogEntry = logLaunchRocket(launchHitState, action.playerId, launchResult);
+      return {
+        ...launchHitState,
+        actionLog: [...launchHitState.actionLog, launchHitLogEntry],
       };
     }
 
@@ -1429,13 +1518,21 @@ function reducer(
           hasRerollToken: false, // Consumed
         };
 
-        return {
+        const rerollMissState = {
           ...state,
           players: {
             ...state.players,
             [action.playerId]: updatedPlayer,
           },
           lastLaunchResult: launchResult,
+        };
+
+        // Add action log entries for reroll and miss
+        const useRerollLogEntry = logUseReroll(rerollMissState, action.playerId);
+        const rerollMissLogEntry = logLaunchRocket(rerollMissState, action.playerId, launchResult);
+        return {
+          ...rerollMissState,
+          actionLog: [...rerollMissState.actionLog, useRerollLogEntry, rerollMissLogEntry],
         };
       }
 
@@ -1519,13 +1616,21 @@ function reducer(
           cometDestroyed: true,
           earthDestroyed: false,
         };
-        return {
+        const finalState = {
           ...newState,
           winnerIds: determineWinners(newState),
         };
+        // Add action log entries
+        const useRerollLogEntry = logUseReroll(finalState, action.playerId);
+        const launchLogEntry = logLaunchRocket(finalState, action.playerId, launchResult);
+        const gameOverLogEntry = logGameOver(finalState, "cometDestroyed");
+        return {
+          ...finalState,
+          actionLog: [...finalState.actionLog, useRerollLogEntry, launchLogEntry, gameOverLogEntry],
+        };
       }
 
-      return {
+      const rerollHitState = {
         ...state,
         strengthDeck,
         activeStrengthCard: updatedStrengthCard,
@@ -1535,6 +1640,14 @@ function reducer(
         },
         lastLaunchResult: launchResult,
         finalDestroyerId,
+      };
+
+      // Add action log entries
+      const useRerollLogEntry = logUseReroll(rerollHitState, action.playerId);
+      const launchLogEntry = logLaunchRocket(rerollHitState, action.playerId, launchResult);
+      return {
+        ...rerollHitState,
+        actionLog: [...rerollHitState.actionLog, useRerollLogEntry, launchLogEntry],
       };
     }
 
@@ -1567,13 +1680,20 @@ function reducer(
         // Keep the reroll token - they didn't use it
       };
 
-      return {
+      const declineRerollState = {
         ...state,
         players: {
           ...state.players,
           [action.playerId]: updatedPlayer,
         },
         lastLaunchResult: updatedResult,
+      };
+
+      // Add action log entry
+      const declineRerollLogEntry = logDeclineReroll(declineRerollState, action.playerId);
+      return {
+        ...declineRerollState,
+        actionLog: [...declineRerollState.actionLog, declineRerollLogEntry],
       };
     }
 
@@ -1641,13 +1761,20 @@ function reducer(
           mustRerollNextLaunch: false, // Consumed
         };
 
-        return {
+        const forcedRerollMissState = {
           ...state,
           players: {
             ...state.players,
             [action.playerId]: updatedPlayer,
           },
           lastLaunchResult: launchResult,
+        };
+
+        // Add action log entry for forced reroll miss
+        const forcedRerollMissLogEntry = logLaunchRocket(forcedRerollMissState, action.playerId, launchResult);
+        return {
+          ...forcedRerollMissState,
+          actionLog: [...forcedRerollMissState.actionLog, forcedRerollMissLogEntry],
         };
       }
 
@@ -1739,13 +1866,20 @@ function reducer(
           cometDestroyed: true,
           earthDestroyed: false,
         };
-        return {
+        const finalState = {
           ...newState,
           winnerIds: determineWinners(newState),
         };
+        // Add action log entries
+        const forcedRerollHitLogEntry = logLaunchRocket(finalState, action.playerId, launchResult);
+        const gameOverLogEntry = logGameOver(finalState, "cometDestroyed");
+        return {
+          ...finalState,
+          actionLog: [...finalState.actionLog, forcedRerollHitLogEntry, gameOverLogEntry],
+        };
       }
 
-      return {
+      const forcedRerollHitState = {
         ...state,
         strengthDeck,
         activeStrengthCard: updatedStrengthCard,
@@ -1755,6 +1889,13 @@ function reducer(
         },
         lastLaunchResult: launchResult,
         finalDestroyerId,
+      };
+
+      // Add action log entry
+      const forcedRerollHitLogEntry = logLaunchRocket(forcedRerollHitState, action.playerId, launchResult);
+      return {
+        ...forcedRerollHitState,
+        actionLog: [...forcedRerollHitState.actionLog, forcedRerollHitLogEntry],
       };
     }
 
@@ -1816,7 +1957,7 @@ function reducer(
       const nextPlayerId = state.playerOrder[nextIndex];
       const nextPlayer = state.players[nextPlayerId];
 
-      return {
+      const endTurnState = {
         ...state,
         activePlayerIndex: nextIndex,
         round,
@@ -1835,6 +1976,27 @@ function reducer(
           lastDrawnDeck: null,
           wasEmbargoed: false,
         } : null,
+      };
+
+      // Build log entries
+      const logEntries: MultiplayerLogEntry[] = [];
+
+      // Log end turn
+      logEntries.push(logEndTurn(endTurnState, action.playerId));
+
+      // If round wrapped, log round end
+      if (wrapped && lastMovementCard) {
+        logEntries.push(logRoundEnd(endTurnState, action.playerId, lastMovementCard.moveSpaces, distanceToImpact));
+      }
+
+      // If game over due to earth destroyed, log it
+      if (earthDestroyed && phase === "gameOver") {
+        logEntries.push(logGameOver(endTurnState, "earthDestroyed"));
+      }
+
+      return {
+        ...endTurnState,
+        actionLog: [...endTurnState.actionLog, ...logEntries],
       };
     }
 
