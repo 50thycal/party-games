@@ -20,6 +20,7 @@ import { calculateScores } from "./config";
 import { CometTrack } from "./components/board/CometTrack";
 import { CardDecksDisplay } from "./components/board/CardDeckStack";
 import { PlayerStatusGrid, CurrentPlayerStatus } from "./components/board/PlayerStatusGrid";
+import { StrengthCardPanel } from "./components/board/StrengthCardPanel";
 import { LEDCounter } from "./components/controls/LEDCounter";
 import { MissionButton } from "./components/controls/MissionButton";
 import { StatusLight } from "./components/controls/StatusLight";
@@ -55,12 +56,10 @@ function MissionControlHeader({
   round,
   isMyTurn,
   activePlayerName,
-  strengthCard,
 }: {
   round: number;
   isMyTurn: boolean;
   activePlayerName: string;
-  strengthCard: { currentStrength: number; baseStrength: number } | null;
 }) {
   return (
     <div className="panel-retro p-3 mb-4">
@@ -92,19 +91,6 @@ function MissionControlHeader({
             </span>
           )}
         </div>
-
-        {/* Current strength target */}
-        {strengthCard && (
-          <div className="flex items-center gap-2">
-            <span className="label-embossed text-[10px]">TARGET STR</span>
-            <LEDCounter
-              value={strengthCard.currentStrength}
-              digits={2}
-              size="sm"
-              color="amber"
-            />
-          </div>
-        )}
       </div>
     </div>
   );
@@ -1298,13 +1284,20 @@ export function CometRushGameView({
               round={gameState.round}
               isMyTurn={isMyTurn}
               activePlayerName={gameState.players[activePlayerId ?? ""]?.name ?? "..."}
-              strengthCard={gameState.activeStrengthCard}
             />
 
             {/* Shared Board - Comet Track */}
             <CometTrack
               distanceToImpact={gameState.distanceToImpact}
               lastMovement={gameState.lastMovementCard?.moveSpaces}
+              className="mb-4"
+            />
+
+            {/* Shared Board - Strength Card Panel */}
+            <StrengthCardPanel
+              activeCard={gameState.activeStrengthCard}
+              cardsRemaining={gameState.strengthDeck.length}
+              totalCards={gameState.totalStrengthCards}
               className="mb-4"
             />
 
