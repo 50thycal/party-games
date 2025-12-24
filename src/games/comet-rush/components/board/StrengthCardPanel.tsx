@@ -33,7 +33,6 @@ export function StrengthCardPanel({
     return (
       <div className={cn("panel-retro p-4", className)}>
         <div className="text-center">
-          <span className="label-embossed text-[10px] block mb-2">COMET STRENGTH</span>
           {allDestroyed ? (
             <>
               <div className="text-mission-green text-lg font-bold">
@@ -48,9 +47,9 @@ export function StrengthCardPanel({
                 <span className="led-segment text-3xl text-amber-300">{cardsRemaining}</span>
               </div>
               <div className="text-amber-300 text-sm font-bold">
-                SEGMENTS AWAITING ATTACK
+                SEGMENTS REMAINING
               </div>
-              <span className="text-[10px] text-mission-steel">Launch a rocket to reveal the first segment!</span>
+              <span className="text-[10px] text-mission-steel">Launch a rocket to reveal strength of current segment</span>
             </>
           )}
         </div>
