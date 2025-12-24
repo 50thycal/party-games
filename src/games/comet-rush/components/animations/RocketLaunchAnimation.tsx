@@ -98,15 +98,16 @@ export function RocketLaunchAnimation({
   useEffect(() => {
     if (phase !== "dice_result") return;
 
-    // If mustReroll or canReroll, don't auto-advance - wait for user action
-    if (mustReroll || canReroll) return;
+    // If mustReroll (sabotaged) and hit, or canReroll (token) and missed, wait for user action
+    // If mustReroll but missed, they don't get another chance - continue animation
+    if ((mustReroll && isHit) || (canReroll && !isHit)) return;
 
     const timeout = setTimeout(() => {
       setPhase("rocket_launching");
     }, 1500);
 
     return () => clearTimeout(timeout);
-  }, [phase, mustReroll, canReroll]);
+  }, [phase, mustReroll, canReroll, isHit]);
 
   // Rocket launching
   useEffect(() => {
@@ -337,8 +338,8 @@ export function RocketLaunchAnimation({
                     {isHit ? "TRAJECTORY LOCKED" : "TRAJECTORY MISS"}
                   </motion.div>
 
-                  {/* Must Reroll (Sabotage) */}
-                  {mustReroll && isCurrentPlayer && (
+                  {/* Must Reroll (Sabotage) - only on hits, misses don't get another chance */}
+                  {mustReroll && isHit && isCurrentPlayer && (
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -386,7 +387,7 @@ export function RocketLaunchAnimation({
                   )}
 
                   {/* Waiting for decision (other players) */}
-                  {(mustReroll || (canReroll && !isHit)) && !isCurrentPlayer && (
+                  {((mustReroll && isHit) || (canReroll && !isHit)) && !isCurrentPlayer && (
                     <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}

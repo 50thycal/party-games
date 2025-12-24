@@ -1133,6 +1133,16 @@ export function CometRushGameView({
   }
 
   async function handleEndTurn() {
+    // Check if player hasn't collected income or drawn a card yet
+    if (turnWizardStep !== null) {
+      const confirmed = confirm(
+        "Are you sure you want to end your turn? You have not collected income or drawn a card yet."
+      );
+      if (!confirmed) return;
+      // Dismiss wizard since they're ending early
+      setTurnWizardStep(null);
+    }
+
     setIsEndingTurn(true);
     try {
       await dispatchAction("END_TURN");
