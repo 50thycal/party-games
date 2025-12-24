@@ -20,6 +20,7 @@ interface PlayerInfo {
   rockets: RocketInfo[];
   isActive: boolean;
   isCurrentUser: boolean;
+  score?: number;
 }
 
 interface PlayerStatusGridProps {
@@ -112,11 +113,19 @@ function PlayerStatusCard({ player }: { player: PlayerInfo }) {
         )}
       </div>
 
-      {/* Resources */}
-      <div className="flex items-center gap-1 pt-1 border-t border-mission-steel-dark/50">
-        <span className="text-mission-amber">●</span>
-        <span className="led-segment text-sm text-mission-amber">{player.resourceCubes}</span>
-        <span className="text-[8px] text-mission-steel">cubes</span>
+      {/* Resources and Score */}
+      <div className="flex items-center justify-between gap-1 pt-1 border-t border-mission-steel-dark/50">
+        <div className="flex items-center gap-1">
+          <span className="text-mission-amber">●</span>
+          <span className="led-segment text-sm text-mission-amber">{player.resourceCubes}</span>
+          <span className="text-[8px] text-mission-steel">cubes</span>
+        </div>
+        {player.score !== undefined && player.score > 0 && (
+          <div className="flex items-center gap-1">
+            <span className="led-segment text-sm text-purple-400">{player.score}</span>
+            <span className="text-[8px] text-mission-steel">pts</span>
+          </div>
+        )}
       </div>
     </motion.div>
   );
