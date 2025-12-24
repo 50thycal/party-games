@@ -1449,23 +1449,39 @@ export function CometRushGameView({
             )}
 
             {/* Trophies Display */}
-            {player.trophies.length > 0 && (
-              <div className="panel-retro p-3 mb-4 border-purple-700">
-                <span className="label-embossed text-[10px] block mb-2">
-                  TROPHIES ({player.trophies.reduce((sum, t) => sum + t.baseStrength, 0)} pts)
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  {player.trophies.map((trophy) => (
-                    <span
-                      key={trophy.id}
-                      className="px-2 py-1 bg-purple-900/50 border border-purple-600/50 rounded text-xs text-purple-300"
-                    >
-                      STR {trophy.baseStrength}
-                    </span>
-                  ))}
+            {(() => {
+              // Hide newly earned trophy while launch animation is showing
+              const isShowingDestroyResult =
+                gameState.lastLaunchResult?.destroyed &&
+                gameState.lastLaunchResult?.playerId === playerId;
+
+              // If showing destroy result, hide the most recently earned trophy
+              const displayTrophies = isShowingDestroyResult
+                ? player.trophies.slice(0, -1)
+                : player.trophies;
+
+              const displayPoints = displayTrophies.reduce((sum, t) => sum + t.baseStrength, 0);
+
+              if (displayTrophies.length === 0) return null;
+
+              return (
+                <div className="panel-retro p-3 mb-4 border-purple-700">
+                  <span className="label-embossed text-[10px] block mb-2">
+                    TROPHIES ({displayPoints} pts)
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {displayTrophies.map((trophy) => (
+                      <span
+                        key={trophy.id}
+                        className="px-2 py-1 bg-purple-900/50 border border-purple-600/50 rounded text-xs text-purple-300"
+                      >
+                        STR {trophy.baseStrength}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Action Panels */}
             <div className="space-y-2 mb-4">

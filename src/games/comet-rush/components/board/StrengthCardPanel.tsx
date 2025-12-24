@@ -26,15 +26,33 @@ export function StrengthCardPanel({
   totalCards,
   className,
 }: StrengthCardPanelProps) {
+  // No active card - either waiting to reveal first segment or all destroyed
   if (!activeCard) {
+    const allDestroyed = cardsRemaining === 0;
+
     return (
       <div className={cn("panel-retro p-4", className)}>
         <div className="text-center">
           <span className="label-embossed text-[10px] block mb-2">COMET STRENGTH</span>
-          <div className="text-mission-green text-lg font-bold">
-            ALL SEGMENTS DESTROYED
-          </div>
-          <span className="text-[10px] text-mission-steel">Comet has been neutralized!</span>
+          {allDestroyed ? (
+            <>
+              <div className="text-mission-green text-lg font-bold">
+                ALL SEGMENTS DESTROYED
+              </div>
+              <span className="text-[10px] text-mission-steel">Comet has been neutralized!</span>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center justify-center gap-3 mb-2">
+                <span className="text-3xl">☄️</span>
+                <span className="led-segment text-3xl text-amber-300">{cardsRemaining}</span>
+              </div>
+              <div className="text-amber-300 text-sm font-bold">
+                SEGMENTS AWAITING ATTACK
+              </div>
+              <span className="text-[10px] text-mission-steel">Launch a rocket to reveal the first segment!</span>
+            </>
+          )}
         </div>
       </div>
     );
