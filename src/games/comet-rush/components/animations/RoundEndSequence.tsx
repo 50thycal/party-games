@@ -53,12 +53,16 @@ export function RoundEndSequence({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className={cn(
-        "fixed inset-0 z-50 flex items-center justify-center",
+        "fixed inset-0 z-[200] flex items-center justify-center",
         "bg-mission-dark/95 backdrop-blur-sm",
+        "overflow-y-auto py-8",
         className
       )}
+      style={{
+        paddingBottom: "max(32px, calc(env(safe-area-inset-bottom) + 80px))",
+      }}
     >
-      <div className="max-w-md w-full mx-4">
+      <div className="max-w-md w-full mx-4 my-auto">
         {/* Header */}
         <motion.div
           initial={{ y: -20, opacity: 0 }}
