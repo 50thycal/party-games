@@ -102,11 +102,13 @@ function BuildRocketForm({
   onBuild,
   isBuilding,
   isMyTurn,
+  showSuccess,
 }: {
   player: CometRushPlayerState;
   onBuild: (buildTime: number, power: number, accuracy: number) => void;
   isBuilding: boolean;
   isMyTurn: boolean;
+  showSuccess?: boolean;
 }) {
   const [buildTime, setBuildTime] = useState(2);
   const [power, setPower] = useState(1);
@@ -127,7 +129,46 @@ function BuildRocketForm({
     buildTime === 1 ? 2 : buildTime === 2 ? 1 : 0;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 relative">
+      {/* Success Animation Overlay */}
+      <AnimatePresence>
+        {showSuccess && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            className="absolute inset-0 z-10 flex items-center justify-center bg-mission-dark/90 rounded"
+          >
+            <div className="text-center">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: [0, 1.2, 1] }}
+                transition={{ duration: 0.4 }}
+                className="text-5xl mb-2"
+              >
+                🔧
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="text-mission-green font-bold text-lg"
+              >
+                CONSTRUCTION STARTED!
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                className="text-mission-steel text-xs mt-1"
+              >
+                Rocket queued for assembly
+              </motion.div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Build Time Cost */}
       <div>
         <div className="flex items-center justify-between mb-2">
@@ -975,6 +1016,7 @@ export function CometRushGameView({
 
   // UI state
   const [expandedAction, setExpandedAction] = useState<"build" | "launch" | "cards" | null>(null);
+  const [buildSuccess, setBuildSuccess] = useState(false);
 
   // Turn wizard state
   const [turnWizardStep, setTurnWizardStep] = useState<TurnWizardStep>(null);
@@ -1118,6 +1160,9 @@ export function CometRushGameView({
     setIsBuilding(true);
     try {
       await dispatchAction("BUILD_ROCKET", { buildTimeBase, power, accuracy });
+      // Show success animation
+      setBuildSuccess(true);
+      setTimeout(() => setBuildSuccess(false), 1500);
     } finally {
       setIsBuilding(false);
     }
@@ -1545,6 +1590,7 @@ export function CometRushGameView({
                   onBuild={handleBuildRocket}
                   isBuilding={isBuilding}
                   isMyTurn={isMyTurn}
+                  showSuccess={buildSuccess}
                 />
               </ActionPanel>
 
