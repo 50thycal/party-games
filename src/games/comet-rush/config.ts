@@ -1315,7 +1315,7 @@ function reducer(
             baseStrength: state.activeStrengthCard?.baseStrength ?? 0,
             canReroll: false, // No reroll on sabotaged miss
             isReroll: false,
-            mustReroll: true, // Still show as sabotaged in UI
+            mustReroll: false, // Sabotage consumed but no reroll (was a miss)
           };
 
           const updatedPlayer = {
