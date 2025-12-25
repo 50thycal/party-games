@@ -991,8 +991,9 @@ export function CometRushGameView({
     previousDistance: number;
     round: number;
   } | null>(null);
-  const prevRoundRef = useRef<number>(0);
-  const prevDistanceRef = useRef<number>(18);
+  // Initialize refs to -1/999 to indicate "not yet synced with game state"
+  const prevRoundRef = useRef<number>(-1);
+  const prevDistanceRef = useRef<number>(999);
 
   // Track launch animation completion for trophy display timing
   const [launchAnimationComplete, setLaunchAnimationComplete] = useState(false);
@@ -1017,6 +1018,13 @@ export function CometRushGameView({
 
     const currentRound = gameState.round;
     const currentDistance = gameState.distanceToImpact;
+
+    // Initialize refs on first sync (when they have sentinel values)
+    if (prevRoundRef.current === -1 || prevDistanceRef.current === 999) {
+      prevRoundRef.current = currentRound;
+      prevDistanceRef.current = currentDistance;
+      return;
+    }
 
     // Check if round advanced and movement card was drawn
     if (
