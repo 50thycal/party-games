@@ -14,6 +14,7 @@ import type {
   EconomicCard,
   TurnMeta,
   CardDeckType,
+  PendingDiplomaticPressure,
 } from "./config";
 import { calculateScores } from "./config";
 
@@ -1129,6 +1130,7 @@ export function CometRushGameView({
   const [isEndingTurn, setIsEndingTurn] = useState(false);
   const [isPlayingCard, setIsPlayingCard] = useState(false);
   const [isPlayingAgain, setIsPlayingAgain] = useState(false);
+  const [isRespondingToDiplomaticPressure, setIsRespondingToDiplomaticPressure] = useState(false);
 
   // Card selection state
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
@@ -1410,6 +1412,15 @@ export function CometRushGameView({
     }
   }
 
+  async function handleRespondToDiplomaticPressure(counter: boolean) {
+    setIsRespondingToDiplomaticPressure(true);
+    try {
+      await dispatchAction("RESPOND_TO_DIPLOMATIC_PRESSURE", { counter });
+    } finally {
+      setIsRespondingToDiplomaticPressure(false);
+    }
+  }
+
   function toggleCardSelection(cardId: string) {
     setSelectedCardId((prev) => (prev === cardId ? null : cardId));
     setTargetPlayerId("");
@@ -1608,6 +1619,51 @@ export function CometRushGameView({
                   result={gameState.lastCardResult}
                   onDismiss={handleClearCardResult}
                 />
+              )}
+
+            {/* Diplomatic Pressure Counter Prompt */}
+            {gameState.pendingDiplomaticPressure &&
+              gameState.pendingDiplomaticPressure.targetId === playerId && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="panel-retro p-4 mb-4 border-mission-red"
+                >
+                  <div className="text-center">
+                    <span className="text-3xl block mb-2">⚔️</span>
+                    <span className="label-embossed text-[10px] block mb-2 text-mission-red">
+                      INCOMING ATTACK
+                    </span>
+                    <h3 className="text-lg font-bold text-mission-cream mb-2">
+                      {gameState.pendingDiplomaticPressure.attackerName} played Diplomatic Pressure!
+                    </h3>
+                    <p className="text-sm text-mission-cream/80 mb-4">
+                      You have a Diplomatic Pressure card. Use it to counter and nullify the attack?
+                    </p>
+                    <div className="flex gap-3 justify-center">
+                      <MissionButton
+                        onClick={() => handleRespondToDiplomaticPressure(true)}
+                        disabled={isRespondingToDiplomaticPressure}
+                        variant="success"
+                        size="lg"
+                        isLoading={isRespondingToDiplomaticPressure}
+                      >
+                        Counter Attack
+                      </MissionButton>
+                      <MissionButton
+                        onClick={() => handleRespondToDiplomaticPressure(false)}
+                        disabled={isRespondingToDiplomaticPressure}
+                        variant="danger"
+                        size="lg"
+                      >
+                        Accept Block
+                      </MissionButton>
+                    </div>
+                    <p className="text-xs text-mission-steel mt-3">
+                      Counter: Both cards discarded, no effect. Accept: Your next card play will be blocked and discarded.
+                    </p>
+                  </div>
+                </motion.div>
               )}
 
             {/* Turn Wizard */}

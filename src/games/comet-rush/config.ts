@@ -238,6 +238,14 @@ export interface PendingCardPlay {
   expiresAt: number;          // Timeout timestamp
 }
 
+// Pending Diplomatic Pressure attack awaiting counter response
+export interface PendingDiplomaticPressure {
+  attackerId: string;         // Who played Diplomatic Pressure
+  attackerName: string;       // Attacker's display name
+  targetId: string;           // Who is being targeted
+  counterCardId: string;      // The target's Diplomatic Pressure card they can use to counter
+}
+
 export interface CometRushState {
   phase: CometRushPhase;
   round: number;
@@ -299,6 +307,9 @@ export interface CometRushState {
   // Reactive card system - pending card play awaiting responses
   pendingCardPlay: PendingCardPlay | null;
 
+  // Pending Diplomatic Pressure attack awaiting counter
+  pendingDiplomaticPressure: PendingDiplomaticPressure | null;
+
   // Action logging for multiplayer
   actionLog: MultiplayerLogEntry[];
   gameStartTime: number;
@@ -314,6 +325,7 @@ export type CometRushActionType =
   | "DRAW_CARD"           // Draw from chosen deck (Engineering, Espionage, or Economic)
   | "PLAY_CARD"           // Play a single card from hand
   | "RESPOND_TO_CARD"     // Respond to pending card play (block with Diplomatic Pressure or pass)
+  | "RESPOND_TO_DIPLOMATIC_PRESSURE"  // Counter or accept Diplomatic Pressure attack
   | "BUILD_ROCKET"
   | "APPLY_CALIBRATION"   // Apply Rocket Calibration before launch
   | "LAUNCH_ROCKET"       // Initiates launch - sets up pendingLaunch (no dice roll yet)
@@ -344,6 +356,11 @@ export interface RespondToCardPayload {
   block: boolean;  // true = use Diplomatic Pressure to block, false = pass
 }
 
+// Response to Diplomatic Pressure attack
+export interface RespondToDiplomaticPressurePayload {
+  counter: boolean;  // true = use own Diplomatic Pressure to counter, false = accept the attack
+}
+
 export interface BuildRocketPayload {
   buildTimeBase: number;
   power: number;
@@ -362,7 +379,7 @@ export interface LaunchRocketPayload {
 
 export interface CometRushAction extends BaseAction {
   type: CometRushActionType;
-  payload?: DrawCardPayload | PlayCardPayload | RespondToCardPayload | BuildRocketPayload | ApplyCalibrationPayload | LaunchRocketPayload | Record<string, never>;
+  payload?: DrawCardPayload | PlayCardPayload | RespondToCardPayload | RespondToDiplomaticPressurePayload | BuildRocketPayload | ApplyCalibrationPayload | LaunchRocketPayload | Record<string, never>;
 }
 
 // ============================================================================
@@ -688,6 +705,7 @@ function initialState(players: Player[]): CometRushState {
     earthDestroyed: false,
     cometDestroyed: false,
     pendingCardPlay: null,
+    pendingDiplomaticPressure: null,
     actionLog: [],
     gameStartTime: 0,
   };
@@ -1253,6 +1271,32 @@ function reducer(
             const targetPlayer = state.players[payload.targetPlayerId];
             if (!targetPlayer || payload.targetPlayerId === action.playerId) return state;
 
+            // Check if target has a Diplomatic Pressure card they can counter with
+            const counterCard = targetPlayer.hand.find(
+              (c) => c.deck === "espionage" && (c as EspionageCard).cardType === "DIPLOMATIC_PRESSURE"
+            );
+
+            if (counterCard) {
+              // Target can counter! Set up pending state and wait for response
+              // Don't remove the attacker's card yet - keep it until resolved
+              return {
+                ...state,
+                pendingDiplomaticPressure: {
+                  attackerId: action.playerId,
+                  attackerName: updatedPlayer.name,
+                  targetId: payload.targetPlayerId,
+                  counterCardId: counterCard.id,
+                },
+                lastCardResult: {
+                  id: `${ctx.now()}`,
+                  playerId: action.playerId,
+                  description: `Diplomatic Pressure played on ${targetPlayer.name}! Waiting for response...`,
+                  cardName: "Diplomatic Pressure",
+                },
+              };
+            }
+
+            // Target cannot counter - apply effect immediately
             updatedPlayers = {
               ...updatedPlayers,
               [payload.targetPlayerId]: {
@@ -2327,6 +2371,104 @@ function reducer(
       };
     }
 
+    case "RESPOND_TO_DIPLOMATIC_PRESSURE": {
+      if (state.phase !== "playing") return state;
+      if (!state.pendingDiplomaticPressure) return state;
+
+      const pending = state.pendingDiplomaticPressure;
+
+      // Only the target can respond
+      if (action.playerId !== pending.targetId) return state;
+
+      const payload = action.payload as RespondToDiplomaticPressurePayload | undefined;
+      if (!payload) return state;
+
+      const attacker = state.players[pending.attackerId];
+      const target = state.players[pending.targetId];
+      if (!attacker || !target) return state;
+
+      // Find the attacker's Diplomatic Pressure card (still in their hand)
+      const attackerCard = attacker.hand.find(
+        (c) => c.deck === "espionage" && (c as EspionageCard).cardType === "DIPLOMATIC_PRESSURE"
+      );
+
+      if (payload.counter) {
+        // Target chose to counter! Both cards are discarded, attack is nullified
+        const counterCard = target.hand.find((c) => c.id === pending.counterCardId);
+        if (!counterCard) return state; // Counter card no longer exists
+
+        // Remove both cards from hands
+        const newAttackerHand = attacker.hand.filter(
+          (c) => !(c.deck === "espionage" && (c as EspionageCard).cardType === "DIPLOMATIC_PRESSURE")
+        );
+        const newTargetHand = target.hand.filter((c) => c.id !== pending.counterCardId);
+
+        // Add both to espionage discard
+        let espionageDiscard = [...state.espionageDiscard];
+        if (attackerCard) {
+          espionageDiscard = [...espionageDiscard, attackerCard as EspionageCard];
+        }
+        espionageDiscard = [...espionageDiscard, counterCard as EspionageCard];
+
+        return {
+          ...state,
+          players: {
+            ...state.players,
+            [pending.attackerId]: {
+              ...attacker,
+              hand: newAttackerHand,
+            },
+            [pending.targetId]: {
+              ...target,
+              hand: newTargetHand,
+            },
+          },
+          espionageDiscard,
+          pendingDiplomaticPressure: null,
+          lastCardResult: {
+            id: `${ctx.now()}`,
+            playerId: pending.targetId,
+            description: `${target.name} countered with their own Diplomatic Pressure! Both cards discarded.`,
+            cardName: "Diplomatic Pressure",
+          },
+        };
+      } else {
+        // Target chose not to counter - attack succeeds
+        // Remove attacker's card and discard it
+        const newAttackerHand = attacker.hand.filter(
+          (c) => !(c.deck === "espionage" && (c as EspionageCard).cardType === "DIPLOMATIC_PRESSURE")
+        );
+
+        let espionageDiscard = [...state.espionageDiscard];
+        if (attackerCard) {
+          espionageDiscard = [...espionageDiscard, attackerCard as EspionageCard];
+        }
+
+        return {
+          ...state,
+          players: {
+            ...state.players,
+            [pending.attackerId]: {
+              ...attacker,
+              hand: newAttackerHand,
+            },
+            [pending.targetId]: {
+              ...target,
+              isUnderDiplomaticPressure: true,
+            },
+          },
+          espionageDiscard,
+          pendingDiplomaticPressure: null,
+          lastCardResult: {
+            id: `${ctx.now()}`,
+            playerId: pending.targetId,
+            description: `${target.name} accepted the Diplomatic Pressure. Their next card play will be blocked!`,
+            cardName: "Diplomatic Pressure",
+          },
+        };
+      }
+    }
+
     case "END_TURN": {
       if (state.phase !== "playing") return state;
 
@@ -2466,6 +2608,12 @@ function isActionAllowed(
 
     case "CLEAR_CARD_RESULT":
       return state.phase === "playing";
+
+    case "RESPOND_TO_DIPLOMATIC_PRESSURE":
+      // The target of the attack can respond (even if not their turn)
+      return state.phase === "playing" &&
+             state.pendingDiplomaticPressure !== null &&
+             state.pendingDiplomaticPressure.targetId === ctx.playerId;
 
     case "PLAY_AGAIN":
       return isHost && state.phase === "gameOver";
