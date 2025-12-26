@@ -1445,6 +1445,14 @@ export function CometRushGameView({
               activeCard={gameState.activeStrengthCard}
               cardsRemaining={gameState.strengthDeck.length}
               totalCards={gameState.totalStrengthCards}
+              pendingLaunch={gameState.lastLaunchResult ? {
+                strengthBefore: gameState.lastLaunchResult.strengthBefore,
+                baseStrength: gameState.lastLaunchResult.baseStrength,
+                isHit: gameState.lastLaunchResult.hit,
+                power: gameState.lastLaunchResult.power,
+                destroyed: gameState.lastLaunchResult.destroyed,
+              } : null}
+              launchAnimationComplete={launchAnimationComplete}
               className="mb-4"
             />
 
