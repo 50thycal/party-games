@@ -57,6 +57,7 @@ During your turn, you may:
 - **Build ONE rocket** (only one per turn)
 - **Launch rockets** (as many ready rockets as you want)
 - **Play cards** from your hand (multiple allowed)
+- **Trade cards** (discard 2 cards → draw 1 from any deck) - FREE ACTION
 
 ### 4. End Turn
 - Click "End Turn" to pass to the next player
@@ -226,11 +227,17 @@ When targeted by "Covert Rocket Strike":
 - The attacker destroys one of your **building or ready** rockets
 - Rockets currently launching cannot be targeted
 
-### Diplomatic Pressure (Card Block)
+### Diplomatic Pressure (Card Block & Counter)
 When an opponent plays "Diplomatic Pressure" on you:
 - Your **next card play** will be blocked
 - The card is discarded without effect
 - Plan your turn carefully!
+
+**Counter Mechanic:** If you have your own "Diplomatic Pressure" card in hand when targeted:
+- You will be prompted: "You've been attacked! Would you like to use your counter card?"
+- **If you counter:** Your Diplomatic Pressure card is discarded, the attack is nullified, and you are no longer under pressure
+- **If you accept:** You keep your card but remain under the blocking effect
+- This creates strategic decisions about when to save vs. use your defensive cards
 
 ### Embargo (Income Block)
 When targeted by "Embargo":
@@ -257,6 +264,23 @@ When you play "Comet Analysis":
 - Choose to peek at either the **top Movement card** or **top Strength card**
 - This information is **private** - only you can see it
 - Helps you plan: Will the comet move 1 or 3 spaces? How strong is the next segment?
+
+### Card Trading (Free Action)
+During your turn, you may trade cards to improve your hand:
+
+**How to Trade:**
+1. Click the **"Trade Cards (2 → 1)"** button in the Play Card panel
+2. **Select exactly 2 cards** from your hand to discard
+3. **Choose a deck** to draw from (Engineering, Espionage, or Economic)
+4. Confirm the trade - your selected cards are discarded and you draw 1 new card
+
+**Trade Rules:**
+- This is a **free action** - it doesn't count as playing a card
+- You can trade **at any point during your turn** (before or after other actions)
+- You can only trade if you have **at least 2 cards** in hand
+- The discarded cards go to their respective deck's discard pile
+- You may trade multiple times per turn (if you still have 2+ cards)
+- Useful for cycling bad cards or searching for specific deck types
 
 ---
 
@@ -373,8 +397,11 @@ The game ends in **defeat** if:
 | **Cap** | Maximum value you can assign to Power or Accuracy |
 | **Ready** | A rocket that has finished building and can launch |
 | **Calibration** | Pre-launch bonus of +1 accuracy or +1 power (from Rocket Calibration) |
-| **Diplomatic Pressure** | Status effect that blocks your next card play |
+| **Diplomatic Pressure** | Status effect that blocks your next card play (can be countered) |
+| **Counter** | Using your own Diplomatic Pressure card to nullify an incoming attack |
+| **Card Trade** | Free action to discard 2 cards and draw 1 from any deck |
 | **Late Game** | When comet is ≤9 distance from Earth (draw 2 cards per turn) |
+| **Free Action** | An action that doesn't count toward your normal turn limits |
 
 ---
 
