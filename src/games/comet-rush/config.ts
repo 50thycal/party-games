@@ -964,11 +964,29 @@ function reducer(
       if (player.isUnderDiplomaticPressure) {
         // Find the card to show in the blocked message
         const blockedCard = player.hand.find((c) => c.id === payload.cardId);
-        const cardName = blockedCard?.name ?? "Card";
+        if (!blockedCard) return state;
+
+        const cardName = blockedCard.name;
+
+        // Remove the blocked card from hand and add to appropriate discard pile
+        const newHand = player.hand.filter((c) => c.id !== payload.cardId);
+
+        let engineeringDiscard = [...state.engineeringDiscard];
+        let espionageDiscard = [...state.espionageDiscard];
+        let economicDiscard = [...state.economicDiscard];
+
+        if (blockedCard.deck === "engineering") {
+          engineeringDiscard = [...engineeringDiscard, blockedCard as EngineeringCard];
+        } else if (blockedCard.deck === "espionage") {
+          espionageDiscard = [...espionageDiscard, blockedCard as EspionageCard];
+        } else {
+          economicDiscard = [...economicDiscard, blockedCard as EconomicCard];
+        }
 
         // Clear the diplomatic pressure flag (consumed on block)
         const updatedPlayer = {
           ...player,
+          hand: newHand,
           isUnderDiplomaticPressure: false,
         };
 
@@ -978,10 +996,13 @@ function reducer(
             ...state.players,
             [action.playerId]: updatedPlayer,
           },
+          engineeringDiscard,
+          espionageDiscard,
+          economicDiscard,
           lastCardResult: {
             id: `${ctx.now()}`,
             playerId: action.playerId,
-            description: `Your "${cardName}" was blocked by Diplomatic Pressure! The card remains in your hand.`,
+            description: `Your "${cardName}" was blocked by Diplomatic Pressure and discarded!`,
             cardName: "Diplomatic Pressure",
           },
         };
