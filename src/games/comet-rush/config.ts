@@ -960,6 +960,33 @@ function reducer(
       const player = state.players[action.playerId];
       if (!player) return state;
 
+      // Check if player is under Diplomatic Pressure - their card play is blocked
+      if (player.isUnderDiplomaticPressure) {
+        // Find the card to show in the blocked message
+        const blockedCard = player.hand.find((c) => c.id === payload.cardId);
+        const cardName = blockedCard?.name ?? "Card";
+
+        // Clear the diplomatic pressure flag (consumed on block)
+        const updatedPlayer = {
+          ...player,
+          isUnderDiplomaticPressure: false,
+        };
+
+        return {
+          ...state,
+          players: {
+            ...state.players,
+            [action.playerId]: updatedPlayer,
+          },
+          lastCardResult: {
+            id: `${ctx.now()}`,
+            playerId: action.playerId,
+            description: `Your "${cardName}" was blocked by Diplomatic Pressure! The card remains in your hand.`,
+            cardName: "Diplomatic Pressure",
+          },
+        };
+      }
+
       // Find the card in hand
       const card = player.hand.find((c) => c.id === payload.cardId);
       if (!card) return state;

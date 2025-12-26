@@ -812,6 +812,7 @@ function CardWithInlineControls({
     needsPeekChoice: boolean;
     needsOwnRocket: boolean;
     needsCalibrationChoice: boolean;
+    canTargetReadyRockets: boolean;
   };
   targetPlayerId: string;
   setTargetPlayerId: (id: string) => void;
@@ -896,10 +897,12 @@ function CardWithInlineControls({
                 >
                   <option value="">Select rocket...</option>
                   {gameState.players[targetPlayerId]?.rockets
-                    .filter((r) => r.status === "building")
+                    .filter((r) => cardRequirements.canTargetReadyRockets
+                      ? (r.status === "building" || r.status === "ready")
+                      : r.status === "building")
                     .map((r) => (
                       <option key={r.id} value={r.id}>
-                        Power {r.power}, Acc {r.accuracy} ({r.buildTimeRemaining} turns)
+                        Power {r.power}, Acc {r.accuracy} {r.status === "ready" ? "(Ready)" : `(${r.buildTimeRemaining} turns)`}
                       </option>
                     ))}
                 </select>
@@ -1409,7 +1412,7 @@ export function CometRushGameView({
 
   // Determine targeting requirements for selected card
   const getCardRequirements = (card: GameCard | null) => {
-    const defaults = { needsTargetPlayer: false, needsTargetRocket: false, needsPeekChoice: false, needsOwnRocket: false, needsCalibrationChoice: false };
+    const defaults = { needsTargetPlayer: false, needsTargetRocket: false, needsPeekChoice: false, needsOwnRocket: false, needsCalibrationChoice: false, canTargetReadyRockets: false };
     if (!card) return defaults;
 
     if (card.deck === "engineering") {
@@ -1434,8 +1437,9 @@ export function CometRushGameView({
         case "DIPLOMATIC_PRESSURE":
           return { ...defaults, needsTargetPlayer: true };
         case "REGULATORY_REVIEW":
-        case "COVERT_ROCKET_STRIKE":
           return { ...defaults, needsTargetPlayer: true, needsTargetRocket: true };
+        case "COVERT_ROCKET_STRIKE":
+          return { ...defaults, needsTargetPlayer: true, needsTargetRocket: true, canTargetReadyRockets: true };
         default:
           return defaults;
       }
@@ -1697,6 +1701,7 @@ export function CometRushGameView({
             {/* Upgrades Display */}
             {(player.upgrades.incomeBonus > 0 ||
               player.upgrades.salvageBonus > 0 ||
+              player.upgrades.cardPlayBonus > 0 ||
               player.upgrades.powerCap > 3 ||
               player.upgrades.accuracyCap > 3 ||
               player.hasRerollToken) && (
@@ -1711,6 +1716,11 @@ export function CometRushGameView({
                   {player.upgrades.salvageBonus > 0 && (
                     <span className="px-2 py-1 bg-mission-green/20 border border-mission-green/50 rounded text-xs text-mission-green">
                       +{player.upgrades.salvageBonus} Salvage
+                    </span>
+                  )}
+                  {player.upgrades.cardPlayBonus > 0 && (
+                    <span className="px-2 py-1 bg-purple-900/50 border border-purple-600/50 rounded text-xs text-purple-300">
+                      +{player.upgrades.cardPlayBonus} per Card
                     </span>
                   )}
                   {player.upgrades.powerCap > 3 && (
@@ -1728,6 +1738,43 @@ export function CometRushGameView({
                       Re-roll Token
                     </span>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* Pending Calibration Display */}
+            {(player.pendingCalibration.accuracyBonus > 0 || player.pendingCalibration.powerBonus > 0) && (
+              <div className="panel-retro p-3 mb-4 border-cyan-700">
+                <span className="label-embossed text-[10px] block mb-2">LAUNCH CALIBRATION</span>
+                <p className="text-xs text-mission-cream/70 mb-2">
+                  Bonuses applied to your next rocket launch:
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {player.pendingCalibration.accuracyBonus > 0 && (
+                    <span className="px-2 py-1 bg-cyan-900/50 border border-cyan-600/50 rounded text-xs text-cyan-300">
+                      +{player.pendingCalibration.accuracyBonus} Accuracy
+                    </span>
+                  )}
+                  {player.pendingCalibration.powerBonus > 0 && (
+                    <span className="px-2 py-1 bg-orange-900/50 border border-orange-600/50 rounded text-xs text-orange-300">
+                      +{player.pendingCalibration.powerBonus} Power
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Diplomatic Pressure Warning */}
+            {player.isUnderDiplomaticPressure && (
+              <div className="panel-retro p-3 mb-4 border-mission-red">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">🚫</span>
+                  <div>
+                    <span className="label-embossed text-[10px] block text-mission-red">DIPLOMATIC PRESSURE</span>
+                    <p className="text-xs text-mission-cream/70">
+                      Your next card play will be blocked!
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
