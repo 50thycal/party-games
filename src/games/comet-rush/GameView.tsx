@@ -490,33 +490,33 @@ function TurnWizard({
             <span className="text-sm text-mission-cream">Select intelligence deck:</span>
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-1.5">
             <MissionButton
               onClick={() => onDrawCard("engineering")}
               disabled={isDrawingCard}
               variant="success"
-              size="md"
+              size="sm"
               isLoading={isDrawingCard && selectedDeck === "engineering"}
             >
-              Engineering
+              <span className="text-[10px] sm:text-xs">ENG</span>
             </MissionButton>
             <MissionButton
               onClick={() => onDrawCard("espionage")}
               disabled={isDrawingCard}
               variant="danger"
-              size="md"
+              size="sm"
               isLoading={isDrawingCard && selectedDeck === "espionage"}
             >
-              Espionage
+              <span className="text-[10px] sm:text-xs">ESP</span>
             </MissionButton>
             <MissionButton
               onClick={() => onDrawCard("economic")}
               disabled={isDrawingCard}
               variant="warning"
-              size="md"
+              size="sm"
               isLoading={isDrawingCard && selectedDeck === "economic"}
             >
-              Economic
+              <span className="text-[10px] sm:text-xs">ECON</span>
             </MissionButton>
           </div>
         </div>

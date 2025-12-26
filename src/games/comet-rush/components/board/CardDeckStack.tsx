@@ -82,9 +82,9 @@ export function CardDeckStack({
   const stackDepth = Math.min(5, count);
 
   return (
-    <div className={cn("flex flex-col items-center gap-2", className)}>
+    <div className={cn("flex flex-col items-center gap-1 sm:gap-2", className)}>
       {/* Deck label */}
-      <span className="label-embossed text-[10px]">{config.shortLabel}</span>
+      <span className="label-embossed text-[8px] sm:text-[10px]">{config.shortLabel}</span>
 
       {/* Card stack */}
       <motion.div
@@ -97,7 +97,7 @@ export function CardDeckStack({
           <div
             key={i}
             className={cn(
-              "absolute w-14 h-20 rounded-sm",
+              "absolute w-10 h-14 sm:w-14 sm:h-20 rounded-sm",
               config.colors.bg,
               "border border-mission-steel-dark"
             )}
@@ -115,7 +115,7 @@ export function CardDeckStack({
           onClick={isDrawable ? onDraw : undefined}
           disabled={!isDrawable || isEmpty}
           className={cn(
-            "relative w-14 h-20 rounded-sm",
+            "relative w-10 h-14 sm:w-14 sm:h-20 rounded-sm",
             "border-2 transition-all duration-200",
             config.colors.bg,
             config.colors.border,
@@ -136,7 +136,7 @@ export function CardDeckStack({
             <div className="absolute inset-2 border border-white/5 rounded-sm" />
 
             {/* Center icon */}
-            <span className={cn("text-2xl opacity-50", config.colors.text)}>
+            <span className={cn("text-lg sm:text-2xl opacity-50", config.colors.text)}>
               {config.icon}
             </span>
 
@@ -170,11 +170,11 @@ export function CardDeckStack({
 
       {/* Count display */}
       <div className="flex flex-col items-center gap-0.5">
-        <span className="led-segment text-sm text-mission-green">
+        <span className="led-segment text-xs sm:text-sm text-mission-green">
           {count}
         </span>
         {discardCount > 0 && (
-          <span className="text-[8px] text-mission-steel">
+          <span className="text-[7px] sm:text-[8px] text-mission-steel">
             ({discardCount} disc.)
           </span>
         )}
@@ -221,7 +221,7 @@ export function CardDecksDisplay({
     <div className={cn("panel-retro p-3", className)}>
       <span className="label-embossed text-[10px] block mb-3">CARD DECKS</span>
 
-      <div className="flex justify-around gap-2">
+      <div className="flex justify-around gap-1 sm:gap-2">
         <CardDeckStack
           type="movement"
           count={movementCount}
@@ -232,7 +232,7 @@ export function CardDecksDisplay({
           count={strengthCount}
         />
 
-        <div className="w-px bg-mission-steel-dark mx-1" />
+        <div className="w-px bg-mission-steel-dark mx-0.5 sm:mx-1" />
 
         <CardDeckStack
           type="engineering"
