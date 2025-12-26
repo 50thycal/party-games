@@ -14,6 +14,7 @@
 | **Goal** | Destroy the comet before it reaches Earth |
 | **Win Condition** | Player with the most trophy points wins |
 | **Starting Resources** | 20 cubes per player |
+| **Starting Cards** | Draft 4 cards from any deck |
 | **Income** | 5 cubes per turn (can be upgraded) |
 
 ---
@@ -24,14 +25,14 @@ When the game begins:
 
 1. **Each player receives:**
    - 20 resource cubes
-   - 4 cards (1 Engineering + 1 Espionage + 1 Economic + 1 random)
+   - **Draft 4 cards** from any of the 3 decks (Engineering, Espionage, or Economic - your choice!)
 
 2. **The comet starts at distance 18** from Earth
 
 3. **Strength cards are dealt** (based on player count):
-   - 2 players: 4 cards (strength 4-7)
-   - 3 players: 5 cards (strength 4-8)
-   - 4 players: 6 cards (strength 4-9)
+   - 2 players: 6 cards (strength 4-9)
+   - 3 players: 7 cards (strength 4-9, plus one extra)
+   - 4 players: 8 cards (strength 4-9, plus two extras)
 
 ---
 
@@ -137,6 +138,10 @@ When you launch a ready rocket:
 
 ### Comet Segments (Strength Cards)
 - The comet has multiple segments, each with a **strength value (4-9)**
+- Number of segments scales with player count:
+  - **2 players:** 6 segments
+  - **3 players:** 7 segments
+  - **4 players:** 8 segments
 - Players must destroy segments in order (first to last)
 - Each segment has health equal to its strength value
 - When a segment is destroyed, the player who dealt the final blow **claims it as a trophy**
@@ -335,8 +340,10 @@ The game ends in **defeat** if:
 | Setting | Value |
 |---------|-------|
 | Starting Cubes | 20 |
+| Starting Cards | 4 (drafted from any deck) |
 | Base Income | 5 per turn |
 | Starting Distance | 18 spaces |
+| Comet Segments | 6 (2p), 7 (3p), 8 (4p) |
 | Max Concurrent Rockets | 3 |
 | Initial Power Cap | 3 |
 | Initial Accuracy Cap | 3 |
@@ -346,6 +353,7 @@ The game ends in **defeat** if:
 | Maximum Salvage Bonus | +3 |
 | Maximum Card Play Bonus | +3 |
 | Movement Card Values | 1, 2, or 3 |
+| Late Game Threshold | ≤9 distance (draw 2 cards) |
 | Final Destroyer Bonus | +5 points |
 
 ---
@@ -357,6 +365,7 @@ The game ends in **defeat** if:
 | **Segment** | One piece of the comet with health equal to its strength |
 | **Trophy** | A destroyed segment claimed by the player who dealt final damage |
 | **Cube** | The game's resource currency |
+| **Draft** | Selecting your starting cards from any of the 3 decks at game start |
 | **Round** | One complete cycle of all players taking turns |
 | **Reroll** | Rolling the dice again after an initial result |
 | **Embargo** | Status effect that blocks income for one turn |
@@ -365,6 +374,7 @@ The game ends in **defeat** if:
 | **Ready** | A rocket that has finished building and can launch |
 | **Calibration** | Pre-launch bonus of +1 accuracy or +1 power (from Rocket Calibration) |
 | **Diplomatic Pressure** | Status effect that blocks your next card play |
+| **Late Game** | When comet is ≤9 distance from Earth (draw 2 cards per turn) |
 
 ---
 

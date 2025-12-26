@@ -158,6 +158,8 @@ export interface CometRushPlayerState {
   hand: GameCard[];           // Contains Engineering, Espionage, and Economic cards
   upgrades: PlayerUpgrades;
   trophies: StrengthCard[];
+  // Initial setup: players draw 4 cards from any deck at start
+  initialCardsDrawn: number;  // 0-4, when < 4 player is still drafting
   // Turn-based flags (reset each turn)
   hasBuiltRocketThisTurn: boolean;
   hasLaunchedRocketThisTurn: boolean;
@@ -373,13 +375,13 @@ const BASE_DISTANCE_TO_IMPACT = 18;
 const BASE_MAX_ROCKETS = 3;
 
 // Strength card scaling by player count:
-// - 2 players: 4 strength cards
-// - 3 players: 5 strength cards (baseline)
-// - 4 players: 6 strength cards
+// - 2 players: 6 strength cards
+// - 3 players: 7 strength cards
+// - 4 players: 8 strength cards
 function getStrengthCardCount(playerCount: number): number {
-  if (playerCount <= 2) return 4;
-  if (playerCount >= 4) return 6;
-  return 5; // 3 players is baseline
+  if (playerCount <= 2) return 6;
+  if (playerCount >= 4) return 8;
+  return 7; // 3 players
 }
 
 // ============================================================================
@@ -643,6 +645,7 @@ function buildPlayerState(p: Player): CometRushPlayerState {
     mustRerollNextLaunch: false,
     isUnderDiplomaticPressure: false,
     pendingCalibration: { accuracyBonus: 0, powerBonus: 0 },
+    initialCardsDrawn: 0,
   };
 }
 
@@ -722,45 +725,8 @@ function reducer(
       const espionageDeck = shuffle(createEspionageDeck(), ctx.random);
       const economicDeck = shuffle(createEconomicDeck(), ctx.random);
 
-      // Deal initial hands: 1 card from each deck (3 total) + 1 extra from random deck
-      const updatedPlayers = { ...state.players };
-      let currentEngineeringDeck = [...engineeringDeck];
-      let currentEspionageDeck = [...espionageDeck];
-      let currentEconomicDeck = [...economicDeck];
-
-      for (const playerId of state.playerOrder) {
-        const player = updatedPlayers[playerId];
-        if (!player) continue;
-
-        // 1 from each deck
-        const engineeringCard = currentEngineeringDeck[0];
-        currentEngineeringDeck = currentEngineeringDeck.slice(1);
-
-        const espionageCard = currentEspionageDeck[0];
-        currentEspionageDeck = currentEspionageDeck.slice(1);
-
-        const economicCard = currentEconomicDeck[0];
-        currentEconomicDeck = currentEconomicDeck.slice(1);
-
-        // 1 extra from a random deck
-        const randomDeck = Math.floor(ctx.random() * 3);
-        let extraCard: GameCard;
-        if (randomDeck === 0 && currentEngineeringDeck.length > 0) {
-          extraCard = currentEngineeringDeck[0];
-          currentEngineeringDeck = currentEngineeringDeck.slice(1);
-        } else if (randomDeck === 1 && currentEspionageDeck.length > 0) {
-          extraCard = currentEspionageDeck[0];
-          currentEspionageDeck = currentEspionageDeck.slice(1);
-        } else {
-          extraCard = currentEconomicDeck[0];
-          currentEconomicDeck = currentEconomicDeck.slice(1);
-        }
-
-        updatedPlayers[playerId] = {
-          ...player,
-          hand: [engineeringCard, espionageCard, economicCard, extraCard],
-        };
-      }
+      // Players start with empty hands - they will draft 4 cards at the start of their first turn
+      // (initialCardsDrawn is already 0 from buildPlayerState)
 
       // Initialize turnMeta for first player
       const firstPlayerId = state.playerOrder[0];
@@ -772,21 +738,20 @@ function reducer(
         movementDeck,
         strengthDeck,
         totalStrengthCards: strengthCardCount,
-        engineeringDeck: currentEngineeringDeck,
+        engineeringDeck,
         engineeringDiscard: [],
-        espionageDeck: currentEspionageDeck,
+        espionageDeck,
         espionageDiscard: [],
-        economicDeck: currentEconomicDeck,
+        economicDeck,
         economicDiscard: [],
         activeStrengthCard: null,
         lastMovementCard: null,
-        players: updatedPlayers,
         lastLaunchResult: null,
         pendingCardPlay: null,
         turnMeta: {
           playerId: firstPlayerId,
           incomeGained: 0,
-          newTotalCubes: updatedPlayers[firstPlayerId]?.resourceCubes ?? 0,
+          newTotalCubes: state.players[firstPlayerId]?.resourceCubes ?? STARTING_CUBES,
           lastDrawnCardId: null,
           lastDrawnDeck: null,
           wasEmbargoed: false,
@@ -866,20 +831,25 @@ function reducer(
       const activePlayerId = getActivePlayerId(state);
       if (action.playerId !== activePlayerId) return state;
 
-      // Must have called BEGIN_TURN first
-      if (!state.turnMeta || state.turnMeta.playerId !== action.playerId) return state;
-
-      // Check if player can still draw cards this turn
-      // Late game (comet ≤9 from Earth): can draw 2 cards per turn
-      // Normal game: can draw 1 card per turn
-      const maxDrawsAllowed = state.distanceToImpact <= 9 ? 2 : 1;
-      if (state.turnMeta.cardsDrawnThisTurn >= maxDrawsAllowed) return state;
-
       const payload = action.payload as DrawCardPayload | undefined;
       if (!payload || !payload.deck) return state;
 
       const player = state.players[action.playerId];
       if (!player) return state;
+
+      // Initial draft phase: players draw 4 cards at the start of the game
+      const isInitialDraft = player.initialCardsDrawn < 4;
+
+      // If not drafting, must have called BEGIN_TURN first
+      if (!isInitialDraft) {
+        if (!state.turnMeta || state.turnMeta.playerId !== action.playerId) return state;
+
+        // Check if player can still draw cards this turn
+        // Late game (comet ≤9 from Earth): can draw 2 cards per turn
+        // Normal game: can draw 1 card per turn
+        const maxDrawsAllowed = state.distanceToImpact <= 9 ? 2 : 1;
+        if (state.turnMeta.cardsDrawnThisTurn >= maxDrawsAllowed) return state;
+      }
 
       const deckType = payload.deck;
       let engineeringDeck = [...state.engineeringDeck];
@@ -935,6 +905,8 @@ function reducer(
       const updatedPlayer: CometRushPlayerState = {
         ...player,
         hand: newHand,
+        // Increment initial cards drawn if drafting
+        initialCardsDrawn: isInitialDraft ? player.initialCardsDrawn + 1 : player.initialCardsDrawn,
       };
 
       const drawCardState = {
@@ -949,7 +921,8 @@ function reducer(
           ...state.players,
           [action.playerId]: updatedPlayer,
         },
-        turnMeta: {
+        // Only update turnMeta if not in initial draft phase
+        turnMeta: isInitialDraft ? state.turnMeta : {
           ...state.turnMeta,
           lastDrawnCardId: drawnCardId,
           lastDrawnDeck: deckType,

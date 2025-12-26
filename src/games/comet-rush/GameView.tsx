@@ -38,7 +38,7 @@ import { calculatePlayerStats, calculateGameAnalytics } from "./actionLog";
 // TURN WIZARD TYPES
 // ============================================================================
 
-type TurnWizardStep = "announce" | "showIncome" | "chooseDeck" | "showCard" | null;
+type TurnWizardStep = "announce" | "showIncome" | "chooseDeck" | "showCard" | "draft" | null;
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -175,8 +175,10 @@ function BuildRocketForm({
       {/* Build Time Cost */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <span className="label-embossed text-[10px]">BUILD TIME COST</span>
-          <span className="led-segment text-sm text-mission-amber">{buildTime}</span>
+          <span className="label-embossed text-[10px]">BUILD TIME</span>
+          <span className="led-segment text-sm text-mission-amber">
+            {buildTime === 3 ? "5" : buildTime === 2 ? "2" : "1"} cubes
+          </span>
         </div>
         <input
           type="range"
@@ -188,8 +190,10 @@ function BuildRocketForm({
         />
         <div className="text-[10px] text-mission-steel mt-1">
           {buildDelay === 0
-            ? "Instant build"
-            : `Ready in ${buildDelay} turn${buildDelay > 1 ? "s" : ""}`}
+            ? "⚡ Instant (5 cubes)"
+            : buildDelay === 1
+            ? "Ready in 1 turn (2 cubes)"
+            : "Ready in 2 turns (1 cube)"}
         </div>
       </div>
 
@@ -514,7 +518,7 @@ function TurnWizard({
               size="sm"
               isLoading={isDrawingCard && selectedDeck === "engineering"}
             >
-              <span className="text-[10px] sm:text-xs">ENG</span>
+              <span className="text-[9px] sm:text-xs">Engineering</span>
             </MissionButton>
             <MissionButton
               onClick={() => onDrawCard("espionage")}
@@ -523,7 +527,7 @@ function TurnWizard({
               size="sm"
               isLoading={isDrawingCard && selectedDeck === "espionage"}
             >
-              <span className="text-[10px] sm:text-xs">ESP</span>
+              <span className="text-[9px] sm:text-xs">Espionage</span>
             </MissionButton>
             <MissionButton
               onClick={() => onDrawCard("economic")}
@@ -532,7 +536,7 @@ function TurnWizard({
               size="sm"
               isLoading={isDrawingCard && selectedDeck === "economic"}
             >
-              <span className="text-[10px] sm:text-xs">ECON</span>
+              <span className="text-[9px] sm:text-xs">Economic</span>
             </MissionButton>
           </div>
         </div>
@@ -554,8 +558,63 @@ function TurnWizard({
             size="lg"
             className="w-full mt-4"
           >
-            Commence Operations
+            {player.initialCardsDrawn < 4
+              ? `Continue Drafting (${player.initialCardsDrawn}/4)`
+              : "Commence Operations"}
           </MissionButton>
+        </div>
+      )}
+
+      {/* Draft Step: Initial card selection at game start */}
+      {step === "draft" && (
+        <div>
+          <div className="text-center mb-4">
+            <span className="text-2xl block mb-2">📋</span>
+            <h3 className="text-lg font-bold text-mission-green mb-2">MISSION BRIEFING</h3>
+            <p className="text-sm text-mission-cream/80 mb-2">
+              Select your starting intelligence cards.
+            </p>
+            <span className="led-segment text-2xl text-mission-amber">
+              {player.initialCardsDrawn}/4
+            </span>
+            <span className="text-sm text-mission-steel block mt-1">cards drafted</span>
+          </div>
+
+          <div className="text-center mb-3">
+            <span className="text-sm text-mission-cream">
+              Choose a deck to draw from:
+            </span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-1.5">
+            <MissionButton
+              onClick={() => onDrawCard("engineering")}
+              disabled={isDrawingCard}
+              variant="success"
+              size="sm"
+              isLoading={isDrawingCard && selectedDeck === "engineering"}
+            >
+              <span className="text-[9px] sm:text-xs">Engineering</span>
+            </MissionButton>
+            <MissionButton
+              onClick={() => onDrawCard("espionage")}
+              disabled={isDrawingCard}
+              variant="danger"
+              size="sm"
+              isLoading={isDrawingCard && selectedDeck === "espionage"}
+            >
+              <span className="text-[9px] sm:text-xs">Espionage</span>
+            </MissionButton>
+            <MissionButton
+              onClick={() => onDrawCard("economic")}
+              disabled={isDrawingCard}
+              variant="warning"
+              size="sm"
+              isLoading={isDrawingCard && selectedDeck === "economic"}
+            >
+              <span className="text-[9px] sm:text-xs">Economic</span>
+            </MissionButton>
+          </div>
         </div>
       )}
     </motion.div>
@@ -1148,9 +1207,23 @@ export function CometRushGameView({
     prevDistanceRef.current = currentDistance;
   }, [phase, gameState?.round, gameState?.distanceToImpact, gameState?.lastMovementCard, gameState]);
 
-  // Detect turn start for wizard
+  // Detect turn start for wizard (or draft phase)
   useEffect(() => {
-    if (phase !== "playing" || !isMyTurn || !turnMeta) return;
+    if (phase !== "playing" || !isMyTurn) return;
+
+    // Check if player is in initial draft phase (has drawn < 4 cards)
+    const isInDraftPhase = player && player.initialCardsDrawn < 4;
+
+    if (isInDraftPhase) {
+      // Show draft wizard
+      if (turnWizardStep !== "draft" && turnWizardStep !== "showCard") {
+        setTurnWizardStep("draft");
+      }
+      return;
+    }
+
+    // Normal turn detection
+    if (!turnMeta) return;
 
     const prevMeta = prevTurnMetaRef.current;
     const isNewTurn =
@@ -1162,7 +1235,7 @@ export function CometRushGameView({
     }
 
     prevTurnMetaRef.current = turnMeta;
-  }, [phase, isMyTurn, turnMeta, playerId]);
+  }, [phase, isMyTurn, turnMeta, playerId, player, turnWizardStep]);
 
   // Reset launch animation state when a new launch result comes in
   useEffect(() => {
@@ -1209,6 +1282,14 @@ export function CometRushGameView({
   }
 
   function dismissWizard() {
+    // Check if still in draft phase
+    if (player && player.initialCardsDrawn < 4) {
+      // Still drafting - go back to draft selection
+      setTurnWizardStep("draft");
+      setSelectedDeck(null);
+      return;
+    }
+
     // Check if player can draw another card (late game: 2 draws when comet ≤9 from Earth)
     if (gameState && turnMeta) {
       const maxDraws = gameState.distanceToImpact <= 9 ? 2 : 1;
