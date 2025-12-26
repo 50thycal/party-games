@@ -1139,6 +1139,12 @@ export function CometRushGameView({
   const [peekChoice, setPeekChoice] = useState<"strength" | "movement" | null>(null);
   const [calibrationChoice, setCalibrationChoice] = useState<"accuracy" | "power" | null>(null);
 
+  // Trade cards state
+  const [isTradeMode, setIsTradeMode] = useState(false);
+  const [tradeCardIds, setTradeCardIds] = useState<string[]>([]);
+  const [tradeDeck, setTradeDeck] = useState<CardDeckType | null>(null);
+  const [isTradingCards, setIsTradingCards] = useState(false);
+
   // UI state
   const [expandedAction, setExpandedAction] = useState<"build" | "launch" | "cards" | null>(null);
   const [buildSuccess, setBuildSuccess] = useState(false);
@@ -1418,6 +1424,38 @@ export function CometRushGameView({
       await dispatchAction("RESPOND_TO_DIPLOMATIC_PRESSURE", { counter });
     } finally {
       setIsRespondingToDiplomaticPressure(false);
+    }
+  }
+
+  function toggleTradeCardSelection(cardId: string) {
+    setTradeCardIds((prev) => {
+      if (prev.includes(cardId)) {
+        return prev.filter((id) => id !== cardId);
+      } else if (prev.length < 2) {
+        return [...prev, cardId];
+      }
+      return prev;
+    });
+  }
+
+  function exitTradeMode() {
+    setIsTradeMode(false);
+    setTradeCardIds([]);
+    setTradeDeck(null);
+  }
+
+  async function handleTradeCards() {
+    if (tradeCardIds.length !== 2 || !tradeDeck) return;
+
+    setIsTradingCards(true);
+    try {
+      await dispatchAction("TRADE_CARDS", {
+        discardCardIds: tradeCardIds as [string, string],
+        drawFromDeck: tradeDeck,
+      });
+      exitTradeMode();
+    } finally {
+      setIsTradingCards(false);
     }
   }
 
@@ -1947,14 +1985,123 @@ export function CometRushGameView({
                     setTargetRocketId("");
                     setPeekChoice(null);
                     setCalibrationChoice(null);
+                    exitTradeMode();
                   }
                 }}
                 variant="cards"
               >
                 {player.hand.length === 0 ? (
                   <p className="text-sm text-mission-steel">No cards in hand.</p>
+                ) : isTradeMode ? (
+                  /* Trade Mode UI */
+                  <div className="space-y-3">
+                    <div className="panel-retro p-2 border-mission-amber">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="label-embossed text-[10px] text-mission-amber">TRADE MODE</span>
+                        <MissionButton onClick={exitTradeMode} variant="primary" size="sm">
+                          Cancel
+                        </MissionButton>
+                      </div>
+                      <p className="text-xs text-mission-cream/70 mb-2">
+                        Select 2 cards to discard, then choose a deck to draw from.
+                      </p>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-mission-steel">Selected:</span>
+                        <span className={cn(
+                          "led-segment",
+                          tradeCardIds.length === 2 ? "text-mission-green" : "text-mission-amber"
+                        )}>
+                          {tradeCardIds.length}/2
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Card selection for trade */}
+                    <div className="space-y-2">
+                      {player.hand.map((card) => {
+                        const isSelectedForTrade = tradeCardIds.includes(card.id);
+                        return (
+                          <div
+                            key={card.id}
+                            onClick={() => isMyTurn && toggleTradeCardSelection(card.id)}
+                            className={cn(
+                              "cursor-pointer transition-all",
+                              isSelectedForTrade && "ring-2 ring-mission-amber"
+                            )}
+                          >
+                            <GameCardDisplay
+                              card={card}
+                              isSelected={isSelectedForTrade}
+                              onSelect={() => isMyTurn && toggleTradeCardSelection(card.id)}
+                              disabled={!isMyTurn}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Deck selection and execute */}
+                    {tradeCardIds.length === 2 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="panel-retro p-3"
+                      >
+                        <span className="label-embossed text-[10px] block mb-2">DRAW FROM DECK</span>
+                        <div className="grid grid-cols-3 gap-2 mb-3">
+                          <MissionButton
+                            onClick={() => setTradeDeck("engineering")}
+                            variant={tradeDeck === "engineering" ? "success" : "primary"}
+                            size="sm"
+                          >
+                            Engineering
+                          </MissionButton>
+                          <MissionButton
+                            onClick={() => setTradeDeck("espionage")}
+                            variant={tradeDeck === "espionage" ? "danger" : "primary"}
+                            size="sm"
+                          >
+                            Espionage
+                          </MissionButton>
+                          <MissionButton
+                            onClick={() => setTradeDeck("economic")}
+                            variant={tradeDeck === "economic" ? "warning" : "primary"}
+                            size="sm"
+                          >
+                            Economic
+                          </MissionButton>
+                        </div>
+                        <MissionButton
+                          onClick={handleTradeCards}
+                          disabled={!tradeDeck || isTradingCards}
+                          variant="success"
+                          size="lg"
+                          className="w-full"
+                          isLoading={isTradingCards}
+                        >
+                          {isTradingCards ? "Trading..." : "Trade Cards"}
+                        </MissionButton>
+                      </motion.div>
+                    )}
+                  </div>
                 ) : (
+                  /* Normal Play Mode */
                   <div className="space-y-2">
+                    {/* Trade button */}
+                    {isMyTurn && player.hand.length >= 2 && (
+                      <MissionButton
+                        onClick={() => {
+                          setIsTradeMode(true);
+                          setSelectedCardId(null);
+                        }}
+                        variant="warning"
+                        size="sm"
+                        className="w-full mb-2"
+                      >
+                        Trade Cards (2 → 1)
+                      </MissionButton>
+                    )}
+
                     {player.hand.map((card) => {
                       const isSelected = selectedCardId === card.id;
                       return (

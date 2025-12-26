@@ -324,6 +324,7 @@ export type CometRushActionType =
   | "BEGIN_TURN"
   | "DRAW_CARD"           // Draw from chosen deck (Engineering, Espionage, or Economic)
   | "PLAY_CARD"           // Play a single card from hand
+  | "TRADE_CARDS"         // Discard 2 cards to draw 1 new card (free action)
   | "RESPOND_TO_CARD"     // Respond to pending card play (block with Diplomatic Pressure or pass)
   | "RESPOND_TO_DIPLOMATIC_PRESSURE"  // Counter or accept Diplomatic Pressure attack
   | "BUILD_ROCKET"
@@ -361,6 +362,12 @@ export interface RespondToDiplomaticPressurePayload {
   counter: boolean;  // true = use own Diplomatic Pressure to counter, false = accept the attack
 }
 
+// Trade cards payload - discard 2 cards to draw 1
+export interface TradeCardsPayload {
+  discardCardIds: [string, string];  // Exactly 2 card IDs to discard
+  drawFromDeck: CardDeckType;        // Which deck to draw the new card from
+}
+
 export interface BuildRocketPayload {
   buildTimeBase: number;
   power: number;
@@ -379,7 +386,7 @@ export interface LaunchRocketPayload {
 
 export interface CometRushAction extends BaseAction {
   type: CometRushActionType;
-  payload?: DrawCardPayload | PlayCardPayload | RespondToCardPayload | RespondToDiplomaticPressurePayload | BuildRocketPayload | ApplyCalibrationPayload | LaunchRocketPayload | Record<string, never>;
+  payload?: DrawCardPayload | PlayCardPayload | TradeCardsPayload | RespondToCardPayload | RespondToDiplomaticPressurePayload | BuildRocketPayload | ApplyCalibrationPayload | LaunchRocketPayload | Record<string, never>;
 }
 
 // ============================================================================
@@ -1525,6 +1532,133 @@ function reducer(
       };
     }
 
+    case "TRADE_CARDS": {
+      // Free action: Discard 2 cards to draw 1 new card
+      if (state.phase !== "playing") return state;
+
+      const activePlayerId = getActivePlayerId(state);
+      if (action.playerId !== activePlayerId) return state;
+
+      const payload = action.payload as TradeCardsPayload | undefined;
+      if (!payload || !payload.discardCardIds || payload.discardCardIds.length !== 2) return state;
+
+      const player = state.players[action.playerId];
+      if (!player) return state;
+
+      // Verify both cards exist in hand
+      const [cardId1, cardId2] = payload.discardCardIds;
+      const card1 = player.hand.find((c) => c.id === cardId1);
+      const card2 = player.hand.find((c) => c.id === cardId2);
+      if (!card1 || !card2 || cardId1 === cardId2) return state;
+
+      // Need at least 2 cards to trade
+      if (player.hand.length < 2) return state;
+
+      // Get the deck to draw from
+      let deck: GameCard[];
+      let discard: GameCard[];
+      switch (payload.drawFromDeck) {
+        case "engineering":
+          deck = [...state.engineeringDeck];
+          discard = [...state.engineeringDiscard];
+          break;
+        case "espionage":
+          deck = [...state.espionageDeck];
+          discard = [...state.espionageDiscard];
+          break;
+        case "economic":
+          deck = [...state.economicDeck];
+          discard = [...state.economicDiscard];
+          break;
+        default:
+          return state;
+      }
+
+      // Check if deck has cards (if empty, shuffle discard into deck)
+      if (deck.length === 0 && discard.length > 0) {
+        deck = shuffleArray([...discard], ctx.random);
+        discard = [];
+      }
+
+      // If still no cards, can't draw
+      if (deck.length === 0) return state;
+
+      // Draw a card
+      const drawnCard = deck[0];
+      deck = deck.slice(1);
+
+      // Remove discarded cards from hand and add to appropriate discard piles
+      let newHand = player.hand.filter((c) => c.id !== cardId1 && c.id !== cardId2);
+      newHand = [...newHand, drawnCard];
+
+      let engineeringDiscard = [...state.engineeringDiscard];
+      let espionageDiscard = [...state.espionageDiscard];
+      let economicDiscard = [...state.economicDiscard];
+
+      // Discard card1
+      if (card1.deck === "engineering") {
+        engineeringDiscard = [...engineeringDiscard, card1 as EngineeringCard];
+      } else if (card1.deck === "espionage") {
+        espionageDiscard = [...espionageDiscard, card1 as EspionageCard];
+      } else {
+        economicDiscard = [...economicDiscard, card1 as EconomicCard];
+      }
+
+      // Discard card2
+      if (card2.deck === "engineering") {
+        engineeringDiscard = [...engineeringDiscard, card2 as EngineeringCard];
+      } else if (card2.deck === "espionage") {
+        espionageDiscard = [...espionageDiscard, card2 as EspionageCard];
+      } else {
+        economicDiscard = [...economicDiscard, card2 as EconomicCard];
+      }
+
+      // Update the deck we drew from
+      let engineeringDeck = state.engineeringDeck;
+      let espionageDeck = state.espionageDeck;
+      let economicDeck = state.economicDeck;
+
+      switch (payload.drawFromDeck) {
+        case "engineering":
+          engineeringDeck = deck as EngineeringCard[];
+          engineeringDiscard = discard as EngineeringCard[];
+          break;
+        case "espionage":
+          espionageDeck = deck as EspionageCard[];
+          espionageDiscard = discard as EspionageCard[];
+          break;
+        case "economic":
+          economicDeck = deck as EconomicCard[];
+          economicDiscard = discard as EconomicCard[];
+          break;
+      }
+
+      const updatedPlayer = {
+        ...player,
+        hand: newHand,
+      };
+
+      return {
+        ...state,
+        players: {
+          ...state.players,
+          [action.playerId]: updatedPlayer,
+        },
+        engineeringDeck,
+        espionageDeck,
+        economicDeck,
+        engineeringDiscard,
+        espionageDiscard,
+        economicDiscard,
+        lastCardResult: {
+          id: `${ctx.now()}`,
+          playerId: action.playerId,
+          description: `Traded "${card1.name}" and "${card2.name}" for a new ${payload.drawFromDeck} card!`,
+          cardName: "Card Trade",
+        },
+      };
+    }
+
     case "BUILD_ROCKET": {
       if (state.phase !== "playing") return state;
 
@@ -2594,6 +2728,7 @@ function isActionAllowed(
     case "BEGIN_TURN":
     case "DRAW_CARD":
     case "PLAY_CARD":
+    case "TRADE_CARDS":
     case "BUILD_ROCKET":
     case "LAUNCH_ROCKET":
     case "USE_REROLL":
