@@ -1293,6 +1293,17 @@ export function CometRushGameView({
       return;
     }
 
+    // Just finished draft - check if we need to start regular turn
+    // After draft, turnMeta.lastDrawnCardId is set (from last draft draw)
+    // BEGIN_TURN resets it to null, so if it's still set, we need to BEGIN_TURN first
+    if (player && player.initialCardsDrawn >= 4 && turnMeta &&
+        turnMeta.cardsDrawnThisTurn === 0 && turnMeta.lastDrawnCardId !== null) {
+      // Show announce step so player can BEGIN_TURN and collect income
+      setTurnWizardStep("announce");
+      setSelectedDeck(null);
+      return;
+    }
+
     // Check if player can draw another card (late game: 2 draws when comet ≤9 from Earth)
     if (gameState && turnMeta) {
       const maxDraws = gameState.distanceToImpact <= 9 ? 2 : 1;
