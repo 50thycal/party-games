@@ -909,7 +909,18 @@ function reducer(
         initialCardsDrawn: isInitialDraft ? player.initialCardsDrawn + 1 : player.initialCardsDrawn,
       };
 
-      const drawCardState = {
+      // Build turnMeta - keep existing during draft, otherwise update with drawn card
+      let updatedTurnMeta: TurnMeta | null = state.turnMeta;
+      if (!isInitialDraft && state.turnMeta) {
+        updatedTurnMeta = {
+          ...state.turnMeta,
+          lastDrawnCardId: drawnCardId,
+          lastDrawnDeck: deckType,
+          cardsDrawnThisTurn: (state.turnMeta.cardsDrawnThisTurn ?? 0) + 1,
+        };
+      }
+
+      const drawCardState: CometRushState = {
         ...state,
         engineeringDeck,
         engineeringDiscard,
@@ -921,13 +932,7 @@ function reducer(
           ...state.players,
           [action.playerId]: updatedPlayer,
         },
-        // Only update turnMeta if not in initial draft phase
-        turnMeta: isInitialDraft ? state.turnMeta : {
-          ...state.turnMeta,
-          lastDrawnCardId: drawnCardId,
-          lastDrawnDeck: deckType,
-          cardsDrawnThisTurn: (state.turnMeta?.cardsDrawnThisTurn ?? 0) + 1,
-        },
+        turnMeta: updatedTurnMeta,
       };
 
       // Add action log entry
