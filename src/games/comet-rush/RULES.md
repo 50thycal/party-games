@@ -145,51 +145,51 @@ When you launch a ready rocket:
 
 ## Card Types
 
-### Engineering Cards (9 types, 34 total)
-Permanent upgrades and rocket improvements:
+### Engineering Cards (7 types, 44 total)
+Rocket engineering, optimization, and reliability:
 
 | Card | Rarity | Count | Effect |
 |------|--------|-------|--------|
-| **Boost Power** | Common | 6 | +1 to your maximum Power cap (up to 8) |
-| **Improve Accuracy** | Uncommon | 4 | +1 to your maximum Accuracy cap (up to 5) |
-| **Streamlined Assembly** | Common | 6 | Reduce one of your building rockets' build time by 1 turn |
-| **Mass Production** | Uncommon | 3 | Reduce ALL your building rockets' build time by 1 turn |
-| **Increase Income** | Common | 5 | +1 permanent income bonus (max +3 total) |
-| **Rocket Salvage** | Uncommon | 3 | +1 cube whenever you launch any rocket (max +3) |
-| **Reroll Protocol** | Rare | 2 | Gain a reroll token - use it to retry a failed launch |
-| **Comet Analysis** | Uncommon | 3 | Peek at the top Movement or Strength card |
-| **Rocket Calibration** | Rare | 2 | On next launch, choose +1 accuracy OR +1 power (pre-roll) |
+| **Mass Production** | Rare | 4 | −1 build time for all rockets |
+| **Flight Adjustment** | Rare | 4 | If next launch fails, re-roll once |
+| **Warhead Upgrade** | Uncommon | 6 | +1 max power (up to 8) |
+| **Guidance System Upgrade** | Uncommon | 6 | +1 max accuracy (up to 5) |
+| **Streamlined Assembly** | Common | 8 | −1 build time for one rocket |
+| **Comet Analysis** | Common | 8 | Peek at a strength or movement card |
+| **Rocket Calibration** | Common | 8 | Play before launch: choose +1 Accuracy or +1 Power for that launch |
 
-### Espionage Cards (7 types, 21 total)
-Player interaction and sabotage:
+### Espionage Cards (7 types, 44 total)
+Interference, sabotage, and intelligence:
 
 | Card | Rarity | Count | Effect |
 |------|--------|-------|--------|
-| **Resource Seizure** | Common | 5 | Steal 3 cubes from target player |
-| **Espionage Agent** | Uncommon | 3 | Steal 1 random card from target player's hand |
-| **Embargo** | Uncommon | 3 | Target player receives no income next turn |
-| **Sabotage Construction** | Uncommon | 3 | Add +1 turn to target opponent's building rocket |
-| **Covert Rocket Strike** | Rare | 2 | Destroy one of target player's building or ready rockets |
-| **Diplomatic Pressure** | Rare | 2 | Block target player's next card play (reactive) |
-| **Regulatory Review** | Uncommon | 3 | Add +1 turn to target opponent's building rocket |
+| **Covert Rocket Strike** | Rare | 4 | Destroy any rocket (building or ready) of another player |
+| **Embargo** | Rare | 4 | Target player gains no income next turn |
+| **Espionage Agent** | Uncommon | 6 | Steal a random card from target player |
+| **Diplomatic Pressure** | Uncommon | 6 | Block any card a target player attempts to play |
+| **Resource Seizure** | Common | 8 | Steal 3 resources from target player |
+| **Sabotage Construction** | Common | 8 | Force target player to re-roll a launch |
+| **Regulatory Review** | Common | 8 | +1 build time to opponent's rocket |
 
-### Economic Cards (5 types, 19 total)
-Resource generation and funding:
+### Economic Cards (7 types, 44 total)
+Resources, funding, and financial advantage:
 
 | Card | Rarity | Count | Effect |
 |------|--------|-------|--------|
-| **Emergency Funding** | Common | 5 | Immediately gain your income again |
-| **Public Donation Drive** | Common | 5 | Gain +2 cubes for each rocket you have building or ready |
-| **International Grant** | Uncommon | 3 | You gain 5 cubes; all other players gain 2 cubes |
-| **Funding Pressure** | Uncommon | 4 | Gain resources based on comet distance: 12+ = 4, 7-11 = 8, ≤6 = 12 cubes |
-| **Program Prestige** | Rare | 2 | Permanently gain +1 resource per card played (stacks, max +3) |
+| **International Grant** | Rare | 4 | You gain 5 resources, all others gain 2 |
+| **Funding Pressure** | Rare | 4 | Gain resources based on comet distance (4/8/12) |
+| **Increase Income** | Uncommon | 6 | +1 income permanently (max 3) |
+| **Rocket Salvage** | Uncommon | 6 | +1 resource per launch (max 3) |
+| **Emergency Funding** | Common | 8 | Gain your income immediately |
+| **Public Donation Drive** | Common | 8 | Gain 2 resources per built rocket (building + ready) |
+| **Program Prestige** | Common | 8 | Permanent: +1 resource per card played (max 3) |
 
 ---
 
 ## Special Mechanics
 
-### Reroll Protocol (Your Choice)
-When you obtain a "Reroll Protocol" card:
+### Flight Adjustment (Reroll Token)
+When you play "Flight Adjustment":
 - You gain a **reroll token**
 - If your rocket launch **misses**, you may choose to use the token
 - Roll the die again - this could turn a miss into a hit!
@@ -198,13 +198,20 @@ When you obtain a "Reroll Protocol" card:
 
 ### Rocket Calibration (Pre-Launch Bonus)
 When you play "Rocket Calibration":
-- On your **next rocket launch**, a bonus selection appears
-- Choose **+1 Accuracy** OR **+1 Power** before rolling
+- Choose **+1 Accuracy** OR **+1 Power** for your next launch
 - The bonus applies to that single launch only
+- Multiple copies can be played to stack bonuses
 - Subject to caps (accuracy max 5, power max 8)
 
-### Sabotage Construction (Forced Delay)
+### Sabotage Construction (Forced Reroll)
 When an opponent plays "Sabotage Construction" on you:
+- Your **next rocket launch** is affected
+- If you **HIT** on your first roll: You **must** reroll (could become a miss!)
+- If you **MISS** on your first roll: The rocket is spent (no second chance)
+- Sabotage creates risk - even a perfect roll might become a miss!
+
+### Regulatory Review (Build Delay)
+When an opponent plays "Regulatory Review" on you:
 - One of your **building rockets** gains +1 turn build time
 - The attacker chooses which rocket is affected
 
@@ -213,10 +220,11 @@ When targeted by "Covert Rocket Strike":
 - The attacker destroys one of your **building or ready** rockets
 - Rockets currently launching cannot be targeted
 
-### Diplomatic Pressure (Reactive Block)
-This card can be played **reactively** when an opponent plays a card:
-- Blocks the targeted player's next card play
-- Creates a response window during opponent's turn
+### Diplomatic Pressure (Card Block)
+When an opponent plays "Diplomatic Pressure" on you:
+- Your **next card play** will be blocked
+- The card is discarded without effect
+- Plan your turn carefully!
 
 ### Embargo (Income Block)
 When targeted by "Embargo":
@@ -227,8 +235,8 @@ When targeted by "Embargo":
 ### Funding Pressure (Distance-Based Reward)
 When you play "Funding Pressure":
 - Gain resources based on how close the comet is:
-  - Distance 12+: Gain 4 cubes
-  - Distance 7-11: Gain 8 cubes
+  - Distance 13+: Gain 4 cubes
+  - Distance 7-12: Gain 8 cubes
   - Distance 6 or less: Gain 12 cubes
 - More dangerous = more funding!
 
@@ -351,11 +359,11 @@ The game ends in **defeat** if:
 | **Round** | One complete cycle of all players taking turns |
 | **Reroll** | Rolling the dice again after an initial result |
 | **Embargo** | Status effect that blocks income for one turn |
-| **Sabotage** | Status effect that forces a reroll on your next launch |
+| **Sabotage** | Status effect (from Sabotage Construction) that forces a reroll on your next launch |
 | **Cap** | Maximum value you can assign to Power or Accuracy |
 | **Ready** | A rocket that has finished building and can launch |
-| **Calibration** | Pre-launch bonus of +1 accuracy or +1 power |
-| **Reactive** | Card type that can be played in response to opponent actions |
+| **Calibration** | Pre-launch bonus of +1 accuracy or +1 power (from Rocket Calibration) |
+| **Diplomatic Pressure** | Status effect that blocks your next card play |
 
 ---
 
