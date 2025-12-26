@@ -43,12 +43,13 @@ Each player's turn follows these steps:
 - Collect your income: **Base income (5)** + any income bonuses
 - If you are under an **Embargo**, you receive 0 income this turn
 
-### 2. Draw a Card
+### 2. Draw Cards
 - Choose to draw from **one of three decks**:
   - **Engineering Deck** (upgrades and rocket improvements)
   - **Espionage Deck** (player interaction and sabotage)
   - **Economic Deck** (resource and funding cards)
-- You draw exactly **one card per turn**
+- **Normal game:** Draw **1 card** per turn
+- **Late game (comet ≤9 from Earth):** Draw **2 cards** per turn!
 
 ### 3. Main Actions (Any Order)
 During your turn, you may:
@@ -80,14 +81,14 @@ Rockets are your primary weapon against the comet. Each rocket has three attribu
 
 | Build Time | Cube Cost | Turns to Build |
 |------------|-----------|----------------|
-| 1 | 1 cube | 2 turns |
-| 2 | 2 cubes | 1 turn |
-| 3 | 3 cubes | Instant (ready immediately) |
+| 1 | 1 cube | 2 turns (slow but cheap) |
+| 2 | 2 cubes | 1 turn (balanced) |
+| 3 | 5 cubes | Instant (fast but expensive) |
 
 ### Total Rocket Cost
-**Total Cost = Power + Accuracy + Build Time**
+**Total Cost = Power + Accuracy + Build Time Cube Cost**
 
-*Example: A rocket with Power 4, Accuracy 3, and Build Time 2 costs 4+3+2 = 9 cubes*
+*Example: A rocket with Power 4, Accuracy 3, and Instant Build (3) costs 4+3+5 = 12 cubes*
 
 ### Building Limits
 - You can only **build ONE rocket per turn**

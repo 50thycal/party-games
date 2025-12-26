@@ -45,7 +45,9 @@ type TurnWizardStep = "announce" | "showIncome" | "chooseDeck" | "showCard" | nu
 // ============================================================================
 
 function calculateRocketCost(buildTimeCost: number, power: number, accuracy: number): number {
-  return power + accuracy + buildTimeCost;
+  // Build Time Cost: BTC 1 = 1 cube, BTC 2 = 2 cubes, BTC 3 = 5 cubes (instant)
+  const buildTimeCubeCost = buildTimeCost === 3 ? 5 : buildTimeCost === 2 ? 2 : 1;
+  return power + accuracy + buildTimeCubeCost;
 }
 
 // ============================================================================
@@ -411,6 +413,7 @@ function TurnWizard({
   step,
   turnMeta,
   player,
+  distanceToImpact,
   isBeginningTurn,
   isDrawingCard,
   selectedDeck,
@@ -421,6 +424,7 @@ function TurnWizard({
   step: TurnWizardStep;
   turnMeta: TurnMeta | null;
   player: CometRushPlayerState;
+  distanceToImpact: number;
   isBeginningTurn: boolean;
   isDrawingCard: boolean;
   selectedDeck: CardDeckType | null;
@@ -433,6 +437,10 @@ function TurnWizard({
   const drawnCard = turnMeta?.lastDrawnCardId
     ? player.hand.find((c) => c.id === turnMeta.lastDrawnCardId)
     : null;
+
+  // Late game: can draw 2 cards when comet ≤9 from Earth
+  const maxDraws = distanceToImpact <= 9 ? 2 : 1;
+  const cardsDrawn = turnMeta?.cardsDrawnThisTurn ?? 0;
 
   return (
     <motion.div
@@ -487,7 +495,15 @@ function TurnWizard({
           </div>
 
           <div className="text-center mb-3">
-            <span className="text-sm text-mission-cream">Select intelligence deck:</span>
+            <span className="text-sm text-mission-cream">
+              Select intelligence deck
+              {maxDraws > 1 && (
+                <span className="text-mission-amber ml-1">
+                  (Draw {cardsDrawn + 1}/{maxDraws})
+                </span>
+              )}
+              :
+            </span>
           </div>
 
           <div className="grid grid-cols-3 gap-1.5">
@@ -1193,6 +1209,17 @@ export function CometRushGameView({
   }
 
   function dismissWizard() {
+    // Check if player can draw another card (late game: 2 draws when comet ≤9 from Earth)
+    if (gameState && turnMeta) {
+      const maxDraws = gameState.distanceToImpact <= 9 ? 2 : 1;
+      const cardsDrawn = turnMeta.cardsDrawnThisTurn ?? 0;
+      if (cardsDrawn < maxDraws) {
+        // Can draw another card - go back to deck selection
+        setTurnWizardStep("chooseDeck");
+        setSelectedDeck(null);
+        return;
+      }
+    }
     setTurnWizardStep(null);
     setSelectedDeck(null);
   }
@@ -1493,6 +1520,7 @@ export function CometRushGameView({
                 step={turnWizardStep}
                 turnMeta={turnMeta}
                 player={player}
+                distanceToImpact={gameState.distanceToImpact}
                 isBeginningTurn={isBeginningTurn}
                 isDrawingCard={isDrawingCard}
                 selectedDeck={selectedDeck}

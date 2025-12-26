@@ -215,6 +215,7 @@ export interface TurnMeta {
   lastDrawnCardId: string | null;
   lastDrawnDeck: CardDeckType | null;  // Which deck the card was drawn from
   wasEmbargoed: boolean;  // True if income was blocked due to embargo
+  cardsDrawnThisTurn: number;  // Count of cards drawn this turn (max 1 normally, 2 when comet ≤9 from Earth)
 }
 
 export interface CardResult {
@@ -553,8 +554,12 @@ function shuffle<T>(array: T[], random: () => number): T[] {
 
 function calculateRocketCost(buildTimeCost: number, power: number, accuracy: number): number {
   // Rules: Power costs 1 cube/level, Accuracy costs 1 cube/level
-  // Build Time Cost determines delay and cube cost: BTC 1 = 1 cube + 2 turns, BTC 2 = 2 cubes + 1 turn, BTC 3 = 3 cubes + instant
-  return power + accuracy + buildTimeCost;
+  // Build Time Cost determines delay and cube cost:
+  // - BTC 1 = 1 cube + 2 turns delay (slow but cheap)
+  // - BTC 2 = 2 cubes + 1 turn delay (balanced)
+  // - BTC 3 = 5 cubes + instant (fast but expensive)
+  const buildTimeCubeCost = buildTimeCost === 3 ? 5 : buildTimeCost === 2 ? 2 : 1;
+  return power + accuracy + buildTimeCubeCost;
 }
 
 function roll1d6(random: () => number): number {
@@ -785,6 +790,7 @@ function reducer(
           lastDrawnCardId: null,
           lastDrawnDeck: null,
           wasEmbargoed: false,
+          cardsDrawnThisTurn: 0,
         },
         actionLog: [],
         gameStartTime: ctx.now(),
@@ -842,6 +848,7 @@ function reducer(
           lastDrawnCardId: null,
           lastDrawnDeck: null,
           wasEmbargoed,
+          cardsDrawnThisTurn: 0,
         },
       };
 
@@ -862,8 +869,11 @@ function reducer(
       // Must have called BEGIN_TURN first
       if (!state.turnMeta || state.turnMeta.playerId !== action.playerId) return state;
 
-      // Already drew a card this turn
-      if (state.turnMeta.lastDrawnCardId !== null) return state;
+      // Check if player can still draw cards this turn
+      // Late game (comet ≤9 from Earth): can draw 2 cards per turn
+      // Normal game: can draw 1 card per turn
+      const maxDrawsAllowed = state.distanceToImpact <= 9 ? 2 : 1;
+      if (state.turnMeta.cardsDrawnThisTurn >= maxDrawsAllowed) return state;
 
       const payload = action.payload as DrawCardPayload | undefined;
       if (!payload || !payload.deck) return state;
@@ -943,6 +953,7 @@ function reducer(
           ...state.turnMeta,
           lastDrawnCardId: drawnCardId,
           lastDrawnDeck: deckType,
+          cardsDrawnThisTurn: (state.turnMeta?.cardsDrawnThisTurn ?? 0) + 1,
         },
       };
 
@@ -2352,6 +2363,7 @@ function reducer(
           lastDrawnCardId: null,
           lastDrawnDeck: null,
           wasEmbargoed: false,
+          cardsDrawnThisTurn: 0,
         } : null,
       };
 
