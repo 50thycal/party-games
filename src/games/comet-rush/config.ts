@@ -909,14 +909,18 @@ function reducer(
         initialCardsDrawn: isInitialDraft ? player.initialCardsDrawn + 1 : player.initialCardsDrawn,
       };
 
-      // Build turnMeta - keep existing during draft, otherwise update with drawn card
+      // Build turnMeta - always update lastDrawnCardId so the card can be displayed
+      // But only increment cardsDrawnThisTurn for normal turns (not initial draft)
       let updatedTurnMeta: TurnMeta | null = state.turnMeta;
-      if (!isInitialDraft && state.turnMeta) {
+      if (state.turnMeta) {
         updatedTurnMeta = {
           ...state.turnMeta,
           lastDrawnCardId: drawnCardId,
           lastDrawnDeck: deckType,
-          cardsDrawnThisTurn: (state.turnMeta.cardsDrawnThisTurn ?? 0) + 1,
+          // Only increment cards drawn counter during normal turns, not initial draft
+          cardsDrawnThisTurn: isInitialDraft
+            ? (state.turnMeta.cardsDrawnThisTurn ?? 0)
+            : (state.turnMeta.cardsDrawnThisTurn ?? 0) + 1,
         };
       }
 
