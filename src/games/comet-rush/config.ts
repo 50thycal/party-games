@@ -1576,7 +1576,7 @@ function reducer(
 
       // Check if deck has cards (if empty, shuffle discard into deck)
       if (deck.length === 0 && discard.length > 0) {
-        deck = shuffleArray([...discard], ctx.random);
+        deck = shuffle([...discard], ctx.random);
         discard = [];
       }
 
