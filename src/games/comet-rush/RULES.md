@@ -14,6 +14,7 @@
 | **Goal** | Destroy the comet before it reaches Earth |
 | **Win Condition** | Player with the most trophy points wins |
 | **Starting Resources** | 20 cubes per player |
+| **Starting Cards** | Draft 4 cards from any deck |
 | **Income** | 5 cubes per turn (can be upgraded) |
 
 ---
@@ -24,15 +25,14 @@ When the game begins:
 
 1. **Each player receives:**
    - 20 resource cubes
-   - 2 Engineering cards
-   - 2 Political cards
+   - **Draft 4 cards** from any of the 3 decks (Engineering, Espionage, or Economic - your choice!)
 
 2. **The comet starts at distance 18** from Earth
 
 3. **Strength cards are dealt** (based on player count):
-   - 2 players: 4 cards (strength 4-7)
-   - 3 players: 5 cards (strength 4-8)
-   - 4 players: 6 cards (strength 4-9)
+   - 2 players: 6 cards (strength 4-9)
+   - 3 players: 7 cards (strength 4-9, plus one extra)
+   - 4 players: 8 cards (strength 4-9, plus two extras)
 
 ---
 
@@ -44,11 +44,13 @@ Each player's turn follows these steps:
 - Collect your income: **Base income (5)** + any income bonuses
 - If you are under an **Embargo**, you receive 0 income this turn
 
-### 2. Draw a Card
-- Choose to draw from **either**:
+### 2. Draw Cards
+- Choose to draw from **one of three decks**:
   - **Engineering Deck** (upgrades and rocket improvements)
-  - **Political Deck** (player interaction and resource cards)
-- You draw exactly **one card per turn**
+  - **Espionage Deck** (player interaction and sabotage)
+  - **Economic Deck** (resource and funding cards)
+- **Normal game:** Draw **1 card** per turn
+- **Late game (comet ≤9 from Earth):** Draw **2 cards** per turn!
 
 ### 3. Main Actions (Any Order)
 During your turn, you may:
@@ -72,27 +74,28 @@ Rockets are your primary weapon against the comet. Each rocket has three attribu
 
 | Attribute | Range | Effect |
 |-----------|-------|--------|
-| **Power** | 1-6 | Damage dealt to comet on a successful hit |
-| **Accuracy** | 1-6 | Hit on dice roll ≤ this value (higher = more reliable) |
+| **Power** | 1-8 | Damage dealt to comet on a successful hit |
+| **Accuracy** | 1-5 | Hit on dice roll ≤ this value (higher = more reliable) |
 | **Build Time** | 1-3 | How quickly the rocket is ready |
 
 ### Build Time Cost System
 
 | Build Time | Cube Cost | Turns to Build |
 |------------|-----------|----------------|
-| 1 | 1 cube | 2 turns |
-| 2 | 2 cubes | 1 turn |
-| 3 | 3 cubes | Instant (ready immediately) |
+| 1 | 1 cube | 2 turns (slow but cheap) |
+| 2 | 2 cubes | 1 turn (balanced) |
+| 3 | 5 cubes | Instant (fast but expensive) |
 
 ### Total Rocket Cost
-**Total Cost = Power + Accuracy + Build Time**
+**Total Cost = Power + Accuracy + Build Time Cube Cost**
 
-*Example: A rocket with Power 4, Accuracy 3, and Build Time 2 costs 4+3+2 = 9 cubes*
+*Example: A rocket with Power 4, Accuracy 3, and Instant Build (3) costs 4+3+5 = 12 cubes*
 
 ### Building Limits
 - You can only **build ONE rocket per turn**
 - Maximum of **3 rockets in progress** at any time (can be upgraded)
-- Power and Accuracy are capped at **3** initially (can be upgraded to 6)
+- Power is capped at **3** initially (can be upgraded to 8)
+- Accuracy is capped at **3** initially (can be upgraded to 5)
 
 ---
 
@@ -135,60 +138,99 @@ When you launch a ready rocket:
 
 ### Comet Segments (Strength Cards)
 - The comet has multiple segments, each with a **strength value (4-9)**
+- Number of segments scales with player count:
+  - **2 players:** 6 segments
+  - **3 players:** 7 segments
+  - **4 players:** 8 segments
 - Players must destroy segments in order (first to last)
 - Each segment has health equal to its strength value
 - When a segment is destroyed, the player who dealt the final blow **claims it as a trophy**
+- **Note:** Strength-9 segments cannot be one-shot even at max power (8)
 
 ---
 
 ## Card Types
 
-### Engineering Cards (70 total)
-Permanent upgrades and rocket improvements:
+### Engineering Cards (7 types, 44 total)
+Rocket engineering, optimization, and reliability:
 
-| Card | Effect |
-|------|--------|
-| **Boost Power** | +1 to your maximum Power cap (up to 6) |
-| **Improve Accuracy** | +1 to your maximum Accuracy cap (up to 6) |
-| **Streamlined Assembly** | Reduce one rocket's build time by 1 turn |
-| **Mass Production** | Reduce ALL your building rockets' build time by 1 turn |
-| **Increase Income** | +1 permanent income bonus (max +3 total) |
-| **Rocket Salvage** | +1 cube whenever you launch any rocket (max +3) |
-| **Reroll Protocol** | Gain a reroll token - use it to retry a failed launch |
-| **Comet Research** | Peek at the top Movement or Strength card |
+| Card | Rarity | Count | Effect |
+|------|--------|-------|--------|
+| **Mass Production** | Rare | 4 | −1 build time for all rockets |
+| **Flight Adjustment** | Rare | 4 | If next launch fails, re-roll once |
+| **Warhead Upgrade** | Uncommon | 6 | +1 max power (up to 8) |
+| **Guidance System Upgrade** | Uncommon | 6 | +1 max accuracy (up to 5) |
+| **Streamlined Assembly** | Common | 8 | −1 build time for one rocket |
+| **Comet Analysis** | Common | 8 | Peek at a strength or movement card |
+| **Rocket Calibration** | Common | 8 | Play before launch: choose +1 Accuracy or +1 Power for that launch |
 
-### Political Cards (44 total)
-Player interaction and resource manipulation:
+### Espionage Cards (7 types, 44 total)
+Interference, sabotage, and intelligence:
 
-| Card | Effect |
-|------|--------|
-| **Resource Seizure** | Steal 2 cubes from target player |
-| **Technology Theft** | Steal 1 random card from target player's hand |
-| **Embargo** | Target player receives no income next turn |
-| **Sabotage** | Target player must reroll their next rocket launch |
-| **Regulatory Review** | Add +1 turn to target opponent's building rocket |
-| **Emergency Funding** | Immediately gain your income again |
-| **Public Donation Drive** | Gain +1 cube for each rocket you have building/ready |
-| **International Grant** | You gain 5 cubes; all other players gain 1 cube |
+| Card | Rarity | Count | Effect |
+|------|--------|-------|--------|
+| **Covert Rocket Strike** | Rare | 4 | Destroy any rocket (building or ready) of another player |
+| **Embargo** | Rare | 4 | Target player gains no income next turn |
+| **Espionage Agent** | Uncommon | 6 | Steal a random card from target player |
+| **Diplomatic Pressure** | Uncommon | 6 | Block any card a target player attempts to play |
+| **Resource Seizure** | Common | 8 | Steal 3 resources from target player |
+| **Sabotage Construction** | Common | 8 | Force target player to re-roll a launch |
+| **Regulatory Review** | Common | 8 | +1 build time to opponent's rocket |
+
+### Economic Cards (7 types, 44 total)
+Resources, funding, and financial advantage:
+
+| Card | Rarity | Count | Effect |
+|------|--------|-------|--------|
+| **International Grant** | Rare | 4 | You gain 5 resources, all others gain 2 |
+| **Funding Pressure** | Rare | 4 | Gain resources based on comet distance (4/8/12) |
+| **Increase Income** | Uncommon | 6 | +1 income permanently (max 3) |
+| **Rocket Salvage** | Uncommon | 6 | +1 resource per launch (max 3) |
+| **Emergency Funding** | Common | 8 | Gain your income immediately |
+| **Public Donation Drive** | Common | 8 | Gain 2 resources per built rocket (building + ready) |
+| **Program Prestige** | Common | 8 | Permanent: +1 resource per card played (max 3) |
 
 ---
 
 ## Special Mechanics
 
-### Reroll Protocol (Your Choice)
-When you obtain a "Reroll Protocol" card:
+### Flight Adjustment (Reroll Token)
+When you play "Flight Adjustment":
 - You gain a **reroll token**
 - If your rocket launch **misses**, you may choose to use the token
 - Roll the die again - this could turn a miss into a hit!
 - The token is **consumed** whether you hit or miss on the reroll
 - Each token is **single-use**
 
-### Sabotage (Forced Reroll)
-When an opponent plays "Sabotage" on you:
+### Rocket Calibration (Pre-Launch Bonus)
+When you play "Rocket Calibration":
+- Choose **+1 Accuracy** OR **+1 Power** for your next launch
+- The bonus applies to that single launch only
+- Multiple copies can be played to stack bonuses
+- Subject to caps (accuracy max 5, power max 8)
+
+### Sabotage Construction (Forced Reroll)
+When an opponent plays "Sabotage Construction" on you:
 - Your **next rocket launch** is affected
 - If you **HIT** on your first roll: You **must** reroll (could become a miss!)
 - If you **MISS** on your first roll: The rocket is spent (no second chance)
 - Sabotage creates risk - even a perfect roll might become a miss!
+
+### Regulatory Review (Build Delay)
+When an opponent plays "Regulatory Review" on you:
+- One of your **building rockets** gains +1 turn build time
+- The attacker chooses which rocket is affected
+
+### Covert Rocket Strike (Rocket Destruction)
+When targeted by "Covert Rocket Strike":
+- The attacker destroys one of your **building or ready** rockets
+- Rockets currently launching cannot be targeted
+
+### Diplomatic Pressure (Card Block)
+When an opponent plays "Diplomatic Pressure" on you:
+- Your **next card play** will be blocked
+- The card is discarded without effect
+- Plan your turn carefully!
 
 ### Embargo (Income Block)
 When targeted by "Embargo":
@@ -196,8 +238,22 @@ When targeted by "Embargo":
 - Your base income and bonuses are skipped for that turn only
 - The embargo clears after it takes effect
 
-### Comet Research (Intel Gathering)
-When you play "Comet Research":
+### Funding Pressure (Distance-Based Reward)
+When you play "Funding Pressure":
+- Gain resources based on how close the comet is:
+  - Distance 13+: Gain 4 cubes
+  - Distance 7-12: Gain 8 cubes
+  - Distance 6 or less: Gain 12 cubes
+- More dangerous = more funding!
+
+### Program Prestige (Stacking Bonus)
+When you play "Program Prestige":
+- Permanently gain +1 resource each time you play a card
+- Effect stacks (max +3 bonus)
+- Applies to all future card plays
+
+### Comet Analysis (Intel Gathering)
+When you play "Comet Analysis":
 - Choose to peek at either the **top Movement card** or **top Strength card**
 - This information is **private** - only you can see it
 - Helps you plan: Will the comet move 1 or 3 spaces? How strong is the next segment?
@@ -232,21 +288,24 @@ The game ends in **defeat** if:
 1. **Build income first** - "Increase Income" cards pay off over many turns
 2. **Start with balanced rockets** - Power 2, Accuracy 3 is reliable and cheap
 3. **Don't rush expensive rockets** - You need cubes for future turns
+4. **Consider Economic cards** - "Program Prestige" early pays dividends
 
 ### Mid Game
 1. **Upgrade your caps** - Higher Power and Accuracy unlock stronger rockets
 2. **Watch the comet distance** - Don't let it get too close!
-3. **Use Political cards strategically** - Embargo right before a big turn hurts most
+3. **Use Espionage cards strategically** - Embargo right before a big turn hurts most
+4. **Save Funding Pressure** - Worth more when comet is closer
 
 ### Late Game
 1. **Go for the final segment** - The +5 bonus can win the game
-2. **High-power rockets matter** - Overkill damage still counts for trophies
+2. **High-power rockets matter** - Even with 8 power, strength-9 segments need 2 hits
 3. **Save Reroll tokens** - Use them when it really counts
+4. **Use Rocket Calibration** - The +1 accuracy/power can make the difference
 
 ### General Tips
-- **Accuracy 4+** gives you better than 50% hit chance
+- **Accuracy 4+** gives you better than 50% hit chance (max 5 = 83%)
 - **Salvage bonus** makes even misses less painful
-- **Comet Research** before big decisions helps you plan
+- **Comet Analysis** before big decisions helps you plan
 - **Don't hoard cards** - Playing them is usually better than saving
 
 ---
@@ -259,9 +318,10 @@ The game ends in **defeat** if:
 - **Salvage Bonus:** Cubes gained on every launch (hit or miss)
 
 ### Your Upgrades
-- **Power Cap:** Maximum power you can build (starts at 3)
-- **Accuracy Cap:** Maximum accuracy you can build (starts at 3)
+- **Power Cap:** Maximum power you can build (starts at 3, max 8)
+- **Accuracy Cap:** Maximum accuracy you can build (starts at 3, max 5)
 - **Reroll Token:** Whether you can retry a failed launch
+- **Card Play Bonus:** Extra resources per card played (from Program Prestige)
 
 ### Your Rockets
 - **Building:** Rockets in construction (countdown shown)
@@ -280,15 +340,20 @@ The game ends in **defeat** if:
 | Setting | Value |
 |---------|-------|
 | Starting Cubes | 20 |
+| Starting Cards | 4 (drafted from any deck) |
 | Base Income | 5 per turn |
 | Starting Distance | 18 spaces |
+| Comet Segments | 6 (2p), 7 (3p), 8 (4p) |
 | Max Concurrent Rockets | 3 |
 | Initial Power Cap | 3 |
 | Initial Accuracy Cap | 3 |
-| Maximum Power/Accuracy | 6 |
+| Maximum Power | 8 |
+| Maximum Accuracy | 5 |
 | Maximum Income Bonus | +3 |
 | Maximum Salvage Bonus | +3 |
+| Maximum Card Play Bonus | +3 |
 | Movement Card Values | 1, 2, or 3 |
+| Late Game Threshold | ≤9 distance (draw 2 cards) |
 | Final Destroyer Bonus | +5 points |
 
 ---
@@ -300,12 +365,16 @@ The game ends in **defeat** if:
 | **Segment** | One piece of the comet with health equal to its strength |
 | **Trophy** | A destroyed segment claimed by the player who dealt final damage |
 | **Cube** | The game's resource currency |
+| **Draft** | Selecting your starting cards from any of the 3 decks at game start |
 | **Round** | One complete cycle of all players taking turns |
 | **Reroll** | Rolling the dice again after an initial result |
 | **Embargo** | Status effect that blocks income for one turn |
-| **Sabotage** | Status effect that forces a reroll on your next launch |
+| **Sabotage** | Status effect (from Sabotage Construction) that forces a reroll on your next launch |
 | **Cap** | Maximum value you can assign to Power or Accuracy |
 | **Ready** | A rocket that has finished building and can launch |
+| **Calibration** | Pre-launch bonus of +1 accuracy or +1 power (from Rocket Calibration) |
+| **Diplomatic Pressure** | Status effect that blocks your next card play |
+| **Late Game** | When comet is ≤9 distance from Earth (draw 2 cards per turn) |
 
 ---
 

@@ -8,7 +8,7 @@ import type { GameCard } from "../../config";
 
 interface CardDrawAnimationProps {
   card: GameCard;
-  deckType: "engineering" | "political";
+  deckType: "engineering" | "espionage" | "economic";
   onComplete?: () => void;
   className?: string;
 }
@@ -96,7 +96,7 @@ export function CardDrawAnimation({
             >
               <div className="absolute inset-1 border border-white/10 rounded-sm" />
               <span className={cn("text-4xl opacity-50", colors.text)}>
-                {deckType === "engineering" ? "⚙" : "📜"}
+                {deckType === "engineering" ? "⚙" : deckType === "espionage" ? "🔍" : "💰"}
               </span>
               <span className={cn("text-xs mt-2 uppercase font-bold opacity-50", colors.text)}>
                 {deckType}
@@ -203,7 +203,7 @@ export function GameCardDisplay({
           {card.deck}
         </span>
         <span className="text-sm">
-          {card.deck === "engineering" ? "⚙" : "📜"}
+          {card.deck === "engineering" ? "⚙" : card.deck === "espionage" ? "🔍" : "💰"}
         </span>
       </div>
 

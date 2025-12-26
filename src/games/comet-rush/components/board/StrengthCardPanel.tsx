@@ -12,6 +12,16 @@ interface StrengthCardPanelProps {
   } | null;
   cardsRemaining: number;
   totalCards: number;
+  /** When there's an active launch, hide damage until animation completes */
+  pendingLaunch?: {
+    strengthBefore: number;
+    baseStrength: number;
+    isHit: boolean;
+    power: number;
+    destroyed: boolean;
+  } | null;
+  /** Whether the launch animation has completed showing results */
+  launchAnimationComplete?: boolean;
   className?: string;
 }
 
@@ -24,10 +34,17 @@ export function StrengthCardPanel({
   activeCard,
   cardsRemaining,
   totalCards,
+  pendingLaunch,
+  launchAnimationComplete = true,
   className,
 }: StrengthCardPanelProps) {
+  // Determine if we should show pending (pre-damage) values
+  // Show pending values if there's an active launch animation that hasn't completed
+  const showPendingValues = pendingLaunch && !launchAnimationComplete;
+
   // No active card - either waiting to reveal first segment or all destroyed
-  if (!activeCard) {
+  // But if we have a pending launch that destroyed the card, show the pre-damage state
+  if (!activeCard && !showPendingValues) {
     const allDestroyed = cardsRemaining === 0;
 
     return (
@@ -57,8 +74,18 @@ export function StrengthCardPanel({
     );
   }
 
-  const healthPercent = (activeCard.currentStrength / activeCard.baseStrength) * 100;
-  const damageTaken = activeCard.baseStrength - activeCard.currentStrength;
+  // Use pending values during animation, otherwise use actual card values
+  const displayStrength = showPendingValues
+    ? pendingLaunch.strengthBefore
+    : activeCard?.currentStrength ?? 0;
+  const displayBaseStrength = showPendingValues
+    ? pendingLaunch.baseStrength
+    : activeCard?.baseStrength ?? 0;
+
+  const healthPercent = displayBaseStrength > 0
+    ? (displayStrength / displayBaseStrength) * 100
+    : 0;
+  const damageTaken = displayBaseStrength - displayStrength;
   const cardNumber = totalCards - cardsRemaining;
 
   // Determine status based on damage
@@ -115,7 +142,7 @@ export function StrengthCardPanel({
           <div className="text-center">
             <AnimatePresence mode="wait">
               <motion.div
-                key={activeCard.currentStrength}
+                key={displayStrength}
                 initial={{ scale: 1.3, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.8, opacity: 0 }}
@@ -127,7 +154,7 @@ export function StrengthCardPanel({
                   cardColors.strength.text,
                   "drop-shadow-[0_0_10px_rgba(245,158,11,0.5)]"
                 )}>
-                  {activeCard.currentStrength}
+                  {displayStrength}
                 </span>
               </motion.div>
             </AnimatePresence>
@@ -173,9 +200,9 @@ export function StrengthCardPanel({
           <div className="flex justify-between mt-1">
             <span className="text-[10px] text-mission-steel">0</span>
             <span className="text-[10px] text-amber-300">
-              {activeCard.currentStrength} / {activeCard.baseStrength}
+              {displayStrength} / {displayBaseStrength}
             </span>
-            <span className="text-[10px] text-mission-steel">{activeCard.baseStrength}</span>
+            <span className="text-[10px] text-mission-steel">{displayBaseStrength}</span>
           </div>
         </div>
 
@@ -187,7 +214,7 @@ export function StrengthCardPanel({
               "led-segment text-lg font-bold",
               cardColors.strength.text
             )}>
-              ≥{activeCard.currentStrength}
+              ≥{displayStrength}
             </span>
             <span className="text-[10px] text-mission-steel">POWER</span>
           </div>

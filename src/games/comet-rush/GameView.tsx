@@ -10,7 +10,8 @@ import type {
   Rocket,
   GameCard,
   EngineeringCard,
-  PoliticalCard,
+  EspionageCard,
+  EconomicCard,
   TurnMeta,
   CardDeckType,
 } from "./config";
@@ -37,14 +38,16 @@ import { calculatePlayerStats, calculateGameAnalytics } from "./actionLog";
 // TURN WIZARD TYPES
 // ============================================================================
 
-type TurnWizardStep = "announce" | "showIncome" | "chooseDeck" | "showCard" | null;
+type TurnWizardStep = "announce" | "showIncome" | "chooseDeck" | "showCard" | "draft" | null;
 
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
 
 function calculateRocketCost(buildTimeCost: number, power: number, accuracy: number): number {
-  return power + accuracy + buildTimeCost;
+  // Build Time Cost: BTC 1 = 1 cube, BTC 2 = 2 cubes, BTC 3 = 5 cubes (instant)
+  const buildTimeCubeCost = buildTimeCost === 3 ? 5 : buildTimeCost === 2 ? 2 : 1;
+  return power + accuracy + buildTimeCubeCost;
 }
 
 // ============================================================================
@@ -172,8 +175,10 @@ function BuildRocketForm({
       {/* Build Time Cost */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <span className="label-embossed text-[10px]">BUILD TIME COST</span>
-          <span className="led-segment text-sm text-mission-amber">{buildTime}</span>
+          <span className="label-embossed text-[10px]">BUILD TIME</span>
+          <span className="led-segment text-sm text-mission-amber">
+            {buildTime === 3 ? "5" : buildTime === 2 ? "2" : "1"} cubes
+          </span>
         </div>
         <input
           type="range"
@@ -185,8 +190,10 @@ function BuildRocketForm({
         />
         <div className="text-[10px] text-mission-steel mt-1">
           {buildDelay === 0
-            ? "Instant build"
-            : `Ready in ${buildDelay} turn${buildDelay > 1 ? "s" : ""}`}
+            ? "⚡ Instant (5 cubes)"
+            : buildDelay === 1
+            ? "Ready in 1 turn (2 cubes)"
+            : "Ready in 2 turns (1 cube)"}
         </div>
       </div>
 
@@ -410,6 +417,7 @@ function TurnWizard({
   step,
   turnMeta,
   player,
+  distanceToImpact,
   isBeginningTurn,
   isDrawingCard,
   selectedDeck,
@@ -420,6 +428,7 @@ function TurnWizard({
   step: TurnWizardStep;
   turnMeta: TurnMeta | null;
   player: CometRushPlayerState;
+  distanceToImpact: number;
   isBeginningTurn: boolean;
   isDrawingCard: boolean;
   selectedDeck: CardDeckType | null;
@@ -432,6 +441,10 @@ function TurnWizard({
   const drawnCard = turnMeta?.lastDrawnCardId
     ? player.hand.find((c) => c.id === turnMeta.lastDrawnCardId)
     : null;
+
+  // Late game: can draw 2 cards when comet ≤9 from Earth
+  const maxDraws = distanceToImpact <= 9 ? 2 : 1;
+  const cardsDrawn = turnMeta?.cardsDrawnThisTurn ?? 0;
 
   return (
     <motion.div
@@ -486,27 +499,44 @@ function TurnWizard({
           </div>
 
           <div className="text-center mb-3">
-            <span className="text-sm text-mission-cream">Select intelligence deck:</span>
+            <span className="text-sm text-mission-cream">
+              Select intelligence deck
+              {maxDraws > 1 && (
+                <span className="text-mission-amber ml-1">
+                  (Draw {cardsDrawn + 1}/{maxDraws})
+                </span>
+              )}
+              :
+            </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-1.5">
             <MissionButton
               onClick={() => onDrawCard("engineering")}
               disabled={isDrawingCard}
               variant="success"
-              size="lg"
+              size="sm"
               isLoading={isDrawingCard && selectedDeck === "engineering"}
             >
-              Engineering
+              <span className="text-[9px] sm:text-xs">Engineering</span>
             </MissionButton>
             <MissionButton
-              onClick={() => onDrawCard("political")}
+              onClick={() => onDrawCard("espionage")}
               disabled={isDrawingCard}
               variant="danger"
-              size="lg"
-              isLoading={isDrawingCard && selectedDeck === "political"}
+              size="sm"
+              isLoading={isDrawingCard && selectedDeck === "espionage"}
             >
-              Political
+              <span className="text-[9px] sm:text-xs">Espionage</span>
+            </MissionButton>
+            <MissionButton
+              onClick={() => onDrawCard("economic")}
+              disabled={isDrawingCard}
+              variant="warning"
+              size="sm"
+              isLoading={isDrawingCard && selectedDeck === "economic"}
+            >
+              <span className="text-[9px] sm:text-xs">Economic</span>
             </MissionButton>
           </div>
         </div>
@@ -528,8 +558,63 @@ function TurnWizard({
             size="lg"
             className="w-full mt-4"
           >
-            Commence Operations
+            {player.initialCardsDrawn < 4
+              ? `Continue Drafting (${player.initialCardsDrawn}/4)`
+              : "Commence Operations"}
           </MissionButton>
+        </div>
+      )}
+
+      {/* Draft Step: Initial card selection at game start */}
+      {step === "draft" && (
+        <div>
+          <div className="text-center mb-4">
+            <span className="text-2xl block mb-2">📋</span>
+            <h3 className="text-lg font-bold text-mission-green mb-2">MISSION BRIEFING</h3>
+            <p className="text-sm text-mission-cream/80 mb-2">
+              Select your starting intelligence cards.
+            </p>
+            <span className="led-segment text-2xl text-mission-amber">
+              {player.initialCardsDrawn}/4
+            </span>
+            <span className="text-sm text-mission-steel block mt-1">cards drafted</span>
+          </div>
+
+          <div className="text-center mb-3">
+            <span className="text-sm text-mission-cream">
+              Choose a deck to draw from:
+            </span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-1.5">
+            <MissionButton
+              onClick={() => onDrawCard("engineering")}
+              disabled={isDrawingCard}
+              variant="success"
+              size="sm"
+              isLoading={isDrawingCard && selectedDeck === "engineering"}
+            >
+              <span className="text-[9px] sm:text-xs">Engineering</span>
+            </MissionButton>
+            <MissionButton
+              onClick={() => onDrawCard("espionage")}
+              disabled={isDrawingCard}
+              variant="danger"
+              size="sm"
+              isLoading={isDrawingCard && selectedDeck === "espionage"}
+            >
+              <span className="text-[9px] sm:text-xs">Espionage</span>
+            </MissionButton>
+            <MissionButton
+              onClick={() => onDrawCard("economic")}
+              disabled={isDrawingCard}
+              variant="warning"
+              size="sm"
+              isLoading={isDrawingCard && selectedDeck === "economic"}
+            >
+              <span className="text-[9px] sm:text-xs">Economic</span>
+            </MissionButton>
+          </div>
         </div>
       )}
     </motion.div>
@@ -707,6 +792,8 @@ function CardWithInlineControls({
   setTargetRocketId,
   peekChoice,
   setPeekChoice,
+  calibrationChoice,
+  setCalibrationChoice,
   otherPlayers,
   gameState,
   player,
@@ -724,6 +811,7 @@ function CardWithInlineControls({
     needsTargetRocket: boolean;
     needsPeekChoice: boolean;
     needsOwnRocket: boolean;
+    needsCalibrationChoice: boolean;
   };
   targetPlayerId: string;
   setTargetPlayerId: (id: string) => void;
@@ -731,6 +819,8 @@ function CardWithInlineControls({
   setTargetRocketId: (id: string) => void;
   peekChoice: "strength" | "movement" | null;
   setPeekChoice: (choice: "strength" | "movement" | null) => void;
+  calibrationChoice: "accuracy" | "power" | null;
+  setCalibrationChoice: (choice: "accuracy" | "power" | null) => void;
   otherPlayers: Array<{ id: string; name: string; resourceCubes: number; hand: GameCard[] }>;
   gameState: CometRushState;
   player: CometRushPlayerState;
@@ -865,6 +955,34 @@ function CardWithInlineControls({
               </div>
             )}
 
+            {/* Calibration Choice for Rocket Calibration */}
+            {cardRequirements.needsCalibrationChoice && (
+              <div className="mb-3">
+                <span className="label-embossed text-[10px] block mb-2">LAUNCH BONUS</span>
+                <p className="text-xs text-mission-cream/70 mb-2">
+                  Choose +1 bonus for next rocket launch
+                </p>
+                <div className="flex gap-2">
+                  <MissionButton
+                    onClick={() => setCalibrationChoice("accuracy")}
+                    variant={calibrationChoice === "accuracy" ? "success" : "primary"}
+                    size="sm"
+                    className="flex-1"
+                  >
+                    +1 Accuracy
+                  </MissionButton>
+                  <MissionButton
+                    onClick={() => setCalibrationChoice("power")}
+                    variant={calibrationChoice === "power" ? "warning" : "primary"}
+                    size="sm"
+                    className="flex-1"
+                  >
+                    +1 Power
+                  </MissionButton>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2">
               <MissionButton
                 onClick={() => {
@@ -872,6 +990,7 @@ function CardWithInlineControls({
                   setTargetPlayerId("");
                   setTargetRocketId("");
                   setPeekChoice(null);
+                  setCalibrationChoice(null);
                 }}
                 variant="primary"
                 size="sm"
@@ -1013,6 +1132,7 @@ export function CometRushGameView({
   const [targetPlayerId, setTargetPlayerId] = useState<string>("");
   const [targetRocketId, setTargetRocketId] = useState<string>("");
   const [peekChoice, setPeekChoice] = useState<"strength" | "movement" | null>(null);
+  const [calibrationChoice, setCalibrationChoice] = useState<"accuracy" | "power" | null>(null);
 
   // UI state
   const [expandedAction, setExpandedAction] = useState<"build" | "launch" | "cards" | null>(null);
@@ -1087,9 +1207,23 @@ export function CometRushGameView({
     prevDistanceRef.current = currentDistance;
   }, [phase, gameState?.round, gameState?.distanceToImpact, gameState?.lastMovementCard, gameState]);
 
-  // Detect turn start for wizard
+  // Detect turn start for wizard (or draft phase)
   useEffect(() => {
-    if (phase !== "playing" || !isMyTurn || !turnMeta) return;
+    if (phase !== "playing" || !isMyTurn) return;
+
+    // Check if player is in initial draft phase (has drawn < 4 cards)
+    const isInDraftPhase = player && player.initialCardsDrawn < 4;
+
+    if (isInDraftPhase) {
+      // Show draft wizard
+      if (turnWizardStep !== "draft" && turnWizardStep !== "showCard") {
+        setTurnWizardStep("draft");
+      }
+      return;
+    }
+
+    // Normal turn detection
+    if (!turnMeta) return;
 
     const prevMeta = prevTurnMetaRef.current;
     const isNewTurn =
@@ -1101,7 +1235,7 @@ export function CometRushGameView({
     }
 
     prevTurnMetaRef.current = turnMeta;
-  }, [phase, isMyTurn, turnMeta, playerId]);
+  }, [phase, isMyTurn, turnMeta, playerId, player, turnWizardStep]);
 
   // Reset launch animation state when a new launch result comes in
   useEffect(() => {
@@ -1148,6 +1282,25 @@ export function CometRushGameView({
   }
 
   function dismissWizard() {
+    // Check if still in draft phase
+    if (player && player.initialCardsDrawn < 4) {
+      // Still drafting - go back to draft selection
+      setTurnWizardStep("draft");
+      setSelectedDeck(null);
+      return;
+    }
+
+    // Check if player can draw another card (late game: 2 draws when comet ≤9 from Earth)
+    if (gameState && turnMeta) {
+      const maxDraws = gameState.distanceToImpact <= 9 ? 2 : 1;
+      const cardsDrawn = turnMeta.cardsDrawnThisTurn ?? 0;
+      if (cardsDrawn < maxDraws) {
+        // Can draw another card - go back to deck selection
+        setTurnWizardStep("chooseDeck");
+        setSelectedDeck(null);
+        return;
+      }
+    }
     setTurnWizardStep(null);
     setSelectedDeck(null);
   }
@@ -1189,6 +1342,10 @@ export function CometRushGameView({
     await dispatchAction("FORCED_REROLL");
   }
 
+  async function handleConfirmRoll() {
+    await dispatchAction("CONFIRM_ROLL");
+  }
+
   async function handleEndTurn() {
     // Check if player hasn't collected income or drawn a card yet
     if (turnWizardStep !== null) {
@@ -1218,11 +1375,13 @@ export function CometRushGameView({
         targetPlayerId: targetPlayerId || undefined,
         targetRocketId: targetRocketId || undefined,
         peekChoice: peekChoice || undefined,
+        calibrationChoice: calibrationChoice || undefined,
       });
       setSelectedCardId(null);
       setTargetPlayerId("");
       setTargetRocketId("");
       setPeekChoice(null);
+      setCalibrationChoice(null);
     } finally {
       setIsPlayingCard(false);
     }
@@ -1242,6 +1401,7 @@ export function CometRushGameView({
     setTargetPlayerId("");
     setTargetRocketId("");
     setPeekChoice(null);
+    setCalibrationChoice(null);
   }
 
   // Get selected card info
@@ -1249,31 +1409,39 @@ export function CometRushGameView({
 
   // Determine targeting requirements for selected card
   const getCardRequirements = (card: GameCard | null) => {
-    if (!card) return { needsTargetPlayer: false, needsTargetRocket: false, needsPeekChoice: false, needsOwnRocket: false };
+    const defaults = { needsTargetPlayer: false, needsTargetRocket: false, needsPeekChoice: false, needsOwnRocket: false, needsCalibrationChoice: false };
+    if (!card) return defaults;
 
     if (card.deck === "engineering") {
       const engCard = card as EngineeringCard;
       switch (engCard.cardType) {
         case "STREAMLINED_ASSEMBLY":
-          return { needsTargetPlayer: false, needsTargetRocket: false, needsPeekChoice: false, needsOwnRocket: true };
-        case "COMET_RESEARCH":
-          return { needsTargetPlayer: false, needsTargetRocket: false, needsPeekChoice: true, needsOwnRocket: false };
+          return { ...defaults, needsOwnRocket: true };
+        case "COMET_ANALYSIS":
+          return { ...defaults, needsPeekChoice: true };
+        case "ROCKET_CALIBRATION":
+          return { ...defaults, needsCalibrationChoice: true };
         default:
-          return { needsTargetPlayer: false, needsTargetRocket: false, needsPeekChoice: false, needsOwnRocket: false };
+          return defaults;
+      }
+    } else if (card.deck === "espionage") {
+      const espCard = card as EspionageCard;
+      switch (espCard.cardType) {
+        case "RESOURCE_SEIZURE":
+        case "ESPIONAGE_AGENT":
+        case "EMBARGO":
+        case "SABOTAGE_CONSTRUCTION":
+        case "DIPLOMATIC_PRESSURE":
+          return { ...defaults, needsTargetPlayer: true };
+        case "REGULATORY_REVIEW":
+        case "COVERT_ROCKET_STRIKE":
+          return { ...defaults, needsTargetPlayer: true, needsTargetRocket: true };
+        default:
+          return defaults;
       }
     } else {
-      const polCard = card as PoliticalCard;
-      switch (polCard.cardType) {
-        case "RESOURCE_SEIZURE":
-        case "TECHNOLOGY_THEFT":
-        case "EMBARGO":
-        case "SABOTAGE":
-          return { needsTargetPlayer: true, needsTargetRocket: false, needsPeekChoice: false, needsOwnRocket: false };
-        case "REGULATORY_REVIEW":
-          return { needsTargetPlayer: true, needsTargetRocket: true, needsPeekChoice: false, needsOwnRocket: false };
-        default:
-          return { needsTargetPlayer: false, needsTargetRocket: false, needsPeekChoice: false, needsOwnRocket: false };
-      }
+      // Economic cards - no special targeting needed
+      return defaults;
     }
   };
 
@@ -1285,6 +1453,7 @@ export function CometRushGameView({
     if (cardRequirements.needsTargetRocket && !targetRocketId) return false;
     if (cardRequirements.needsPeekChoice && !peekChoice) return false;
     if (cardRequirements.needsOwnRocket && !targetRocketId) return false;
+    if (cardRequirements.needsCalibrationChoice && !calibrationChoice) return false;
     return true;
   };
 
@@ -1388,6 +1557,14 @@ export function CometRushGameView({
               activeCard={gameState.activeStrengthCard}
               cardsRemaining={gameState.strengthDeck.length}
               totalCards={gameState.totalStrengthCards}
+              pendingLaunch={gameState.lastLaunchResult ? {
+                strengthBefore: gameState.lastLaunchResult.strengthBefore,
+                baseStrength: gameState.lastLaunchResult.baseStrength,
+                isHit: gameState.lastLaunchResult.hit,
+                power: gameState.lastLaunchResult.power,
+                destroyed: gameState.lastLaunchResult.destroyed,
+              } : null}
+              launchAnimationComplete={launchAnimationComplete}
               className="mb-4"
             />
 
@@ -1396,10 +1573,12 @@ export function CometRushGameView({
               movementCount={gameState.movementDeck.length}
               strengthCount={gameState.strengthDeck.length}
               engineeringCount={gameState.engineeringDeck.length}
-              politicalCount={gameState.politicalDeck.length}
+              espionageCount={gameState.espionageDeck.length}
+              economicCount={gameState.economicDeck.length}
               movementDiscardCount={gameState.movementDiscard.length}
               engineeringDiscardCount={gameState.engineeringDiscard.length}
-              politicalDiscardCount={gameState.politicalDiscard.length}
+              espionageDiscardCount={gameState.espionageDiscard.length}
+              economicDiscardCount={gameState.economicDiscard.length}
               drawableDeck={turnWizardStep === "showIncome" || turnWizardStep === "chooseDeck" ? undefined : undefined}
               className="mb-4"
             />
@@ -1422,6 +1601,7 @@ export function CometRushGameView({
                 step={turnWizardStep}
                 turnMeta={turnMeta}
                 player={player}
+                distanceToImpact={gameState.distanceToImpact}
                 isBeginningTurn={isBeginningTurn}
                 isDrawingCard={isDrawingCard}
                 selectedDeck={selectedDeck}
@@ -1431,24 +1611,37 @@ export function CometRushGameView({
               />
             )}
 
-            {/* Launch Result with Animation */}
-            {gameState.lastLaunchResult && (
+            {/* Launch Animation - shown during pendingLaunch (waiting for roll) OR after roll (lastLaunchResult) */}
+            {(gameState.pendingLaunch || gameState.lastLaunchResult) && (
               <RocketLaunchAnimation
-                key={`${gameState.lastLaunchResult.rocketId}-${gameState.lastLaunchResult.diceRoll}-${gameState.lastLaunchResult.isReroll}-${gameState.lastLaunchResult.mustReroll}`}
-                diceRoll={gameState.lastLaunchResult.diceRoll}
-                accuracyNeeded={gameState.lastLaunchResult.accuracyNeeded}
-                isHit={gameState.lastLaunchResult.hit}
-                power={gameState.lastLaunchResult.power}
-                destroyed={gameState.lastLaunchResult.destroyed}
-                baseStrength={gameState.lastLaunchResult.baseStrength}
-                playerName={
-                  gameState.players[gameState.lastLaunchResult.playerId]?.name ?? "Unknown"
+                key={gameState.lastLaunchResult
+                  ? `${gameState.lastLaunchResult.rocketId}-${gameState.lastLaunchResult.diceRoll}-${gameState.lastLaunchResult.isReroll}-${gameState.lastLaunchResult.mustReroll}`
+                  : `pending-${gameState.pendingLaunch?.rocketId}`
                 }
-                isReroll={gameState.lastLaunchResult.isReroll}
-                isSabotaged={gameState.lastLaunchResult.mustReroll}
-                canReroll={gameState.lastLaunchResult.canReroll}
-                mustReroll={gameState.lastLaunchResult.mustReroll}
-                isCurrentPlayer={gameState.lastLaunchResult.playerId === playerId}
+                // If we have a result, use it; otherwise we're waiting for roll
+                diceRoll={gameState.lastLaunchResult?.diceRoll ?? 0}
+                accuracyNeeded={gameState.lastLaunchResult?.accuracyNeeded ?? gameState.pendingLaunch?.calibratedAccuracy ?? 0}
+                isHit={gameState.lastLaunchResult?.hit ?? false}
+                power={gameState.lastLaunchResult?.power ?? gameState.pendingLaunch?.calibratedPower ?? 0}
+                destroyed={gameState.lastLaunchResult?.destroyed ?? false}
+                baseStrength={gameState.lastLaunchResult?.baseStrength ?? gameState.activeStrengthCard?.baseStrength ?? 0}
+                playerName={
+                  gameState.lastLaunchResult
+                    ? (gameState.players[gameState.lastLaunchResult.playerId]?.name ?? "Unknown")
+                    : (gameState.pendingLaunch ? (gameState.players[gameState.pendingLaunch.playerId]?.name ?? "Unknown") : "Unknown")
+                }
+                isReroll={gameState.lastLaunchResult?.isReroll ?? false}
+                isSabotaged={gameState.lastLaunchResult?.mustReroll ?? gameState.pendingLaunch?.mustReroll ?? false}
+                canReroll={gameState.lastLaunchResult?.canReroll ?? false}
+                mustReroll={gameState.lastLaunchResult?.mustReroll ?? false}
+                isCurrentPlayer={
+                  gameState.lastLaunchResult
+                    ? gameState.lastLaunchResult.playerId === playerId
+                    : gameState.pendingLaunch?.playerId === playerId
+                }
+                // New: waiting for roll when we have pendingLaunch but no result yet
+                waitingForRoll={gameState.pendingLaunch !== null && gameState.lastLaunchResult === null}
+                onConfirmRoll={handleConfirmRoll}
                 onUseReroll={handleUseReroll}
                 onDeclineReroll={handleDeclineReroll}
                 onMustReroll={handleForcedReroll}
@@ -1639,6 +1832,7 @@ export function CometRushGameView({
                     setTargetPlayerId("");
                     setTargetRocketId("");
                     setPeekChoice(null);
+                    setCalibrationChoice(null);
                   }
                 }}
                 variant="cards"
@@ -1665,6 +1859,8 @@ export function CometRushGameView({
                           setTargetRocketId={setTargetRocketId}
                           peekChoice={peekChoice}
                           setPeekChoice={setPeekChoice}
+                          calibrationChoice={calibrationChoice}
+                          setCalibrationChoice={setCalibrationChoice}
                           otherPlayers={otherPlayers}
                           gameState={gameState}
                           player={player}
