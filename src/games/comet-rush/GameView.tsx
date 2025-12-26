@@ -10,7 +10,8 @@ import type {
   Rocket,
   GameCard,
   EngineeringCard,
-  PoliticalCard,
+  EspionageCard,
+  EconomicCard,
   TurnMeta,
   CardDeckType,
 } from "./config";
@@ -489,24 +490,33 @@ function TurnWizard({
             <span className="text-sm text-mission-cream">Select intelligence deck:</span>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-2">
             <MissionButton
               onClick={() => onDrawCard("engineering")}
               disabled={isDrawingCard}
               variant="success"
-              size="lg"
+              size="md"
               isLoading={isDrawingCard && selectedDeck === "engineering"}
             >
               Engineering
             </MissionButton>
             <MissionButton
-              onClick={() => onDrawCard("political")}
+              onClick={() => onDrawCard("espionage")}
               disabled={isDrawingCard}
               variant="danger"
-              size="lg"
-              isLoading={isDrawingCard && selectedDeck === "political"}
+              size="md"
+              isLoading={isDrawingCard && selectedDeck === "espionage"}
             >
-              Political
+              Espionage
+            </MissionButton>
+            <MissionButton
+              onClick={() => onDrawCard("economic")}
+              disabled={isDrawingCard}
+              variant="warning"
+              size="md"
+              isLoading={isDrawingCard && selectedDeck === "economic"}
+            >
+              Economic
             </MissionButton>
           </div>
         </div>
@@ -707,6 +717,8 @@ function CardWithInlineControls({
   setTargetRocketId,
   peekChoice,
   setPeekChoice,
+  calibrationChoice,
+  setCalibrationChoice,
   otherPlayers,
   gameState,
   player,
@@ -724,6 +736,7 @@ function CardWithInlineControls({
     needsTargetRocket: boolean;
     needsPeekChoice: boolean;
     needsOwnRocket: boolean;
+    needsCalibrationChoice: boolean;
   };
   targetPlayerId: string;
   setTargetPlayerId: (id: string) => void;
@@ -731,6 +744,8 @@ function CardWithInlineControls({
   setTargetRocketId: (id: string) => void;
   peekChoice: "strength" | "movement" | null;
   setPeekChoice: (choice: "strength" | "movement" | null) => void;
+  calibrationChoice: "accuracy" | "power" | null;
+  setCalibrationChoice: (choice: "accuracy" | "power" | null) => void;
   otherPlayers: Array<{ id: string; name: string; resourceCubes: number; hand: GameCard[] }>;
   gameState: CometRushState;
   player: CometRushPlayerState;
@@ -865,6 +880,34 @@ function CardWithInlineControls({
               </div>
             )}
 
+            {/* Calibration Choice for Rocket Calibration */}
+            {cardRequirements.needsCalibrationChoice && (
+              <div className="mb-3">
+                <span className="label-embossed text-[10px] block mb-2">LAUNCH BONUS</span>
+                <p className="text-xs text-mission-cream/70 mb-2">
+                  Choose +1 bonus for next rocket launch
+                </p>
+                <div className="flex gap-2">
+                  <MissionButton
+                    onClick={() => setCalibrationChoice("accuracy")}
+                    variant={calibrationChoice === "accuracy" ? "success" : "primary"}
+                    size="sm"
+                    className="flex-1"
+                  >
+                    +1 Accuracy
+                  </MissionButton>
+                  <MissionButton
+                    onClick={() => setCalibrationChoice("power")}
+                    variant={calibrationChoice === "power" ? "warning" : "primary"}
+                    size="sm"
+                    className="flex-1"
+                  >
+                    +1 Power
+                  </MissionButton>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2">
               <MissionButton
                 onClick={() => {
@@ -872,6 +915,7 @@ function CardWithInlineControls({
                   setTargetPlayerId("");
                   setTargetRocketId("");
                   setPeekChoice(null);
+                  setCalibrationChoice(null);
                 }}
                 variant="primary"
                 size="sm"
@@ -1013,6 +1057,7 @@ export function CometRushGameView({
   const [targetPlayerId, setTargetPlayerId] = useState<string>("");
   const [targetRocketId, setTargetRocketId] = useState<string>("");
   const [peekChoice, setPeekChoice] = useState<"strength" | "movement" | null>(null);
+  const [calibrationChoice, setCalibrationChoice] = useState<"accuracy" | "power" | null>(null);
 
   // UI state
   const [expandedAction, setExpandedAction] = useState<"build" | "launch" | "cards" | null>(null);
@@ -1218,11 +1263,13 @@ export function CometRushGameView({
         targetPlayerId: targetPlayerId || undefined,
         targetRocketId: targetRocketId || undefined,
         peekChoice: peekChoice || undefined,
+        calibrationChoice: calibrationChoice || undefined,
       });
       setSelectedCardId(null);
       setTargetPlayerId("");
       setTargetRocketId("");
       setPeekChoice(null);
+      setCalibrationChoice(null);
     } finally {
       setIsPlayingCard(false);
     }
@@ -1242,6 +1289,7 @@ export function CometRushGameView({
     setTargetPlayerId("");
     setTargetRocketId("");
     setPeekChoice(null);
+    setCalibrationChoice(null);
   }
 
   // Get selected card info
@@ -1249,31 +1297,39 @@ export function CometRushGameView({
 
   // Determine targeting requirements for selected card
   const getCardRequirements = (card: GameCard | null) => {
-    if (!card) return { needsTargetPlayer: false, needsTargetRocket: false, needsPeekChoice: false, needsOwnRocket: false };
+    const defaults = { needsTargetPlayer: false, needsTargetRocket: false, needsPeekChoice: false, needsOwnRocket: false, needsCalibrationChoice: false };
+    if (!card) return defaults;
 
     if (card.deck === "engineering") {
       const engCard = card as EngineeringCard;
       switch (engCard.cardType) {
         case "STREAMLINED_ASSEMBLY":
-          return { needsTargetPlayer: false, needsTargetRocket: false, needsPeekChoice: false, needsOwnRocket: true };
-        case "COMET_RESEARCH":
-          return { needsTargetPlayer: false, needsTargetRocket: false, needsPeekChoice: true, needsOwnRocket: false };
+          return { ...defaults, needsOwnRocket: true };
+        case "COMET_ANALYSIS":
+          return { ...defaults, needsPeekChoice: true };
+        case "ROCKET_CALIBRATION":
+          return { ...defaults, needsCalibrationChoice: true };
         default:
-          return { needsTargetPlayer: false, needsTargetRocket: false, needsPeekChoice: false, needsOwnRocket: false };
+          return defaults;
+      }
+    } else if (card.deck === "espionage") {
+      const espCard = card as EspionageCard;
+      switch (espCard.cardType) {
+        case "RESOURCE_SEIZURE":
+        case "ESPIONAGE_AGENT":
+        case "EMBARGO":
+        case "SABOTAGE_CONSTRUCTION":
+        case "DIPLOMATIC_PRESSURE":
+          return { ...defaults, needsTargetPlayer: true };
+        case "REGULATORY_REVIEW":
+        case "COVERT_ROCKET_STRIKE":
+          return { ...defaults, needsTargetPlayer: true, needsTargetRocket: true };
+        default:
+          return defaults;
       }
     } else {
-      const polCard = card as PoliticalCard;
-      switch (polCard.cardType) {
-        case "RESOURCE_SEIZURE":
-        case "TECHNOLOGY_THEFT":
-        case "EMBARGO":
-        case "SABOTAGE":
-          return { needsTargetPlayer: true, needsTargetRocket: false, needsPeekChoice: false, needsOwnRocket: false };
-        case "REGULATORY_REVIEW":
-          return { needsTargetPlayer: true, needsTargetRocket: true, needsPeekChoice: false, needsOwnRocket: false };
-        default:
-          return { needsTargetPlayer: false, needsTargetRocket: false, needsPeekChoice: false, needsOwnRocket: false };
-      }
+      // Economic cards - no special targeting needed
+      return defaults;
     }
   };
 
@@ -1285,6 +1341,7 @@ export function CometRushGameView({
     if (cardRequirements.needsTargetRocket && !targetRocketId) return false;
     if (cardRequirements.needsPeekChoice && !peekChoice) return false;
     if (cardRequirements.needsOwnRocket && !targetRocketId) return false;
+    if (cardRequirements.needsCalibrationChoice && !calibrationChoice) return false;
     return true;
   };
 
@@ -1396,10 +1453,12 @@ export function CometRushGameView({
               movementCount={gameState.movementDeck.length}
               strengthCount={gameState.strengthDeck.length}
               engineeringCount={gameState.engineeringDeck.length}
-              politicalCount={gameState.politicalDeck.length}
+              espionageCount={gameState.espionageDeck.length}
+              economicCount={gameState.economicDeck.length}
               movementDiscardCount={gameState.movementDiscard.length}
               engineeringDiscardCount={gameState.engineeringDiscard.length}
-              politicalDiscardCount={gameState.politicalDiscard.length}
+              espionageDiscardCount={gameState.espionageDiscard.length}
+              economicDiscardCount={gameState.economicDiscard.length}
               drawableDeck={turnWizardStep === "showIncome" || turnWizardStep === "chooseDeck" ? undefined : undefined}
               className="mb-4"
             />
@@ -1639,6 +1698,7 @@ export function CometRushGameView({
                     setTargetPlayerId("");
                     setTargetRocketId("");
                     setPeekChoice(null);
+                    setCalibrationChoice(null);
                   }
                 }}
                 variant="cards"
@@ -1665,6 +1725,8 @@ export function CometRushGameView({
                           setTargetRocketId={setTargetRocketId}
                           peekChoice={peekChoice}
                           setPeekChoice={setPeekChoice}
+                          calibrationChoice={calibrationChoice}
+                          setCalibrationChoice={setCalibrationChoice}
                           otherPlayers={otherPlayers}
                           gameState={gameState}
                           player={player}

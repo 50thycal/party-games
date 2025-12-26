@@ -5,7 +5,8 @@ import type {
   CometRushPlayerState,
   GameCard,
   EngineeringCard,
-  PoliticalCard,
+  EspionageCard,
+  EconomicCard,
   Rocket,
 } from "@/games/comet-rush/config";
 
@@ -25,14 +26,14 @@ const SYSTEM_PROMPT = `You are playing Comet Rush, a cooperative/competitive roc
 - The game ends when either: (1) all comet segments are destroyed (players win), or (2) the comet reaches Earth (distance ≤ 0, everyone loses).
 
 ## STARTING CONDITIONS
-- Each player starts with: 20 resource cubes, 5 income per turn, 2 Engineering cards, 2 Political cards
-- Power cap: 3 (can be raised to 6 with BOOST_POWER cards)
-- Accuracy cap: 3 (can be raised to 6 with IMPROVE_ACCURACY cards)
+- Each player starts with: 20 resource cubes, 5 income per turn, 4 cards (1 from each deck + 1 random)
+- Power cap: 3 (can be raised to 8 with WARHEAD_UPGRADE cards)
+- Accuracy cap: 3 (can be raised to 5 with GUIDANCE_SYSTEM_UPGRADE cards)
 
 ## YOUR TURN STRUCTURE
 Each turn you MUST take actions in this order:
 1. BEGIN_TURN (mandatory) - Collect income, rockets tick down build time
-2. DRAW_CARD (mandatory) - Draw from Engineering OR Political deck
+2. DRAW_CARD (mandatory) - Draw from Engineering, Espionage, OR Economic deck
 3. FREE ACTIONS (any order, any number):
    - LAUNCH_ROCKET: Launch a ready rocket at the comet
    - BUILD_ROCKET: Spend cubes to build a new rocket
@@ -52,24 +53,31 @@ Each turn you MUST take actions in this order:
 ## CARD TYPES
 
 ### Engineering Cards (boost your capabilities):
-- BOOST_POWER: Permanently raise your power cap by 1 (max 6)
-- IMPROVE_ACCURACY: Permanently raise your accuracy cap by 1 (max 6)
-- STREAMLINED_ASSEMBLY: Reduce build time of one of your building rockets by 1. Requires targetRocketId.
-- MASS_PRODUCTION: Reduce build time of ALL your building rockets by 1
-- INCREASE_INCOME: +1 income permanently (stacks up to +3)
-- ROCKET_SALVAGE: +1 cube refund per launch (stacks up to +3)
-- REROLL_PROTOCOL: Get a re-roll token (automatically used after a miss)
-- COMET_RESEARCH: Peek at top Strength or Movement card. Requires peekChoice: "strength" or "movement".
+- MASS_PRODUCTION: Reduce build time of ALL your building rockets by 1 (Rare)
+- FLIGHT_ADJUSTMENT: Get a re-roll token - if next launch fails, re-roll once (Rare)
+- WARHEAD_UPGRADE: Permanently raise your power cap by 1 (max 8) (Uncommon)
+- GUIDANCE_SYSTEM_UPGRADE: Permanently raise your accuracy cap by 1 (max 5) (Uncommon)
+- STREAMLINED_ASSEMBLY: Reduce build time of one rocket by 1. Requires targetRocketId (Common)
+- COMET_ANALYSIS: Peek at top Strength or Movement card. Requires peekChoice: "strength" or "movement" (Common)
+- ROCKET_CALIBRATION: +1 Accuracy or +1 Power for next launch only. Requires calibrationChoice: "accuracy" or "power" (Common)
 
-### Political Cards (interaction & resources):
-- RESOURCE_SEIZURE: Steal 2 cubes from target player. Requires targetPlayerId.
-- TECHNOLOGY_THEFT: Steal a random card from target player. Requires targetPlayerId.
-- EMBARGO: Target player gains no income next turn. Requires targetPlayerId.
-- SABOTAGE: Force target player to re-roll their next launch. Requires targetPlayerId.
-- REGULATORY_REVIEW: Add +1 build time to target player's building rocket. Requires targetPlayerId AND targetRocketId.
-- EMERGENCY_FUNDING: Gain your current income (base + bonus) immediately
-- PUBLIC_DONATION_DRIVE: Gain 1 cube per active rocket you have (building + ready)
-- INTERNATIONAL_GRANT: You gain 5 cubes, all other players gain 1 cube each
+### Espionage Cards (interference & sabotage):
+- COVERT_ROCKET_STRIKE: Destroy any rocket (building or ready) of another player. Requires targetPlayerId AND targetRocketId (Rare)
+- EMBARGO: Target player gains no income next turn. Requires targetPlayerId (Rare)
+- ESPIONAGE_AGENT: Steal a random card from target player. Requires targetPlayerId (Uncommon)
+- DIPLOMATIC_PRESSURE: Block target player's next card play. Requires targetPlayerId (Uncommon)
+- RESOURCE_SEIZURE: Steal 3 cubes from target player. Requires targetPlayerId (Common)
+- SABOTAGE_CONSTRUCTION: Force target player to re-roll their next launch. Requires targetPlayerId (Common)
+- REGULATORY_REVIEW: Add +1 build time to target player's building rocket. Requires targetPlayerId AND targetRocketId (Common)
+
+### Economic Cards (resources & funding):
+- INTERNATIONAL_GRANT: You gain 5 cubes, all other players gain 2 cubes each (Rare)
+- FUNDING_PRESSURE: Gain resources based on comet distance: 4 cubes (far), 8 cubes (mid), 12 cubes (close) (Rare)
+- INCREASE_INCOME: +1 income permanently (stacks up to +3) (Uncommon)
+- ROCKET_SALVAGE: +1 cube refund per launch (stacks up to +3) (Uncommon)
+- EMERGENCY_FUNDING: Gain your current income (base + bonus) immediately (Common)
+- PUBLIC_DONATION_DRIVE: Gain 2 cubes per active rocket you have (building + ready) (Common)
+- PROGRAM_PRESTIGE: Permanently gain +1 cube each time you play a card (stacks up to +3) (Common)
 
 ## WINNING & SCORING
 - If comet destroyed: Player with most trophy points wins
@@ -78,13 +86,14 @@ Each turn you MUST take actions in this order:
 - If comet reaches Earth: Everyone loses, but highest score is "best loser"
 
 ## STRATEGY TIPS
-- Early game priority: Raise accuracy cap to 5-6 first (83-100% hit chance is much better than 50%)
-- Power only matters for destroying segments - a P1 rocket still deals 1 damage on hit
+- Early game priority: Raise accuracy cap to 5 (83% hit chance is much better than 50%)
+- Power matters for destroying segments - max accuracy (5) still leaves 17% miss chance, so power wins games
 - BTC 3 (instant) rockets cost more but let you respond immediately; good for finishing off weak segments
 - BTC 1 (cheap) rockets are economical for building up your rocket fleet over time
-- INCREASE_INCOME cards compound over time - playing them early gives the most benefit
-- Political cards against the leader can balance the game; save EMBARGO/SABOTAGE for critical moments
-- COMET_RESEARCH (peek at movement) helps predict how many turns remain before impact
+- INCREASE_INCOME and PROGRAM_PRESTIGE cards compound over time - playing them early gives the most benefit
+- Espionage cards against the leader can balance the game; save EMBARGO/SABOTAGE_CONSTRUCTION for critical moments
+- COMET_ANALYSIS (peek at movement) helps predict how many turns remain before impact
+- FUNDING_PRESSURE is best when the comet is close (distance 0-6 gives 12 cubes!)
 
 ## RESPONSE FORMAT
 You must respond with valid JSON only:
@@ -96,7 +105,7 @@ You must respond with valid JSON only:
 
 Valid actions and their payloads:
 - BEGIN_TURN: {} (no payload needed)
-- DRAW_CARD: { "deck": "engineering" | "political" }
+- DRAW_CARD: { "deck": "engineering" | "espionage" | "economic" }
 - BUILD_ROCKET: { "power": 1-6, "accuracy": 1-6, "buildTimeCost": 1-3 }
 - LAUNCH_ROCKET: { "rocketId": "string" }
 - PLAY_CARD: { "cardId": "string", "targetPlayerId?": "string", "targetRocketId?": "string", "peekChoice?": "strength" | "movement" }
@@ -126,10 +135,15 @@ function formatPlayerState(player: CometRushPlayerState, isYou: boolean): string
 
   // Show actual card IDs for the player
   const hand = isYou ? player.hand.map(c => {
-    const type = c.deck === "engineering"
-      ? (c as EngineeringCard).cardType
-      : (c as PoliticalCard).cardType;
-    return `  - ID="${c.id}": ${c.name} (${type}) - ${c.description}`;
+    let cardType: string;
+    if (c.deck === "engineering") {
+      cardType = (c as EngineeringCard).cardType;
+    } else if (c.deck === "espionage") {
+      cardType = (c as EspionageCard).cardType;
+    } else {
+      cardType = (c as EconomicCard).cardType;
+    }
+    return `  - ID="${c.id}": ${c.name} (${cardType}) - ${c.description}`;
   }).join("\n") : `  (${player.hand.length} cards)`;
 
   const upgrades = [];
@@ -344,7 +358,8 @@ ${unplayable.length > 0 ? "\nCANNOT PLAY:\n" + unplayable.map(c => "  - " + c).j
 
 DECK STATUS:
   Engineering deck: ${state.engineeringDeck.length} cards
-  Political deck: ${state.politicalDeck.length} cards
+  Espionage deck: ${state.espionageDeck.length} cards
+  Economic deck: ${state.economicDeck.length} cards
 `;
 }
 

@@ -32,30 +32,41 @@ export type CometRushPhase = "lobby" | "playing" | "gameOver";
 // CORE TYPES
 // ============================================================================
 
-// Card deck types
-export type CardDeckType = "engineering" | "political";
+// Card deck types - 3 separate draw piles
+export type CardDeckType = "engineering" | "espionage" | "economic";
 
-// Engineering card types
+// Card rarity (visual only, no mechanical effect)
+export type CardRarity = "common" | "uncommon" | "rare";
+
+// Engineering card types (44 cards total)
 export type EngineeringCardType =
-  | "BOOST_POWER"           // +1 max power cap (9 cards)
-  | "IMPROVE_ACCURACY"      // +1 max accuracy cap (9 cards)
-  | "STREAMLINED_ASSEMBLY"  // -1 build time for one rocket (9 cards)
-  | "MASS_PRODUCTION"       // -1 build time for all rockets (4 cards)
-  | "INCREASE_INCOME"       // +1 income permanently, max 3 stacks (12 cards)
-  | "ROCKET_SALVAGE"        // +1 resource per launch, max 3 stacks (9 cards)
-  | "REROLL_PROTOCOL"       // Re-roll failed launch (9 cards)
-  | "COMET_RESEARCH";       // Peek at comet strength or movement (9 cards)
+  | "MASS_PRODUCTION"         // −1 build time for all rockets (Rare, 4 cards)
+  | "FLIGHT_ADJUSTMENT"       // If next launch fails, re-roll once (Rare, 4 cards)
+  | "WARHEAD_UPGRADE"         // +1 max power cap up to 8 (Uncommon, 6 cards)
+  | "GUIDANCE_SYSTEM_UPGRADE" // +1 max accuracy cap up to 5 (Uncommon, 6 cards)
+  | "STREAMLINED_ASSEMBLY"    // −1 build time for one rocket (Common, 8 cards)
+  | "COMET_ANALYSIS"          // Peek at strength or movement card (Common, 8 cards)
+  | "ROCKET_CALIBRATION";     // Play before launch: +1 accuracy or +1 power (Common, 8 cards)
 
-// Political card types
-export type PoliticalCardType =
-  | "RESOURCE_SEIZURE"      // Steal 2 resources from player (6 cards)
-  | "TECHNOLOGY_THEFT"      // Steal random card from player (6 cards)
-  | "EMBARGO"               // Target gains no income next turn (4 cards)
-  | "SABOTAGE"              // Force re-roll on launch (6 cards)
-  | "REGULATORY_REVIEW"     // +1 build time to opponent's rocket (6 cards)
-  | "EMERGENCY_FUNDING"     // Gain income immediately (6 cards)
-  | "PUBLIC_DONATION_DRIVE" // +1 resource per rocket (6 cards)
-  | "INTERNATIONAL_GRANT";  // You get 5, all others get 1 (4 cards)
+// Espionage card types (44 cards total)
+export type EspionageCardType =
+  | "COVERT_ROCKET_STRIKE"    // Destroy any rocket (building or ready) of another player (Rare, 4 cards)
+  | "EMBARGO"                 // Target gains no income next turn (Rare, 4 cards)
+  | "ESPIONAGE_AGENT"         // Steal a random card from target player (Uncommon, 6 cards)
+  | "DIPLOMATIC_PRESSURE"     // Block any card a target player attempts to play (Uncommon, 6 cards)
+  | "RESOURCE_SEIZURE"        // Steal 3 resources from target player (Common, 8 cards)
+  | "SABOTAGE_CONSTRUCTION"   // Force target player to re-roll a launch (Common, 8 cards)
+  | "REGULATORY_REVIEW";      // +1 build time to opponent's rocket (Common, 8 cards)
+
+// Economic card types (44 cards total)
+export type EconomicCardType =
+  | "INTERNATIONAL_GRANT"     // You gain 5, all others gain 2 (Rare, 4 cards)
+  | "FUNDING_PRESSURE"        // Gain resources based on comet distance 4/8/12 (Rare, 4 cards)
+  | "INCREASE_INCOME"         // +1 income permanently, max 3 (Uncommon, 6 cards)
+  | "ROCKET_SALVAGE"          // +1 resource per launch, max 3 (Uncommon, 6 cards)
+  | "EMERGENCY_FUNDING"       // Gain income immediately (Common, 8 cards)
+  | "PUBLIC_DONATION_DRIVE"   // Gain 2 resources per built rocket (Common, 8 cards)
+  | "PROGRAM_PRESTIGE";       // Permanent: +1 resource per card played, max 3 (Common, 8 cards)
 
 export type RocketStatus = "building" | "ready" | "launched" | "spent";
 
@@ -76,6 +87,7 @@ export interface BaseCard {
   deck: CardDeckType;
   name: string;
   description: string;
+  rarity: CardRarity;
 }
 
 // Engineering card
@@ -84,14 +96,20 @@ export interface EngineeringCard extends BaseCard {
   cardType: EngineeringCardType;
 }
 
-// Political card
-export interface PoliticalCard extends BaseCard {
-  deck: "political";
-  cardType: PoliticalCardType;
+// Espionage card
+export interface EspionageCard extends BaseCard {
+  deck: "espionage";
+  cardType: EspionageCardType;
+}
+
+// Economic card
+export interface EconomicCard extends BaseCard {
+  deck: "economic";
+  cardType: EconomicCardType;
 }
 
 // Union type for any card in hand
-export type GameCard = EngineeringCard | PoliticalCard;
+export type GameCard = EngineeringCard | EspionageCard | EconomicCard;
 
 // Legacy alias for backwards compatibility during migration
 export type ResearchCard = GameCard;
@@ -113,14 +131,21 @@ export interface Rocket {
 export interface PlayerUpgrades {
   incomeBonus: number;        // From Increase Income cards (max 3)
   salvageBonus: number;       // From Rocket Salvage cards (max 3)
+  cardPlayBonus: number;      // From Program Prestige cards (max 3) - +1 resource per card played
   powerBonus: number;         // Legacy field, kept for compatibility
   accuracyBonus: number;      // Legacy field, kept for compatibility
   buildTimeBonus: number;     // Legacy field, kept for compatibility
   maxRocketsBonus: number;    // Legacy field, kept for compatibility
-  // Hard caps for sliders (raised by Boost Power / Improve Accuracy cards)
-  powerCap: number;           // Default 3, max 6
-  accuracyCap: number;        // Default 3, max 6
+  // Hard caps for sliders (raised by Warhead Upgrade / Guidance System Upgrade cards)
+  powerCap: number;           // Default 3, max 8
+  accuracyCap: number;        // Default 3, max 5
   buildTimeCap: number;       // Legacy field, kept at 3
+}
+
+// Launch calibration bonuses (from Rocket Calibration cards)
+export interface LaunchCalibration {
+  accuracyBonus: number;
+  powerBonus: number;
 }
 
 export interface CometRushPlayerState {
@@ -130,7 +155,7 @@ export interface CometRushPlayerState {
   baseIncome: number;
   maxConcurrentRockets: number;
   rockets: Rocket[];
-  hand: GameCard[];           // Now contains both Engineering and Political cards
+  hand: GameCard[];           // Contains Engineering, Espionage, and Economic cards
   upgrades: PlayerUpgrades;
   trophies: StrengthCard[];
   // Turn-based flags (reset each turn)
@@ -139,12 +164,16 @@ export interface CometRushPlayerState {
   // For peek cards - private info revealed to player
   peekedMovementCard: MovementCard | null;
   peekedStrengthCard: StrengthCard | null;
-  // Re-roll Protocol: player can re-roll if launch fails (consumed on use)
+  // Flight Adjustment: player can re-roll if launch fails (consumed on use)
   hasRerollToken: boolean;
   // Embargo: if true, player gains no income this turn (reset after BEGIN_TURN)
   isEmbargoed: boolean;
-  // Sabotage: if set, this player must re-roll their next launch
+  // Sabotage Construction: if set, this player must re-roll their next launch
   mustRerollNextLaunch: boolean;
+  // Diplomatic Pressure: if set, this player's next card play will be blocked
+  isUnderDiplomaticPressure: boolean;
+  // Launch calibration bonuses (accumulated from Rocket Calibration cards, applied to next launch)
+  pendingCalibration: LaunchCalibration;
 }
 
 // ============================================================================
@@ -183,6 +212,17 @@ export interface CardResult {
   cardName: string;
 }
 
+// Pending card play awaiting response (for Diplomatic Pressure reactive system)
+export interface PendingCardPlay {
+  playerId: string;           // Who is playing the card
+  card: GameCard;             // The card being played
+  payload: PlayCardPayload;   // Original payload
+  respondingPlayerIds: string[]; // Players who can still respond (have Diplomatic Pressure)
+  respondedPlayerIds: string[];  // Players who have passed or don't have the card
+  blockedByPlayerId: string | null; // If blocked, who blocked it
+  expiresAt: number;          // Timeout timestamp
+}
+
 export interface CometRushState {
   phase: CometRushPhase;
   round: number;
@@ -205,9 +245,13 @@ export interface CometRushState {
   engineeringDeck: EngineeringCard[];
   engineeringDiscard: EngineeringCard[];
 
-  // Political deck (interaction & disruption)
-  politicalDeck: PoliticalCard[];
-  politicalDiscard: PoliticalCard[];
+  // Espionage deck (interference & disruption)
+  espionageDeck: EspionageCard[];
+  espionageDiscard: EspionageCard[];
+
+  // Economic deck (resources & funding)
+  economicDeck: EconomicCard[];
+  economicDiscard: EconomicCard[];
 
   // Per player state
   players: Record<string, CometRushPlayerState>;
@@ -234,6 +278,9 @@ export interface CometRushState {
   earthDestroyed: boolean;
   cometDestroyed: boolean;
 
+  // Reactive card system - pending card play awaiting responses
+  pendingCardPlay: PendingCardPlay | null;
+
   // Action logging for multiplayer
   actionLog: MultiplayerLogEntry[];
   gameStartTime: number;
@@ -246,9 +293,11 @@ export interface CometRushState {
 export type CometRushActionType =
   | "START_GAME"
   | "BEGIN_TURN"
-  | "DRAW_CARD"           // Draw from chosen deck (Engineering or Political)
+  | "DRAW_CARD"           // Draw from chosen deck (Engineering, Espionage, or Economic)
   | "PLAY_CARD"           // Play a single card from hand
+  | "RESPOND_TO_CARD"     // Respond to pending card play (block with Diplomatic Pressure or pass)
   | "BUILD_ROCKET"
+  | "APPLY_CALIBRATION"   // Apply Rocket Calibration before launch
   | "LAUNCH_ROCKET"
   | "USE_REROLL"          // Use re-roll token after a failed launch
   | "DECLINE_REROLL"      // Decline to use re-roll token, accept miss
@@ -267,7 +316,13 @@ export interface PlayCardPayload {
   cardId: string;
   targetPlayerId?: string;
   targetRocketId?: string;
-  peekChoice?: "strength" | "movement";  // For Comet Research card
+  peekChoice?: "strength" | "movement";  // For Comet Analysis card
+  calibrationChoice?: "accuracy" | "power";  // For Rocket Calibration card
+}
+
+// Response to pending card play
+export interface RespondToCardPayload {
+  block: boolean;  // true = use Diplomatic Pressure to block, false = pass
 }
 
 export interface BuildRocketPayload {
@@ -276,13 +331,19 @@ export interface BuildRocketPayload {
   accuracy: number;
 }
 
+// Apply calibration before launch
+export interface ApplyCalibrationPayload {
+  cardId: string;
+  choice: "accuracy" | "power";
+}
+
 export interface LaunchRocketPayload {
   rocketId: string;
 }
 
 export interface CometRushAction extends BaseAction {
   type: CometRushActionType;
-  payload?: DrawCardPayload | PlayCardPayload | BuildRocketPayload | LaunchRocketPayload | Record<string, never>;
+  payload?: DrawCardPayload | PlayCardPayload | RespondToCardPayload | BuildRocketPayload | ApplyCalibrationPayload | LaunchRocketPayload | Record<string, never>;
 }
 
 // ============================================================================
@@ -338,8 +399,8 @@ function createStrengthDeck(count: number): StrengthCard[] {
   return cards;
 }
 
-// Engineering Deck: 70 cards total
-// Theme: Rocket engineering, logistics, efficiency, and reliability
+// Engineering Deck: 44 cards total
+// Theme: Rocket engineering, optimization, and reliability
 function createEngineeringDeck(): EngineeringCard[] {
   const cards: EngineeringCard[] = [];
   let idCounter = 1;
@@ -348,7 +409,8 @@ function createEngineeringDeck(): EngineeringCard[] {
     cardType: EngineeringCardType,
     count: number,
     name: string,
-    description: string
+    description: string,
+    rarity: CardRarity
   ) => {
     for (let i = 0; i < count; i++) {
       cards.push({
@@ -357,63 +419,105 @@ function createEngineeringDeck(): EngineeringCard[] {
         cardType,
         name,
         description,
+        rarity,
       });
     }
   };
 
-  // Core Upgrade Cards
-  add("BOOST_POWER", 9, "Boost Power", "+1 max power build cap");
-  add("IMPROVE_ACCURACY", 9, "Improve Accuracy", "+1 max accuracy build cap");
-  add("STREAMLINED_ASSEMBLY", 9, "Streamlined Assembly", "Reduce build time of one rocket by 1");
-  add("MASS_PRODUCTION", 4, "Mass Production", "Reduce build time of all rockets by 1");
+  // Rare cards (4 each)
+  add("MASS_PRODUCTION", 4, "Mass Production", "−1 build time for all rockets", "rare");
+  add("FLIGHT_ADJUSTMENT", 4, "Flight Adjustment", "If next launch fails, re-roll once", "rare");
 
-  // Economy & Efficiency
-  add("INCREASE_INCOME", 12, "Increase Income", "+1 income permanently (max 3)");
-  add("ROCKET_SALVAGE", 9, "Rocket Salvage", "+1 resource per rocket launch (max 3)");
+  // Uncommon cards (6 each)
+  add("WARHEAD_UPGRADE", 6, "Warhead Upgrade", "+1 max power (up to 8)", "uncommon");
+  add("GUIDANCE_SYSTEM_UPGRADE", 6, "Guidance System Upgrade", "+1 max accuracy (up to 5)", "uncommon");
 
-  // Risk Management & Information
-  add("REROLL_PROTOCOL", 9, "Re-roll Protocol", "If your next launch fails, re-roll once");
-  add("COMET_RESEARCH", 9, "Comet Research", "Peek at top Comet Strength or Movement card");
+  // Common cards (8 each)
+  add("STREAMLINED_ASSEMBLY", 8, "Streamlined Assembly", "−1 build time for one rocket", "common");
+  add("COMET_ANALYSIS", 8, "Comet Analysis", "Peek at a strength or movement card", "common");
+  add("ROCKET_CALIBRATION", 8, "Rocket Calibration", "Play before launch: +1 Accuracy or +1 Power", "common");
 
   return cards;
 }
 
-// Political Deck: 44 cards total
-// Theme: Politics, regulation, public funding, interference
-function createPoliticalDeck(): PoliticalCard[] {
-  const cards: PoliticalCard[] = [];
+// Espionage Deck: 44 cards total
+// Theme: Interference, sabotage, and intelligence
+function createEspionageDeck(): EspionageCard[] {
+  const cards: EspionageCard[] = [];
   let idCounter = 1;
 
   const add = (
-    cardType: PoliticalCardType,
+    cardType: EspionageCardType,
     count: number,
     name: string,
-    description: string
+    description: string,
+    rarity: CardRarity
   ) => {
     for (let i = 0; i < count; i++) {
       cards.push({
-        id: `P${idCounter++}`,
-        deck: "political",
+        id: `S${idCounter++}`,
+        deck: "espionage",
         cardType,
         name,
         description,
+        rarity,
       });
     }
   };
 
-  // Direct Player Interaction
-  add("RESOURCE_SEIZURE", 6, "Resource Seizure", "Steal 2 resources from another player");
-  add("TECHNOLOGY_THEFT", 6, "Technology Theft", "Steal a random card from another player");
-  add("EMBARGO", 4, "Embargo", "Target player gains no income next turn");
+  // Rare cards (4 each)
+  add("COVERT_ROCKET_STRIKE", 4, "Covert Rocket Strike", "Destroy any rocket (building or ready) of another player", "rare");
+  add("EMBARGO", 4, "Embargo", "Target player gains no income next turn", "rare");
 
-  // Launch Disruption
-  add("SABOTAGE", 6, "Sabotage", "Force another player to re-roll a rocket launch");
-  add("REGULATORY_REVIEW", 6, "Regulatory Review", "Delay another player's rocket by +1 build time");
+  // Uncommon cards (6 each)
+  add("ESPIONAGE_AGENT", 6, "Espionage Agent", "Steal a random card from target player", "uncommon");
+  add("DIPLOMATIC_PRESSURE", 6, "Diplomatic Pressure", "Block any card a target player attempts to play", "uncommon");
 
-  // Funding & Politics
-  add("EMERGENCY_FUNDING", 6, "Emergency Funding", "Gain your income immediately");
-  add("PUBLIC_DONATION_DRIVE", 6, "Public Donation Drive", "+1 resource for each rocket you have");
-  add("INTERNATIONAL_GRANT", 4, "International Grant", "You gain 5 resources, all others gain 1");
+  // Common cards (8 each)
+  add("RESOURCE_SEIZURE", 8, "Resource Seizure", "Steal 3 resources from target player", "common");
+  add("SABOTAGE_CONSTRUCTION", 8, "Sabotage Construction", "Force target player to re-roll a launch", "common");
+  add("REGULATORY_REVIEW", 8, "Regulatory Review", "+1 build time to opponent's rocket", "common");
+
+  return cards;
+}
+
+// Economic Deck: 44 cards total
+// Theme: Resources, funding, and financial advantage
+function createEconomicDeck(): EconomicCard[] {
+  const cards: EconomicCard[] = [];
+  let idCounter = 1;
+
+  const add = (
+    cardType: EconomicCardType,
+    count: number,
+    name: string,
+    description: string,
+    rarity: CardRarity
+  ) => {
+    for (let i = 0; i < count; i++) {
+      cards.push({
+        id: `C${idCounter++}`,
+        deck: "economic",
+        cardType,
+        name,
+        description,
+        rarity,
+      });
+    }
+  };
+
+  // Rare cards (4 each)
+  add("INTERNATIONAL_GRANT", 4, "International Grant", "You gain 5 resources, all others gain 2", "rare");
+  add("FUNDING_PRESSURE", 4, "Funding Pressure", "Gain resources based on comet distance (4/8/12)", "rare");
+
+  // Uncommon cards (6 each)
+  add("INCREASE_INCOME", 6, "Increase Income", "+1 income permanently (max 3)", "uncommon");
+  add("ROCKET_SALVAGE", 6, "Rocket Salvage", "+1 resource per launch (max 3)", "uncommon");
+
+  // Common cards (8 each)
+  add("EMERGENCY_FUNDING", 8, "Emergency Funding", "Gain your income immediately", "common");
+  add("PUBLIC_DONATION_DRIVE", 8, "Public Donation Drive", "Gain 2 resources per built rocket", "common");
+  add("PROGRAM_PRESTIGE", 8, "Program Prestige", "+1 resource per card played (max 3)", "common");
 
   return cards;
 }
@@ -499,6 +603,7 @@ function buildPlayerState(p: Player): CometRushPlayerState {
     upgrades: {
       incomeBonus: 0,
       salvageBonus: 0,
+      cardPlayBonus: 0,
       powerBonus: 0,
       accuracyBonus: 0,
       buildTimeBonus: 0,
@@ -515,6 +620,8 @@ function buildPlayerState(p: Player): CometRushPlayerState {
     hasRerollToken: false,
     isEmbargoed: false,
     mustRerollNextLaunch: false,
+    isUnderDiplomaticPressure: false,
+    pendingCalibration: { accuracyBonus: 0, powerBonus: 0 },
   };
 }
 
@@ -542,8 +649,10 @@ function initialState(players: Player[]): CometRushState {
     activeStrengthCard: null,
     engineeringDeck: [],
     engineeringDiscard: [],
-    politicalDeck: [],
-    politicalDiscard: [],
+    espionageDeck: [],
+    espionageDiscard: [],
+    economicDeck: [],
+    economicDiscard: [],
     players: playersState,
     lastLaunchResult: null,
     turnMeta: null,
@@ -553,6 +662,7 @@ function initialState(players: Player[]): CometRushState {
     winnerIds: [],
     earthDestroyed: false,
     cometDestroyed: false,
+    pendingCardPlay: null,
     actionLog: [],
     gameStartTime: 0,
   };
@@ -587,26 +697,46 @@ function reducer(
       const movementDeck = shuffle(createMovementDeck(), ctx.random);
       const strengthDeck = shuffle(createStrengthDeck(strengthCardCount), ctx.random);
       const engineeringDeck = shuffle(createEngineeringDeck(), ctx.random);
-      const politicalDeck = shuffle(createPoliticalDeck(), ctx.random);
+      const espionageDeck = shuffle(createEspionageDeck(), ctx.random);
+      const economicDeck = shuffle(createEconomicDeck(), ctx.random);
 
-      // Deal initial hands: 2 Engineering + 2 Political cards each
+      // Deal initial hands: 1 card from each deck (3 total) + 1 extra from random deck
       const updatedPlayers = { ...state.players };
       let currentEngineeringDeck = [...engineeringDeck];
-      let currentPoliticalDeck = [...politicalDeck];
+      let currentEspionageDeck = [...espionageDeck];
+      let currentEconomicDeck = [...economicDeck];
 
       for (const playerId of state.playerOrder) {
         const player = updatedPlayers[playerId];
         if (!player) continue;
 
-        const engineeringCards = currentEngineeringDeck.slice(0, 2);
-        currentEngineeringDeck = currentEngineeringDeck.slice(2);
+        // 1 from each deck
+        const engineeringCard = currentEngineeringDeck[0];
+        currentEngineeringDeck = currentEngineeringDeck.slice(1);
 
-        const politicalCards = currentPoliticalDeck.slice(0, 2);
-        currentPoliticalDeck = currentPoliticalDeck.slice(2);
+        const espionageCard = currentEspionageDeck[0];
+        currentEspionageDeck = currentEspionageDeck.slice(1);
+
+        const economicCard = currentEconomicDeck[0];
+        currentEconomicDeck = currentEconomicDeck.slice(1);
+
+        // 1 extra from a random deck
+        const randomDeck = Math.floor(ctx.random() * 3);
+        let extraCard: GameCard;
+        if (randomDeck === 0 && currentEngineeringDeck.length > 0) {
+          extraCard = currentEngineeringDeck[0];
+          currentEngineeringDeck = currentEngineeringDeck.slice(1);
+        } else if (randomDeck === 1 && currentEspionageDeck.length > 0) {
+          extraCard = currentEspionageDeck[0];
+          currentEspionageDeck = currentEspionageDeck.slice(1);
+        } else {
+          extraCard = currentEconomicDeck[0];
+          currentEconomicDeck = currentEconomicDeck.slice(1);
+        }
 
         updatedPlayers[playerId] = {
           ...player,
-          hand: [...engineeringCards, ...politicalCards],
+          hand: [engineeringCard, espionageCard, economicCard, extraCard],
         };
       }
 
@@ -622,12 +752,15 @@ function reducer(
         totalStrengthCards: strengthCardCount,
         engineeringDeck: currentEngineeringDeck,
         engineeringDiscard: [],
-        politicalDeck: currentPoliticalDeck,
-        politicalDiscard: [],
+        espionageDeck: currentEspionageDeck,
+        espionageDiscard: [],
+        economicDeck: currentEconomicDeck,
+        economicDiscard: [],
         activeStrengthCard: null,
         lastMovementCard: null,
         players: updatedPlayers,
         lastLaunchResult: null,
+        pendingCardPlay: null,
         turnMeta: {
           playerId: firstPlayerId,
           incomeGained: 0,
@@ -724,8 +857,10 @@ function reducer(
       const deckType = payload.deck;
       let engineeringDeck = [...state.engineeringDeck];
       let engineeringDiscard = [...state.engineeringDiscard];
-      let politicalDeck = [...state.politicalDeck];
-      let politicalDiscard = [...state.politicalDiscard];
+      let espionageDeck = [...state.espionageDeck];
+      let espionageDiscard = [...state.espionageDiscard];
+      let economicDeck = [...state.economicDeck];
+      let economicDiscard = [...state.economicDiscard];
       let drawnCardId: string | null = null;
       let newHand = player.hand;
 
@@ -742,17 +877,30 @@ function reducer(
           engineeringDeck = engineeringDeck.slice(1);
           newHand = [...player.hand, drawnCard];
         }
-      } else {
-        // Political deck
-        if (politicalDeck.length === 0 && politicalDiscard.length > 0) {
-          politicalDeck = shuffle(politicalDiscard, ctx.random);
-          politicalDiscard = [];
+      } else if (deckType === "espionage") {
+        // Reshuffle if empty
+        if (espionageDeck.length === 0 && espionageDiscard.length > 0) {
+          espionageDeck = shuffle(espionageDiscard, ctx.random);
+          espionageDiscard = [];
         }
 
-        if (politicalDeck.length > 0) {
-          const drawnCard = politicalDeck[0];
+        if (espionageDeck.length > 0) {
+          const drawnCard = espionageDeck[0];
           drawnCardId = drawnCard.id;
-          politicalDeck = politicalDeck.slice(1);
+          espionageDeck = espionageDeck.slice(1);
+          newHand = [...player.hand, drawnCard];
+        }
+      } else {
+        // Economic deck
+        if (economicDeck.length === 0 && economicDiscard.length > 0) {
+          economicDeck = shuffle(economicDiscard, ctx.random);
+          economicDiscard = [];
+        }
+
+        if (economicDeck.length > 0) {
+          const drawnCard = economicDeck[0];
+          drawnCardId = drawnCard.id;
+          economicDeck = economicDeck.slice(1);
           newHand = [...player.hand, drawnCard];
         }
       }
@@ -766,8 +914,10 @@ function reducer(
         ...state,
         engineeringDeck,
         engineeringDiscard,
-        politicalDeck,
-        politicalDiscard,
+        espionageDeck,
+        espionageDiscard,
+        economicDeck,
+        economicDiscard,
         players: {
           ...state.players,
           [action.playerId]: updatedPlayer,
@@ -808,66 +958,19 @@ function reducer(
       let updatedPlayer = { ...player };
       let resultDescription = "";
       let engineeringDiscard = [...state.engineeringDiscard];
-      let politicalDiscard = [...state.politicalDiscard];
+      let espionageDiscard = [...state.espionageDiscard];
+      let economicDiscard = [...state.economicDiscard];
+
+      // Apply card play bonus from Program Prestige (before processing the card)
+      if (updatedPlayer.upgrades.cardPlayBonus > 0) {
+        updatedPlayer.resourceCubes += updatedPlayer.upgrades.cardPlayBonus;
+      }
 
       // Handle Engineering cards
       if (card.deck === "engineering") {
         const engCard = card as EngineeringCard;
 
         switch (engCard.cardType) {
-          case "BOOST_POWER": {
-            // +1 max power cap (max 6)
-            const newCap = Math.min(6, updatedPlayer.upgrades.powerCap + 1);
-            if (newCap === updatedPlayer.upgrades.powerCap) {
-              resultDescription = "Power cap already at maximum (6).";
-            } else {
-              updatedPlayer.upgrades = {
-                ...updatedPlayer.upgrades,
-                powerCap: newCap,
-              };
-              resultDescription = `Power upgraded! Max power increased to ${newCap}.`;
-            }
-            break;
-          }
-
-          case "IMPROVE_ACCURACY": {
-            // +1 max accuracy cap (max 6)
-            const newCap = Math.min(6, updatedPlayer.upgrades.accuracyCap + 1);
-            if (newCap === updatedPlayer.upgrades.accuracyCap) {
-              resultDescription = "Accuracy cap already at maximum (6).";
-            } else {
-              updatedPlayer.upgrades = {
-                ...updatedPlayer.upgrades,
-                accuracyCap: newCap,
-              };
-              resultDescription = `Accuracy upgraded! Max accuracy increased to ${newCap}.`;
-            }
-            break;
-          }
-
-          case "STREAMLINED_ASSEMBLY": {
-            // -1 build time for one rocket (requires target)
-            if (!payload.targetRocketId) return state;
-            const rocketIndex = updatedPlayer.rockets.findIndex(
-              (r) => r.id === payload.targetRocketId && r.status === "building"
-            );
-            if (rocketIndex === -1) return state;
-
-            const updatedRockets = [...updatedPlayer.rockets];
-            const rocket = updatedRockets[rocketIndex];
-            const newRemaining = Math.max(0, rocket.buildTimeRemaining - 1);
-            updatedRockets[rocketIndex] = {
-              ...rocket,
-              buildTimeRemaining: newRemaining,
-              status: newRemaining === 0 ? "ready" : "building" as RocketStatus,
-            };
-            updatedPlayer.rockets = updatedRockets;
-            resultDescription = newRemaining === 0
-              ? "Rocket is now ready to launch!"
-              : `Rocket build time reduced to ${newRemaining} turn(s).`;
-            break;
-          }
-
           case "MASS_PRODUCTION": {
             // -1 build time for ALL rockets
             const buildingRockets = updatedPlayer.rockets.filter((r) => r.status === "building");
@@ -895,42 +998,67 @@ function reducer(
             break;
           }
 
-          case "INCREASE_INCOME": {
-            // +1 income (max 3 stacks)
-            if (updatedPlayer.upgrades.incomeBonus >= 3) {
-              resultDescription = "Income bonus already at maximum (+3).";
-            } else {
-              updatedPlayer.upgrades = {
-                ...updatedPlayer.upgrades,
-                incomeBonus: updatedPlayer.upgrades.incomeBonus + 1,
-              };
-              resultDescription = `Income increased! Now earning ${updatedPlayer.baseIncome + updatedPlayer.upgrades.incomeBonus} cubes per round.`;
-            }
-            break;
-          }
-
-          case "ROCKET_SALVAGE": {
-            // +1 resource per launch (max 3 stacks)
-            if (updatedPlayer.upgrades.salvageBonus >= 3) {
-              resultDescription = "Salvage bonus already at maximum (+3).";
-            } else {
-              updatedPlayer.upgrades = {
-                ...updatedPlayer.upgrades,
-                salvageBonus: updatedPlayer.upgrades.salvageBonus + 1,
-              };
-              resultDescription = `Salvage bonus increased! Gain +${updatedPlayer.upgrades.salvageBonus} resource(s) per rocket launch.`;
-            }
-            break;
-          }
-
-          case "REROLL_PROTOCOL": {
+          case "FLIGHT_ADJUSTMENT": {
             // Grant re-roll token
             updatedPlayer.hasRerollToken = true;
-            resultDescription = "Re-roll Protocol active! Your next failed launch can be re-rolled.";
+            resultDescription = "Flight Adjustment active! Your next failed launch can be re-rolled.";
             break;
           }
 
-          case "COMET_RESEARCH": {
+          case "WARHEAD_UPGRADE": {
+            // +1 max power cap (max 8)
+            const newCap = Math.min(8, updatedPlayer.upgrades.powerCap + 1);
+            if (newCap === updatedPlayer.upgrades.powerCap) {
+              resultDescription = "Power cap already at maximum (8).";
+            } else {
+              updatedPlayer.upgrades = {
+                ...updatedPlayer.upgrades,
+                powerCap: newCap,
+              };
+              resultDescription = `Warhead Upgrade! Max power increased to ${newCap}.`;
+            }
+            break;
+          }
+
+          case "GUIDANCE_SYSTEM_UPGRADE": {
+            // +1 max accuracy cap (max 5)
+            const newCap = Math.min(5, updatedPlayer.upgrades.accuracyCap + 1);
+            if (newCap === updatedPlayer.upgrades.accuracyCap) {
+              resultDescription = "Accuracy cap already at maximum (5).";
+            } else {
+              updatedPlayer.upgrades = {
+                ...updatedPlayer.upgrades,
+                accuracyCap: newCap,
+              };
+              resultDescription = `Guidance System Upgrade! Max accuracy increased to ${newCap}.`;
+            }
+            break;
+          }
+
+          case "STREAMLINED_ASSEMBLY": {
+            // -1 build time for one rocket (requires target)
+            if (!payload.targetRocketId) return state;
+            const rocketIndex = updatedPlayer.rockets.findIndex(
+              (r) => r.id === payload.targetRocketId && r.status === "building"
+            );
+            if (rocketIndex === -1) return state;
+
+            const updatedRockets = [...updatedPlayer.rockets];
+            const rocket = updatedRockets[rocketIndex];
+            const newRemaining = Math.max(0, rocket.buildTimeRemaining - 1);
+            updatedRockets[rocketIndex] = {
+              ...rocket,
+              buildTimeRemaining: newRemaining,
+              status: newRemaining === 0 ? "ready" : "building" as RocketStatus,
+            };
+            updatedPlayer.rockets = updatedRockets;
+            resultDescription = newRemaining === 0
+              ? "Rocket is now ready to launch!"
+              : `Rocket build time reduced to ${newRemaining} turn(s).`;
+            break;
+          }
+
+          case "COMET_ANALYSIS": {
             // Peek at strength or movement deck
             if (!payload.peekChoice) return state;
 
@@ -938,10 +1066,10 @@ function reducer(
               if (state.strengthDeck.length > 0) {
                 const topCard = state.strengthDeck[0];
                 updatedPlayer.peekedStrengthCard = topCard;
-                resultDescription = `Comet Research: Next segment has strength ${topCard.baseStrength}.`;
+                resultDescription = `Comet Analysis: Next segment has strength ${topCard.baseStrength}.`;
               } else if (state.activeStrengthCard) {
                 updatedPlayer.peekedStrengthCard = state.activeStrengthCard;
-                resultDescription = `Comet Research: Current segment has strength ${state.activeStrengthCard.currentStrength}.`;
+                resultDescription = `Comet Analysis: Current segment has strength ${state.activeStrengthCard.currentStrength}.`;
               } else {
                 resultDescription = "No strength cards remaining.";
               }
@@ -949,10 +1077,34 @@ function reducer(
               if (state.movementDeck.length > 0) {
                 const topCard = state.movementDeck[0];
                 updatedPlayer.peekedMovementCard = topCard;
-                resultDescription = `Comet Research: Next movement is ${topCard.moveSpaces} space(s).`;
+                resultDescription = `Comet Analysis: Next movement is ${topCard.moveSpaces} space(s).`;
               } else {
                 resultDescription = "No movement cards remaining.";
               }
+            }
+            break;
+          }
+
+          case "ROCKET_CALIBRATION": {
+            // Add calibration bonus for next launch
+            if (!payload.calibrationChoice) return state;
+
+            if (payload.calibrationChoice === "accuracy") {
+              // Check if adding would exceed cap (5)
+              const newAccuracyBonus = updatedPlayer.pendingCalibration.accuracyBonus + 1;
+              updatedPlayer.pendingCalibration = {
+                ...updatedPlayer.pendingCalibration,
+                accuracyBonus: newAccuracyBonus,
+              };
+              resultDescription = `Rocket Calibration: +1 Accuracy for next launch (total: +${newAccuracyBonus}).`;
+            } else {
+              // Power bonus
+              const newPowerBonus = updatedPlayer.pendingCalibration.powerBonus + 1;
+              updatedPlayer.pendingCalibration = {
+                ...updatedPlayer.pendingCalibration,
+                powerBonus: newPowerBonus,
+              };
+              resultDescription = `Rocket Calibration: +1 Power for next launch (total: +${newPowerBonus}).`;
             }
             break;
           }
@@ -964,31 +1116,54 @@ function reducer(
         // Move to engineering discard
         engineeringDiscard = [...engineeringDiscard, engCard];
 
-      } else {
-        // Handle Political cards
-        const polCard = card as PoliticalCard;
+      } else if (card.deck === "espionage") {
+        // Handle Espionage cards
+        const espCard = card as EspionageCard;
 
-        switch (polCard.cardType) {
-          case "RESOURCE_SEIZURE": {
-            // Steal 2 resources from another player
-            if (!payload.targetPlayerId) return state;
+        switch (espCard.cardType) {
+          case "COVERT_ROCKET_STRIKE": {
+            // Destroy any rocket (building or ready) of another player
+            if (!payload.targetPlayerId || !payload.targetRocketId) return state;
             const targetPlayer = state.players[payload.targetPlayerId];
             if (!targetPlayer || payload.targetPlayerId === action.playerId) return state;
 
-            const stealAmount = Math.min(2, targetPlayer.resourceCubes);
+            const rocketIndex = targetPlayer.rockets.findIndex(
+              (r) => r.id === payload.targetRocketId && (r.status === "building" || r.status === "ready")
+            );
+            if (rocketIndex === -1) return state;
+
+            const destroyedRocket = targetPlayer.rockets[rocketIndex];
+            const updatedRockets = targetPlayer.rockets.filter((_, i) => i !== rocketIndex);
+
             updatedPlayers = {
               ...updatedPlayers,
               [payload.targetPlayerId]: {
                 ...targetPlayer,
-                resourceCubes: targetPlayer.resourceCubes - stealAmount,
+                rockets: updatedRockets,
               },
             };
-            updatedPlayer.resourceCubes += stealAmount;
-            resultDescription = `Stole ${stealAmount} cube(s) from ${targetPlayer.name}!`;
+            resultDescription = `Covert Rocket Strike! Destroyed ${targetPlayer.name}'s ${destroyedRocket.status} rocket!`;
             break;
           }
 
-          case "TECHNOLOGY_THEFT": {
+          case "EMBARGO": {
+            // Target gains no income next turn
+            if (!payload.targetPlayerId) return state;
+            const targetPlayer = state.players[payload.targetPlayerId];
+            if (!targetPlayer || payload.targetPlayerId === action.playerId) return state;
+
+            updatedPlayers = {
+              ...updatedPlayers,
+              [payload.targetPlayerId]: {
+                ...targetPlayer,
+                isEmbargoed: true,
+              },
+            };
+            resultDescription = `${targetPlayer.name} is embargoed! They will gain no income next turn.`;
+            break;
+          }
+
+          case "ESPIONAGE_AGENT": {
             // Steal random card from another player
             if (!payload.targetPlayerId) return state;
             const targetPlayer = state.players[payload.targetPlayerId];
@@ -1010,12 +1185,12 @@ function reducer(
               },
             };
             updatedPlayer.hand = [...updatedPlayer.hand, stolenCard];
-            resultDescription = `Stole "${stolenCard.name}" from ${targetPlayer.name}!`;
+            resultDescription = `Espionage Agent stole "${stolenCard.name}" from ${targetPlayer.name}!`;
             break;
           }
 
-          case "EMBARGO": {
-            // Target gains no income next turn
+          case "DIPLOMATIC_PRESSURE": {
+            // Block target player's next card play
             if (!payload.targetPlayerId) return state;
             const targetPlayer = state.players[payload.targetPlayerId];
             if (!targetPlayer || payload.targetPlayerId === action.playerId) return state;
@@ -1024,14 +1199,33 @@ function reducer(
               ...updatedPlayers,
               [payload.targetPlayerId]: {
                 ...targetPlayer,
-                isEmbargoed: true,
+                isUnderDiplomaticPressure: true,
               },
             };
-            resultDescription = `${targetPlayer.name} is embargoed! They will gain no income next turn.`;
+            resultDescription = `Diplomatic Pressure! ${targetPlayer.name}'s next card play will be blocked.`;
             break;
           }
 
-          case "SABOTAGE": {
+          case "RESOURCE_SEIZURE": {
+            // Steal 3 resources from another player
+            if (!payload.targetPlayerId) return state;
+            const targetPlayer = state.players[payload.targetPlayerId];
+            if (!targetPlayer || payload.targetPlayerId === action.playerId) return state;
+
+            const stealAmount = Math.min(3, targetPlayer.resourceCubes);
+            updatedPlayers = {
+              ...updatedPlayers,
+              [payload.targetPlayerId]: {
+                ...targetPlayer,
+                resourceCubes: targetPlayer.resourceCubes - stealAmount,
+              },
+            };
+            updatedPlayer.resourceCubes += stealAmount;
+            resultDescription = `Resource Seizure! Stole ${stealAmount} cube(s) from ${targetPlayer.name}!`;
+            break;
+          }
+
+          case "SABOTAGE_CONSTRUCTION": {
             // Force target to re-roll their next launch
             if (!payload.targetPlayerId) return state;
             const targetPlayer = state.players[payload.targetPlayerId];
@@ -1044,7 +1238,7 @@ function reducer(
                 mustRerollNextLaunch: true,
               },
             };
-            resultDescription = `${targetPlayer.name}'s next rocket launch will be sabotaged!`;
+            resultDescription = `Sabotage Construction! ${targetPlayer.name}'s next rocket launch will be sabotaged!`;
             break;
           }
 
@@ -1073,7 +1267,81 @@ function reducer(
                 rockets: updatedRockets,
               },
             };
-            resultDescription = `Delayed ${targetPlayer.name}'s rocket by 1 turn!`;
+            resultDescription = `Regulatory Review! Delayed ${targetPlayer.name}'s rocket by 1 turn!`;
+            break;
+          }
+
+          default:
+            return state;
+        }
+
+        // Move to espionage discard
+        espionageDiscard = [...espionageDiscard, espCard];
+
+      } else {
+        // Handle Economic cards
+        const econCard = card as EconomicCard;
+
+        switch (econCard.cardType) {
+          case "INTERNATIONAL_GRANT": {
+            // You get 5, all others get 2
+            updatedPlayer.resourceCubes += 5;
+            for (const otherId of state.playerOrder) {
+              if (otherId === action.playerId) continue;
+              const otherPlayer = state.players[otherId];
+              if (!otherPlayer) continue;
+              updatedPlayers = {
+                ...updatedPlayers,
+                [otherId]: {
+                  ...otherPlayer,
+                  resourceCubes: otherPlayer.resourceCubes + 2,
+                },
+              };
+            }
+            resultDescription = "International Grant! You gained 5 cubes, all others gained 2.";
+            break;
+          }
+
+          case "FUNDING_PRESSURE": {
+            // Gain resources based on comet distance (4/8/12)
+            let amount: number;
+            if (state.distanceToImpact >= 13) {
+              amount = 4;
+            } else if (state.distanceToImpact >= 7) {
+              amount = 8;
+            } else {
+              amount = 12;
+            }
+            updatedPlayer.resourceCubes += amount;
+            resultDescription = `Funding Pressure! Gained ${amount} cubes (comet at distance ${state.distanceToImpact}).`;
+            break;
+          }
+
+          case "INCREASE_INCOME": {
+            // +1 income (max 3 stacks)
+            if (updatedPlayer.upgrades.incomeBonus >= 3) {
+              resultDescription = "Income bonus already at maximum (+3).";
+            } else {
+              updatedPlayer.upgrades = {
+                ...updatedPlayer.upgrades,
+                incomeBonus: updatedPlayer.upgrades.incomeBonus + 1,
+              };
+              resultDescription = `Income increased! Now earning ${updatedPlayer.baseIncome + updatedPlayer.upgrades.incomeBonus} cubes per round.`;
+            }
+            break;
+          }
+
+          case "ROCKET_SALVAGE": {
+            // +1 resource per launch (max 3 stacks)
+            if (updatedPlayer.upgrades.salvageBonus >= 3) {
+              resultDescription = "Salvage bonus already at maximum (+3).";
+            } else {
+              updatedPlayer.upgrades = {
+                ...updatedPlayer.upgrades,
+                salvageBonus: updatedPlayer.upgrades.salvageBonus + 1,
+              };
+              resultDescription = `Rocket Salvage! Gain +${updatedPlayer.upgrades.salvageBonus} resource(s) per rocket launch.`;
+            }
             break;
           }
 
@@ -1086,33 +1354,29 @@ function reducer(
           }
 
           case "PUBLIC_DONATION_DRIVE": {
-            // +1 resource per rocket (building or complete)
+            // +2 resources per rocket (building or ready)
             const rocketCount = updatedPlayer.rockets.filter(
               (r) => r.status === "building" || r.status === "ready"
             ).length;
-            updatedPlayer.resourceCubes += rocketCount;
+            const gain = rocketCount * 2;
+            updatedPlayer.resourceCubes += gain;
             resultDescription = rocketCount > 0
-              ? `Public Donation Drive! Gained ${rocketCount} cube(s) from ${rocketCount} rocket(s).`
+              ? `Public Donation Drive! Gained ${gain} cube(s) from ${rocketCount} rocket(s).`
               : "No rockets to generate donations.";
             break;
           }
 
-          case "INTERNATIONAL_GRANT": {
-            // You get 5, all others get 1
-            updatedPlayer.resourceCubes += 5;
-            for (const otherId of state.playerOrder) {
-              if (otherId === action.playerId) continue;
-              const otherPlayer = state.players[otherId];
-              if (!otherPlayer) continue;
-              updatedPlayers = {
-                ...updatedPlayers,
-                [otherId]: {
-                  ...otherPlayer,
-                  resourceCubes: otherPlayer.resourceCubes + 1,
-                },
+          case "PROGRAM_PRESTIGE": {
+            // Permanent: +1 resource per card played (max 3)
+            if (updatedPlayer.upgrades.cardPlayBonus >= 3) {
+              resultDescription = "Card play bonus already at maximum (+3).";
+            } else {
+              updatedPlayer.upgrades = {
+                ...updatedPlayer.upgrades,
+                cardPlayBonus: updatedPlayer.upgrades.cardPlayBonus + 1,
               };
+              resultDescription = `Program Prestige! Gain +${updatedPlayer.upgrades.cardPlayBonus} resource(s) each time you play a card.`;
             }
-            resultDescription = "International Grant! You gained 5 cubes, all others gained 1.";
             break;
           }
 
@@ -1120,8 +1384,8 @@ function reducer(
             return state;
         }
 
-        // Move to political discard
-        politicalDiscard = [...politicalDiscard, polCard];
+        // Move to economic discard
+        economicDiscard = [...economicDiscard, econCard];
       }
 
       // Remove played card from hand
@@ -1132,7 +1396,8 @@ function reducer(
         ...state,
         players: updatedPlayers,
         engineeringDiscard,
-        politicalDiscard,
+        espionageDiscard,
+        economicDiscard,
         lastCardResult: resultDescription
           ? {
               id: `${ctx.now()}`,
@@ -1181,7 +1446,7 @@ function reducer(
       const buildTimeCost = Math.min(rawBuildTimeCost, player.upgrades.buildTimeCap);
 
       const effectivePower = power;
-      const effectiveAccuracy = Math.min(6, accuracy);
+      const effectiveAccuracy = Math.min(5, accuracy); // Accuracy capped at 5 (83.3% hit rate max)
 
       const cost = calculateRocketCost(buildTimeCost, power, accuracy);
       if (player.resourceCubes < cost) return state;
@@ -1254,9 +1519,13 @@ function reducer(
 
       const rocket = player.rockets[rocketIndex];
 
+      // Apply calibration bonuses (respecting caps: accuracy max 5, power max 8)
+      const calibratedAccuracy = Math.min(5, rocket.accuracy + player.pendingCalibration.accuracyBonus);
+      const calibratedPower = Math.min(8, rocket.power + player.pendingCalibration.powerBonus);
+
       // Roll 1d6 for accuracy
       const diceRoll = roll1d6(ctx.random);
-      const hit = diceRoll <= rocket.accuracy;
+      const hit = diceRoll <= calibratedAccuracy;
 
       // Check if player was sabotaged - they must reroll (don't auto-reroll, let UI handle it)
       const mustReroll = player.mustRerollNextLaunch;
@@ -1277,9 +1546,9 @@ function reducer(
             playerId: action.playerId,
             rocketId: rocket.id,
             diceRoll,
-            accuracyNeeded: rocket.accuracy,
+            accuracyNeeded: calibratedAccuracy,
             hit, // Show what they would have gotten
-            power: rocket.power,
+            power: calibratedPower,
             strengthBefore: state.activeStrengthCard?.currentStrength ?? 0,
             strengthAfter: state.activeStrengthCard?.currentStrength ?? 0,
             destroyed: false,
@@ -1306,9 +1575,9 @@ function reducer(
             playerId: action.playerId,
             rocketId: rocket.id,
             diceRoll,
-            accuracyNeeded: rocket.accuracy,
+            accuracyNeeded: calibratedAccuracy,
             hit: false,
-            power: rocket.power,
+            power: calibratedPower,
             strengthBefore: state.activeStrengthCard?.currentStrength ?? 0,
             strengthAfter: state.activeStrengthCard?.currentStrength ?? 0,
             destroyed: false,
@@ -1324,6 +1593,7 @@ function reducer(
             hasLaunchedRocketThisTurn: true,
             resourceCubes: player.resourceCubes + salvageBonus,
             mustRerollNextLaunch: false, // Consume the sabotage
+            pendingCalibration: { accuracyBonus: 0, powerBonus: 0 }, // Clear calibration
           };
 
           const sabotageMissState = {
@@ -1355,9 +1625,9 @@ function reducer(
           playerId: action.playerId,
           rocketId: rocket.id,
           diceRoll,
-          accuracyNeeded: rocket.accuracy,
+          accuracyNeeded: calibratedAccuracy,
           hit: false,
-          power: rocket.power,
+          power: calibratedPower,
           strengthBefore: state.activeStrengthCard?.currentStrength ?? 0,
           strengthAfter: state.activeStrengthCard?.currentStrength ?? 0,
           destroyed: false,
@@ -1374,6 +1644,7 @@ function reducer(
           resourceCubes: player.resourceCubes + (canReroll ? 0 : salvageBonus), // Salvage after final result
           hasRerollToken: player.hasRerollToken, // Keep token until they use it or decline
           mustRerollNextLaunch: false,
+          pendingCalibration: { accuracyBonus: 0, powerBonus: 0 }, // Clear calibration
         };
 
         const launchMissState = {
@@ -1408,7 +1679,7 @@ function reducer(
       let trophyCard: StrengthCard | null = null;
       let finalDestroyerId = state.finalDestroyerId;
 
-      if (rocket.power >= activeStrengthCard.currentStrength) {
+      if (calibratedPower >= activeStrengthCard.currentStrength) {
         destroyed = true;
         trophyCard = activeStrengthCard;
         updatedStrengthCard = null;
@@ -1419,7 +1690,7 @@ function reducer(
       } else {
         updatedStrengthCard = {
           ...activeStrengthCard,
-          currentStrength: activeStrengthCard.currentStrength - rocket.power,
+          currentStrength: activeStrengthCard.currentStrength - calibratedPower,
         };
       }
 
@@ -1437,9 +1708,9 @@ function reducer(
         playerId: action.playerId,
         rocketId: rocket.id,
         diceRoll,
-        accuracyNeeded: rocket.accuracy,
+        accuracyNeeded: calibratedAccuracy,
         hit,
-        power: rocket.power,
+        power: calibratedPower,
         strengthBefore: activeStrengthCard.currentStrength,
         strengthAfter: destroyed ? 0 : (updatedStrengthCard?.currentStrength ?? 0),
         destroyed,
@@ -1457,6 +1728,7 @@ function reducer(
         resourceCubes: player.resourceCubes + salvageBonus,
         hasRerollToken: player.hasRerollToken, // Keep token on hit
         mustRerollNextLaunch: false,
+        pendingCalibration: { accuracyBonus: 0, powerBonus: 0 }, // Clear calibration
       };
 
       const totalDestroyed = Object.values(state.players).reduce(

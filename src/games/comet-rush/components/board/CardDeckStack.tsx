@@ -4,7 +4,7 @@ import { cn } from "@/lib/cn";
 import { motion } from "framer-motion";
 import { cardColors } from "../../theme/missionControl";
 
-type DeckType = "movement" | "strength" | "engineering" | "political";
+type DeckType = "movement" | "strength" | "engineering" | "espionage" | "economic";
 
 interface CardDeckStackProps {
   type: DeckType;
@@ -47,11 +47,17 @@ const deckConfig: Record<DeckType, {
     colors: cardColors.engineering,
     icon: "⚙",
   },
-  political: {
-    label: "POLITICAL",
-    shortLabel: "POL",
-    colors: cardColors.political,
-    icon: "📜",
+  espionage: {
+    label: "ESPIONAGE",
+    shortLabel: "ESP",
+    colors: cardColors.espionage,
+    icon: "🔍",
+  },
+  economic: {
+    label: "ECONOMIC",
+    shortLabel: "ECON",
+    colors: cardColors.economic,
+    icon: "💰",
   },
 };
 
@@ -184,25 +190,31 @@ export function CardDecksDisplay({
   movementCount,
   strengthCount,
   engineeringCount,
-  politicalCount,
+  espionageCount,
+  economicCount,
   movementDiscardCount = 0,
   engineeringDiscardCount = 0,
-  politicalDiscardCount = 0,
+  espionageDiscardCount = 0,
+  economicDiscardCount = 0,
   drawableDeck,
   onDrawEngineering,
-  onDrawPolitical,
+  onDrawEspionage,
+  onDrawEconomic,
   className,
 }: {
   movementCount: number;
   strengthCount: number;
   engineeringCount: number;
-  politicalCount: number;
+  espionageCount: number;
+  economicCount: number;
   movementDiscardCount?: number;
   engineeringDiscardCount?: number;
-  politicalDiscardCount?: number;
-  drawableDeck?: "engineering" | "political" | null;
+  espionageDiscardCount?: number;
+  economicDiscardCount?: number;
+  drawableDeck?: "engineering" | "espionage" | "economic" | null;
   onDrawEngineering?: () => void;
-  onDrawPolitical?: () => void;
+  onDrawEspionage?: () => void;
+  onDrawEconomic?: () => void;
   className?: string;
 }) {
   return (
@@ -231,12 +243,20 @@ export function CardDecksDisplay({
           onDraw={onDrawEngineering}
         />
         <CardDeckStack
-          type="political"
-          count={politicalCount}
-          discardCount={politicalDiscardCount}
-          isHighlighted={drawableDeck === "political"}
-          isDrawable={drawableDeck === "political"}
-          onDraw={onDrawPolitical}
+          type="espionage"
+          count={espionageCount}
+          discardCount={espionageDiscardCount}
+          isHighlighted={drawableDeck === "espionage"}
+          isDrawable={drawableDeck === "espionage"}
+          onDraw={onDrawEspionage}
+        />
+        <CardDeckStack
+          type="economic"
+          count={economicCount}
+          discardCount={economicDiscardCount}
+          isHighlighted={drawableDeck === "economic"}
+          isDrawable={drawableDeck === "economic"}
+          onDraw={onDrawEconomic}
         />
       </div>
     </div>

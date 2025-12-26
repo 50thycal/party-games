@@ -10,10 +10,14 @@ import {
   CometRushPlayerState,
   GameCard,
   EngineeringCard,
-  PoliticalCard,
+  EspionageCard,
+  EconomicCard,
   CardDeckType,
   calculateScores,
 } from "@/games/comet-rush/config";
+
+// Union type for non-engineering cards (espionage + economic)
+type ActionCard = EspionageCard | EconomicCard;
 import type { Player, GameContext, Room } from "@/engine/types";
 
 // ============================================================================
@@ -184,25 +188,28 @@ function getSimplePlayableCards(
     if (card.deck === "engineering") {
       const engCard = card as EngineeringCard;
       // These cards don't need targets
-      return ["BOOST_POWER", "IMPROVE_ACCURACY", "MASS_PRODUCTION", "INCREASE_INCOME", "ROCKET_SALVAGE", "REROLL_PROTOCOL"].includes(engCard.cardType);
+      return ["BOOST_POWER", "IMPROVE_ACCURACY", "MASS_PRODUCTION", "INCREASE_INCOME", "ROCKET_SALVAGE", "REROLL_PROTOCOL", "ROCKET_CALIBRATION", "STREAMLINED_ASSEMBLY", "COMET_ANALYSIS"].includes(engCard.cardType);
+    } else if (card.deck === "economic") {
+      const econCard = card as EconomicCard;
+      // These economic cards don't need targets
+      return ["EMERGENCY_FUNDING", "PUBLIC_DONATION_DRIVE", "INTERNATIONAL_GRANT", "COMET_PROXIMITY_BONUS", "PROGRAM_PRESTIGE"].includes(econCard.cardType);
     } else {
-      const polCard = card as PoliticalCard;
-      // These cards don't need targets (or give resources to everyone)
-      return ["EMERGENCY_FUNDING", "PUBLIC_DONATION_DRIVE", "INTERNATIONAL_GRANT"].includes(polCard.cardType);
+      // Espionage cards - most need targets
+      return false;
     }
   });
 }
 
-// Cards that need a target player
+// Cards that need a target player (espionage cards)
 function getTargetPlayerCards(
   player: CometRushPlayerState,
-): PoliticalCard[] {
+): ActionCard[] {
   return player.hand
-    .filter((card) => card.deck === "political")
+    .filter((card) => card.deck === "espionage")
     .filter((card) => {
-      const polCard = card as PoliticalCard;
-      return ["RESOURCE_SEIZURE", "TECHNOLOGY_THEFT", "EMBARGO", "SABOTAGE"].includes(polCard.cardType);
-    }) as PoliticalCard[];
+      const espCard = card as EspionageCard;
+      return ["RESOURCE_SEIZURE", "ESPIONAGE_AGENT", "EMBARGO", "SABOTAGE_CONSTRUCTION", "COVERT_ROCKET_STRIKE", "DIPLOMATIC_PRESSURE", "REGULATORY_REVIEW"].includes(espCard.cardType);
+    }) as ActionCard[];
 }
 
 // Get Engineering cards in hand
@@ -210,9 +217,19 @@ function getEngineeringCards(player: CometRushPlayerState): EngineeringCard[] {
   return player.hand.filter((c) => c.deck === "engineering") as EngineeringCard[];
 }
 
-// Get Political cards in hand
-function getPoliticalCards(player: CometRushPlayerState): PoliticalCard[] {
-  return player.hand.filter((c) => c.deck === "political") as PoliticalCard[];
+// Get Espionage cards in hand
+function getEspionageCards(player: CometRushPlayerState): EspionageCard[] {
+  return player.hand.filter((c) => c.deck === "espionage") as EspionageCard[];
+}
+
+// Get Economic cards in hand
+function getEconomicCards(player: CometRushPlayerState): EconomicCard[] {
+  return player.hand.filter((c) => c.deck === "economic") as EconomicCard[];
+}
+
+// Get all action cards (espionage + economic)
+function getActionCards(player: CometRushPlayerState): ActionCard[] {
+  return player.hand.filter((c) => c.deck === "espionage" || c.deck === "economic") as ActionCard[];
 }
 
 // ============================================================================
@@ -223,8 +240,8 @@ type BotPersonality = "engineer" | "sniper" | "firehose" | "bruiser";
 
 interface PersonalityConfig {
   name: string;
-  preferEngineering: boolean;  // Prefer Engineering deck over Political
-  cardPriorities: string[];    // Card types to prioritize (engineering first, then political)
+  preferEngineering: boolean;  // Prefer Engineering deck over Espionage/Economic
+  cardPriorities: string[];    // Card types to prioritize (any deck)
   minAccuracyToLaunch: number;
   prefersPowerOverAccuracy: boolean;
   buildTimeCostPreference: "cheap" | "balanced" | "instant";
@@ -294,7 +311,7 @@ function chooseCardToPlay(
   personality: BotPersonality,
   state: CometRushState,
   otherPlayers: CometRushPlayerState[],
-): { card: GameCard; targetPlayerId?: string; peekChoice?: "strength" | "movement" } | null {
+): { card: GameCard; targetPlayerId?: string; peekChoice?: "strength" | "movement"; calibrationChoice?: "accuracy" | "power" } | null {
   const config = PERSONALITIES[personality];
   const simpleCards = getSimplePlayableCards(player);
   const targetCards = getTargetPlayerCards(player);
@@ -310,7 +327,9 @@ function chooseCardToPlay(
   for (const card of allPlayable) {
     const cardType = card.deck === "engineering"
       ? (card as EngineeringCard).cardType
-      : (card as PoliticalCard).cardType;
+      : card.deck === "espionage"
+        ? (card as EspionageCard).cardType
+        : (card as EconomicCard).cardType;
     const priority = config.cardPriorities.indexOf(cardType);
     if (priority !== -1 && priority < bestPriority) {
       bestPriority = priority;
@@ -326,10 +345,11 @@ function chooseCardToPlay(
   // Determine if we need a target
   let targetPlayerId: string | undefined;
   let peekChoice: "strength" | "movement" | undefined;
+  let calibrationChoice: "accuracy" | "power" | undefined;
 
-  if (bestCard.deck === "political") {
-    const polCard = bestCard as PoliticalCard;
-    if (["RESOURCE_SEIZURE", "TECHNOLOGY_THEFT", "EMBARGO", "SABOTAGE"].includes(polCard.cardType)) {
+  if (bestCard.deck === "espionage") {
+    const espCard = bestCard as EspionageCard;
+    if (["RESOURCE_SEIZURE", "ESPIONAGE_AGENT", "EMBARGO", "SABOTAGE_CONSTRUCTION", "COVERT_ROCKET_STRIKE", "DIPLOMATIC_PRESSURE", "REGULATORY_REVIEW"].includes(espCard.cardType)) {
       // Pick target player (prefer player with most resources)
       if (otherPlayers.length > 0) {
         const sorted = [...otherPlayers].sort((a, b) => b.resourceCubes - a.resourceCubes);
@@ -340,13 +360,16 @@ function chooseCardToPlay(
     }
   } else if (bestCard.deck === "engineering") {
     const engCard = bestCard as EngineeringCard;
-    if (engCard.cardType === "COMET_RESEARCH") {
+    if (engCard.cardType === "COMET_ANALYSIS") {
       // Prefer strength peek
       peekChoice = Math.random() < 0.7 ? "strength" : "movement";
+    } else if (engCard.cardType === "ROCKET_CALIBRATION") {
+      // Prefer accuracy for calibration
+      calibrationChoice = Math.random() < 0.5 ? "accuracy" : "power";
     }
   }
 
-  return { card: bestCard, targetPlayerId, peekChoice };
+  return { card: bestCard, targetPlayerId, peekChoice, calibrationChoice };
 }
 
 // Choose which deck to draw from
@@ -358,18 +381,34 @@ function chooseDeckToDraw(
 
   // Check deck availability
   const engAvailable = state.engineeringDeck.length > 0 || state.engineeringDiscard.length > 0;
-  const polAvailable = state.politicalDeck.length > 0 || state.politicalDiscard.length > 0;
+  const espAvailable = state.espionageDeck.length > 0 || state.espionageDiscard.length > 0;
+  const econAvailable = state.economicDeck.length > 0 || state.economicDiscard.length > 0;
 
-  if (!engAvailable && !polAvailable) return "engineering"; // Fallback
-  if (!engAvailable) return "political";
-  if (!polAvailable) return "engineering";
+  const availableDecks: CardDeckType[] = [];
+  if (engAvailable) availableDecks.push("engineering");
+  if (espAvailable) availableDecks.push("espionage");
+  if (econAvailable) availableDecks.push("economic");
+
+  if (availableDecks.length === 0) return "engineering"; // Fallback
 
   // Use personality preference with some randomness
   if (config.preferEngineering) {
-    return Math.random() < 0.7 ? "engineering" : "political";
+    // Prefer engineering (70%), else random other
+    if (engAvailable && Math.random() < 0.7) {
+      return "engineering";
+    }
   } else {
-    return Math.random() < 0.7 ? "political" : "engineering";
+    // Prefer espionage/economic for aggressive personalities
+    if (config.aggressiveness > 0.5 && espAvailable && Math.random() < 0.5) {
+      return "espionage";
+    }
+    if (econAvailable && Math.random() < 0.4) {
+      return "economic";
+    }
   }
+
+  // Return random available deck
+  return availableDecks[Math.floor(Math.random() * availableDecks.length)];
 }
 
 type RocketConfig = {
@@ -484,7 +523,9 @@ function formatHand(player: CometRushPlayerState): string {
   for (const card of player.hand) {
     const key = card.deck === "engineering"
       ? (card as EngineeringCard).cardType.substring(0, 3).toUpperCase()
-      : (card as PoliticalCard).cardType.substring(0, 3).toUpperCase();
+      : card.deck === "espionage"
+        ? (card as EspionageCard).cardType.substring(0, 3).toUpperCase()
+        : (card as EconomicCard).cardType.substring(0, 3).toUpperCase();
     counts.set(key, (counts.get(key) || 0) + 1);
   }
 
@@ -1330,7 +1371,9 @@ function runLLMCometRushSimulation(
       const hand = player.hand.map((c) => {
         const type = c.deck === "engineering"
           ? (c as EngineeringCard).cardType
-          : (c as PoliticalCard).cardType;
+          : c.deck === "espionage"
+            ? (c as EspionageCard).cardType
+            : (c as EconomicCard).cardType;
         const abbrev = type.substring(0, 3).toUpperCase();
         return abbrev;
       });

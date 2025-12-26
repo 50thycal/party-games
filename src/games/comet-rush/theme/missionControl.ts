@@ -11,11 +11,17 @@ export const cardColors = {
     text: 'text-emerald-300',
     glow: 'shadow-glow-green',
   },
-  political: {
+  espionage: {
     bg: 'bg-mission-pol-red',
     border: 'border-rose-600',
     text: 'text-rose-300',
     glow: 'shadow-glow-red',
+  },
+  economic: {
+    bg: 'bg-amber-900/80',
+    border: 'border-yellow-600',
+    text: 'text-yellow-300',
+    glow: 'shadow-glow-amber',
   },
   movement: {
     bg: 'bg-mission-move-blue',

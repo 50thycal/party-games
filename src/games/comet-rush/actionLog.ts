@@ -12,7 +12,8 @@ import type {
   LaunchResult,
   GameCard,
   EngineeringCard,
-  PoliticalCard,
+  EspionageCard,
+  EconomicCard,
 } from "./config";
 
 // ============================================================================
@@ -159,7 +160,7 @@ export function logBeginTurn(
 export function logDrawCard(
   state: CometRushState,
   playerId: string,
-  deck: "engineering" | "political",
+  deck: "engineering" | "espionage" | "economic",
   cardName: string | null
 ): MultiplayerLogEntry {
   const details = cardName
