@@ -2023,16 +2023,15 @@ export function CometRushGameView({
                         return (
                           <div
                             key={card.id}
-                            onClick={() => isMyTurn && toggleTradeCardSelection(card.id)}
                             className={cn(
-                              "cursor-pointer transition-all",
-                              isSelectedForTrade && "ring-2 ring-mission-amber"
+                              "transition-all",
+                              isSelectedForTrade && "ring-2 ring-mission-amber rounded-sm"
                             )}
                           >
                             <GameCardDisplay
                               card={card}
                               isSelected={isSelectedForTrade}
-                              onSelect={() => isMyTurn && toggleTradeCardSelection(card.id)}
+                              onSelect={() => toggleTradeCardSelection(card.id)}
                               disabled={!isMyTurn}
                             />
                           </div>
