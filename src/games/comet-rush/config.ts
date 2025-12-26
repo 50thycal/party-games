@@ -238,6 +238,14 @@ export interface PendingCardPlay {
   expiresAt: number;          // Timeout timestamp
 }
 
+// Pending Diplomatic Pressure attack awaiting counter response
+export interface PendingDiplomaticPressure {
+  attackerId: string;         // Who played Diplomatic Pressure
+  attackerName: string;       // Attacker's display name
+  targetId: string;           // Who is being targeted
+  counterCardId: string;      // The target's Diplomatic Pressure card they can use to counter
+}
+
 export interface CometRushState {
   phase: CometRushPhase;
   round: number;
@@ -299,6 +307,9 @@ export interface CometRushState {
   // Reactive card system - pending card play awaiting responses
   pendingCardPlay: PendingCardPlay | null;
 
+  // Pending Diplomatic Pressure attack awaiting counter
+  pendingDiplomaticPressure: PendingDiplomaticPressure | null;
+
   // Action logging for multiplayer
   actionLog: MultiplayerLogEntry[];
   gameStartTime: number;
@@ -313,7 +324,9 @@ export type CometRushActionType =
   | "BEGIN_TURN"
   | "DRAW_CARD"           // Draw from chosen deck (Engineering, Espionage, or Economic)
   | "PLAY_CARD"           // Play a single card from hand
+  | "TRADE_CARDS"         // Discard 2 cards to draw 1 new card (free action)
   | "RESPOND_TO_CARD"     // Respond to pending card play (block with Diplomatic Pressure or pass)
+  | "RESPOND_TO_DIPLOMATIC_PRESSURE"  // Counter or accept Diplomatic Pressure attack
   | "BUILD_ROCKET"
   | "APPLY_CALIBRATION"   // Apply Rocket Calibration before launch
   | "LAUNCH_ROCKET"       // Initiates launch - sets up pendingLaunch (no dice roll yet)
@@ -344,6 +357,17 @@ export interface RespondToCardPayload {
   block: boolean;  // true = use Diplomatic Pressure to block, false = pass
 }
 
+// Response to Diplomatic Pressure attack
+export interface RespondToDiplomaticPressurePayload {
+  counter: boolean;  // true = use own Diplomatic Pressure to counter, false = accept the attack
+}
+
+// Trade cards payload - discard 2 cards to draw 1
+export interface TradeCardsPayload {
+  discardCardIds: [string, string];  // Exactly 2 card IDs to discard
+  drawFromDeck: CardDeckType;        // Which deck to draw the new card from
+}
+
 export interface BuildRocketPayload {
   buildTimeBase: number;
   power: number;
@@ -362,7 +386,7 @@ export interface LaunchRocketPayload {
 
 export interface CometRushAction extends BaseAction {
   type: CometRushActionType;
-  payload?: DrawCardPayload | PlayCardPayload | RespondToCardPayload | BuildRocketPayload | ApplyCalibrationPayload | LaunchRocketPayload | Record<string, never>;
+  payload?: DrawCardPayload | PlayCardPayload | TradeCardsPayload | RespondToCardPayload | RespondToDiplomaticPressurePayload | BuildRocketPayload | ApplyCalibrationPayload | LaunchRocketPayload | Record<string, never>;
 }
 
 // ============================================================================
@@ -688,6 +712,7 @@ function initialState(players: Player[]): CometRushState {
     earthDestroyed: false,
     cometDestroyed: false,
     pendingCardPlay: null,
+    pendingDiplomaticPressure: null,
     actionLog: [],
     gameStartTime: 0,
   };
@@ -1253,6 +1278,32 @@ function reducer(
             const targetPlayer = state.players[payload.targetPlayerId];
             if (!targetPlayer || payload.targetPlayerId === action.playerId) return state;
 
+            // Check if target has a Diplomatic Pressure card they can counter with
+            const counterCard = targetPlayer.hand.find(
+              (c) => c.deck === "espionage" && (c as EspionageCard).cardType === "DIPLOMATIC_PRESSURE"
+            );
+
+            if (counterCard) {
+              // Target can counter! Set up pending state and wait for response
+              // Don't remove the attacker's card yet - keep it until resolved
+              return {
+                ...state,
+                pendingDiplomaticPressure: {
+                  attackerId: action.playerId,
+                  attackerName: updatedPlayer.name,
+                  targetId: payload.targetPlayerId,
+                  counterCardId: counterCard.id,
+                },
+                lastCardResult: {
+                  id: `${ctx.now()}`,
+                  playerId: action.playerId,
+                  description: `Diplomatic Pressure played on ${targetPlayer.name}! Waiting for response...`,
+                  cardName: "Diplomatic Pressure",
+                },
+              };
+            }
+
+            // Target cannot counter - apply effect immediately
             updatedPlayers = {
               ...updatedPlayers,
               [payload.targetPlayerId]: {
@@ -1478,6 +1529,133 @@ function reducer(
       return {
         ...playCardState,
         actionLog: [...playCardState.actionLog, playCardLogEntry],
+      };
+    }
+
+    case "TRADE_CARDS": {
+      // Free action: Discard 2 cards to draw 1 new card
+      if (state.phase !== "playing") return state;
+
+      const activePlayerId = getActivePlayerId(state);
+      if (action.playerId !== activePlayerId) return state;
+
+      const payload = action.payload as TradeCardsPayload | undefined;
+      if (!payload || !payload.discardCardIds || payload.discardCardIds.length !== 2) return state;
+
+      const player = state.players[action.playerId];
+      if (!player) return state;
+
+      // Verify both cards exist in hand
+      const [cardId1, cardId2] = payload.discardCardIds;
+      const card1 = player.hand.find((c) => c.id === cardId1);
+      const card2 = player.hand.find((c) => c.id === cardId2);
+      if (!card1 || !card2 || cardId1 === cardId2) return state;
+
+      // Need at least 2 cards to trade
+      if (player.hand.length < 2) return state;
+
+      // Get the deck to draw from
+      let deck: GameCard[];
+      let discard: GameCard[];
+      switch (payload.drawFromDeck) {
+        case "engineering":
+          deck = [...state.engineeringDeck];
+          discard = [...state.engineeringDiscard];
+          break;
+        case "espionage":
+          deck = [...state.espionageDeck];
+          discard = [...state.espionageDiscard];
+          break;
+        case "economic":
+          deck = [...state.economicDeck];
+          discard = [...state.economicDiscard];
+          break;
+        default:
+          return state;
+      }
+
+      // Check if deck has cards (if empty, shuffle discard into deck)
+      if (deck.length === 0 && discard.length > 0) {
+        deck = shuffle([...discard], ctx.random);
+        discard = [];
+      }
+
+      // If still no cards, can't draw
+      if (deck.length === 0) return state;
+
+      // Draw a card
+      const drawnCard = deck[0];
+      deck = deck.slice(1);
+
+      // Remove discarded cards from hand and add to appropriate discard piles
+      let newHand = player.hand.filter((c) => c.id !== cardId1 && c.id !== cardId2);
+      newHand = [...newHand, drawnCard];
+
+      let engineeringDiscard = [...state.engineeringDiscard];
+      let espionageDiscard = [...state.espionageDiscard];
+      let economicDiscard = [...state.economicDiscard];
+
+      // Discard card1
+      if (card1.deck === "engineering") {
+        engineeringDiscard = [...engineeringDiscard, card1 as EngineeringCard];
+      } else if (card1.deck === "espionage") {
+        espionageDiscard = [...espionageDiscard, card1 as EspionageCard];
+      } else {
+        economicDiscard = [...economicDiscard, card1 as EconomicCard];
+      }
+
+      // Discard card2
+      if (card2.deck === "engineering") {
+        engineeringDiscard = [...engineeringDiscard, card2 as EngineeringCard];
+      } else if (card2.deck === "espionage") {
+        espionageDiscard = [...espionageDiscard, card2 as EspionageCard];
+      } else {
+        economicDiscard = [...economicDiscard, card2 as EconomicCard];
+      }
+
+      // Update the deck we drew from
+      let engineeringDeck = state.engineeringDeck;
+      let espionageDeck = state.espionageDeck;
+      let economicDeck = state.economicDeck;
+
+      switch (payload.drawFromDeck) {
+        case "engineering":
+          engineeringDeck = deck as EngineeringCard[];
+          engineeringDiscard = discard as EngineeringCard[];
+          break;
+        case "espionage":
+          espionageDeck = deck as EspionageCard[];
+          espionageDiscard = discard as EspionageCard[];
+          break;
+        case "economic":
+          economicDeck = deck as EconomicCard[];
+          economicDiscard = discard as EconomicCard[];
+          break;
+      }
+
+      const updatedPlayer = {
+        ...player,
+        hand: newHand,
+      };
+
+      return {
+        ...state,
+        players: {
+          ...state.players,
+          [action.playerId]: updatedPlayer,
+        },
+        engineeringDeck,
+        espionageDeck,
+        economicDeck,
+        engineeringDiscard,
+        espionageDiscard,
+        economicDiscard,
+        lastCardResult: {
+          id: `${ctx.now()}`,
+          playerId: action.playerId,
+          description: `Traded "${card1.name}" and "${card2.name}" for a new ${payload.drawFromDeck} card!`,
+          cardName: "Card Trade",
+        },
       };
     }
 
@@ -2327,6 +2505,104 @@ function reducer(
       };
     }
 
+    case "RESPOND_TO_DIPLOMATIC_PRESSURE": {
+      if (state.phase !== "playing") return state;
+      if (!state.pendingDiplomaticPressure) return state;
+
+      const pending = state.pendingDiplomaticPressure;
+
+      // Only the target can respond
+      if (action.playerId !== pending.targetId) return state;
+
+      const payload = action.payload as RespondToDiplomaticPressurePayload | undefined;
+      if (!payload) return state;
+
+      const attacker = state.players[pending.attackerId];
+      const target = state.players[pending.targetId];
+      if (!attacker || !target) return state;
+
+      // Find the attacker's Diplomatic Pressure card (still in their hand)
+      const attackerCard = attacker.hand.find(
+        (c) => c.deck === "espionage" && (c as EspionageCard).cardType === "DIPLOMATIC_PRESSURE"
+      );
+
+      if (payload.counter) {
+        // Target chose to counter! Both cards are discarded, attack is nullified
+        const counterCard = target.hand.find((c) => c.id === pending.counterCardId);
+        if (!counterCard) return state; // Counter card no longer exists
+
+        // Remove both cards from hands
+        const newAttackerHand = attacker.hand.filter(
+          (c) => !(c.deck === "espionage" && (c as EspionageCard).cardType === "DIPLOMATIC_PRESSURE")
+        );
+        const newTargetHand = target.hand.filter((c) => c.id !== pending.counterCardId);
+
+        // Add both to espionage discard
+        let espionageDiscard = [...state.espionageDiscard];
+        if (attackerCard) {
+          espionageDiscard = [...espionageDiscard, attackerCard as EspionageCard];
+        }
+        espionageDiscard = [...espionageDiscard, counterCard as EspionageCard];
+
+        return {
+          ...state,
+          players: {
+            ...state.players,
+            [pending.attackerId]: {
+              ...attacker,
+              hand: newAttackerHand,
+            },
+            [pending.targetId]: {
+              ...target,
+              hand: newTargetHand,
+            },
+          },
+          espionageDiscard,
+          pendingDiplomaticPressure: null,
+          lastCardResult: {
+            id: `${ctx.now()}`,
+            playerId: pending.targetId,
+            description: `${target.name} countered with their own Diplomatic Pressure! Both cards discarded.`,
+            cardName: "Diplomatic Pressure",
+          },
+        };
+      } else {
+        // Target chose not to counter - attack succeeds
+        // Remove attacker's card and discard it
+        const newAttackerHand = attacker.hand.filter(
+          (c) => !(c.deck === "espionage" && (c as EspionageCard).cardType === "DIPLOMATIC_PRESSURE")
+        );
+
+        let espionageDiscard = [...state.espionageDiscard];
+        if (attackerCard) {
+          espionageDiscard = [...espionageDiscard, attackerCard as EspionageCard];
+        }
+
+        return {
+          ...state,
+          players: {
+            ...state.players,
+            [pending.attackerId]: {
+              ...attacker,
+              hand: newAttackerHand,
+            },
+            [pending.targetId]: {
+              ...target,
+              isUnderDiplomaticPressure: true,
+            },
+          },
+          espionageDiscard,
+          pendingDiplomaticPressure: null,
+          lastCardResult: {
+            id: `${ctx.now()}`,
+            playerId: pending.targetId,
+            description: `${target.name} accepted the Diplomatic Pressure. Their next card play will be blocked!`,
+            cardName: "Diplomatic Pressure",
+          },
+        };
+      }
+    }
+
     case "END_TURN": {
       if (state.phase !== "playing") return state;
 
@@ -2452,6 +2728,7 @@ function isActionAllowed(
     case "BEGIN_TURN":
     case "DRAW_CARD":
     case "PLAY_CARD":
+    case "TRADE_CARDS":
     case "BUILD_ROCKET":
     case "LAUNCH_ROCKET":
     case "USE_REROLL":
@@ -2466,6 +2743,12 @@ function isActionAllowed(
 
     case "CLEAR_CARD_RESULT":
       return state.phase === "playing";
+
+    case "RESPOND_TO_DIPLOMATIC_PRESSURE":
+      // The target of the attack can respond (even if not their turn)
+      return state.phase === "playing" &&
+             state.pendingDiplomaticPressure !== null &&
+             state.pendingDiplomaticPressure.targetId === ctx.playerId;
 
     case "PLAY_AGAIN":
       return isHost && state.phase === "gameOver";
