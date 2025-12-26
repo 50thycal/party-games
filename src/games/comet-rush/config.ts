@@ -960,6 +960,54 @@ function reducer(
       const player = state.players[action.playerId];
       if (!player) return state;
 
+      // Check if player is under Diplomatic Pressure - their card play is blocked
+      if (player.isUnderDiplomaticPressure) {
+        // Find the card to show in the blocked message
+        const blockedCard = player.hand.find((c) => c.id === payload.cardId);
+        if (!blockedCard) return state;
+
+        const cardName = blockedCard.name;
+
+        // Remove the blocked card from hand and add to appropriate discard pile
+        const newHand = player.hand.filter((c) => c.id !== payload.cardId);
+
+        let engineeringDiscard = [...state.engineeringDiscard];
+        let espionageDiscard = [...state.espionageDiscard];
+        let economicDiscard = [...state.economicDiscard];
+
+        if (blockedCard.deck === "engineering") {
+          engineeringDiscard = [...engineeringDiscard, blockedCard as EngineeringCard];
+        } else if (blockedCard.deck === "espionage") {
+          espionageDiscard = [...espionageDiscard, blockedCard as EspionageCard];
+        } else {
+          economicDiscard = [...economicDiscard, blockedCard as EconomicCard];
+        }
+
+        // Clear the diplomatic pressure flag (consumed on block)
+        const updatedPlayer = {
+          ...player,
+          hand: newHand,
+          isUnderDiplomaticPressure: false,
+        };
+
+        return {
+          ...state,
+          players: {
+            ...state.players,
+            [action.playerId]: updatedPlayer,
+          },
+          engineeringDiscard,
+          espionageDiscard,
+          economicDiscard,
+          lastCardResult: {
+            id: `${ctx.now()}`,
+            playerId: action.playerId,
+            description: `Your "${cardName}" was blocked by Diplomatic Pressure and discarded!`,
+            cardName: "Diplomatic Pressure",
+          },
+        };
+      }
+
       // Find the card in hand
       const card = player.hand.find((c) => c.id === payload.cardId);
       if (!card) return state;
