@@ -1234,6 +1234,10 @@ export function CometRushGameView({
     await dispatchAction("FORCED_REROLL");
   }
 
+  async function handleConfirmRoll() {
+    await dispatchAction("CONFIRM_ROLL");
+  }
+
   async function handleEndTurn() {
     // Check if player hasn't collected income or drawn a card yet
     if (turnWizardStep !== null) {
@@ -1498,24 +1502,37 @@ export function CometRushGameView({
               />
             )}
 
-            {/* Launch Result with Animation */}
-            {gameState.lastLaunchResult && (
+            {/* Launch Animation - shown during pendingLaunch (waiting for roll) OR after roll (lastLaunchResult) */}
+            {(gameState.pendingLaunch || gameState.lastLaunchResult) && (
               <RocketLaunchAnimation
-                key={`${gameState.lastLaunchResult.rocketId}-${gameState.lastLaunchResult.diceRoll}-${gameState.lastLaunchResult.isReroll}-${gameState.lastLaunchResult.mustReroll}`}
-                diceRoll={gameState.lastLaunchResult.diceRoll}
-                accuracyNeeded={gameState.lastLaunchResult.accuracyNeeded}
-                isHit={gameState.lastLaunchResult.hit}
-                power={gameState.lastLaunchResult.power}
-                destroyed={gameState.lastLaunchResult.destroyed}
-                baseStrength={gameState.lastLaunchResult.baseStrength}
-                playerName={
-                  gameState.players[gameState.lastLaunchResult.playerId]?.name ?? "Unknown"
+                key={gameState.lastLaunchResult
+                  ? `${gameState.lastLaunchResult.rocketId}-${gameState.lastLaunchResult.diceRoll}-${gameState.lastLaunchResult.isReroll}-${gameState.lastLaunchResult.mustReroll}`
+                  : `pending-${gameState.pendingLaunch?.rocketId}`
                 }
-                isReroll={gameState.lastLaunchResult.isReroll}
-                isSabotaged={gameState.lastLaunchResult.mustReroll}
-                canReroll={gameState.lastLaunchResult.canReroll}
-                mustReroll={gameState.lastLaunchResult.mustReroll}
-                isCurrentPlayer={gameState.lastLaunchResult.playerId === playerId}
+                // If we have a result, use it; otherwise we're waiting for roll
+                diceRoll={gameState.lastLaunchResult?.diceRoll ?? 0}
+                accuracyNeeded={gameState.lastLaunchResult?.accuracyNeeded ?? gameState.pendingLaunch?.calibratedAccuracy ?? 0}
+                isHit={gameState.lastLaunchResult?.hit ?? false}
+                power={gameState.lastLaunchResult?.power ?? gameState.pendingLaunch?.calibratedPower ?? 0}
+                destroyed={gameState.lastLaunchResult?.destroyed ?? false}
+                baseStrength={gameState.lastLaunchResult?.baseStrength ?? gameState.activeStrengthCard?.baseStrength ?? 0}
+                playerName={
+                  gameState.lastLaunchResult
+                    ? (gameState.players[gameState.lastLaunchResult.playerId]?.name ?? "Unknown")
+                    : (gameState.pendingLaunch ? (gameState.players[gameState.pendingLaunch.playerId]?.name ?? "Unknown") : "Unknown")
+                }
+                isReroll={gameState.lastLaunchResult?.isReroll ?? false}
+                isSabotaged={gameState.lastLaunchResult?.mustReroll ?? gameState.pendingLaunch?.mustReroll ?? false}
+                canReroll={gameState.lastLaunchResult?.canReroll ?? false}
+                mustReroll={gameState.lastLaunchResult?.mustReroll ?? false}
+                isCurrentPlayer={
+                  gameState.lastLaunchResult
+                    ? gameState.lastLaunchResult.playerId === playerId
+                    : gameState.pendingLaunch?.playerId === playerId
+                }
+                // New: waiting for roll when we have pendingLaunch but no result yet
+                waitingForRoll={gameState.pendingLaunch !== null && gameState.lastLaunchResult === null}
+                onConfirmRoll={handleConfirmRoll}
                 onUseReroll={handleUseReroll}
                 onDeclineReroll={handleDeclineReroll}
                 onMustReroll={handleForcedReroll}

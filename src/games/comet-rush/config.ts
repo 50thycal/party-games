@@ -196,6 +196,18 @@ export interface LaunchResult {
   mustReroll: boolean; // True if player was sabotaged and must reroll (forced)
 }
 
+// Pending launch - waiting for player to click "Roll Dice"
+export interface PendingLaunch {
+  playerId: string;
+  rocketId: string;
+  rocketIndex: number;
+  calibratedAccuracy: number;
+  calibratedPower: number;
+  mustReroll: boolean; // Was the player sabotaged?
+  hasRerollToken: boolean; // Can they use a reroll token if they miss?
+  salvageBonus: number; // Salvage bonus to apply after launch
+}
+
 export interface TurnMeta {
   playerId: string;
   incomeGained: number;
@@ -259,6 +271,9 @@ export interface CometRushState {
   // Last launch result for display
   lastLaunchResult: LaunchResult | null;
 
+  // Pending launch - waiting for dice roll
+  pendingLaunch: PendingLaunch | null;
+
   // Turn-start wizard meta (for UI)
   turnMeta: TurnMeta | null;
 
@@ -298,7 +313,8 @@ export type CometRushActionType =
   | "RESPOND_TO_CARD"     // Respond to pending card play (block with Diplomatic Pressure or pass)
   | "BUILD_ROCKET"
   | "APPLY_CALIBRATION"   // Apply Rocket Calibration before launch
-  | "LAUNCH_ROCKET"
+  | "LAUNCH_ROCKET"       // Initiates launch - sets up pendingLaunch (no dice roll yet)
+  | "CONFIRM_ROLL"        // Player clicked Roll Dice - actually rolls and calculates result
   | "USE_REROLL"          // Use re-roll token after a failed launch
   | "DECLINE_REROLL"      // Decline to use re-roll token, accept miss
   | "FORCED_REROLL"       // Forced reroll due to sabotage
@@ -655,6 +671,7 @@ function initialState(players: Player[]): CometRushState {
     economicDiscard: [],
     players: playersState,
     lastLaunchResult: null,
+    pendingLaunch: null,
     turnMeta: null,
     lastCardResult: null,
     finalDestroyerId: null,
@@ -1501,6 +1518,7 @@ function reducer(
     }
 
     case "LAUNCH_ROCKET": {
+      // LAUNCH_ROCKET now only sets up pendingLaunch - dice roll happens in CONFIRM_ROLL
       if (state.phase !== "playing") return state;
 
       const activePlayerId = getActivePlayerId(state);
@@ -1523,32 +1541,63 @@ function reducer(
       const calibratedAccuracy = Math.min(5, rocket.accuracy + player.pendingCalibration.accuracyBonus);
       const calibratedPower = Math.min(8, rocket.power + player.pendingCalibration.powerBonus);
 
-      // Roll 1d6 for accuracy
-      const diceRoll = roll1d6(ctx.random);
-      const hit = diceRoll <= calibratedAccuracy;
-
-      // Check if player was sabotaged - they must reroll (don't auto-reroll, let UI handle it)
+      // Check if player was sabotaged
       const mustReroll = player.mustRerollNextLaunch;
 
-      // Check if player CAN reroll (has token, missed, and not already forced to reroll)
-      // Note: We don't auto-use it - player must manually trigger USE_REROLL action
-      const canReroll = !hit && player.hasRerollToken && !mustReroll;
-
-      // Calculate salvage bonus
+      // Calculate salvage bonus (will apply after final result)
       const salvageBonus = player.upgrades.salvageBonus;
+
+      // Set up pending launch - NO dice roll yet
+      const pendingLaunch: PendingLaunch = {
+        playerId: action.playerId,
+        rocketId: rocket.id,
+        rocketIndex,
+        calibratedAccuracy,
+        calibratedPower,
+        mustReroll,
+        hasRerollToken: player.hasRerollToken,
+        salvageBonus,
+      };
+
+      return {
+        ...state,
+        pendingLaunch,
+        lastLaunchResult: null, // Clear any previous result
+      };
+    }
+
+    case "CONFIRM_ROLL": {
+      // Player clicked "Roll Dice" - now we actually roll and process the result
+      if (state.phase !== "playing") return state;
+      if (!state.pendingLaunch) return state;
+      if (state.pendingLaunch.playerId !== action.playerId) return state;
+
+      const { pendingLaunch } = state;
+      const player = state.players[pendingLaunch.playerId];
+      if (!player) return state;
+
+      const rocket = player.rockets[pendingLaunch.rocketIndex];
+      if (!rocket || rocket.status !== "ready") return state;
+
+      // NOW we roll the dice
+      const diceRoll = roll1d6(ctx.random);
+      const hit = diceRoll <= pendingLaunch.calibratedAccuracy;
+
+      // Check if player CAN reroll (has token, missed, and not already forced to reroll)
+      const canReroll = !hit && pendingLaunch.hasRerollToken && !pendingLaunch.mustReroll;
 
       // If sabotaged and HIT, show first roll but don't process it - wait for forced reroll
       // If sabotaged and MISSED, consume the rocket - they don't get another chance
-      if (mustReroll) {
+      if (pendingLaunch.mustReroll) {
         if (hit) {
           // HIT while sabotaged - must reroll, don't consume rocket yet
           const launchResult: LaunchResult = {
-            playerId: action.playerId,
+            playerId: pendingLaunch.playerId,
             rocketId: rocket.id,
             diceRoll,
-            accuracyNeeded: calibratedAccuracy,
+            accuracyNeeded: pendingLaunch.calibratedAccuracy,
             hit, // Show what they would have gotten
-            power: calibratedPower,
+            power: pendingLaunch.calibratedPower,
             strengthBefore: state.activeStrengthCard?.currentStrength ?? 0,
             strengthAfter: state.activeStrengthCard?.currentStrength ?? 0,
             destroyed: false,
@@ -1559,25 +1608,27 @@ function reducer(
           };
 
           // Don't consume mustRerollNextLaunch yet - wait for actual reroll
+          // Keep pendingLaunch for the forced reroll
           return {
             ...state,
             lastLaunchResult: launchResult,
+            pendingLaunch: null, // Clear pending launch after roll
           };
         } else {
           // MISSED while sabotaged - consume rocket, clear sabotage, no reroll opportunity
           const updatedRockets = [...player.rockets];
-          updatedRockets[rocketIndex] = {
+          updatedRockets[pendingLaunch.rocketIndex] = {
             ...rocket,
             status: "spent",
           };
 
           const launchResult: LaunchResult = {
-            playerId: action.playerId,
+            playerId: pendingLaunch.playerId,
             rocketId: rocket.id,
             diceRoll,
-            accuracyNeeded: calibratedAccuracy,
+            accuracyNeeded: pendingLaunch.calibratedAccuracy,
             hit: false,
-            power: calibratedPower,
+            power: pendingLaunch.calibratedPower,
             strengthBefore: state.activeStrengthCard?.currentStrength ?? 0,
             strengthAfter: state.activeStrengthCard?.currentStrength ?? 0,
             destroyed: false,
@@ -1591,7 +1642,7 @@ function reducer(
             ...player,
             rockets: updatedRockets,
             hasLaunchedRocketThisTurn: true,
-            resourceCubes: player.resourceCubes + salvageBonus,
+            resourceCubes: player.resourceCubes + pendingLaunch.salvageBonus,
             mustRerollNextLaunch: false, // Consume the sabotage
             pendingCalibration: { accuracyBonus: 0, powerBonus: 0 }, // Clear calibration
           };
@@ -1600,13 +1651,14 @@ function reducer(
             ...state,
             players: {
               ...state.players,
-              [action.playerId]: updatedPlayer,
+              [pendingLaunch.playerId]: updatedPlayer,
             },
             lastLaunchResult: launchResult,
+            pendingLaunch: null,
           };
 
           // Add action log entry for sabotaged miss
-          const sabotageMissLogEntry = logLaunchRocket(sabotageMissState, action.playerId, launchResult);
+          const sabotageMissLogEntry = logLaunchRocket(sabotageMissState, pendingLaunch.playerId, launchResult);
           return {
             ...sabotageMissState,
             actionLog: [...sabotageMissState.actionLog, sabotageMissLogEntry],
@@ -1616,18 +1668,18 @@ function reducer(
 
       if (!hit) {
         const updatedRockets = [...player.rockets];
-        updatedRockets[rocketIndex] = {
+        updatedRockets[pendingLaunch.rocketIndex] = {
           ...rocket,
           status: "spent",
         };
 
         const launchResult: LaunchResult = {
-          playerId: action.playerId,
+          playerId: pendingLaunch.playerId,
           rocketId: rocket.id,
           diceRoll,
-          accuracyNeeded: calibratedAccuracy,
+          accuracyNeeded: pendingLaunch.calibratedAccuracy,
           hit: false,
-          power: calibratedPower,
+          power: pendingLaunch.calibratedPower,
           strengthBefore: state.activeStrengthCard?.currentStrength ?? 0,
           strengthAfter: state.activeStrengthCard?.currentStrength ?? 0,
           destroyed: false,
@@ -1641,7 +1693,7 @@ function reducer(
           ...player,
           rockets: updatedRockets,
           hasLaunchedRocketThisTurn: !canReroll, // Don't end turn if they can still reroll
-          resourceCubes: player.resourceCubes + (canReroll ? 0 : salvageBonus), // Salvage after final result
+          resourceCubes: player.resourceCubes + (canReroll ? 0 : pendingLaunch.salvageBonus), // Salvage after final result
           hasRerollToken: player.hasRerollToken, // Keep token until they use it or decline
           mustRerollNextLaunch: false,
           pendingCalibration: { accuracyBonus: 0, powerBonus: 0 }, // Clear calibration
@@ -1651,13 +1703,14 @@ function reducer(
           ...state,
           players: {
             ...state.players,
-            [action.playerId]: updatedPlayer,
+            [pendingLaunch.playerId]: updatedPlayer,
           },
           lastLaunchResult: launchResult,
+          pendingLaunch: null,
         };
 
         // Add action log entry for miss
-        const launchMissLogEntry = logLaunchRocket(launchMissState, action.playerId, launchResult);
+        const launchMissLogEntry = logLaunchRocket(launchMissState, pendingLaunch.playerId, launchResult);
         return {
           ...launchMissState,
           actionLog: [...launchMissState.actionLog, launchMissLogEntry],
@@ -1679,23 +1732,23 @@ function reducer(
       let trophyCard: StrengthCard | null = null;
       let finalDestroyerId = state.finalDestroyerId;
 
-      if (calibratedPower >= activeStrengthCard.currentStrength) {
+      if (pendingLaunch.calibratedPower >= activeStrengthCard.currentStrength) {
         destroyed = true;
         trophyCard = activeStrengthCard;
         updatedStrengthCard = null;
 
         if (strengthDeck.length === 0) {
-          finalDestroyerId = action.playerId;
+          finalDestroyerId = pendingLaunch.playerId;
         }
       } else {
         updatedStrengthCard = {
           ...activeStrengthCard,
-          currentStrength: activeStrengthCard.currentStrength - calibratedPower,
+          currentStrength: activeStrengthCard.currentStrength - pendingLaunch.calibratedPower,
         };
       }
 
       const updatedRockets = [...player.rockets];
-      updatedRockets[rocketIndex] = {
+      updatedRockets[pendingLaunch.rocketIndex] = {
         ...rocket,
         status: "spent",
       };
@@ -1705,12 +1758,12 @@ function reducer(
         : player.trophies;
 
       const launchResult: LaunchResult = {
-        playerId: action.playerId,
+        playerId: pendingLaunch.playerId,
         rocketId: rocket.id,
         diceRoll,
-        accuracyNeeded: calibratedAccuracy,
+        accuracyNeeded: pendingLaunch.calibratedAccuracy,
         hit,
-        power: calibratedPower,
+        power: pendingLaunch.calibratedPower,
         strengthBefore: activeStrengthCard.currentStrength,
         strengthAfter: destroyed ? 0 : (updatedStrengthCard?.currentStrength ?? 0),
         destroyed,
@@ -1725,7 +1778,7 @@ function reducer(
         rockets: updatedRockets,
         trophies: updatedTrophies,
         hasLaunchedRocketThisTurn: true,
-        resourceCubes: player.resourceCubes + salvageBonus,
+        resourceCubes: player.resourceCubes + pendingLaunch.salvageBonus,
         hasRerollToken: player.hasRerollToken, // Keep token on hit
         mustRerollNextLaunch: false,
         pendingCalibration: { accuracyBonus: 0, powerBonus: 0 }, // Clear calibration
@@ -1745,9 +1798,10 @@ function reducer(
           activeStrengthCard: updatedStrengthCard,
           players: {
             ...state.players,
-            [action.playerId]: updatedPlayer,
+            [pendingLaunch.playerId]: updatedPlayer,
           },
           lastLaunchResult: launchResult,
+          pendingLaunch: null,
           finalDestroyerId,
           phase: "gameOver" as CometRushPhase,
           cometDestroyed: true,
@@ -1758,7 +1812,7 @@ function reducer(
           winnerIds: determineWinners(newState),
         };
         // Add action log entries for launch and game over
-        const launchHitLogEntry = logLaunchRocket(finalState, action.playerId, launchResult);
+        const launchHitLogEntry = logLaunchRocket(finalState, pendingLaunch.playerId, launchResult);
         const gameOverLogEntry = logGameOver(finalState, "cometDestroyed");
         return {
           ...finalState,
@@ -1772,14 +1826,15 @@ function reducer(
         activeStrengthCard: updatedStrengthCard,
         players: {
           ...state.players,
-          [action.playerId]: updatedPlayer,
+          [pendingLaunch.playerId]: updatedPlayer,
         },
         lastLaunchResult: launchResult,
+        pendingLaunch: null,
         finalDestroyerId,
       };
 
       // Add action log entry for hit
-      const launchHitLogEntry = logLaunchRocket(launchHitState, action.playerId, launchResult);
+      const launchHitLogEntry = logLaunchRocket(launchHitState, pendingLaunch.playerId, launchResult);
       return {
         ...launchHitState,
         actionLog: [...launchHitState.actionLog, launchHitLogEntry],
@@ -2360,6 +2415,12 @@ function isActionAllowed(
     case "USE_REROLL":
     case "END_TURN":
       return state.phase === "playing" && ctx.playerId === activePlayerId;
+
+    case "CONFIRM_ROLL":
+      // Only the player who initiated the launch can confirm the roll
+      return state.phase === "playing" &&
+             state.pendingLaunch !== null &&
+             state.pendingLaunch.playerId === ctx.playerId;
 
     case "CLEAR_CARD_RESULT":
       return state.phase === "playing";

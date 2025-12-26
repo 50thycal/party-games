@@ -17,6 +17,10 @@ interface RocketLaunchAnimationProps {
   canReroll?: boolean;
   mustReroll?: boolean;
   isCurrentPlayer?: boolean;
+  /** True when waiting for the player to click Roll - dice hasn't been rolled yet */
+  waitingForRoll?: boolean;
+  /** Called when player clicks Roll button (dispatches CONFIRM_ROLL action) */
+  onConfirmRoll?: () => void;
   onComplete?: () => void;
   onUseReroll?: () => void;
   onDeclineReroll?: () => void;
@@ -55,34 +59,47 @@ export function RocketLaunchAnimation({
   canReroll = false,
   mustReroll = false,
   isCurrentPlayer = false,
+  waitingForRoll = false,
+  onConfirmRoll,
   onComplete,
   onUseReroll,
   onDeclineReroll,
   onMustReroll,
   className,
 }: RocketLaunchAnimationProps) {
-  // Start in waiting phase for all players - current player clicks button, spectators wait
-  const [phase, setPhase] = useState<AnimationPhase>("waiting_for_roll");
+  // Start in waiting phase if we're waiting for roll, otherwise skip to dice_rolling
+  const [phase, setPhase] = useState<AnimationPhase>(
+    waitingForRoll ? "waiting_for_roll" : "dice_rolling"
+  );
   const [displayValue, setDisplayValue] = useState(1);
 
-  // Handle roll button click
+  // Handle roll button click - now dispatches to server instead of local animation
   const handleRollClick = () => {
-    if (phase === "waiting_for_roll") {
-      setPhase("dice_rolling");
+    if (phase === "waiting_for_roll" && waitingForRoll) {
+      // Dispatch CONFIRM_ROLL action - server will roll and return result
+      onConfirmRoll?.();
     }
   };
 
+  // When waitingForRoll changes from true to false, we got a result - start dice animation
+  useEffect(() => {
+    if (!waitingForRoll && phase === "waiting_for_roll") {
+      setPhase("dice_rolling");
+    }
+  }, [waitingForRoll, phase]);
+
   // Auto-advance spectators after a delay (giving current player time to click)
   useEffect(() => {
-    if (phase !== "waiting_for_roll" || isCurrentPlayer) return;
+    if (phase !== "waiting_for_roll" || isCurrentPlayer || waitingForRoll) return;
 
     // Spectators wait 2 seconds then auto-start the animation
+    // (Only if we're NOT waiting for roll - meaning we already have a result)
     const timeout = setTimeout(() => {
       setPhase("dice_rolling");
     }, 2000);
 
     return () => clearTimeout(timeout);
-  }, [phase, isCurrentPlayer]);
+  }, [phase, isCurrentPlayer, waitingForRoll]);
 
   // Dice rolling animation
   useEffect(() => {
