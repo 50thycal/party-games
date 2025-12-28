@@ -31,8 +31,8 @@ When the game begins:
 
 3. **Strength cards are dealt** (based on player count):
    - 2 players: 6 cards (strength 4-9)
-   - 3 players: 7 cards (strength 4-9, plus one extra)
-   - 4 players: 8 cards (strength 4-9, plus two extras)
+   - 3 players: 7 cards (strength 4-10)
+   - 4 players: 8 cards (strength 4-11)
 
 ---
 
@@ -138,15 +138,15 @@ When you launch a ready rocket:
 - **If the comet reaches distance 0: EARTH IS DESTROYED!**
 
 ### Comet Segments (Strength Cards)
-- The comet has multiple segments, each with a **strength value (4-9)**
+- The comet has multiple segments, each with a **strength value** based on player count
 - Number of segments scales with player count:
-  - **2 players:** 6 segments
-  - **3 players:** 7 segments
-  - **4 players:** 8 segments
+  - **2 players:** 6 segments (strength 4-9)
+  - **3 players:** 7 segments (strength 4-10)
+  - **4 players:** 8 segments (strength 4-11)
 - Players must destroy segments in order (first to last)
 - Each segment has health equal to its strength value
 - When a segment is destroyed, the player who dealt the final blow **claims it as a trophy**
-- **Note:** Strength-9 segments cannot be one-shot even at max power (8)
+- **Note:** Segments with strength 9+ cannot be one-shot even at max power (8)
 
 ---
 
@@ -367,7 +367,7 @@ The game ends in **defeat** if:
 | Starting Cards | 4 (drafted from any deck) |
 | Base Income | 5 per turn |
 | Starting Distance | 18 spaces |
-| Comet Segments | 6 (2p), 7 (3p), 8 (4p) |
+| Comet Segments | 6 (2p: 4-9), 7 (3p: 4-10), 8 (4p: 4-11) |
 | Max Concurrent Rockets | 3 |
 | Initial Power Cap | 3 |
 | Initial Accuracy Cap | 3 |
