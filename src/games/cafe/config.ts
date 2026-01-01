@@ -1,5 +1,5 @@
-import { defineGame } from "@/engine/gameTemplate";
-import type { GameContext, Player } from "@/engine/gameTemplate";
+import { defineGame } from "@/engine/defineGame";
+import type { GameContext, Player } from "@/engine/types";
 
 // =============================================================================
 // PHASE DEFINITIONS
