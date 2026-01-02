@@ -25,12 +25,20 @@ export type CustomerArrivalSubPhase =
 // GAME CONFIGURATION
 // =============================================================================
 
-export const GAME_CONFIG = {
+export type TieRule = "customerLeaves" | "fewerCardsWins" | "splitReward";
+
+export const GAME_CONFIG: {
+  TOTAL_ROUNDS: number;
+  STARTING_MONEY: number;
+  CUSTOMERS_PER_ROUND: number;
+  RENT_PER_ROUND: number;
+  TIE_RULE: TieRule;
+} = {
   TOTAL_ROUNDS: 5,
   STARTING_MONEY: 10,
   CUSTOMERS_PER_ROUND: 3,
   RENT_PER_ROUND: 2,
-  TIE_RULE: "customerLeaves" as const, // "customerLeaves" | "fewerCardsWins" | "splitReward"
+  TIE_RULE: "customerLeaves",
 };
 
 // =============================================================================
