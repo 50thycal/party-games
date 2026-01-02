@@ -807,13 +807,8 @@ function reducer(
     // GAME OVER
     // =========================================================================
     case "PLAY_AGAIN": {
-      // Reset to initial state
-      const newState = initialState(
-        state.playerOrder.map((id) => ({
-          id,
-          name: state.players[id].name,
-        }))
-      );
+      // Reset to initial state using room players (has all required fields)
+      const newState = initialState(ctx.room.players);
 
       // Start game immediately
       const customerDeck = createCustomerDeck(ctx);
