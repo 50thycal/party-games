@@ -52,14 +52,104 @@ export interface AttractionCard {
   cost: number; // Cost to acquire
 }
 
-export interface CustomerCard {
-  id: string;
-  archetype: string; // e.g., "Coffee Snob", "Sweet Tooth", "Budget Diner"
-  eligibilityRequirement: CustomerRequirement;
-  reward: CustomerReward;
+// =============================================================================
+// CUSTOMER ARCHETYPE SYSTEM (6 Archetypes)
+// =============================================================================
+
+export type CustomerArchetypeId =
+  | "coffee_snob"
+  | "casual_regular"
+  | "trend_chaser"
+  | "health_sipper"
+  | "influencer"
+  | "office_bulk";
+
+export interface CustomerArchetype {
+  id: CustomerArchetypeId;
+  name: string;
   description: string;
+  // Eligibility rules - TBD for now, but structure exists
+  eligibilityHint: string;
 }
 
+export const CUSTOMER_ARCHETYPES: Record<CustomerArchetypeId, CustomerArchetype> = {
+  coffee_snob: {
+    id: "coffee_snob",
+    name: "Coffee Snob",
+    description: "Demands only the finest brews. Expects quality and expertise.",
+    eligibilityHint: "Requires premium coffee supplies",
+  },
+  casual_regular: {
+    id: "casual_regular",
+    name: "Casual Regular",
+    description: "Just here for a quick cup. Easy to please, reliable business.",
+    eligibilityHint: "No special requirements",
+  },
+  trend_chaser: {
+    id: "trend_chaser",
+    name: "Trend Chaser",
+    description: "Wants whatever's hot right now. Follows the latest cafe trends.",
+    eligibilityHint: "Requires trendy menu items",
+  },
+  health_sipper: {
+    id: "health_sipper",
+    name: "Health-Conscious Sipper",
+    description: "Focused on wellness. Prefers tea and healthy alternatives.",
+    eligibilityHint: "Prefers tea and milk alternatives",
+  },
+  influencer: {
+    id: "influencer",
+    name: "Social Media Influencer",
+    description: "Here for the aesthetic. Will promote your cafe if impressed.",
+    eligibilityHint: "Requires high ambiance",
+  },
+  office_bulk: {
+    id: "office_bulk",
+    name: "Bulk Order Office Worker",
+    description: "Ordering for the whole team. Big order, big payout.",
+    eligibilityHint: "Requires seating capacity",
+  },
+};
+
+// =============================================================================
+// TWO-SIDED CUSTOMER CARD
+// =============================================================================
+
+// Front side - shown during Customer Arrival
+export interface CustomerCardFront {
+  archetypeId: CustomerArchetypeId;
+  // Derived from archetype: name, description, eligibilityHint
+}
+
+// Back side - shown during Customer Resolution
+export interface CustomerCardBack {
+  orderName: string;
+  requiresSupplies: Partial<Record<SupplyType, number>>;
+  reward: {
+    money: number;
+    prestige: number;
+  };
+  failRule: CustomerFailRule;
+}
+
+export type CustomerFailRule =
+  | "no_penalty"      // Customer leaves, no harm done
+  | "lose_prestige"   // Customer complains, lose prestige
+  | "pay_penalty";    // Must pay compensation
+
+// The complete two-sided customer card
+export interface CustomerCard {
+  id: string;
+  front: CustomerCardFront;
+  back: CustomerCardBack;
+}
+
+// Helper to get archetype data for a card
+export function getCardArchetype(card: CustomerCard): CustomerArchetype {
+  return CUSTOMER_ARCHETYPES[card.front.archetypeId];
+}
+
+// Legacy types for compatibility (will be removed later)
 export interface CustomerRequirement {
   type: "minUpgrade" | "hasSupply" | "none";
   upgradeType?: CafeUpgradeType;
@@ -225,76 +315,171 @@ function createStarterAttractionCards(): AttractionCard[] {
   ];
 }
 
-function createCustomerDeck(ctx: GameContext): CustomerCard[] {
-  // Note: Supply-based eligibility will be added in a future PR when Tier 2 items are implemented.
-  // For now, customers use upgrade requirements or are open to all players.
-  const archetypes: CustomerCard[] = [
-    {
-      id: "customer-1",
-      archetype: "Coffee Lover",
-      eligibilityRequirement: { type: "none" },
-      reward: { money: 4, tips: 2, prestige: 1 },
-      description: "Loves a good cup of coffee. Tips well for quality.",
+// Customer card templates - 2 cards per archetype = 12 total cards
+const CUSTOMER_CARD_TEMPLATES: CustomerCard[] = [
+  // Coffee Snob cards (2)
+  {
+    id: "cs-1",
+    front: { archetypeId: "coffee_snob" },
+    back: {
+      orderName: "Single Origin Pour Over",
+      requiresSupplies: { coffeeBeans: 2 },
+      reward: { money: 5, prestige: 2 },
+      failRule: "lose_prestige",
     },
-    {
-      id: "customer-2",
-      archetype: "Tea Enthusiast",
-      eligibilityRequirement: { type: "none" },
-      reward: { money: 3, tips: 1, prestige: 0 },
-      description: "Appreciates a fine tea. Easy to please.",
+  },
+  {
+    id: "cs-2",
+    front: { archetypeId: "coffee_snob" },
+    back: {
+      orderName: "Espresso Flight",
+      requiresSupplies: { coffeeBeans: 3 },
+      reward: { money: 7, prestige: 3 },
+      failRule: "lose_prestige",
     },
-    {
-      id: "customer-3",
-      archetype: "Budget Diner",
-      eligibilityRequirement: { type: "none" },
-      reward: { money: 2, tips: 0, prestige: 0 },
-      description: "Just wants a quick drink. No frills.",
+  },
+  // Casual Regular cards (2)
+  {
+    id: "cr-1",
+    front: { archetypeId: "casual_regular" },
+    back: {
+      orderName: "House Coffee",
+      requiresSupplies: { coffeeBeans: 1 },
+      reward: { money: 3, prestige: 0 },
+      failRule: "no_penalty",
     },
-    {
-      id: "customer-4",
-      archetype: "Influencer",
-      eligibilityRequirement: { type: "minUpgrade", upgradeType: "ambiance", minLevel: 1 },
-      reward: { money: 2, tips: 3, prestige: 3 },
-      description: "Needs aesthetic vibes. Brings clout.",
+  },
+  {
+    id: "cr-2",
+    front: { archetypeId: "casual_regular" },
+    back: {
+      orderName: "Coffee with Milk",
+      requiresSupplies: { coffeeBeans: 1, milk: 1 },
+      reward: { money: 4, prestige: 0 },
+      failRule: "no_penalty",
     },
-    {
-      id: "customer-5",
-      archetype: "Regular",
-      eligibilityRequirement: { type: "none" },
-      reward: { money: 3, tips: 1, prestige: 1 },
-      description: "Loyal customer. Consistent business.",
+  },
+  // Trend Chaser cards (2)
+  {
+    id: "tc-1",
+    front: { archetypeId: "trend_chaser" },
+    back: {
+      orderName: "Oat Milk Latte",
+      requiresSupplies: { coffeeBeans: 1, milk: 2 },
+      reward: { money: 5, prestige: 1 },
+      failRule: "no_penalty",
     },
-    {
-      id: "customer-6",
-      archetype: "Food Critic",
-      eligibilityRequirement: { type: "minUpgrade", upgradeType: "menu", minLevel: 1 },
-      reward: { money: 5, tips: 0, prestige: 4 },
-      description: "Tough to impress. Major prestige boost.",
+  },
+  {
+    id: "tc-2",
+    front: { archetypeId: "trend_chaser" },
+    back: {
+      orderName: "Lavender Syrup Cold Brew",
+      requiresSupplies: { coffeeBeans: 2, syrup: 2 },
+      reward: { money: 6, prestige: 2 },
+      failRule: "no_penalty",
     },
-    {
-      id: "customer-7",
-      archetype: "Group Booking",
-      eligibilityRequirement: { type: "minUpgrade", upgradeType: "seating", minLevel: 1 },
-      reward: { money: 6, tips: 2, prestige: 1 },
-      description: "Large party. High revenue potential.",
+  },
+  // Health-Conscious Sipper cards (2)
+  {
+    id: "hs-1",
+    front: { archetypeId: "health_sipper" },
+    back: {
+      orderName: "Green Tea",
+      requiresSupplies: { tea: 2 },
+      reward: { money: 4, prestige: 1 },
+      failRule: "no_penalty",
     },
-    {
-      id: "customer-8",
-      archetype: "Latte Lover",
-      eligibilityRequirement: { type: "none" },
-      reward: { money: 5, tips: 3, prestige: 2 },
-      description: "Wants specialty drinks. Premium spender.",
+  },
+  {
+    id: "hs-2",
+    front: { archetypeId: "health_sipper" },
+    back: {
+      orderName: "Matcha Latte",
+      requiresSupplies: { tea: 2, milk: 1 },
+      reward: { money: 5, prestige: 1 },
+      failRule: "no_penalty",
     },
-  ];
+  },
+  // Influencer cards (2)
+  {
+    id: "inf-1",
+    front: { archetypeId: "influencer" },
+    back: {
+      orderName: "Aesthetic Latte Art",
+      requiresSupplies: { coffeeBeans: 1, milk: 2 },
+      reward: { money: 3, prestige: 3 },
+      failRule: "lose_prestige",
+    },
+  },
+  {
+    id: "inf-2",
+    front: { archetypeId: "influencer" },
+    back: {
+      orderName: "Rainbow Frappuccino",
+      requiresSupplies: { coffeeBeans: 1, milk: 1, syrup: 2 },
+      reward: { money: 4, prestige: 4 },
+      failRule: "lose_prestige",
+    },
+  },
+  // Office Bulk Order cards (2)
+  {
+    id: "ob-1",
+    front: { archetypeId: "office_bulk" },
+    back: {
+      orderName: "Coffee for 5",
+      requiresSupplies: { coffeeBeans: 3, milk: 2 },
+      reward: { money: 8, prestige: 1 },
+      failRule: "pay_penalty",
+    },
+  },
+  {
+    id: "ob-2",
+    front: { archetypeId: "office_bulk" },
+    back: {
+      orderName: "Meeting Room Catering",
+      requiresSupplies: { coffeeBeans: 2, tea: 2, milk: 2 },
+      reward: { money: 10, prestige: 2 },
+      failRule: "pay_penalty",
+    },
+  },
+];
 
-  // Shuffle the deck
-  const shuffled = [...archetypes];
-  for (let i = shuffled.length - 1; i > 0; i--) {
+function createCustomerDeck(ctx: GameContext): CustomerCard[] {
+  // Create a copy of all card templates
+  const deck = CUSTOMER_CARD_TEMPLATES.map((card) => ({
+    ...card,
+    // Add unique instance ID to prevent duplicate key issues
+    id: `${card.id}-${Math.floor(ctx.random() * 10000)}`,
+  }));
+
+  // Shuffle the deck using Fisher-Yates
+  for (let i = deck.length - 1; i > 0; i--) {
     const j = Math.floor(ctx.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    [deck[i], deck[j]] = [deck[j], deck[i]];
   }
 
-  return shuffled;
+  return deck;
+}
+
+// Reshuffle discard pile back into deck if needed
+function reshuffleIfNeeded(
+  deck: CustomerCard[],
+  discard: CustomerCard[],
+  ctx: GameContext
+): { deck: CustomerCard[]; discard: CustomerCard[] } {
+  if (deck.length > 0) {
+    return { deck, discard };
+  }
+
+  // Shuffle discard pile and use as new deck
+  const newDeck = [...discard];
+  for (let i = newDeck.length - 1; i > 0; i--) {
+    const j = Math.floor(ctx.random() * (i + 1));
+    [newDeck[i], newDeck[j]] = [newDeck[j], newDeck[i]];
+  }
+
+  return { deck: newDeck, discard: [] };
 }
 
 function createAttractionMarket(): AttractionCard[] {
@@ -308,27 +493,15 @@ function createAttractionMarket(): AttractionCard[] {
   ];
 }
 
-function checkEligibility(
+// Eligibility check - currently all players are eligible
+// Full eligibility logic based on archetype/supplies will be added in a future PR
+function checkCustomerEligibility(
   player: CafePlayerState,
-  requirement: CustomerRequirement
+  customer: CustomerCard
 ): boolean {
-  switch (requirement.type) {
-    case "none":
-      return true;
-    case "hasSupply":
-      return (
-        requirement.supplyType !== undefined &&
-        player.supplies[requirement.supplyType] > 0
-      );
-    case "minUpgrade":
-      return (
-        requirement.upgradeType !== undefined &&
-        requirement.minLevel !== undefined &&
-        player.upgrades[requirement.upgradeType] >= requirement.minLevel
-      );
-    default:
-      return true;
-  }
+  // For now, all players are eligible for all customers
+  // Future: Check based on archetype requirements (supplies, upgrades, etc.)
+  return true;
 }
 
 function getEligiblePlayers(
@@ -336,7 +509,7 @@ function getEligiblePlayers(
   customer: CustomerCard
 ): string[] {
   return state.playerOrder.filter((playerId) =>
-    checkEligibility(state.players[playerId], customer.eligibilityRequirement)
+    checkCustomerEligibility(state.players[playerId], customer)
   );
 }
 
@@ -727,21 +900,20 @@ function reducer(
       for (const playerId of state.playerOrder) {
         const player = updatedPlayers[playerId];
         let totalMoney = 0;
-        let totalTips = 0;
         let totalPrestige = 0;
 
+        // Use the back side of customer cards for rewards
         for (const customer of player.customerLine) {
-          totalMoney += customer.reward.money;
-          totalTips += customer.reward.tips;
-          totalPrestige += customer.reward.prestige;
+          // For now, just award the full reward (supply consumption comes later)
+          totalMoney += customer.back.reward.money;
+          totalPrestige += customer.back.reward.prestige;
         }
 
         updatedPlayers[playerId] = {
           ...player,
-          money: player.money + totalMoney + totalTips,
+          money: player.money + totalMoney,
           prestige: player.prestige + totalPrestige,
           customersServed: player.customersServed + player.customerLine.length,
-          totalTipsEarned: player.totalTipsEarned + totalTips,
           customerLine: [], // Clear customer line
         };
       }
