@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import type { GameViewProps } from "@/games/views";
-import type {
-  CafeState,
-  CafePlayerState,
-  AttractionCard,
-  CustomerCard,
-  CafeUpgradeType,
-  SupplyType,
+import {
+  SUPPLY_COST,
+  type CafeState,
+  type CafePlayerState,
+  type AttractionCard,
+  type CustomerCard,
+  type CafeUpgradeType,
+  type SupplyType,
 } from "./config";
 
 export function CafeGameView({
@@ -293,17 +294,38 @@ function PlanningView({ player }: { player: CafePlayerState }) {
           </div>
         </div>
         <div className="bg-gray-900 rounded-lg p-4">
-          <h3 className="font-semibold mb-2">Supplies</h3>
+          <h3 className="font-semibold mb-2">Supplies (Tier 1)</h3>
           <div className="space-y-1 text-sm">
-            <div>Coffee: {player.supplies.coffee}</div>
-            <div>Pastries: {player.supplies.pastries}</div>
-            <div>Specialty: {player.supplies.specialty}</div>
+            <div className="flex justify-between">
+              <span>Coffee Beans:</span>
+              <span className="text-amber-400">{player.supplies.coffeeBeans}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Tea:</span>
+              <span className="text-green-400">{player.supplies.tea}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Milk:</span>
+              <span className="text-blue-200">{player.supplies.milk}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Syrup:</span>
+              <span className="text-pink-400">{player.supplies.syrup}</span>
+            </div>
           </div>
         </div>
       </div>
     </section>
   );
 }
+
+// Supply display configuration
+const SUPPLY_INFO: Record<SupplyType, { label: string; color: string }> = {
+  coffeeBeans: { label: "Coffee Beans", color: "text-amber-400" },
+  tea: { label: "Tea", color: "text-green-400" },
+  milk: { label: "Milk", color: "text-blue-200" },
+  syrup: { label: "Syrup", color: "text-pink-400" },
+};
 
 function InvestmentView({
   player,
@@ -317,16 +339,43 @@ function InvestmentView({
   isLoading: boolean;
 }) {
   const upgradeTypes: CafeUpgradeType[] = ["seating", "ambiance", "equipment", "menu"];
-  const supplyTypes: SupplyType[] = ["coffee", "pastries", "specialty"];
+  const supplyTypes: SupplyType[] = ["coffeeBeans", "tea", "milk", "syrup"];
 
   return (
     <section className="bg-gray-800 border border-gray-700 rounded-lg p-6">
       <h2 className="text-lg font-bold mb-4">Investment Phase</h2>
       <p className="text-gray-400 mb-4">
-        Spend money to prepare for customers. Money: ${player.money}
+        Spend money to prepare for customers. Money: <span className="text-yellow-400 font-bold">${player.money}</span>
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Tier 1 Supplies */}
+        <div className="bg-gray-900 rounded-lg p-4">
+          <h3 className="font-semibold mb-3">Buy Supplies (Tier 1)</h3>
+          <p className="text-gray-500 text-xs mb-3">${SUPPLY_COST} each</p>
+          <div className="space-y-2">
+            {supplyTypes.map((type) => {
+              const info = SUPPLY_INFO[type];
+              const canBuy = player.money >= SUPPLY_COST;
+              return (
+                <div key={type} className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <span className={`${info.color} font-medium`}>{player.supplies[type]}</span>
+                    <span className="text-sm text-gray-300">{info.label}</span>
+                  </div>
+                  <button
+                    onClick={() => dispatch("PURCHASE_SUPPLY", { supplyType: type })}
+                    disabled={isLoading || !canBuy}
+                    className="text-xs bg-green-600 hover:bg-green-700 disabled:bg-gray-700 px-3 py-1 rounded transition-colors"
+                  >
+                    +1
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Upgrades */}
         <div className="bg-gray-900 rounded-lg p-4">
           <h3 className="font-semibold mb-3">Cafe Upgrades</h3>
@@ -350,27 +399,6 @@ function InvestmentView({
                 </div>
               );
             })}
-          </div>
-        </div>
-
-        {/* Supplies */}
-        <div className="bg-gray-900 rounded-lg p-4">
-          <h3 className="font-semibold mb-3">Buy Supplies</h3>
-          <div className="space-y-2">
-            {supplyTypes.map((type) => (
-              <div key={type} className="flex justify-between items-center">
-                <span className="capitalize text-sm">
-                  {type}: {player.supplies[type]}
-                </span>
-                <button
-                  onClick={() => dispatch("PURCHASE_SUPPLY", { supplyType: type })}
-                  disabled={isLoading || player.money < 2}
-                  className="text-xs bg-green-600 hover:bg-green-700 disabled:bg-gray-700 px-2 py-1 rounded transition-colors"
-                >
-                  $2
-                </button>
-              </div>
-            ))}
           </div>
         </div>
 
@@ -709,6 +737,7 @@ function PlayerStatusGrid({
         {playerOrder.map((id) => {
           const p = players[id];
           const isMe = id === currentPlayerId;
+          const totalSupplies = p.supplies.coffeeBeans + p.supplies.tea + p.supplies.milk + p.supplies.syrup;
           return (
             <div
               key={id}
@@ -732,6 +761,12 @@ function PlayerStatusGrid({
                 <div className="flex justify-between">
                   <span>Cards:</span>
                   <span>{p.hand.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Supplies:</span>
+                  <span title={`Beans: ${p.supplies.coffeeBeans}, Tea: ${p.supplies.tea}, Milk: ${p.supplies.milk}, Syrup: ${p.supplies.syrup}`}>
+                    {totalSupplies}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span>Served:</span>

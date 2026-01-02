@@ -79,10 +79,14 @@ export type CafeUpgradeType =
   | "equipment"
   | "menu";
 
+// Tier 1 supplies - raw ingredients that will be used to create Tier 2 items
 export type SupplyType =
-  | "coffee"
-  | "pastries"
-  | "specialty";
+  | "coffeeBeans"
+  | "tea"
+  | "milk"
+  | "syrup";
+
+export const SUPPLY_COST = 2; // All supplies cost $2 per unit
 
 // =============================================================================
 // PLAYER STATE
@@ -200,9 +204,10 @@ function createInitialPlayerState(player: Player): CafePlayerState {
       menu: 0,
     },
     supplies: {
-      coffee: 1,
-      pastries: 1,
-      specialty: 0,
+      coffeeBeans: 0,
+      tea: 0,
+      milk: 0,
+      syrup: 0,
     },
     customerLine: [],
     committedCards: [],
@@ -221,27 +226,29 @@ function createStarterAttractionCards(): AttractionCard[] {
 }
 
 function createCustomerDeck(ctx: GameContext): CustomerCard[] {
+  // Note: Supply-based eligibility will be added in a future PR when Tier 2 items are implemented.
+  // For now, customers use upgrade requirements or are open to all players.
   const archetypes: CustomerCard[] = [
     {
       id: "customer-1",
-      archetype: "Coffee Snob",
-      eligibilityRequirement: { type: "hasSupply", supplyType: "coffee" },
+      archetype: "Coffee Lover",
+      eligibilityRequirement: { type: "none" },
       reward: { money: 4, tips: 2, prestige: 1 },
-      description: "Demands premium coffee. Tips well for quality.",
+      description: "Loves a good cup of coffee. Tips well for quality.",
     },
     {
       id: "customer-2",
-      archetype: "Sweet Tooth",
-      eligibilityRequirement: { type: "hasSupply", supplyType: "pastries" },
+      archetype: "Tea Enthusiast",
+      eligibilityRequirement: { type: "none" },
       reward: { money: 3, tips: 1, prestige: 0 },
-      description: "Here for the pastries. Easy to please.",
+      description: "Appreciates a fine tea. Easy to please.",
     },
     {
       id: "customer-3",
       archetype: "Budget Diner",
       eligibilityRequirement: { type: "none" },
       reward: { money: 2, tips: 0, prestige: 0 },
-      description: "Just wants cheap coffee. No frills.",
+      description: "Just wants a quick drink. No frills.",
     },
     {
       id: "customer-4",
@@ -273,10 +280,10 @@ function createCustomerDeck(ctx: GameContext): CustomerCard[] {
     },
     {
       id: "customer-8",
-      archetype: "Specialty Seeker",
-      eligibilityRequirement: { type: "hasSupply", supplyType: "specialty" },
+      archetype: "Latte Lover",
+      eligibilityRequirement: { type: "none" },
       reward: { money: 5, tips: 3, prestige: 2 },
-      description: "Wants unique items. Premium spender.",
+      description: "Wants specialty drinks. Premium spender.",
     },
   ];
 
@@ -478,7 +485,7 @@ function reducer(
       if (!supplyType) return state;
 
       const player = state.players[action.playerId];
-      const cost = quantity * 2; // Base cost per supply
+      const cost = quantity * SUPPLY_COST;
 
       if (player.money < cost) return state;
 
