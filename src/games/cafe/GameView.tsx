@@ -2,13 +2,16 @@
 
 import { useState } from "react";
 import type { GameViewProps } from "@/games/views";
-import type {
-  CafeState,
-  CafePlayerState,
-  AttractionCard,
-  CustomerCard,
-  CafeUpgradeType,
-  SupplyType,
+import {
+  SUPPLY_COST,
+  CUSTOMER_ARCHETYPES,
+  getCardArchetype,
+  type CafeState,
+  type CafePlayerState,
+  type AttractionCard,
+  type CustomerCard,
+  type CafeUpgradeType,
+  type SupplyType,
 } from "./config";
 
 export function CafeGameView({
@@ -87,6 +90,15 @@ export function CafeGameView({
         <InvestmentView
           player={player}
           market={gameState.attractionMarket}
+          dispatch={dispatch}
+          isLoading={isLoading}
+        />
+      )}
+      {phase === "drawing" && player && (
+        <DrawingPhaseView
+          player={player}
+          deckSize={gameState.attractionDeck.length}
+          discardSize={gameState.attractionDiscard.length}
           dispatch={dispatch}
           isLoading={isLoading}
         />
@@ -170,6 +182,16 @@ function HostControls({
         {phase === "investment" && (
           <button
             onClick={() => dispatch("END_INVESTMENT")}
+            disabled={isLoading}
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 px-4 py-2 rounded-lg font-semibold transition-colors"
+          >
+            Start Card Draw
+          </button>
+        )}
+
+        {phase === "drawing" && (
+          <button
+            onClick={() => dispatch("END_DRAWING")}
             disabled={isLoading}
             className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 px-4 py-2 rounded-lg font-semibold transition-colors"
           >
@@ -293,17 +315,38 @@ function PlanningView({ player }: { player: CafePlayerState }) {
           </div>
         </div>
         <div className="bg-gray-900 rounded-lg p-4">
-          <h3 className="font-semibold mb-2">Supplies</h3>
+          <h3 className="font-semibold mb-2">Supplies (Tier 1)</h3>
           <div className="space-y-1 text-sm">
-            <div>Coffee: {player.supplies.coffee}</div>
-            <div>Pastries: {player.supplies.pastries}</div>
-            <div>Specialty: {player.supplies.specialty}</div>
+            <div className="flex justify-between">
+              <span>Coffee Beans:</span>
+              <span className="text-amber-400">{player.supplies.coffeeBeans}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Tea:</span>
+              <span className="text-green-400">{player.supplies.tea}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Milk:</span>
+              <span className="text-blue-200">{player.supplies.milk}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Syrup:</span>
+              <span className="text-pink-400">{player.supplies.syrup}</span>
+            </div>
           </div>
         </div>
       </div>
     </section>
   );
 }
+
+// Supply display configuration
+const SUPPLY_INFO: Record<SupplyType, { label: string; color: string }> = {
+  coffeeBeans: { label: "Coffee Beans", color: "text-amber-400" },
+  tea: { label: "Tea", color: "text-green-400" },
+  milk: { label: "Milk", color: "text-blue-200" },
+  syrup: { label: "Syrup", color: "text-pink-400" },
+};
 
 function InvestmentView({
   player,
@@ -317,16 +360,43 @@ function InvestmentView({
   isLoading: boolean;
 }) {
   const upgradeTypes: CafeUpgradeType[] = ["seating", "ambiance", "equipment", "menu"];
-  const supplyTypes: SupplyType[] = ["coffee", "pastries", "specialty"];
+  const supplyTypes: SupplyType[] = ["coffeeBeans", "tea", "milk", "syrup"];
 
   return (
     <section className="bg-gray-800 border border-gray-700 rounded-lg p-6">
       <h2 className="text-lg font-bold mb-4">Investment Phase</h2>
       <p className="text-gray-400 mb-4">
-        Spend money to prepare for customers. Money: ${player.money}
+        Spend money to prepare for customers. Money: <span className="text-yellow-400 font-bold">${player.money}</span>
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Tier 1 Supplies */}
+        <div className="bg-gray-900 rounded-lg p-4">
+          <h3 className="font-semibold mb-3">Buy Supplies (Tier 1)</h3>
+          <p className="text-gray-500 text-xs mb-3">${SUPPLY_COST} each</p>
+          <div className="space-y-2">
+            {supplyTypes.map((type) => {
+              const info = SUPPLY_INFO[type];
+              const canBuy = player.money >= SUPPLY_COST;
+              return (
+                <div key={type} className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <span className={`${info.color} font-medium`}>{player.supplies[type]}</span>
+                    <span className="text-sm text-gray-300">{info.label}</span>
+                  </div>
+                  <button
+                    onClick={() => dispatch("PURCHASE_SUPPLY", { supplyType: type })}
+                    disabled={isLoading || !canBuy}
+                    className="text-xs bg-green-600 hover:bg-green-700 disabled:bg-gray-700 px-3 py-1 rounded transition-colors"
+                  >
+                    +1
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Upgrades */}
         <div className="bg-gray-900 rounded-lg p-4">
           <h3 className="font-semibold mb-3">Cafe Upgrades</h3>
@@ -350,27 +420,6 @@ function InvestmentView({
                 </div>
               );
             })}
-          </div>
-        </div>
-
-        {/* Supplies */}
-        <div className="bg-gray-900 rounded-lg p-4">
-          <h3 className="font-semibold mb-3">Buy Supplies</h3>
-          <div className="space-y-2">
-            {supplyTypes.map((type) => (
-              <div key={type} className="flex justify-between items-center">
-                <span className="capitalize text-sm">
-                  {type}: {player.supplies[type]}
-                </span>
-                <button
-                  onClick={() => dispatch("PURCHASE_SUPPLY", { supplyType: type })}
-                  disabled={isLoading || player.money < 2}
-                  className="text-xs bg-green-600 hover:bg-green-700 disabled:bg-gray-700 px-2 py-1 rounded transition-colors"
-                >
-                  $2
-                </button>
-              </div>
-            ))}
           </div>
         </div>
 
@@ -398,6 +447,87 @@ function InvestmentView({
           </div>
         </div>
       </div>
+    </section>
+  );
+}
+
+function DrawingPhaseView({
+  player,
+  deckSize,
+  discardSize,
+  dispatch,
+  isLoading,
+}: {
+  player: CafePlayerState;
+  deckSize: number;
+  discardSize: number;
+  dispatch: (action: string, payload?: Record<string, unknown>) => Promise<void>;
+  isLoading: boolean;
+}) {
+  const [hasDrawn, setHasDrawn] = useState(false);
+
+  async function handleDraw() {
+    await dispatch("DRAW_ATTRACTION_CARDS");
+    setHasDrawn(true);
+  }
+
+  return (
+    <section className="bg-gray-800 border border-gray-700 rounded-lg p-6">
+      <h2 className="text-lg font-bold mb-4">Draw Phase</h2>
+      <p className="text-gray-400 mb-4">
+        Draw attraction cards to use for competing for customers!
+      </p>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Deck Info */}
+        <div className="bg-gray-900 rounded-lg p-4">
+          <h3 className="font-semibold mb-3">Attraction Deck</h3>
+          <div className="flex justify-between items-center mb-4">
+            <div className="text-sm text-gray-400">
+              <p>Deck: {deckSize} cards</p>
+              <p>Discard: {discardSize} cards</p>
+            </div>
+            {!hasDrawn ? (
+              <button
+                onClick={handleDraw}
+                disabled={isLoading}
+                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-700 px-4 py-2 rounded-lg font-semibold transition-colors"
+              >
+                Draw 2 Cards
+              </button>
+            ) : (
+              <span className="text-green-400 font-semibold">Cards Drawn!</span>
+            )}
+          </div>
+        </div>
+
+        {/* Current Hand */}
+        <div className="bg-gray-900 rounded-lg p-4">
+          <h3 className="font-semibold mb-3">Your Hand ({player.hand.length} cards)</h3>
+          <div className="space-y-2">
+            {player.hand.map((card) => (
+              <div
+                key={card.id}
+                className="flex justify-between items-center bg-gray-800 px-3 py-2 rounded"
+              >
+                <span className="text-sm">{card.name}</span>
+                <span className="text-yellow-400 font-bold">+{card.value}</span>
+              </div>
+            ))}
+            {player.hand.length === 0 && (
+              <p className="text-gray-500 text-sm">No cards in hand</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {hasDrawn && (
+        <div className="mt-4 p-3 bg-blue-900/30 border border-blue-700 rounded-lg">
+          <p className="text-blue-300 text-sm">
+            Waiting for host to open doors and start customer arrival...
+          </p>
+        </div>
+      )}
     </section>
   );
 }
@@ -437,8 +567,8 @@ function CustomerArrivalView({
 
       {customer && (
         <div className="space-y-4">
-          {/* Customer Card Display */}
-          <CustomerCardDisplay customer={customer} />
+          {/* Customer Card Front Side - shows archetype only */}
+          <CustomerCardFrontDisplay customer={customer} />
 
           {/* Eligibility Status */}
           <div
@@ -537,25 +667,85 @@ function CustomerArrivalView({
   );
 }
 
-function CustomerCardDisplay({ customer }: { customer: CustomerCard }) {
+// Front side of customer card - shown during Customer Arrival
+function CustomerCardFrontDisplay({ customer }: { customer: CustomerCard }) {
+  const archetype = getCardArchetype(customer);
+
   return (
     <div className="bg-gradient-to-br from-amber-900/50 to-amber-800/30 border border-amber-600 rounded-lg p-4">
       <div className="flex justify-between items-start mb-2">
-        <h3 className="text-lg font-bold text-amber-200">{customer.archetype}</h3>
-        <div className="text-right text-sm">
-          <div className="text-yellow-400">${customer.reward.money}</div>
-          <div className="text-green-400">+{customer.reward.tips} tips</div>
-          <div className="text-purple-400">+{customer.reward.prestige} prestige</div>
+        <h3 className="text-lg font-bold text-amber-200">{archetype.name}</h3>
+        <div className="text-xs text-amber-400 bg-amber-900/50 px-2 py-1 rounded">
+          Front
         </div>
       </div>
-      <p className="text-gray-300 text-sm mb-2">{customer.description}</p>
+      <p className="text-gray-300 text-sm mb-3">{archetype.description}</p>
       <div className="text-xs text-gray-400 border-t border-amber-700 pt-2 mt-2">
-        Requires:{" "}
-        {customer.eligibilityRequirement.type === "none"
-          ? "Anyone can serve"
-          : customer.eligibilityRequirement.type === "hasSupply"
-          ? `${customer.eligibilityRequirement.supplyType} supply`
-          : `${customer.eligibilityRequirement.upgradeType} Lv.${customer.eligibilityRequirement.minLevel}+`}
+        <span className="text-amber-300">Hint:</span> {archetype.eligibilityHint}
+      </div>
+    </div>
+  );
+}
+
+// Back side of customer card - shown during Customer Resolution
+function CustomerCardBackDisplay({ customer }: { customer: CustomerCard }) {
+  const archetype = getCardArchetype(customer);
+  const { back } = customer;
+
+  // Format required supplies for display
+  const suppliesNeeded = Object.entries(back.requiresSupplies)
+    .filter(([_, qty]) => qty && qty > 0)
+    .map(([supply, qty]) => {
+      const label = SUPPLY_INFO[supply as SupplyType]?.label || supply;
+      return `${qty} ${label}`;
+    });
+
+  const failRuleText = {
+    no_penalty: "No penalty if unfulfilled",
+    lose_prestige: "Lose prestige if unfulfilled",
+    pay_penalty: "Pay penalty if unfulfilled",
+  }[back.failRule];
+
+  return (
+    <div className="bg-gradient-to-br from-purple-900/50 to-purple-800/30 border border-purple-600 rounded-lg p-4">
+      <div className="flex justify-between items-start mb-2">
+        <div>
+          <p className="text-xs text-purple-300">{archetype.name}</p>
+          <h3 className="text-lg font-bold text-purple-200">{back.orderName}</h3>
+        </div>
+        <div className="text-xs text-purple-400 bg-purple-900/50 px-2 py-1 rounded">
+          Back
+        </div>
+      </div>
+
+      {/* Required Supplies */}
+      <div className="bg-gray-900/50 rounded p-2 mb-3">
+        <p className="text-xs text-gray-400 mb-1">Requires:</p>
+        <div className="flex flex-wrap gap-2">
+          {suppliesNeeded.length > 0 ? (
+            suppliesNeeded.map((supply, i) => (
+              <span key={i} className="text-sm text-white bg-gray-700 px-2 py-0.5 rounded">
+                {supply}
+              </span>
+            ))
+          ) : (
+            <span className="text-sm text-gray-500">No supplies needed</span>
+          )}
+        </div>
+      </div>
+
+      {/* Rewards */}
+      <div className="flex justify-between items-center mb-2">
+        <span className="text-sm text-gray-400">Reward:</span>
+        <div className="flex gap-3">
+          <span className="text-yellow-400">${back.reward.money}</span>
+          <span className="text-purple-400">+{back.reward.prestige} prestige</span>
+        </div>
+      </div>
+
+      {/* Fail Rule */}
+      <div className="text-xs text-gray-500 border-t border-purple-700 pt-2 mt-2">
+        {failRuleText}
       </div>
     </div>
   );
@@ -570,32 +760,48 @@ function CustomerResolutionView({
 }) {
   const player = gameState.players[playerId];
 
+  // Calculate total potential rewards
+  const totalMoney = player.customerLine.reduce(
+    (sum, c) => sum + c.back.reward.money,
+    0
+  );
+  const totalPrestige = player.customerLine.reduce(
+    (sum, c) => sum + c.back.reward.prestige,
+    0
+  );
+
   return (
     <section className="bg-gray-800 border border-gray-700 rounded-lg p-6">
       <h2 className="text-lg font-bold mb-4">Customer Resolution</h2>
       <p className="text-gray-400 mb-4">
-        Customers are being served. Time to collect rewards!
+        Customers are being served. View their orders below!
       </p>
-      <div className="bg-gray-900 rounded-lg p-4">
-        <h3 className="font-semibold mb-2">Your Customers This Round</h3>
-        {player.customerLine.length === 0 ? (
+
+      {player.customerLine.length === 0 ? (
+        <div className="bg-gray-900 rounded-lg p-4">
           <p className="text-gray-500">No customers won this round</p>
-        ) : (
-          <div className="space-y-2">
+        </div>
+      ) : (
+        <>
+          {/* Summary */}
+          <div className="bg-gray-900 rounded-lg p-3 mb-4 flex justify-between items-center">
+            <span className="text-gray-400">
+              {player.customerLine.length} customer{player.customerLine.length > 1 ? "s" : ""} to serve
+            </span>
+            <div className="flex gap-4">
+              <span className="text-yellow-400">${totalMoney} potential</span>
+              <span className="text-purple-400">+{totalPrestige} prestige</span>
+            </div>
+          </div>
+
+          {/* Customer Cards - Back Side */}
+          <div className="space-y-3">
             {player.customerLine.map((customer, i) => (
-              <div
-                key={i}
-                className="flex justify-between items-center bg-gray-800 p-2 rounded"
-              >
-                <span>{customer.archetype}</span>
-                <span className="text-yellow-400">
-                  ${customer.reward.money + customer.reward.tips}
-                </span>
-              </div>
+              <CustomerCardBackDisplay key={customer.id || i} customer={customer} />
             ))}
           </div>
-        )}
-      </div>
+        </>
+      )}
     </section>
   );
 }
@@ -709,6 +915,7 @@ function PlayerStatusGrid({
         {playerOrder.map((id) => {
           const p = players[id];
           const isMe = id === currentPlayerId;
+          const totalSupplies = p.supplies.coffeeBeans + p.supplies.tea + p.supplies.milk + p.supplies.syrup;
           return (
             <div
               key={id}
@@ -732,6 +939,12 @@ function PlayerStatusGrid({
                 <div className="flex justify-between">
                   <span>Cards:</span>
                   <span>{p.hand.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Supplies:</span>
+                  <span title={`Beans: ${p.supplies.coffeeBeans}, Tea: ${p.supplies.tea}, Milk: ${p.supplies.milk}, Syrup: ${p.supplies.syrup}`}>
+                    {totalSupplies}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span>Served:</span>

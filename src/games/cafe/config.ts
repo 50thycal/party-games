@@ -9,6 +9,7 @@ export type CafePhase =
   | "lobby"
   | "planning" // Round start - review hand/resources
   | "investment" // Spend money on supplies/upgrades
+  | "drawing" // Draw attraction cards before customers arrive
   | "customerArrival" // Reveal customer, check eligibility, commit, resolve
   | "customerResolution" // Payoff from customer line
   | "cleanup" // Pay rent, discard, prepare next round
@@ -52,14 +53,104 @@ export interface AttractionCard {
   cost: number; // Cost to acquire
 }
 
-export interface CustomerCard {
-  id: string;
-  archetype: string; // e.g., "Coffee Snob", "Sweet Tooth", "Budget Diner"
-  eligibilityRequirement: CustomerRequirement;
-  reward: CustomerReward;
+// =============================================================================
+// CUSTOMER ARCHETYPE SYSTEM (6 Archetypes)
+// =============================================================================
+
+export type CustomerArchetypeId =
+  | "coffee_snob"
+  | "casual_regular"
+  | "trend_chaser"
+  | "health_sipper"
+  | "influencer"
+  | "office_bulk";
+
+export interface CustomerArchetype {
+  id: CustomerArchetypeId;
+  name: string;
   description: string;
+  // Eligibility rules - TBD for now, but structure exists
+  eligibilityHint: string;
 }
 
+export const CUSTOMER_ARCHETYPES: Record<CustomerArchetypeId, CustomerArchetype> = {
+  coffee_snob: {
+    id: "coffee_snob",
+    name: "Coffee Snob",
+    description: "Demands only the finest brews. Expects quality and expertise.",
+    eligibilityHint: "Requires premium coffee supplies",
+  },
+  casual_regular: {
+    id: "casual_regular",
+    name: "Casual Regular",
+    description: "Just here for a quick cup. Easy to please, reliable business.",
+    eligibilityHint: "No special requirements",
+  },
+  trend_chaser: {
+    id: "trend_chaser",
+    name: "Trend Chaser",
+    description: "Wants whatever's hot right now. Follows the latest cafe trends.",
+    eligibilityHint: "Requires trendy menu items",
+  },
+  health_sipper: {
+    id: "health_sipper",
+    name: "Health-Conscious Sipper",
+    description: "Focused on wellness. Prefers tea and healthy alternatives.",
+    eligibilityHint: "Prefers tea and milk alternatives",
+  },
+  influencer: {
+    id: "influencer",
+    name: "Social Media Influencer",
+    description: "Here for the aesthetic. Will promote your cafe if impressed.",
+    eligibilityHint: "Requires high ambiance",
+  },
+  office_bulk: {
+    id: "office_bulk",
+    name: "Bulk Order Office Worker",
+    description: "Ordering for the whole team. Big order, big payout.",
+    eligibilityHint: "Requires seating capacity",
+  },
+};
+
+// =============================================================================
+// TWO-SIDED CUSTOMER CARD
+// =============================================================================
+
+// Front side - shown during Customer Arrival
+export interface CustomerCardFront {
+  archetypeId: CustomerArchetypeId;
+  // Derived from archetype: name, description, eligibilityHint
+}
+
+// Back side - shown during Customer Resolution
+export interface CustomerCardBack {
+  orderName: string;
+  requiresSupplies: Partial<Record<SupplyType, number>>;
+  reward: {
+    money: number;
+    prestige: number;
+  };
+  failRule: CustomerFailRule;
+}
+
+export type CustomerFailRule =
+  | "no_penalty"      // Customer leaves, no harm done
+  | "lose_prestige"   // Customer complains, lose prestige
+  | "pay_penalty";    // Must pay compensation
+
+// The complete two-sided customer card
+export interface CustomerCard {
+  id: string;
+  front: CustomerCardFront;
+  back: CustomerCardBack;
+}
+
+// Helper to get archetype data for a card
+export function getCardArchetype(card: CustomerCard): CustomerArchetype {
+  return CUSTOMER_ARCHETYPES[card.front.archetypeId];
+}
+
+// Legacy types for compatibility (will be removed later)
 export interface CustomerRequirement {
   type: "minUpgrade" | "hasSupply" | "none";
   upgradeType?: CafeUpgradeType;
@@ -79,10 +170,14 @@ export type CafeUpgradeType =
   | "equipment"
   | "menu";
 
+// Tier 1 supplies - raw ingredients that will be used to create Tier 2 items
 export type SupplyType =
-  | "coffee"
-  | "pastries"
-  | "specialty";
+  | "coffeeBeans"
+  | "tea"
+  | "milk"
+  | "syrup";
+
+export const SUPPLY_COST = 2; // All supplies cost $2 per unit
 
 // =============================================================================
 // PLAYER STATE
@@ -133,10 +228,14 @@ export interface CafeState {
   customerSubPhase: CustomerArrivalSubPhase;
   eligiblePlayerIds: string[];
 
+  // Attraction card deck (shared)
+  attractionDeck: AttractionCard[];
+  attractionDiscard: AttractionCard[];
+
   // Shared cafe state (optional future feature)
   sharedUpgrades: Record<string, number>;
 
-  // Available cards for purchase
+  // Available cards for purchase (legacy - keeping for now)
   attractionMarket: AttractionCard[];
 
   // End game
@@ -157,6 +256,9 @@ export type CafeActionType =
   | "PURCHASE_ATTRACTION"
   | "UPGRADE_CAFE"
   | "END_INVESTMENT"
+  // Drawing phase
+  | "DRAW_ATTRACTION_CARDS"
+  | "END_DRAWING"
   // Customer arrival phase
   | "REVEAL_CUSTOMER"
   | "COMMIT_CARDS"
@@ -200,9 +302,10 @@ function createInitialPlayerState(player: Player): CafePlayerState {
       menu: 0,
     },
     supplies: {
-      coffee: 1,
-      pastries: 1,
-      specialty: 0,
+      coffeeBeans: 0,
+      tea: 0,
+      milk: 0,
+      syrup: 0,
     },
     customerLine: [],
     committedCards: [],
@@ -212,82 +315,248 @@ function createInitialPlayerState(player: Player): CafePlayerState {
   };
 }
 
-function createStarterAttractionCards(): AttractionCard[] {
-  return [
-    { id: "charm-1", name: "Friendly Smile", value: 1, cost: 0 },
-    { id: "charm-2", name: "Quick Service", value: 1, cost: 0 },
-    { id: "charm-3", name: "Cozy Corner", value: 2, cost: 0 },
-  ];
-}
+// Attraction card templates for the shared deck (~20 cards)
+const ATTRACTION_CARD_TEMPLATES: Omit<AttractionCard, "id">[] = [
+  // Value 1 cards (8 cards) - common
+  { name: "Friendly Smile", value: 1, cost: 0 },
+  { name: "Quick Service", value: 1, cost: 0 },
+  { name: "Warm Greeting", value: 1, cost: 0 },
+  { name: "Clean Table", value: 1, cost: 0 },
+  { name: "Good Music", value: 1, cost: 0 },
+  { name: "Nice Aroma", value: 1, cost: 0 },
+  { name: "Comfy Seat", value: 1, cost: 0 },
+  { name: "Fast Wifi", value: 1, cost: 0 },
+  // Value 2 cards (8 cards) - uncommon
+  { name: "Cozy Corner", value: 2, cost: 0 },
+  { name: "Latte Art", value: 2, cost: 0 },
+  { name: "Special Blend", value: 2, cost: 0 },
+  { name: "Fresh Pastry", value: 2, cost: 0 },
+  { name: "Window Seat", value: 2, cost: 0 },
+  { name: "Power Outlet", value: 2, cost: 0 },
+  { name: "Loyalty Perk", value: 2, cost: 0 },
+  { name: "Extra Shot", value: 2, cost: 0 },
+  // Value 3 cards (4 cards) - rare
+  { name: "VIP Treatment", value: 3, cost: 0 },
+  { name: "Chef's Special", value: 3, cost: 0 },
+  { name: "Live Music", value: 3, cost: 0 },
+  { name: "Perfect Moment", value: 3, cost: 0 },
+];
 
-function createCustomerDeck(ctx: GameContext): CustomerCard[] {
-  const archetypes: CustomerCard[] = [
-    {
-      id: "customer-1",
-      archetype: "Coffee Snob",
-      eligibilityRequirement: { type: "hasSupply", supplyType: "coffee" },
-      reward: { money: 4, tips: 2, prestige: 1 },
-      description: "Demands premium coffee. Tips well for quality.",
-    },
-    {
-      id: "customer-2",
-      archetype: "Sweet Tooth",
-      eligibilityRequirement: { type: "hasSupply", supplyType: "pastries" },
-      reward: { money: 3, tips: 1, prestige: 0 },
-      description: "Here for the pastries. Easy to please.",
-    },
-    {
-      id: "customer-3",
-      archetype: "Budget Diner",
-      eligibilityRequirement: { type: "none" },
-      reward: { money: 2, tips: 0, prestige: 0 },
-      description: "Just wants cheap coffee. No frills.",
-    },
-    {
-      id: "customer-4",
-      archetype: "Influencer",
-      eligibilityRequirement: { type: "minUpgrade", upgradeType: "ambiance", minLevel: 1 },
-      reward: { money: 2, tips: 3, prestige: 3 },
-      description: "Needs aesthetic vibes. Brings clout.",
-    },
-    {
-      id: "customer-5",
-      archetype: "Regular",
-      eligibilityRequirement: { type: "none" },
-      reward: { money: 3, tips: 1, prestige: 1 },
-      description: "Loyal customer. Consistent business.",
-    },
-    {
-      id: "customer-6",
-      archetype: "Food Critic",
-      eligibilityRequirement: { type: "minUpgrade", upgradeType: "menu", minLevel: 1 },
-      reward: { money: 5, tips: 0, prestige: 4 },
-      description: "Tough to impress. Major prestige boost.",
-    },
-    {
-      id: "customer-7",
-      archetype: "Group Booking",
-      eligibilityRequirement: { type: "minUpgrade", upgradeType: "seating", minLevel: 1 },
-      reward: { money: 6, tips: 2, prestige: 1 },
-      description: "Large party. High revenue potential.",
-    },
-    {
-      id: "customer-8",
-      archetype: "Specialty Seeker",
-      eligibilityRequirement: { type: "hasSupply", supplyType: "specialty" },
-      reward: { money: 5, tips: 3, prestige: 2 },
-      description: "Wants unique items. Premium spender.",
-    },
-  ];
+function createAttractionDeck(ctx: GameContext): AttractionCard[] {
+  // Create cards with unique IDs
+  const deck = ATTRACTION_CARD_TEMPLATES.map((template, index) => ({
+    ...template,
+    id: `attr-${index}-${Math.floor(ctx.random() * 10000)}`,
+  }));
 
-  // Shuffle the deck
-  const shuffled = [...archetypes];
-  for (let i = shuffled.length - 1; i > 0; i--) {
+  // Shuffle the deck using Fisher-Yates
+  for (let i = deck.length - 1; i > 0; i--) {
     const j = Math.floor(ctx.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    [deck[i], deck[j]] = [deck[j], deck[i]];
   }
 
-  return shuffled;
+  return deck;
+}
+
+// Draw cards from deck, reshuffling discard if needed
+function drawAttractionCards(
+  deck: AttractionCard[],
+  discard: AttractionCard[],
+  count: number,
+  ctx: GameContext
+): { drawn: AttractionCard[]; deck: AttractionCard[]; discard: AttractionCard[] } {
+  let currentDeck = [...deck];
+  let currentDiscard = [...discard];
+  const drawn: AttractionCard[] = [];
+
+  for (let i = 0; i < count; i++) {
+    // If deck is empty, shuffle discard back in
+    if (currentDeck.length === 0) {
+      if (currentDiscard.length === 0) {
+        // No cards left anywhere
+        break;
+      }
+      currentDeck = [...currentDiscard];
+      currentDiscard = [];
+      // Shuffle
+      for (let j = currentDeck.length - 1; j > 0; j--) {
+        const k = Math.floor(ctx.random() * (j + 1));
+        [currentDeck[j], currentDeck[k]] = [currentDeck[k], currentDeck[j]];
+      }
+    }
+
+    const card = currentDeck.pop()!;
+    drawn.push(card);
+  }
+
+  return { drawn, deck: currentDeck, discard: currentDiscard };
+}
+
+// Customer card templates - 2 cards per archetype = 12 total cards
+const CUSTOMER_CARD_TEMPLATES: CustomerCard[] = [
+  // Coffee Snob cards (2)
+  {
+    id: "cs-1",
+    front: { archetypeId: "coffee_snob" },
+    back: {
+      orderName: "Single Origin Pour Over",
+      requiresSupplies: { coffeeBeans: 2 },
+      reward: { money: 5, prestige: 2 },
+      failRule: "lose_prestige",
+    },
+  },
+  {
+    id: "cs-2",
+    front: { archetypeId: "coffee_snob" },
+    back: {
+      orderName: "Espresso Flight",
+      requiresSupplies: { coffeeBeans: 3 },
+      reward: { money: 7, prestige: 3 },
+      failRule: "lose_prestige",
+    },
+  },
+  // Casual Regular cards (2)
+  {
+    id: "cr-1",
+    front: { archetypeId: "casual_regular" },
+    back: {
+      orderName: "House Coffee",
+      requiresSupplies: { coffeeBeans: 1 },
+      reward: { money: 3, prestige: 0 },
+      failRule: "no_penalty",
+    },
+  },
+  {
+    id: "cr-2",
+    front: { archetypeId: "casual_regular" },
+    back: {
+      orderName: "Coffee with Milk",
+      requiresSupplies: { coffeeBeans: 1, milk: 1 },
+      reward: { money: 4, prestige: 0 },
+      failRule: "no_penalty",
+    },
+  },
+  // Trend Chaser cards (2)
+  {
+    id: "tc-1",
+    front: { archetypeId: "trend_chaser" },
+    back: {
+      orderName: "Oat Milk Latte",
+      requiresSupplies: { coffeeBeans: 1, milk: 2 },
+      reward: { money: 5, prestige: 1 },
+      failRule: "no_penalty",
+    },
+  },
+  {
+    id: "tc-2",
+    front: { archetypeId: "trend_chaser" },
+    back: {
+      orderName: "Lavender Syrup Cold Brew",
+      requiresSupplies: { coffeeBeans: 2, syrup: 2 },
+      reward: { money: 6, prestige: 2 },
+      failRule: "no_penalty",
+    },
+  },
+  // Health-Conscious Sipper cards (2)
+  {
+    id: "hs-1",
+    front: { archetypeId: "health_sipper" },
+    back: {
+      orderName: "Green Tea",
+      requiresSupplies: { tea: 2 },
+      reward: { money: 4, prestige: 1 },
+      failRule: "no_penalty",
+    },
+  },
+  {
+    id: "hs-2",
+    front: { archetypeId: "health_sipper" },
+    back: {
+      orderName: "Matcha Latte",
+      requiresSupplies: { tea: 2, milk: 1 },
+      reward: { money: 5, prestige: 1 },
+      failRule: "no_penalty",
+    },
+  },
+  // Influencer cards (2)
+  {
+    id: "inf-1",
+    front: { archetypeId: "influencer" },
+    back: {
+      orderName: "Aesthetic Latte Art",
+      requiresSupplies: { coffeeBeans: 1, milk: 2 },
+      reward: { money: 3, prestige: 3 },
+      failRule: "lose_prestige",
+    },
+  },
+  {
+    id: "inf-2",
+    front: { archetypeId: "influencer" },
+    back: {
+      orderName: "Rainbow Frappuccino",
+      requiresSupplies: { coffeeBeans: 1, milk: 1, syrup: 2 },
+      reward: { money: 4, prestige: 4 },
+      failRule: "lose_prestige",
+    },
+  },
+  // Office Bulk Order cards (2)
+  {
+    id: "ob-1",
+    front: { archetypeId: "office_bulk" },
+    back: {
+      orderName: "Coffee for 5",
+      requiresSupplies: { coffeeBeans: 3, milk: 2 },
+      reward: { money: 8, prestige: 1 },
+      failRule: "pay_penalty",
+    },
+  },
+  {
+    id: "ob-2",
+    front: { archetypeId: "office_bulk" },
+    back: {
+      orderName: "Meeting Room Catering",
+      requiresSupplies: { coffeeBeans: 2, tea: 2, milk: 2 },
+      reward: { money: 10, prestige: 2 },
+      failRule: "pay_penalty",
+    },
+  },
+];
+
+function createCustomerDeck(ctx: GameContext): CustomerCard[] {
+  // Create a copy of all card templates
+  const deck = CUSTOMER_CARD_TEMPLATES.map((card) => ({
+    ...card,
+    // Add unique instance ID to prevent duplicate key issues
+    id: `${card.id}-${Math.floor(ctx.random() * 10000)}`,
+  }));
+
+  // Shuffle the deck using Fisher-Yates
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(ctx.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+
+  return deck;
+}
+
+// Reshuffle discard pile back into deck if needed
+function reshuffleIfNeeded(
+  deck: CustomerCard[],
+  discard: CustomerCard[],
+  ctx: GameContext
+): { deck: CustomerCard[]; discard: CustomerCard[] } {
+  if (deck.length > 0) {
+    return { deck, discard };
+  }
+
+  // Shuffle discard pile and use as new deck
+  const newDeck = [...discard];
+  for (let i = newDeck.length - 1; i > 0; i--) {
+    const j = Math.floor(ctx.random() * (i + 1));
+    [newDeck[i], newDeck[j]] = [newDeck[j], newDeck[i]];
+  }
+
+  return { deck: newDeck, discard: [] };
 }
 
 function createAttractionMarket(): AttractionCard[] {
@@ -301,27 +570,15 @@ function createAttractionMarket(): AttractionCard[] {
   ];
 }
 
-function checkEligibility(
+// Eligibility check - currently all players are eligible
+// Full eligibility logic based on archetype/supplies will be added in a future PR
+function checkCustomerEligibility(
   player: CafePlayerState,
-  requirement: CustomerRequirement
+  customer: CustomerCard
 ): boolean {
-  switch (requirement.type) {
-    case "none":
-      return true;
-    case "hasSupply":
-      return (
-        requirement.supplyType !== undefined &&
-        player.supplies[requirement.supplyType] > 0
-      );
-    case "minUpgrade":
-      return (
-        requirement.upgradeType !== undefined &&
-        requirement.minLevel !== undefined &&
-        player.upgrades[requirement.upgradeType] >= requirement.minLevel
-      );
-    default:
-      return true;
-  }
+  // For now, all players are eligible for all customers
+  // Future: Check based on archetype requirements (supplies, upgrades, etc.)
+  return true;
 }
 
 function getEligiblePlayers(
@@ -329,7 +586,7 @@ function getEligiblePlayers(
   customer: CustomerCard
 ): string[] {
   return state.playerOrder.filter((playerId) =>
-    checkEligibility(state.players[playerId], customer.eligibilityRequirement)
+    checkCustomerEligibility(state.players[playerId], customer)
   );
 }
 
@@ -407,7 +664,7 @@ function initialState(players: Player[]): CafeState {
 
   for (const player of players) {
     const playerState = createInitialPlayerState(player);
-    playerState.hand = createStarterAttractionCards();
+    // Players start with empty hands - cards are drawn at round start
     playerStates[player.id] = playerState;
     playerOrder.push(player.id);
   }
@@ -423,6 +680,8 @@ function initialState(players: Player[]): CafeState {
     currentCustomer: null,
     customerSubPhase: "revealing",
     eligiblePlayerIds: [],
+    attractionDeck: [],
+    attractionDiscard: [],
     sharedUpgrades: {},
     attractionMarket: createAttractionMarket(),
     winnerId: null,
@@ -449,6 +708,9 @@ function reducer(
         GAME_CONFIG.CUSTOMERS_PER_ROUND
       );
 
+      // Create and shuffle the attraction deck
+      const attractionDeck = createAttractionDeck(ctx);
+
       return {
         ...state,
         phase: "planning",
@@ -457,6 +719,8 @@ function reducer(
         currentRoundCustomers: drawn,
         currentCustomerIndex: 0,
         currentCustomer: null,
+        attractionDeck,
+        attractionDiscard: [],
       };
     }
 
@@ -478,7 +742,7 @@ function reducer(
       if (!supplyType) return state;
 
       const player = state.players[action.playerId];
-      const cost = quantity * 2; // Base cost per supply
+      const cost = quantity * SUPPLY_COST;
 
       if (player.money < cost) return state;
 
@@ -551,6 +815,42 @@ function reducer(
     }
 
     case "END_INVESTMENT": {
+      return {
+        ...state,
+        phase: "drawing",
+      };
+    }
+
+    // =========================================================================
+    // DRAWING PHASE
+    // =========================================================================
+    case "DRAW_ATTRACTION_CARDS": {
+      const player = state.players[action.playerId];
+      const cardsToDrawCount = 2;
+
+      // Draw cards from deck
+      const { drawn, deck, discard } = drawAttractionCards(
+        state.attractionDeck,
+        state.attractionDiscard,
+        cardsToDrawCount,
+        ctx
+      );
+
+      return {
+        ...state,
+        attractionDeck: deck,
+        attractionDiscard: discard,
+        players: {
+          ...state.players,
+          [action.playerId]: {
+            ...player,
+            hand: [...player.hand, ...drawn],
+          },
+        },
+      };
+    }
+
+    case "END_DRAWING": {
       return {
         ...state,
         phase: "customerArrival",
@@ -653,11 +953,17 @@ function reducer(
 
       const winnerId = resolveCustomerContest(state);
 
+      // Collect all committed cards to add to discard pile
+      const cardsToDiscard: AttractionCard[] = [];
+
       // Remove committed cards from hands, reset commitment state
       const updatedPlayers = { ...state.players };
       for (const playerId of state.eligiblePlayerIds) {
         const player = updatedPlayers[playerId];
         const committedIds = new Set(player.committedCards.map((c) => c.id));
+
+        // Add committed cards to discard pile
+        cardsToDiscard.push(...player.committedCards);
 
         updatedPlayers[playerId] = {
           ...player,
@@ -686,6 +992,7 @@ function reducer(
       return {
         ...state,
         players: updatedPlayers,
+        attractionDiscard: [...state.attractionDiscard, ...cardsToDiscard],
         currentCustomer: null,
         eligiblePlayerIds: [],
         customerSubPhase: "revealing",
@@ -720,21 +1027,20 @@ function reducer(
       for (const playerId of state.playerOrder) {
         const player = updatedPlayers[playerId];
         let totalMoney = 0;
-        let totalTips = 0;
         let totalPrestige = 0;
 
+        // Use the back side of customer cards for rewards
         for (const customer of player.customerLine) {
-          totalMoney += customer.reward.money;
-          totalTips += customer.reward.tips;
-          totalPrestige += customer.reward.prestige;
+          // For now, just award the full reward (supply consumption comes later)
+          totalMoney += customer.back.reward.money;
+          totalPrestige += customer.back.reward.prestige;
         }
 
         updatedPlayers[playerId] = {
           ...player,
-          money: player.money + totalMoney + totalTips,
+          money: player.money + totalMoney,
           prestige: player.prestige + totalPrestige,
           customersServed: player.customersServed + player.customerLine.length,
-          totalTipsEarned: player.totalTipsEarned + totalTips,
           customerLine: [], // Clear customer line
         };
       }
@@ -817,12 +1123,17 @@ function reducer(
         GAME_CONFIG.CUSTOMERS_PER_ROUND
       );
 
+      // Create new attraction deck
+      const attractionDeck = createAttractionDeck(ctx);
+
       return {
         ...newState,
         phase: "planning",
         round: 1,
         customerDeck: remaining,
         currentRoundCustomers: drawn,
+        attractionDeck,
+        attractionDiscard: [],
       };
     }
 
@@ -865,6 +1176,12 @@ function isActionAllowed(
 
     case "END_INVESTMENT":
       return isHost && state.phase === "investment";
+
+    case "DRAW_ATTRACTION_CARDS":
+      return state.phase === "drawing" && player !== undefined;
+
+    case "END_DRAWING":
+      return isHost && state.phase === "drawing";
 
     case "REVEAL_CUSTOMER":
       return isHost && state.phase === "customerArrival";
