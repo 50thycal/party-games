@@ -9,6 +9,7 @@ export type CafePhase =
   | "lobby"
   | "planning" // Round start - review hand/resources
   | "investment" // Spend money on supplies/upgrades
+  | "drawing" // Draw attraction cards before customers arrive
   | "customerArrival" // Reveal customer, check eligibility, commit, resolve
   | "customerResolution" // Payoff from customer line
   | "cleanup" // Pay rent, discard, prepare next round
@@ -227,10 +228,14 @@ export interface CafeState {
   customerSubPhase: CustomerArrivalSubPhase;
   eligiblePlayerIds: string[];
 
+  // Attraction card deck (shared)
+  attractionDeck: AttractionCard[];
+  attractionDiscard: AttractionCard[];
+
   // Shared cafe state (optional future feature)
   sharedUpgrades: Record<string, number>;
 
-  // Available cards for purchase
+  // Available cards for purchase (legacy - keeping for now)
   attractionMarket: AttractionCard[];
 
   // End game
@@ -251,6 +256,9 @@ export type CafeActionType =
   | "PURCHASE_ATTRACTION"
   | "UPGRADE_CAFE"
   | "END_INVESTMENT"
+  // Drawing phase
+  | "DRAW_ATTRACTION_CARDS"
+  | "END_DRAWING"
   // Customer arrival phase
   | "REVEAL_CUSTOMER"
   | "COMMIT_CARDS"
@@ -307,12 +315,81 @@ function createInitialPlayerState(player: Player): CafePlayerState {
   };
 }
 
-function createStarterAttractionCards(): AttractionCard[] {
-  return [
-    { id: "charm-1", name: "Friendly Smile", value: 1, cost: 0 },
-    { id: "charm-2", name: "Quick Service", value: 1, cost: 0 },
-    { id: "charm-3", name: "Cozy Corner", value: 2, cost: 0 },
-  ];
+// Attraction card templates for the shared deck (~20 cards)
+const ATTRACTION_CARD_TEMPLATES: Omit<AttractionCard, "id">[] = [
+  // Value 1 cards (8 cards) - common
+  { name: "Friendly Smile", value: 1, cost: 0 },
+  { name: "Quick Service", value: 1, cost: 0 },
+  { name: "Warm Greeting", value: 1, cost: 0 },
+  { name: "Clean Table", value: 1, cost: 0 },
+  { name: "Good Music", value: 1, cost: 0 },
+  { name: "Nice Aroma", value: 1, cost: 0 },
+  { name: "Comfy Seat", value: 1, cost: 0 },
+  { name: "Fast Wifi", value: 1, cost: 0 },
+  // Value 2 cards (8 cards) - uncommon
+  { name: "Cozy Corner", value: 2, cost: 0 },
+  { name: "Latte Art", value: 2, cost: 0 },
+  { name: "Special Blend", value: 2, cost: 0 },
+  { name: "Fresh Pastry", value: 2, cost: 0 },
+  { name: "Window Seat", value: 2, cost: 0 },
+  { name: "Power Outlet", value: 2, cost: 0 },
+  { name: "Loyalty Perk", value: 2, cost: 0 },
+  { name: "Extra Shot", value: 2, cost: 0 },
+  // Value 3 cards (4 cards) - rare
+  { name: "VIP Treatment", value: 3, cost: 0 },
+  { name: "Chef's Special", value: 3, cost: 0 },
+  { name: "Live Music", value: 3, cost: 0 },
+  { name: "Perfect Moment", value: 3, cost: 0 },
+];
+
+function createAttractionDeck(ctx: GameContext): AttractionCard[] {
+  // Create cards with unique IDs
+  const deck = ATTRACTION_CARD_TEMPLATES.map((template, index) => ({
+    ...template,
+    id: `attr-${index}-${Math.floor(ctx.random() * 10000)}`,
+  }));
+
+  // Shuffle the deck using Fisher-Yates
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(ctx.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+
+  return deck;
+}
+
+// Draw cards from deck, reshuffling discard if needed
+function drawAttractionCards(
+  deck: AttractionCard[],
+  discard: AttractionCard[],
+  count: number,
+  ctx: GameContext
+): { drawn: AttractionCard[]; deck: AttractionCard[]; discard: AttractionCard[] } {
+  let currentDeck = [...deck];
+  let currentDiscard = [...discard];
+  const drawn: AttractionCard[] = [];
+
+  for (let i = 0; i < count; i++) {
+    // If deck is empty, shuffle discard back in
+    if (currentDeck.length === 0) {
+      if (currentDiscard.length === 0) {
+        // No cards left anywhere
+        break;
+      }
+      currentDeck = [...currentDiscard];
+      currentDiscard = [];
+      // Shuffle
+      for (let j = currentDeck.length - 1; j > 0; j--) {
+        const k = Math.floor(ctx.random() * (j + 1));
+        [currentDeck[j], currentDeck[k]] = [currentDeck[k], currentDeck[j]];
+      }
+    }
+
+    const card = currentDeck.pop()!;
+    drawn.push(card);
+  }
+
+  return { drawn, deck: currentDeck, discard: currentDiscard };
 }
 
 // Customer card templates - 2 cards per archetype = 12 total cards
@@ -587,7 +664,7 @@ function initialState(players: Player[]): CafeState {
 
   for (const player of players) {
     const playerState = createInitialPlayerState(player);
-    playerState.hand = createStarterAttractionCards();
+    // Players start with empty hands - cards are drawn at round start
     playerStates[player.id] = playerState;
     playerOrder.push(player.id);
   }
@@ -603,6 +680,8 @@ function initialState(players: Player[]): CafeState {
     currentCustomer: null,
     customerSubPhase: "revealing",
     eligiblePlayerIds: [],
+    attractionDeck: [],
+    attractionDiscard: [],
     sharedUpgrades: {},
     attractionMarket: createAttractionMarket(),
     winnerId: null,
@@ -629,6 +708,9 @@ function reducer(
         GAME_CONFIG.CUSTOMERS_PER_ROUND
       );
 
+      // Create and shuffle the attraction deck
+      const attractionDeck = createAttractionDeck(ctx);
+
       return {
         ...state,
         phase: "planning",
@@ -637,6 +719,8 @@ function reducer(
         currentRoundCustomers: drawn,
         currentCustomerIndex: 0,
         currentCustomer: null,
+        attractionDeck,
+        attractionDiscard: [],
       };
     }
 
@@ -731,6 +815,42 @@ function reducer(
     }
 
     case "END_INVESTMENT": {
+      return {
+        ...state,
+        phase: "drawing",
+      };
+    }
+
+    // =========================================================================
+    // DRAWING PHASE
+    // =========================================================================
+    case "DRAW_ATTRACTION_CARDS": {
+      const player = state.players[action.playerId];
+      const cardsToDrawCount = 2;
+
+      // Draw cards from deck
+      const { drawn, deck, discard } = drawAttractionCards(
+        state.attractionDeck,
+        state.attractionDiscard,
+        cardsToDrawCount,
+        ctx
+      );
+
+      return {
+        ...state,
+        attractionDeck: deck,
+        attractionDiscard: discard,
+        players: {
+          ...state.players,
+          [action.playerId]: {
+            ...player,
+            hand: [...player.hand, ...drawn],
+          },
+        },
+      };
+    }
+
+    case "END_DRAWING": {
       return {
         ...state,
         phase: "customerArrival",
@@ -833,11 +953,17 @@ function reducer(
 
       const winnerId = resolveCustomerContest(state);
 
+      // Collect all committed cards to add to discard pile
+      const cardsToDiscard: AttractionCard[] = [];
+
       // Remove committed cards from hands, reset commitment state
       const updatedPlayers = { ...state.players };
       for (const playerId of state.eligiblePlayerIds) {
         const player = updatedPlayers[playerId];
         const committedIds = new Set(player.committedCards.map((c) => c.id));
+
+        // Add committed cards to discard pile
+        cardsToDiscard.push(...player.committedCards);
 
         updatedPlayers[playerId] = {
           ...player,
@@ -866,6 +992,7 @@ function reducer(
       return {
         ...state,
         players: updatedPlayers,
+        attractionDiscard: [...state.attractionDiscard, ...cardsToDiscard],
         currentCustomer: null,
         eligiblePlayerIds: [],
         customerSubPhase: "revealing",
@@ -996,12 +1123,17 @@ function reducer(
         GAME_CONFIG.CUSTOMERS_PER_ROUND
       );
 
+      // Create new attraction deck
+      const attractionDeck = createAttractionDeck(ctx);
+
       return {
         ...newState,
         phase: "planning",
         round: 1,
         customerDeck: remaining,
         currentRoundCustomers: drawn,
+        attractionDeck,
+        attractionDiscard: [],
       };
     }
 
@@ -1044,6 +1176,12 @@ function isActionAllowed(
 
     case "END_INVESTMENT":
       return isHost && state.phase === "investment";
+
+    case "DRAW_ATTRACTION_CARDS":
+      return state.phase === "drawing" && player !== undefined;
+
+    case "END_DRAWING":
+      return isHost && state.phase === "drawing";
 
     case "REVEAL_CUSTOMER":
       return isHost && state.phase === "customerArrival";

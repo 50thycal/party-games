@@ -94,6 +94,15 @@ export function CafeGameView({
           isLoading={isLoading}
         />
       )}
+      {phase === "drawing" && player && (
+        <DrawingPhaseView
+          player={player}
+          deckSize={gameState.attractionDeck.length}
+          discardSize={gameState.attractionDiscard.length}
+          dispatch={dispatch}
+          isLoading={isLoading}
+        />
+      )}
       {phase === "customerArrival" && player && (
         <CustomerArrivalView
           gameState={gameState}
@@ -173,6 +182,16 @@ function HostControls({
         {phase === "investment" && (
           <button
             onClick={() => dispatch("END_INVESTMENT")}
+            disabled={isLoading}
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 px-4 py-2 rounded-lg font-semibold transition-colors"
+          >
+            Start Card Draw
+          </button>
+        )}
+
+        {phase === "drawing" && (
+          <button
+            onClick={() => dispatch("END_DRAWING")}
             disabled={isLoading}
             className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 px-4 py-2 rounded-lg font-semibold transition-colors"
           >
@@ -428,6 +447,87 @@ function InvestmentView({
           </div>
         </div>
       </div>
+    </section>
+  );
+}
+
+function DrawingPhaseView({
+  player,
+  deckSize,
+  discardSize,
+  dispatch,
+  isLoading,
+}: {
+  player: CafePlayerState;
+  deckSize: number;
+  discardSize: number;
+  dispatch: (action: string, payload?: Record<string, unknown>) => Promise<void>;
+  isLoading: boolean;
+}) {
+  const [hasDrawn, setHasDrawn] = useState(false);
+
+  async function handleDraw() {
+    await dispatch("DRAW_ATTRACTION_CARDS");
+    setHasDrawn(true);
+  }
+
+  return (
+    <section className="bg-gray-800 border border-gray-700 rounded-lg p-6">
+      <h2 className="text-lg font-bold mb-4">Draw Phase</h2>
+      <p className="text-gray-400 mb-4">
+        Draw attraction cards to use for competing for customers!
+      </p>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Deck Info */}
+        <div className="bg-gray-900 rounded-lg p-4">
+          <h3 className="font-semibold mb-3">Attraction Deck</h3>
+          <div className="flex justify-between items-center mb-4">
+            <div className="text-sm text-gray-400">
+              <p>Deck: {deckSize} cards</p>
+              <p>Discard: {discardSize} cards</p>
+            </div>
+            {!hasDrawn ? (
+              <button
+                onClick={handleDraw}
+                disabled={isLoading}
+                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-700 px-4 py-2 rounded-lg font-semibold transition-colors"
+              >
+                Draw 2 Cards
+              </button>
+            ) : (
+              <span className="text-green-400 font-semibold">Cards Drawn!</span>
+            )}
+          </div>
+        </div>
+
+        {/* Current Hand */}
+        <div className="bg-gray-900 rounded-lg p-4">
+          <h3 className="font-semibold mb-3">Your Hand ({player.hand.length} cards)</h3>
+          <div className="space-y-2">
+            {player.hand.map((card) => (
+              <div
+                key={card.id}
+                className="flex justify-between items-center bg-gray-800 px-3 py-2 rounded"
+              >
+                <span className="text-sm">{card.name}</span>
+                <span className="text-yellow-400 font-bold">+{card.value}</span>
+              </div>
+            ))}
+            {player.hand.length === 0 && (
+              <p className="text-gray-500 text-sm">No cards in hand</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {hasDrawn && (
+        <div className="mt-4 p-3 bg-blue-900/30 border border-blue-700 rounded-lg">
+          <p className="text-blue-300 text-sm">
+            Waiting for host to open doors and start customer arrival...
+          </p>
+        </div>
+      )}
     </section>
   );
 }
