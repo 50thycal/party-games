@@ -685,62 +685,55 @@ function reducer(
         const player = updatedPlayers[playerId];
         let totalMoney = 0;
         let totalPrestige = 0;
+        let customersSuccessfullyServed = 0;
         let supplyCosts: Record<SupplyType, number> = {
           coffeeBeans: 0,
           tea: 0,
           milk: 0,
           syrup: 0,
         };
-        let penalties = 0;
 
+        // Resolve customers in order (first in line to last)
         for (const customer of player.customerLine) {
           const required = customer.back.requiresSupplies;
 
-          // Check if player can fulfill order
+          // Check if player has enough supplies (all-or-nothing)
           let canFulfill = true;
           for (const [supply, qty] of Object.entries(required)) {
             const supplyType = supply as SupplyType;
             const needed = qty || 0;
-            const have = player.supplies[supplyType] - (supplyCosts[supplyType] || 0);
-            if (have < needed) {
+            // Account for supplies already committed to previous customers
+            const remaining = player.supplies[supplyType] - supplyCosts[supplyType];
+            if (remaining < needed) {
               canFulfill = false;
               break;
             }
           }
 
           if (canFulfill) {
-            // Consume supplies and get rewards
+            // Fulfilled: consume supplies and grant reward
             for (const [supply, qty] of Object.entries(required)) {
               supplyCosts[supply as SupplyType] += qty || 0;
             }
             totalMoney += customer.back.reward.money;
             totalPrestige += customer.back.reward.prestige;
-          } else {
-            // Apply failure penalty
-            switch (customer.back.failRule) {
-              case "lose_prestige":
-                totalPrestige -= 1;
-                break;
-              case "pay_penalty":
-                penalties += 2;
-                break;
-              // no_penalty: nothing happens
-            }
+            customersSuccessfullyServed++;
           }
+          // Else: Customer storms out - no reward, no supplies consumed
         }
 
         updatedPlayers[playerId] = {
           ...player,
-          money: Math.max(0, player.money + totalMoney - penalties),
-          prestige: Math.max(0, player.prestige + totalPrestige),
+          money: player.money + totalMoney,
+          prestige: player.prestige + totalPrestige,
           supplies: {
             coffeeBeans: player.supplies.coffeeBeans - supplyCosts.coffeeBeans,
             tea: player.supplies.tea - supplyCosts.tea,
             milk: player.supplies.milk - supplyCosts.milk,
             syrup: player.supplies.syrup - supplyCosts.syrup,
           },
-          customersServed: player.customersServed + player.customerLine.length,
-          customerLine: [],
+          customersServed: player.customersServed + customersSuccessfullyServed,
+          customerLine: [], // Clear line after resolution
         };
       }
 

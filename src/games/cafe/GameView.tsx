@@ -597,31 +597,52 @@ function CustomerResolutionView({
 }) {
   const player = gameState.players[playerId];
 
-  // Calculate what will happen
-  const results = player.customerLine.map(customer => {
+  // Calculate outcomes in order, tracking supply consumption
+  const suppliesRemaining: Record<SupplyType, number> = { ...player.supplies };
+  const results: Array<{
+    customer: CustomerCard;
+    canFulfill: boolean;
+    suppliesUsed: Partial<Record<SupplyType, number>>;
+  }> = [];
+
+  for (const customer of player.customerLine) {
     const required = customer.back.requiresSupplies;
     let canFulfill = true;
+
+    // Check if we can fulfill with remaining supplies
     for (const [supply, need] of Object.entries(required)) {
-      if (need && need > 0 && (player.supplies[supply as SupplyType] || 0) < need) {
+      if (need && need > 0 && suppliesRemaining[supply as SupplyType] < need) {
         canFulfill = false;
         break;
       }
     }
-    return { customer, canFulfill };
-  });
 
-  const totalMoney = results
-    .filter(r => r.canFulfill)
-    .reduce((sum, r) => sum + r.customer.back.reward.money, 0);
-  const totalPrestige = results
-    .filter(r => r.canFulfill)
-    .reduce((sum, r) => sum + r.customer.back.reward.prestige, 0);
+    if (canFulfill) {
+      // Deduct from remaining supplies
+      for (const [supply, need] of Object.entries(required)) {
+        if (need && need > 0) {
+          suppliesRemaining[supply as SupplyType] -= need;
+        }
+      }
+    }
+
+    results.push({
+      customer,
+      canFulfill,
+      suppliesUsed: canFulfill ? required : {},
+    });
+  }
+
+  const fulfilled = results.filter(r => r.canFulfill);
+  const stormedOut = results.filter(r => !r.canFulfill);
+  const totalMoney = fulfilled.reduce((sum, r) => sum + r.customer.back.reward.money, 0);
+  const totalPrestige = fulfilled.reduce((sum, r) => sum + r.customer.back.reward.prestige, 0);
 
   return (
     <section className="bg-gray-800 border border-gray-700 rounded-lg p-6">
       <h2 className="text-lg font-bold mb-4">Customer Resolution</h2>
       <p className="text-gray-400 mb-4">
-        Time to serve your customers and collect rewards!
+        Serving customers in order. Missing supplies? They storm out!
       </p>
 
       {player.customerLine.length === 0 ? (
@@ -630,52 +651,89 @@ function CustomerResolutionView({
         </div>
       ) : (
         <>
+          {/* Current Supplies */}
+          <div className="bg-gray-900 rounded-lg p-3 mb-4">
+            <p className="text-xs text-gray-400 mb-2">Your Supplies:</p>
+            <div className="flex flex-wrap gap-3 text-sm">
+              <span className="text-amber-400">Beans: {player.supplies.coffeeBeans}</span>
+              <span className="text-green-400">Tea: {player.supplies.tea}</span>
+              <span className="text-blue-200">Milk: {player.supplies.milk}</span>
+              <span className="text-pink-400">Syrup: {player.supplies.syrup}</span>
+            </div>
+          </div>
+
           {/* Summary */}
-          <div className="bg-gray-900 rounded-lg p-3 mb-4 flex justify-between items-center">
-            <span className="text-gray-400">
-              {player.customerLine.length} customer{player.customerLine.length > 1 ? "s" : ""} to serve
-            </span>
-            <div className="flex gap-4">
-              <span className="text-yellow-400">${totalMoney} potential</span>
-              <span className="text-purple-400">+{totalPrestige} prestige</span>
+          <div className="bg-gray-900 rounded-lg p-3 mb-4">
+            <div className="flex justify-between items-center">
+              <div className="text-sm">
+                <span className="text-green-400">{fulfilled.length} fulfilled</span>
+                {stormedOut.length > 0 && (
+                  <span className="text-red-400 ml-3">{stormedOut.length} stormed out</span>
+                )}
+              </div>
+              <div className="flex gap-3 text-sm">
+                <span className="text-yellow-400">+${totalMoney}</span>
+                {totalPrestige > 0 && (
+                  <span className="text-purple-400">+{totalPrestige} prestige</span>
+                )}
+              </div>
             </div>
           </div>
 
           {/* Customer results */}
           <div className="space-y-3">
-            {results.map(({ customer, canFulfill }, i) => (
-              <div
-                key={i}
-                className={`rounded-lg p-3 border ${
-                  canFulfill
-                    ? "bg-green-900/20 border-green-700"
-                    : "bg-red-900/20 border-red-700"
-                }`}
-              >
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="font-semibold">{customer.back.orderName}</p>
-                    <p className="text-xs text-gray-400">
-                      {getCardArchetype(customer).name}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    {canFulfill ? (
-                      <div className="flex gap-2">
-                        <span className="text-yellow-400">${customer.back.reward.money}</span>
-                        <span className="text-purple-400">+{customer.back.reward.prestige}</span>
+            {results.map(({ customer, canFulfill, suppliesUsed }, i) => {
+              const archetype = getCardArchetype(customer);
+              const requiredList = Object.entries(customer.back.requiresSupplies)
+                .filter(([_, qty]) => qty && qty > 0)
+                .map(([supply, qty]) => `${qty} ${SUPPLY_INFO[supply as SupplyType]?.label || supply}`);
+
+              return (
+                <div
+                  key={i}
+                  className={`rounded-lg p-4 border ${
+                    canFulfill
+                      ? "bg-green-900/20 border-green-700"
+                      : "bg-red-900/20 border-red-700"
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                          canFulfill
+                            ? "bg-green-600 text-white"
+                            : "bg-red-600 text-white"
+                        }`}>
+                          {canFulfill ? "FULFILLED" : "STORMED OUT"}
+                        </span>
+                        <span className="text-xs text-gray-400">#{i + 1}</span>
                       </div>
-                    ) : (
-                      <span className="text-red-400 text-sm">
-                        {customer.back.failRule === "lose_prestige" && "-1 prestige"}
-                        {customer.back.failRule === "pay_penalty" && "-$2"}
-                        {customer.back.failRule === "no_penalty" && "No penalty"}
-                      </span>
+                      <p className="font-semibold mt-1">{customer.back.orderName}</p>
+                      <p className="text-xs text-gray-400">{archetype.name}</p>
+                    </div>
+                    <div className="text-right">
+                      {canFulfill ? (
+                        <div>
+                          <span className="text-yellow-400 font-bold">${customer.back.reward.money}</span>
+                          {customer.back.reward.prestige > 0 && (
+                            <span className="text-purple-400 ml-2">+{customer.back.reward.prestige}</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-red-400 text-sm">No reward</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    Requires: {requiredList.join(", ") || "Nothing"}
+                    {!canFulfill && (
+                      <span className="text-red-400 ml-2">(insufficient supplies)</span>
                     )}
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}
