@@ -53,7 +53,10 @@ export function CafeGameView({
           </div>
           {player && (
             <div className="text-right">
-              <p className="text-yellow-400 font-bold">${player.money}</p>
+              <p className={`font-bold ${player.money < 0 ? "text-red-400" : "text-yellow-400"}`}>
+                ${player.money}
+                {player.money < 0 && <span className="text-xs ml-1">(IN DEBT)</span>}
+              </p>
               <p className="text-purple-400 text-sm">
                 {player.prestige} prestige
               </p>
@@ -89,8 +92,17 @@ export function CafeGameView({
       {phase === "customerResolution" && (
         <CustomerResolutionView gameState={gameState} playerId={playerId!} />
       )}
+      {phase === "shopClosed" && (
+        <ShopClosedView gameState={gameState} />
+      )}
       {phase === "cleanup" && player && (
-        <CleanupView player={player} round={gameState.round} />
+        <CleanupView
+          gameState={gameState}
+          player={player}
+          playerId={playerId!}
+          dispatch={dispatch}
+          isLoading={isLoading}
+        />
       )}
       {phase === "gameOver" && (
         <GameOverView gameState={gameState} playerId={playerId!} room={room} />
@@ -167,13 +179,23 @@ function HostControls({
           </button>
         )}
 
+        {phase === "shopClosed" && (
+          <button
+            onClick={() => dispatch("CLOSE_SHOP")}
+            disabled={isLoading}
+            className="bg-amber-600 hover:bg-amber-700 disabled:bg-gray-700 px-4 py-2 rounded-lg font-semibold transition-colors"
+          >
+            Pay Rent & End Day
+          </button>
+        )}
+
         {phase === "cleanup" && (
           <button
             onClick={() => dispatch("END_ROUND")}
             disabled={isLoading}
             className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 px-4 py-2 rounded-lg font-semibold transition-colors"
           >
-            End Round
+            {gameState.round >= 5 ? "End Game" : "Start Next Round"}
           </button>
         )}
 
@@ -741,14 +763,168 @@ function CustomerResolutionView({
   );
 }
 
-function CleanupView({ player, round }: { player: CafePlayerState; round: number }) {
+function ShopClosedView({ gameState }: { gameState: CafeState }) {
+  // Calculate summary for each player
+  const summaries = gameState.playerOrder.map(id => {
+    const player = gameState.players[id];
+    return {
+      id,
+      name: player.name,
+      money: player.money,
+      prestige: player.prestige,
+      customersServed: player.customersServed,
+    };
+  });
+
   return (
     <section className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-      <h2 className="text-lg font-bold mb-4">End of Round {round}</h2>
-      <div className="space-y-2 text-gray-300">
-        <p>Paying rent: $2</p>
-        <p>Remaining money: ${Math.max(0, player.money - 2)}</p>
-        <p>Customers served this round: {player.customerLine.length}</p>
+      <div className="text-center mb-6">
+        <h2 className="text-2xl font-bold text-amber-400">Shop Closed</h2>
+        <p className="text-gray-400 mt-2">End of Round {gameState.round}</p>
+      </div>
+
+      <div className="bg-gray-900 rounded-lg p-4 mb-4">
+        <h3 className="font-semibold mb-3">Round Summary</h3>
+        <div className="space-y-2">
+          {summaries.map(p => (
+            <div key={p.id} className="flex justify-between items-center text-sm">
+              <span>{p.name}</span>
+              <div className="flex gap-4">
+                <span className={p.money < 0 ? "text-red-400" : "text-yellow-400"}>
+                  ${p.money}
+                </span>
+                <span className="text-purple-400">{p.prestige} prestige</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-amber-900/30 border border-amber-700 rounded-lg p-4 text-center">
+        <p className="text-amber-400">
+          Time to pay rent: $2 per player
+        </p>
+        <p className="text-gray-400 text-sm mt-2">
+          Waiting for host to proceed...
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function CleanupView({
+  gameState,
+  player,
+  playerId,
+  dispatch,
+  isLoading,
+}: {
+  gameState: CafeState;
+  player: CafePlayerState;
+  playerId: string;
+  dispatch: (action: string, payload?: Record<string, unknown>) => Promise<void>;
+  isLoading: boolean;
+}) {
+  const rent = 2; // GAME_CONFIG.RENT_PER_ROUND
+  const canAffordRent = player.money >= rent;
+  const myRentPaidBy = gameState.rentPaidBy[playerId];
+  const amBailedOut = myRentPaidBy !== null;
+
+  // Find players who need bailout (can't afford rent and not yet bailed out)
+  const playersNeedingBailout = gameState.playerOrder
+    .filter(id => id !== playerId)
+    .map(id => ({
+      id,
+      player: gameState.players[id],
+      needsBailout: gameState.players[id].money < rent && gameState.rentPaidBy[id] === null,
+      wasBailedOut: gameState.rentPaidBy[id] !== null,
+      bailedOutBy: gameState.rentPaidBy[id],
+    }))
+    .filter(p => p.needsBailout || p.wasBailedOut);
+
+  const canBailoutOthers = player.money >= rent;
+
+  return (
+    <section className="bg-gray-800 border border-gray-700 rounded-lg p-6">
+      <h2 className="text-lg font-bold mb-4">Rent Payment - Round {gameState.round}</h2>
+
+      {/* Your rent status */}
+      <div className={`rounded-lg p-4 mb-4 border ${
+        amBailedOut
+          ? "bg-green-900/20 border-green-700"
+          : canAffordRent
+          ? "bg-gray-900 border-gray-700"
+          : "bg-red-900/20 border-red-700"
+      }`}>
+        <h3 className="font-semibold mb-2">Your Rent Status</h3>
+        <div className="flex justify-between items-center">
+          <div>
+            <p className="text-sm text-gray-400">Rent due: ${rent}</p>
+            <p className="text-sm text-gray-400">
+              Your money: <span className={player.money < 0 ? "text-red-400" : "text-yellow-400"}>${player.money}</span>
+            </p>
+          </div>
+          <div className="text-right">
+            {amBailedOut ? (
+              <span className="text-green-400 font-semibold">
+                Bailed out by {gameState.players[myRentPaidBy]?.name}!
+              </span>
+            ) : canAffordRent ? (
+              <span className="text-green-400">Can pay</span>
+            ) : (
+              <div>
+                <span className="text-red-400 font-semibold">Will go into debt</span>
+                <p className="text-xs text-gray-500">After rent: ${player.money - rent}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Bailout options */}
+      {playersNeedingBailout.length > 0 && (
+        <div className="bg-gray-900 rounded-lg p-4">
+          <h3 className="font-semibold mb-3">Bailout Options</h3>
+          <p className="text-xs text-gray-500 mb-3">
+            Other players struggling with rent. You can pay their rent for them.
+          </p>
+          <div className="space-y-2">
+            {playersNeedingBailout.map(({ id, player: targetPlayer, needsBailout, wasBailedOut, bailedOutBy }) => (
+              <div key={id} className="flex justify-between items-center p-2 bg-gray-800 rounded">
+                <div>
+                  <span className="font-medium">{targetPlayer.name}</span>
+                  <span className={`text-sm ml-2 ${targetPlayer.money < 0 ? "text-red-400" : "text-yellow-400"}`}>
+                    (${targetPlayer.money})
+                  </span>
+                </div>
+                {wasBailedOut ? (
+                  <span className="text-green-400 text-sm">
+                    Bailed out by {gameState.players[bailedOutBy!]?.name}
+                  </span>
+                ) : needsBailout && canBailoutOthers ? (
+                  <button
+                    onClick={() => dispatch("PAY_RENT_FOR", { targetPlayerId: id })}
+                    disabled={isLoading}
+                    className="text-sm bg-green-600 hover:bg-green-700 disabled:bg-gray-700 px-3 py-1 rounded transition-colors"
+                  >
+                    Pay ${rent} for them
+                  </button>
+                ) : needsBailout ? (
+                  <span className="text-red-400 text-sm">Needs bailout</span>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Summary */}
+      <div className="mt-4 p-3 bg-blue-900/30 border border-blue-700 rounded-lg">
+        <p className="text-blue-300 text-sm">
+          {gameState.round >= 5
+            ? "This is the final round! After rent, the game will end."
+            : "After rent is paid, the next round will begin."}
+        </p>
       </div>
     </section>
   );
@@ -816,7 +992,7 @@ function GameOverView({
                 #{i + 1} {p.name}
               </span>
               <div className="text-right text-sm">
-                <span className="text-yellow-400">${p.money}</span>
+                <span className={p.money < 0 ? "text-red-400" : "text-yellow-400"}>${p.money}</span>
                 <span className="mx-2 text-gray-500">+</span>
                 <span className="text-purple-400">{p.prestige} prestige</span>
                 <span className="mx-2 text-gray-500">=</span>
@@ -862,10 +1038,13 @@ function PlayerStatusGrid({
                 {p.name}
                 {isMe && " (You)"}
               </p>
+              {p.money < 0 && (
+                <span className="text-xs bg-red-600 text-white px-1 rounded">IN DEBT</span>
+              )}
               <div className="text-xs text-gray-400 mt-1 space-y-0.5">
                 <div className="flex justify-between">
                   <span>Money:</span>
-                  <span className="text-yellow-400">${p.money}</span>
+                  <span className={p.money < 0 ? "text-red-400" : "text-yellow-400"}>${p.money}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Prestige:</span>

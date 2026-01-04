@@ -11,6 +11,7 @@ export type CafePhase =
   | "investment" // Spend money on supplies/upgrades
   | "customerDraft" // Pass-or-take customer draft
   | "customerResolution" // Fulfill orders, pay supplies, get rewards
+  | "shopClosed" // End of day - review before rent
   | "cleanup" // Pay rent, prepare next round
   | "gameOver";
 
@@ -181,6 +182,10 @@ export interface CafeState {
   // Round rotation
   firstDrawerIndex: number; // Who draws first this round (rotates each round)
 
+  // Cleanup phase - rent tracking
+  rentOwed: Record<string, number>; // How much each player owes in rent
+  rentPaidBy: Record<string, string | null>; // Who paid each player's rent (null = self, oderId = bailed out)
+
   // End game
   winnerId: string | null;
 }
@@ -204,7 +209,10 @@ export type CafeActionType =
   | "PASS_CUSTOMER"
   // Customer resolution phase
   | "RESOLVE_CUSTOMERS"
+  // Shop closed phase
+  | "CLOSE_SHOP"
   // Cleanup phase
+  | "PAY_RENT_FOR" // Bailout - pay another player's rent
   | "END_ROUND"
   // Game over
   | "PLAY_AGAIN";
@@ -215,6 +223,7 @@ export interface CafeAction {
   payload?: {
     supplyType?: SupplyType;
     upgradeType?: CafeUpgradeType;
+    targetPlayerId?: string; // For bailout - who to pay rent for
   };
 }
 
@@ -420,6 +429,8 @@ function initialState(players: Player[]): CafeState {
     currentDeciderIndex: 0,
     passCount: 0,
     firstDrawerIndex: 0,
+    rentOwed: {},
+    rentPaidBy: {},
     winnerId: null,
   };
 }
@@ -740,32 +751,103 @@ function reducer(
       return {
         ...state,
         players: updatedPlayers,
+        phase: "shopClosed",
+      };
+    }
+
+    // =========================================================================
+    // SHOP CLOSED PHASE
+    // =========================================================================
+    case "CLOSE_SHOP": {
+      // Calculate rent owed for each player
+      const rentOwed: Record<string, number> = {};
+      const rentPaidBy: Record<string, string | null> = {};
+
+      for (const playerId of state.playerOrder) {
+        rentOwed[playerId] = GAME_CONFIG.RENT_PER_ROUND;
+        rentPaidBy[playerId] = null; // Not paid yet
+      }
+
+      return {
+        ...state,
         phase: "cleanup",
+        rentOwed,
+        rentPaidBy,
       };
     }
 
     // =========================================================================
     // CLEANUP PHASE
     // =========================================================================
+    case "PAY_RENT_FOR": {
+      // Bailout - one player pays another player's rent
+      const { targetPlayerId } = action.payload || {};
+      if (!targetPlayerId) return state;
+
+      const payer = state.players[action.playerId];
+      const target = state.players[targetPlayerId];
+      if (!payer || !target) return state;
+
+      // Can't bailout yourself
+      if (action.playerId === targetPlayerId) return state;
+
+      // Check if target still owes rent
+      const rentAmount = state.rentOwed[targetPlayerId] || 0;
+      if (rentAmount <= 0) return state;
+
+      // Check if already paid by someone
+      if (state.rentPaidBy[targetPlayerId] !== null) return state;
+
+      // Payer must have enough money
+      if (payer.money < rentAmount) return state;
+
+      return {
+        ...state,
+        players: {
+          ...state.players,
+          [action.playerId]: {
+            ...payer,
+            money: payer.money - rentAmount,
+          },
+        },
+        rentOwed: {
+          ...state.rentOwed,
+          [targetPlayerId]: 0,
+        },
+        rentPaidBy: {
+          ...state.rentPaidBy,
+          [targetPlayerId]: action.playerId, // Bailed out by this player
+        },
+      };
+    }
+
     case "END_ROUND": {
       const updatedPlayers = { ...state.players };
 
-      // Pay rent
+      // Pay rent - only for players who weren't bailed out
+      // Allow negative money (debt)
       for (const playerId of state.playerOrder) {
         const player = updatedPlayers[playerId];
-        updatedPlayers[playerId] = {
-          ...player,
-          money: Math.max(0, player.money - GAME_CONFIG.RENT_PER_ROUND),
-        };
+        const wasBailedOut = state.rentPaidBy[playerId] !== null;
+
+        if (!wasBailedOut) {
+          // Player pays their own rent - can go into debt
+          updatedPlayers[playerId] = {
+            ...player,
+            money: player.money - GAME_CONFIG.RENT_PER_ROUND,
+          };
+        }
+        // If bailed out, rent was already paid by someone else
       }
 
       // Check if game is over
       if (state.round >= GAME_CONFIG.TOTAL_ROUNDS) {
         let winnerId: string | null = null;
-        let highestScore = -1;
+        let highestScore = -Infinity;
 
         for (const playerId of state.playerOrder) {
           const player = updatedPlayers[playerId];
+          // Score = money + prestige * 2 (negative money hurts!)
           const score = player.money + player.prestige * 2;
           if (score > highestScore) {
             highestScore = score;
@@ -778,6 +860,8 @@ function reducer(
           players: updatedPlayers,
           phase: "gameOver",
           winnerId,
+          rentOwed: {},
+          rentPaidBy: {},
         };
       }
 
@@ -813,6 +897,8 @@ function reducer(
         currentDrawerIndex: nextFirstDrawer,
         currentDeciderIndex: nextFirstDrawer,
         passCount: 0,
+        rentOwed: {},
+        rentPaidBy: {},
       };
     }
 
@@ -897,6 +983,23 @@ function isActionAllowed(
 
     case "RESOLVE_CUSTOMERS":
       return isHost && state.phase === "customerResolution";
+
+    case "CLOSE_SHOP":
+      return isHost && state.phase === "shopClosed";
+
+    case "PAY_RENT_FOR": {
+      if (state.phase !== "cleanup") return false;
+      const { targetPlayerId } = action.payload || {};
+      if (!targetPlayerId) return false;
+      // Can't bailout yourself
+      if (action.playerId === targetPlayerId) return false;
+      // Target must still owe rent and not be bailed out yet
+      if ((state.rentOwed[targetPlayerId] || 0) <= 0) return false;
+      if (state.rentPaidBy[targetPlayerId] !== null) return false;
+      // Payer must have enough money
+      const payer = state.players[action.playerId];
+      return payer && payer.money >= GAME_CONFIG.RENT_PER_ROUND;
+    }
 
     case "END_ROUND":
       return isHost && state.phase === "cleanup";
