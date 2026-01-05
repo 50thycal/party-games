@@ -89,8 +89,14 @@ export function CafeGameView({
           isLoading={isLoading}
         />
       )}
-      {phase === "customerResolution" && (
-        <CustomerResolutionView gameState={gameState} playerId={playerId!} />
+      {phase === "customerResolution" && player && (
+        <CustomerResolutionView
+          gameState={gameState}
+          player={player}
+          playerId={playerId!}
+          dispatch={dispatch}
+          isLoading={isLoading}
+        />
       )}
       {phase === "shopClosed" && (
         <ShopClosedView gameState={gameState} />
@@ -436,8 +442,8 @@ function CustomerDraftView({
 
       {currentCustomer && (
         <div className="space-y-4">
-          {/* Customer Card - Full Display */}
-          <CustomerCardFullDisplay customer={currentCustomer} />
+          {/* Customer Card - Hidden (only show archetype) */}
+          <CustomerCardHidden customer={currentCustomer} />
 
           {/* Pass Counter */}
           <div className="bg-gray-900 rounded-lg p-3">
@@ -466,9 +472,9 @@ function CustomerDraftView({
                     ? "Customer returned to you - you must take them!"
                     : "It's your decision!"}
                 </p>
-
-                {/* Supply Check */}
-                <SupplyCheckDisplay player={player} customer={currentCustomer} />
+                <p className="text-gray-400 text-sm">
+                  The order is hidden until resolution. Do you want to risk it?
+                </p>
 
                 <div className="flex gap-3">
                   <button
@@ -496,16 +502,17 @@ function CustomerDraftView({
             )}
           </div>
 
-          {/* Your current customers this round */}
+          {/* Your current customers this round (order hidden) */}
           {player.customerLine.length > 0 && (
             <div className="bg-gray-900 rounded-lg p-4">
               <h3 className="font-semibold mb-2">Your Customers ({player.customerLine.length})</h3>
+              <p className="text-xs text-gray-500 mb-2">Orders revealed at resolution</p>
               <div className="flex flex-wrap gap-2">
                 {player.customerLine.map((c, i) => {
                   const arch = getCardArchetype(c);
                   return (
-                    <span key={i} className="text-xs bg-gray-700 px-2 py-1 rounded">
-                      {arch.name}: {c.back.orderName}
+                    <span key={i} className="text-sm bg-gray-700 px-3 py-1.5 rounded">
+                      {arch.emoji} {arch.name}
                     </span>
                   );
                 })}
@@ -518,7 +525,24 @@ function CustomerDraftView({
   );
 }
 
-// Full customer card display (both sides visible in draft)
+// Hidden customer card display (only archetype visible during draft)
+function CustomerCardHidden({ customer }: { customer: CustomerCard }) {
+  const archetype = getCardArchetype(customer);
+
+  return (
+    <div className="bg-gradient-to-br from-gray-800 to-gray-900 border-2 border-gray-600 rounded-lg p-6 text-center">
+      <div className="text-6xl mb-3">{archetype.emoji}</div>
+      <h3 className="text-xl font-bold text-white mb-2">{archetype.name}</h3>
+      <p className="text-gray-400 text-sm mb-4">{archetype.description}</p>
+      <div className="bg-gray-700/50 rounded-lg p-3">
+        <p className="text-gray-500 text-xs uppercase tracking-wide">Order Hidden</p>
+        <p className="text-gray-400 text-sm mt-1">Will be revealed at resolution</p>
+      </div>
+    </div>
+  );
+}
+
+// Full customer card display (used in resolution phase)
 function CustomerCardFullDisplay({ customer }: { customer: CustomerCard }) {
   const archetype = getCardArchetype(customer);
   const { back } = customer;
@@ -612,100 +636,121 @@ function SupplyCheckDisplay({ player, customer }: { player: CafePlayerState; cus
 
 function CustomerResolutionView({
   gameState,
+  player,
   playerId,
+  dispatch,
+  isLoading,
 }: {
   gameState: CafeState;
+  player: CafePlayerState;
   playerId: string;
+  dispatch: (action: string, payload?: Record<string, unknown>) => Promise<void>;
+  isLoading: boolean;
 }) {
-  const player = gameState.players[playerId];
+  const selectedIndices = gameState.selectedForFulfillment[playerId] || [];
+  const hasConfirmed = gameState.playersConfirmedResolution.includes(playerId);
+  const allConfirmed = gameState.playersConfirmedResolution.length === gameState.playerOrder.length;
 
-  // Calculate outcomes in order, tracking supply consumption
-  const suppliesRemaining: Record<SupplyType, number> = { ...player.supplies };
-  const results: Array<{
-    customer: CustomerCard;
-    canFulfill: boolean;
-    suppliesUsed: Partial<Record<SupplyType, number>>;
-  }> = [];
+  // Calculate supply usage for selected customers only
+  const supplyCosts: Record<SupplyType, number> = {
+    coffeeBeans: 0,
+    tea: 0,
+    milk: 0,
+    syrup: 0,
+  };
 
-  for (const customer of player.customerLine) {
-    const required = customer.back.requiresSupplies;
-    let canFulfill = true;
-
-    // Check if we can fulfill with remaining supplies
-    for (const [supply, need] of Object.entries(required)) {
-      if (need && need > 0 && suppliesRemaining[supply as SupplyType] < need) {
-        canFulfill = false;
-        break;
+  for (let i = 0; i < player.customerLine.length; i++) {
+    if (selectedIndices.includes(i)) {
+      const required = player.customerLine[i].back.requiresSupplies;
+      for (const [supply, qty] of Object.entries(required)) {
+        if (qty && qty > 0) {
+          supplyCosts[supply as SupplyType] += qty;
+        }
       }
     }
+  }
 
-    if (canFulfill) {
-      // Deduct from remaining supplies
-      for (const [supply, need] of Object.entries(required)) {
-        if (need && need > 0) {
-          suppliesRemaining[supply as SupplyType] -= need;
+  // Check which selected customers can be fulfilled
+  const canFulfillSelected = (index: number): boolean => {
+    if (!selectedIndices.includes(index)) return false;
+    const remaining: Record<SupplyType, number> = { ...player.supplies };
+
+    // Deduct earlier selected customers first
+    for (let i = 0; i < index; i++) {
+      if (selectedIndices.includes(i)) {
+        const req = player.customerLine[i].back.requiresSupplies;
+        for (const [s, q] of Object.entries(req)) {
+          if (q && q > 0) remaining[s as SupplyType] -= q;
         }
       }
     }
 
-    results.push({
-      customer,
-      canFulfill,
-      suppliesUsed: canFulfill ? required : {},
-    });
-  }
+    // Check this customer
+    const required = player.customerLine[index].back.requiresSupplies;
+    for (const [supply, qty] of Object.entries(required)) {
+      if (qty && qty > 0 && remaining[supply as SupplyType] < qty) {
+        return false;
+      }
+    }
+    return true;
+  };
 
-  const fulfilled = results.filter(r => r.canFulfill);
-  const stormedOut = results.filter(r => !r.canFulfill);
-  const totalMoney = fulfilled.reduce((sum, r) => sum + r.customer.back.reward.money, 0);
-  const totalPrestige = fulfilled.reduce((sum, r) => sum + r.customer.back.reward.prestige, 0);
+  const totalMoney = selectedIndices
+    .filter(i => canFulfillSelected(i))
+    .reduce((sum, i) => sum + player.customerLine[i].back.reward.money, 0);
 
   return (
     <section className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-      <h2 className="text-lg font-bold mb-4">Customer Resolution</h2>
+      <h2 className="text-lg font-bold mb-2">Customer Resolution</h2>
       <p className="text-gray-400 mb-4">
-        Serving customers in order. Missing supplies? They storm out!
+        Orders revealed! Select which customers to serve.
       </p>
 
+      {/* Confirmation Status */}
+      <div className="bg-gray-900 rounded-lg p-3 mb-4">
+        <div className="flex justify-between items-center text-sm">
+          <span className="text-gray-400">
+            Confirmed: {gameState.playersConfirmedResolution.length} / {gameState.playerOrder.length}
+          </span>
+          {hasConfirmed ? (
+            <span className="text-green-400">You are ready</span>
+          ) : (
+            <span className="text-yellow-400">Select customers to serve</span>
+          )}
+        </div>
+      </div>
+
       {player.customerLine.length === 0 ? (
-        <div className="bg-gray-900 rounded-lg p-4">
+        <div className="bg-gray-900 rounded-lg p-4 mb-4">
           <p className="text-gray-500">No customers to serve this round</p>
         </div>
       ) : (
         <>
           {/* Current Supplies */}
           <div className="bg-gray-900 rounded-lg p-3 mb-4">
-            <p className="text-xs text-gray-400 mb-2">Your Supplies:</p>
+            <p className="text-xs text-gray-400 mb-2">Your Supplies (cost shown for selected):</p>
             <div className="flex flex-wrap gap-3 text-sm">
-              <span className="text-amber-400">Beans: {player.supplies.coffeeBeans}</span>
-              <span className="text-green-400">Tea: {player.supplies.tea}</span>
-              <span className="text-blue-200">Milk: {player.supplies.milk}</span>
-              <span className="text-pink-400">Syrup: {player.supplies.syrup}</span>
+              <span className={supplyCosts.coffeeBeans > player.supplies.coffeeBeans ? "text-red-400" : "text-amber-400"}>
+                Beans: {player.supplies.coffeeBeans - supplyCosts.coffeeBeans}/{player.supplies.coffeeBeans}
+              </span>
+              <span className={supplyCosts.tea > player.supplies.tea ? "text-red-400" : "text-green-400"}>
+                Tea: {player.supplies.tea - supplyCosts.tea}/{player.supplies.tea}
+              </span>
+              <span className={supplyCosts.milk > player.supplies.milk ? "text-red-400" : "text-blue-200"}>
+                Milk: {player.supplies.milk - supplyCosts.milk}/{player.supplies.milk}
+              </span>
+              <span className={supplyCosts.syrup > player.supplies.syrup ? "text-red-400" : "text-pink-400"}>
+                Syrup: {player.supplies.syrup - supplyCosts.syrup}/{player.supplies.syrup}
+              </span>
             </div>
           </div>
 
-          {/* Summary */}
-          <div className="bg-gray-900 rounded-lg p-3 mb-4">
-            <div className="flex justify-between items-center">
-              <div className="text-sm">
-                <span className="text-green-400">{fulfilled.length} fulfilled</span>
-                {stormedOut.length > 0 && (
-                  <span className="text-red-400 ml-3">{stormedOut.length} stormed out</span>
-                )}
-              </div>
-              <div className="flex gap-3 text-sm">
-                <span className="text-yellow-400">+${totalMoney}</span>
-                {totalPrestige > 0 && (
-                  <span className="text-purple-400">+{totalPrestige} prestige</span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Customer results */}
-          <div className="space-y-3">
-            {results.map(({ customer, canFulfill, suppliesUsed }, i) => {
+          {/* Customer selection */}
+          <div className="space-y-3 mb-4">
+            {player.customerLine.map((customer, i) => {
               const archetype = getCardArchetype(customer);
+              const isSelected = selectedIndices.includes(i);
+              const willFulfill = canFulfillSelected(i);
               const requiredList = Object.entries(customer.back.requiresSupplies)
                 .filter(([_, qty]) => qty && qty > 0)
                 .map(([supply, qty]) => `${qty} ${SUPPLY_INFO[supply as SupplyType]?.label || supply}`);
@@ -713,51 +758,73 @@ function CustomerResolutionView({
               return (
                 <div
                   key={i}
-                  className={`rounded-lg p-4 border ${
-                    canFulfill
-                      ? "bg-green-900/20 border-green-700"
-                      : "bg-red-900/20 border-red-700"
+                  className={`rounded-lg p-4 border cursor-pointer transition-colors ${
+                    isSelected
+                      ? willFulfill
+                        ? "bg-green-900/30 border-green-600"
+                        : "bg-red-900/30 border-red-600"
+                      : "bg-gray-900 border-gray-700 hover:border-gray-500"
                   }`}
+                  onClick={() => !hasConfirmed && dispatch("TOGGLE_CUSTOMER_FULFILL", { customerIndex: i })}
                 >
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded ${
-                          canFulfill
-                            ? "bg-green-600 text-white"
-                            : "bg-red-600 text-white"
-                        }`}>
-                          {canFulfill ? "FULFILLED" : "STORMED OUT"}
-                        </span>
-                        <span className="text-xs text-gray-400">#{i + 1}</span>
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-start gap-3">
+                      {/* Checkbox */}
+                      <div className={`w-6 h-6 rounded border-2 flex items-center justify-center mt-0.5 ${
+                        isSelected
+                          ? willFulfill ? "bg-green-600 border-green-600" : "bg-red-600 border-red-600"
+                          : "border-gray-500"
+                      }`}>
+                        {isSelected && <span className="text-white text-sm">✓</span>}
                       </div>
-                      <p className="font-semibold mt-1">{customer.back.orderName}</p>
-                      <p className="text-xs text-gray-400">{archetype.name}</p>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">{archetype.emoji}</span>
+                          <span className="font-semibold">{customer.back.orderName}</span>
+                        </div>
+                        <p className="text-xs text-gray-400">{archetype.name}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Requires: {requiredList.join(", ") || "Nothing"}
+                        </p>
+                      </div>
                     </div>
                     <div className="text-right">
-                      {canFulfill ? (
-                        <div>
-                          <span className="text-yellow-400 font-bold">${customer.back.reward.money}</span>
-                          {customer.back.reward.prestige > 0 && (
-                            <span className="text-purple-400 ml-2">+{customer.back.reward.prestige}</span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-red-400 text-sm">No reward</span>
+                      <span className="text-yellow-400 font-bold">${customer.back.reward.money}</span>
+                      {isSelected && !willFulfill && (
+                        <p className="text-xs text-red-400 mt-1">Not enough supplies</p>
                       )}
                     </div>
-                  </div>
-                  <div className="text-xs text-gray-400">
-                    Requires: {requiredList.join(", ") || "Nothing"}
-                    {!canFulfill && (
-                      <span className="text-red-400 ml-2">(insufficient supplies)</span>
-                    )}
                   </div>
                 </div>
               );
             })}
           </div>
+
+          {/* Summary */}
+          <div className="bg-gray-900 rounded-lg p-3 mb-4">
+            <div className="flex justify-between items-center">
+              <span className="text-gray-400">
+                {selectedIndices.filter(i => canFulfillSelected(i)).length} will be fulfilled
+              </span>
+              <span className="text-yellow-400 font-bold">+${totalMoney}</span>
+            </div>
+          </div>
         </>
+      )}
+
+      {/* Confirm Button */}
+      {!hasConfirmed ? (
+        <button
+          onClick={() => dispatch("CONFIRM_RESOLUTION")}
+          disabled={isLoading}
+          className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-700 px-4 py-3 rounded-lg font-semibold transition-colors"
+        >
+          Confirm Selection
+        </button>
+      ) : (
+        <div className="text-center text-green-400 py-3">
+          Waiting for other players...
+        </div>
       )}
     </section>
   );
