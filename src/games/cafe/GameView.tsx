@@ -349,7 +349,8 @@ function CustomerDraftView({
   const isDecider = playerId === deciderId;
 
   // Calculate if this is a forced take situation
-  const isForcedTake = gameState.passCount >= playerCount - 1;
+  // Only the drawer can be forced to take (when card returns after everyone else passed)
+  const isForcedTake = isDrawer && isDecider && gameState.passCount >= playerCount - 1;
 
   // Progress indicator
   const customersRemaining = gameState.currentRoundCustomers.length - gameState.customersDealtThisRound;
@@ -399,9 +400,12 @@ function CustomerDraftView({
                 Drawn by: <span className="text-white">{drawerName}</span>
               </span>
               <span className="text-gray-400">
-                Passed: <span className={isForcedTake ? "text-red-400 font-bold" : "text-white"}>
+                Passed: <span className={gameState.passCount >= playerCount - 1 ? "text-red-400 font-bold" : "text-white"}>
                   {gameState.passCount} / {playerCount - 1}
                 </span>
+                {gameState.passCount >= playerCount - 1 && (
+                  <span className="ml-2 text-red-400">(returns to drawer)</span>
+                )}
               </span>
             </div>
           </div>
