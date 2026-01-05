@@ -56,9 +56,11 @@ export function CafeGameView({
                 ${player.money}
                 {player.money < 0 && <span className="text-xs ml-1">(IN DEBT)</span>}
               </p>
+              {/* Prestige hidden for now
               <p className="text-purple-400 text-sm">
                 {player.prestige} prestige
               </p>
+              */}
             </div>
           )}
         </div>
@@ -521,7 +523,9 @@ function CustomerCardFullDisplay({ customer }: { customer: CustomerCard }) {
         </div>
         <div className="flex gap-2">
           <span className="text-yellow-400 font-bold">${back.reward.money}</span>
+          {/* Prestige hidden for now
           <span className="text-purple-400 font-bold">+{back.reward.prestige} prestige</span>
+          */}
         </div>
       </div>
 
@@ -811,7 +815,9 @@ function ShopClosedView({ gameState }: { gameState: CafeState }) {
                 <span className={p.money < 0 ? "text-red-400" : "text-yellow-400"}>
                   ${p.money}
                 </span>
+                {/* Prestige hidden for now
                 <span className="text-purple-400">{p.prestige} prestige</span>
+                */}
               </div>
             </div>
           ))}
@@ -962,13 +968,14 @@ function GameOverView({
     : null;
   const isWinner = gameState.winnerId === playerId;
 
-  // Sort players by score
+  // Sort players by score (prestige disabled for now, just use money)
   const sortedPlayers = gameState.playerOrder
     .map((id) => {
       const p = gameState.players[id];
       return {
         ...p,
-        score: p.money + p.prestige * 2,
+        // score: p.money + p.prestige * 2, // Prestige disabled
+        score: p.money,
       };
     })
     .sort((a, b) => b.score - a.score);
@@ -991,7 +998,8 @@ function GameOverView({
             {isWinner && " (You!)"}
           </p>
           <p className="text-gray-400 mt-2">
-            Score: {winner.money + winner.prestige * 2}
+            {/* Score: {winner.money + winner.prestige * 2} // Prestige disabled */}
+            Final Money: ${winner.money}
           </p>
         </div>
       )}
@@ -1010,11 +1018,15 @@ function GameOverView({
                 #{i + 1} {p.name}
               </span>
               <div className="text-right text-sm">
-                <span className={p.money < 0 ? "text-red-400" : "text-yellow-400"}>${p.money}</span>
+                <span className={p.money < 0 ? "text-red-400" : "text-yellow-400"} title="Final Money">
+                  ${p.money}
+                </span>
+                {/* Prestige hidden for now
                 <span className="mx-2 text-gray-500">+</span>
                 <span className="text-purple-400">{p.prestige} prestige</span>
                 <span className="mx-2 text-gray-500">=</span>
                 <span className="font-bold">{p.score}</span>
+                */}
               </div>
             </div>
           ))}
@@ -1064,10 +1076,12 @@ function PlayerStatusGrid({
                   <span>Money:</span>
                   <span className={p.money < 0 ? "text-red-400" : "text-yellow-400"}>${p.money}</span>
                 </div>
+                {/* Prestige hidden for now
                 <div className="flex justify-between">
                   <span>Prestige:</span>
                   <span className="text-purple-400">{p.prestige}</span>
                 </div>
+                */}
                 <div className="flex justify-between">
                   <span>Supplies:</span>
                   <span title={`Beans: ${p.supplies.coffeeBeans}, Tea: ${p.supplies.tea}, Milk: ${p.supplies.milk}, Syrup: ${p.supplies.syrup}`}>
