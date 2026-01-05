@@ -126,7 +126,7 @@ export type SupplyType =
   | "milk"
   | "syrup";
 
-export const SUPPLY_COST = 2;
+export const SUPPLY_COST = 1;
 
 // =============================================================================
 // PLAYER STATE
@@ -255,97 +255,97 @@ function createInitialPlayerState(player: Player): CafePlayerState {
 }
 
 // Customer card templates - 52 total cards across 5 archetypes
-// Reward = supply cost ($2 per supply)
+// Reward = supply cost ($1 per supply)
 const CUSTOMER_CARD_TEMPLATES: CustomerCard[] = [
   // ==========================================================================
   // AVERAGE JOE (12 cards)
   // ==========================================================================
-  // Black Coffee ×4 (1 supply = $2)
-  { id: "aj-bc-1", front: { archetypeId: "average_joe" }, back: { orderName: "Black Coffee", requiresSupplies: { coffeeBeans: 1 }, reward: { money: 2, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "aj-bc-2", front: { archetypeId: "average_joe" }, back: { orderName: "Black Coffee", requiresSupplies: { coffeeBeans: 1 }, reward: { money: 2, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "aj-bc-3", front: { archetypeId: "average_joe" }, back: { orderName: "Black Coffee", requiresSupplies: { coffeeBeans: 1 }, reward: { money: 2, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "aj-bc-4", front: { archetypeId: "average_joe" }, back: { orderName: "Black Coffee", requiresSupplies: { coffeeBeans: 1 }, reward: { money: 2, prestige: 0 }, failRule: "no_penalty" } },
-  // Coffee + Cream ×4 (2 supplies = $4)
-  { id: "aj-cc-1", front: { archetypeId: "average_joe" }, back: { orderName: "Coffee + Cream", requiresSupplies: { coffeeBeans: 1, milk: 1 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "aj-cc-2", front: { archetypeId: "average_joe" }, back: { orderName: "Coffee + Cream", requiresSupplies: { coffeeBeans: 1, milk: 1 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "aj-cc-3", front: { archetypeId: "average_joe" }, back: { orderName: "Coffee + Cream", requiresSupplies: { coffeeBeans: 1, milk: 1 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "aj-cc-4", front: { archetypeId: "average_joe" }, back: { orderName: "Coffee + Cream", requiresSupplies: { coffeeBeans: 1, milk: 1 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
-  // Two Black Coffees ×2 (2 supplies = $4)
-  { id: "aj-2bc-1", front: { archetypeId: "average_joe" }, back: { orderName: "Two Black Coffees", requiresSupplies: { coffeeBeans: 2 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "aj-2bc-2", front: { archetypeId: "average_joe" }, back: { orderName: "Two Black Coffees", requiresSupplies: { coffeeBeans: 2 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
-  // Tea ×2 (1 supply = $2)
-  { id: "aj-t-1", front: { archetypeId: "average_joe" }, back: { orderName: "Tea", requiresSupplies: { tea: 1 }, reward: { money: 2, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "aj-t-2", front: { archetypeId: "average_joe" }, back: { orderName: "Tea", requiresSupplies: { tea: 1 }, reward: { money: 2, prestige: 0 }, failRule: "no_penalty" } },
+  // Black Coffee ×4 (1 supply = $1)
+  { id: "aj-bc-1", front: { archetypeId: "average_joe" }, back: { orderName: "Black Coffee", requiresSupplies: { coffeeBeans: 1 }, reward: { money: 1, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "aj-bc-2", front: { archetypeId: "average_joe" }, back: { orderName: "Black Coffee", requiresSupplies: { coffeeBeans: 1 }, reward: { money: 1, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "aj-bc-3", front: { archetypeId: "average_joe" }, back: { orderName: "Black Coffee", requiresSupplies: { coffeeBeans: 1 }, reward: { money: 1, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "aj-bc-4", front: { archetypeId: "average_joe" }, back: { orderName: "Black Coffee", requiresSupplies: { coffeeBeans: 1 }, reward: { money: 1, prestige: 0 }, failRule: "no_penalty" } },
+  // Coffee + Cream ×4 (2 supplies = $2)
+  { id: "aj-cc-1", front: { archetypeId: "average_joe" }, back: { orderName: "Coffee + Cream", requiresSupplies: { coffeeBeans: 1, milk: 1 }, reward: { money: 2, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "aj-cc-2", front: { archetypeId: "average_joe" }, back: { orderName: "Coffee + Cream", requiresSupplies: { coffeeBeans: 1, milk: 1 }, reward: { money: 2, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "aj-cc-3", front: { archetypeId: "average_joe" }, back: { orderName: "Coffee + Cream", requiresSupplies: { coffeeBeans: 1, milk: 1 }, reward: { money: 2, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "aj-cc-4", front: { archetypeId: "average_joe" }, back: { orderName: "Coffee + Cream", requiresSupplies: { coffeeBeans: 1, milk: 1 }, reward: { money: 2, prestige: 0 }, failRule: "no_penalty" } },
+  // Two Black Coffees ×2 (2 supplies = $2)
+  { id: "aj-2bc-1", front: { archetypeId: "average_joe" }, back: { orderName: "Two Black Coffees", requiresSupplies: { coffeeBeans: 2 }, reward: { money: 2, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "aj-2bc-2", front: { archetypeId: "average_joe" }, back: { orderName: "Two Black Coffees", requiresSupplies: { coffeeBeans: 2 }, reward: { money: 2, prestige: 0 }, failRule: "no_penalty" } },
+  // Tea ×2 (1 supply = $1)
+  { id: "aj-t-1", front: { archetypeId: "average_joe" }, back: { orderName: "Tea", requiresSupplies: { tea: 1 }, reward: { money: 1, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "aj-t-2", front: { archetypeId: "average_joe" }, back: { orderName: "Tea", requiresSupplies: { tea: 1 }, reward: { money: 1, prestige: 0 }, failRule: "no_penalty" } },
 
   // ==========================================================================
   // COFFEE SNOB (12 cards)
   // ==========================================================================
-  // Rare Beans Latte ×4 (3 supplies = $6)
-  { id: "cs-rbl-1", front: { archetypeId: "coffee_snob" }, back: { orderName: "Rare Beans Latte", requiresSupplies: { coffeeBeans: 2, milk: 1 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "cs-rbl-2", front: { archetypeId: "coffee_snob" }, back: { orderName: "Rare Beans Latte", requiresSupplies: { coffeeBeans: 2, milk: 1 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "cs-rbl-3", front: { archetypeId: "coffee_snob" }, back: { orderName: "Rare Beans Latte", requiresSupplies: { coffeeBeans: 2, milk: 1 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "cs-rbl-4", front: { archetypeId: "coffee_snob" }, back: { orderName: "Rare Beans Latte", requiresSupplies: { coffeeBeans: 2, milk: 1 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  // Flavored Latte ×4 (3 supplies = $6)
-  { id: "cs-fl-1", front: { archetypeId: "coffee_snob" }, back: { orderName: "Flavored Latte", requiresSupplies: { coffeeBeans: 1, milk: 1, syrup: 1 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "cs-fl-2", front: { archetypeId: "coffee_snob" }, back: { orderName: "Flavored Latte", requiresSupplies: { coffeeBeans: 1, milk: 1, syrup: 1 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "cs-fl-3", front: { archetypeId: "coffee_snob" }, back: { orderName: "Flavored Latte", requiresSupplies: { coffeeBeans: 1, milk: 1, syrup: 1 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "cs-fl-4", front: { archetypeId: "coffee_snob" }, back: { orderName: "Flavored Latte", requiresSupplies: { coffeeBeans: 1, milk: 1, syrup: 1 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  // Double Latte ×2 (4 supplies = $8)
-  { id: "cs-dl-1", front: { archetypeId: "coffee_snob" }, back: { orderName: "Double Latte", requiresSupplies: { coffeeBeans: 2, milk: 2 }, reward: { money: 8, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "cs-dl-2", front: { archetypeId: "coffee_snob" }, back: { orderName: "Double Latte", requiresSupplies: { coffeeBeans: 2, milk: 2 }, reward: { money: 8, prestige: 0 }, failRule: "no_penalty" } },
-  // Espresso Shot ×2 (2 supplies = $4)
-  { id: "cs-es-1", front: { archetypeId: "coffee_snob" }, back: { orderName: "Espresso Shot", requiresSupplies: { coffeeBeans: 2 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "cs-es-2", front: { archetypeId: "coffee_snob" }, back: { orderName: "Espresso Shot", requiresSupplies: { coffeeBeans: 2 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
+  // Rare Beans Latte ×4 (3 supplies = $3)
+  { id: "cs-rbl-1", front: { archetypeId: "coffee_snob" }, back: { orderName: "Rare Beans Latte", requiresSupplies: { coffeeBeans: 2, milk: 1 }, reward: { money: 3, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "cs-rbl-2", front: { archetypeId: "coffee_snob" }, back: { orderName: "Rare Beans Latte", requiresSupplies: { coffeeBeans: 2, milk: 1 }, reward: { money: 3, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "cs-rbl-3", front: { archetypeId: "coffee_snob" }, back: { orderName: "Rare Beans Latte", requiresSupplies: { coffeeBeans: 2, milk: 1 }, reward: { money: 3, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "cs-rbl-4", front: { archetypeId: "coffee_snob" }, back: { orderName: "Rare Beans Latte", requiresSupplies: { coffeeBeans: 2, milk: 1 }, reward: { money: 3, prestige: 0 }, failRule: "no_penalty" } },
+  // Flavored Latte ×4 (3 supplies = $3)
+  { id: "cs-fl-1", front: { archetypeId: "coffee_snob" }, back: { orderName: "Flavored Latte", requiresSupplies: { coffeeBeans: 1, milk: 1, syrup: 1 }, reward: { money: 3, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "cs-fl-2", front: { archetypeId: "coffee_snob" }, back: { orderName: "Flavored Latte", requiresSupplies: { coffeeBeans: 1, milk: 1, syrup: 1 }, reward: { money: 3, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "cs-fl-3", front: { archetypeId: "coffee_snob" }, back: { orderName: "Flavored Latte", requiresSupplies: { coffeeBeans: 1, milk: 1, syrup: 1 }, reward: { money: 3, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "cs-fl-4", front: { archetypeId: "coffee_snob" }, back: { orderName: "Flavored Latte", requiresSupplies: { coffeeBeans: 1, milk: 1, syrup: 1 }, reward: { money: 3, prestige: 0 }, failRule: "no_penalty" } },
+  // Double Latte ×2 (4 supplies = $4)
+  { id: "cs-dl-1", front: { archetypeId: "coffee_snob" }, back: { orderName: "Double Latte", requiresSupplies: { coffeeBeans: 2, milk: 2 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "cs-dl-2", front: { archetypeId: "coffee_snob" }, back: { orderName: "Double Latte", requiresSupplies: { coffeeBeans: 2, milk: 2 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
+  // Espresso Shot ×2 (2 supplies = $2)
+  { id: "cs-es-1", front: { archetypeId: "coffee_snob" }, back: { orderName: "Espresso Shot", requiresSupplies: { coffeeBeans: 2 }, reward: { money: 2, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "cs-es-2", front: { archetypeId: "coffee_snob" }, back: { orderName: "Espresso Shot", requiresSupplies: { coffeeBeans: 2 }, reward: { money: 2, prestige: 0 }, failRule: "no_penalty" } },
 
   // ==========================================================================
   // INFLUENCER (12 cards)
   // ==========================================================================
-  // Latte w/ Art ×4 (3 supplies = $6)
-  { id: "inf-la-1", front: { archetypeId: "influencer" }, back: { orderName: "Latte w/ Art", requiresSupplies: { coffeeBeans: 1, milk: 2 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "inf-la-2", front: { archetypeId: "influencer" }, back: { orderName: "Latte w/ Art", requiresSupplies: { coffeeBeans: 1, milk: 2 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "inf-la-3", front: { archetypeId: "influencer" }, back: { orderName: "Latte w/ Art", requiresSupplies: { coffeeBeans: 1, milk: 2 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "inf-la-4", front: { archetypeId: "influencer" }, back: { orderName: "Latte w/ Art", requiresSupplies: { coffeeBeans: 1, milk: 2 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  // Seasonal Flavor Latte ×4 (3 supplies = $6)
-  { id: "inf-sfl-1", front: { archetypeId: "influencer" }, back: { orderName: "Seasonal Flavor Latte", requiresSupplies: { coffeeBeans: 1, milk: 1, syrup: 1 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "inf-sfl-2", front: { archetypeId: "influencer" }, back: { orderName: "Seasonal Flavor Latte", requiresSupplies: { coffeeBeans: 1, milk: 1, syrup: 1 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "inf-sfl-3", front: { archetypeId: "influencer" }, back: { orderName: "Seasonal Flavor Latte", requiresSupplies: { coffeeBeans: 1, milk: 1, syrup: 1 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "inf-sfl-4", front: { archetypeId: "influencer" }, back: { orderName: "Seasonal Flavor Latte", requiresSupplies: { coffeeBeans: 1, milk: 1, syrup: 1 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  // Pour Over ×2 (2 supplies = $4)
-  { id: "inf-po-1", front: { archetypeId: "influencer" }, back: { orderName: "Pour Over", requiresSupplies: { coffeeBeans: 2 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "inf-po-2", front: { archetypeId: "influencer" }, back: { orderName: "Pour Over", requiresSupplies: { coffeeBeans: 2 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
-  // Seasonal Tea Latte ×2 (3 supplies = $6)
-  { id: "inf-stl-1", front: { archetypeId: "influencer" }, back: { orderName: "Seasonal Tea Latte", requiresSupplies: { tea: 1, milk: 1, syrup: 1 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "inf-stl-2", front: { archetypeId: "influencer" }, back: { orderName: "Seasonal Tea Latte", requiresSupplies: { tea: 1, milk: 1, syrup: 1 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
+  // Latte w/ Art ×4 (3 supplies = $3)
+  { id: "inf-la-1", front: { archetypeId: "influencer" }, back: { orderName: "Latte w/ Art", requiresSupplies: { coffeeBeans: 1, milk: 2 }, reward: { money: 3, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "inf-la-2", front: { archetypeId: "influencer" }, back: { orderName: "Latte w/ Art", requiresSupplies: { coffeeBeans: 1, milk: 2 }, reward: { money: 3, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "inf-la-3", front: { archetypeId: "influencer" }, back: { orderName: "Latte w/ Art", requiresSupplies: { coffeeBeans: 1, milk: 2 }, reward: { money: 3, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "inf-la-4", front: { archetypeId: "influencer" }, back: { orderName: "Latte w/ Art", requiresSupplies: { coffeeBeans: 1, milk: 2 }, reward: { money: 3, prestige: 0 }, failRule: "no_penalty" } },
+  // Seasonal Flavor Latte ×4 (3 supplies = $3)
+  { id: "inf-sfl-1", front: { archetypeId: "influencer" }, back: { orderName: "Seasonal Flavor Latte", requiresSupplies: { coffeeBeans: 1, milk: 1, syrup: 1 }, reward: { money: 3, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "inf-sfl-2", front: { archetypeId: "influencer" }, back: { orderName: "Seasonal Flavor Latte", requiresSupplies: { coffeeBeans: 1, milk: 1, syrup: 1 }, reward: { money: 3, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "inf-sfl-3", front: { archetypeId: "influencer" }, back: { orderName: "Seasonal Flavor Latte", requiresSupplies: { coffeeBeans: 1, milk: 1, syrup: 1 }, reward: { money: 3, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "inf-sfl-4", front: { archetypeId: "influencer" }, back: { orderName: "Seasonal Flavor Latte", requiresSupplies: { coffeeBeans: 1, milk: 1, syrup: 1 }, reward: { money: 3, prestige: 0 }, failRule: "no_penalty" } },
+  // Pour Over ×2 (2 supplies = $2)
+  { id: "inf-po-1", front: { archetypeId: "influencer" }, back: { orderName: "Pour Over", requiresSupplies: { coffeeBeans: 2 }, reward: { money: 2, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "inf-po-2", front: { archetypeId: "influencer" }, back: { orderName: "Pour Over", requiresSupplies: { coffeeBeans: 2 }, reward: { money: 2, prestige: 0 }, failRule: "no_penalty" } },
+  // Seasonal Tea Latte ×2 (3 supplies = $3)
+  { id: "inf-stl-1", front: { archetypeId: "influencer" }, back: { orderName: "Seasonal Tea Latte", requiresSupplies: { tea: 1, milk: 1, syrup: 1 }, reward: { money: 3, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "inf-stl-2", front: { archetypeId: "influencer" }, back: { orderName: "Seasonal Tea Latte", requiresSupplies: { tea: 1, milk: 1, syrup: 1 }, reward: { money: 3, prestige: 0 }, failRule: "no_penalty" } },
 
   // ==========================================================================
   // HEALTH PERSON (12 cards)
   // ==========================================================================
-  // Herbal Tea ×4 (1 supply = $2)
-  { id: "hp-ht-1", front: { archetypeId: "health_person" }, back: { orderName: "Herbal Tea", requiresSupplies: { tea: 1 }, reward: { money: 2, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "hp-ht-2", front: { archetypeId: "health_person" }, back: { orderName: "Herbal Tea", requiresSupplies: { tea: 1 }, reward: { money: 2, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "hp-ht-3", front: { archetypeId: "health_person" }, back: { orderName: "Herbal Tea", requiresSupplies: { tea: 1 }, reward: { money: 2, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "hp-ht-4", front: { archetypeId: "health_person" }, back: { orderName: "Herbal Tea", requiresSupplies: { tea: 1 }, reward: { money: 2, prestige: 0 }, failRule: "no_penalty" } },
-  // Tea w/ Oat Milk ×4 (2 supplies = $4)
-  { id: "hp-tom-1", front: { archetypeId: "health_person" }, back: { orderName: "Tea w/ Oat Milk", requiresSupplies: { tea: 1, milk: 1 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "hp-tom-2", front: { archetypeId: "health_person" }, back: { orderName: "Tea w/ Oat Milk", requiresSupplies: { tea: 1, milk: 1 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "hp-tom-3", front: { archetypeId: "health_person" }, back: { orderName: "Tea w/ Oat Milk", requiresSupplies: { tea: 1, milk: 1 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "hp-tom-4", front: { archetypeId: "health_person" }, back: { orderName: "Tea w/ Oat Milk", requiresSupplies: { tea: 1, milk: 1 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
-  // Tea Pot ×2 (2 supplies = $4)
-  { id: "hp-tp-1", front: { archetypeId: "health_person" }, back: { orderName: "Tea Pot", requiresSupplies: { tea: 2 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "hp-tp-2", front: { archetypeId: "health_person" }, back: { orderName: "Tea Pot", requiresSupplies: { tea: 2 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
-  // Tea with Honey ×2 (2 supplies = $4)
-  { id: "hp-th-1", front: { archetypeId: "health_person" }, back: { orderName: "Tea with Honey", requiresSupplies: { tea: 1, syrup: 1 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "hp-th-2", front: { archetypeId: "health_person" }, back: { orderName: "Tea with Honey", requiresSupplies: { tea: 1, syrup: 1 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
+  // Herbal Tea ×4 (1 supply = $1)
+  { id: "hp-ht-1", front: { archetypeId: "health_person" }, back: { orderName: "Herbal Tea", requiresSupplies: { tea: 1 }, reward: { money: 1, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "hp-ht-2", front: { archetypeId: "health_person" }, back: { orderName: "Herbal Tea", requiresSupplies: { tea: 1 }, reward: { money: 1, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "hp-ht-3", front: { archetypeId: "health_person" }, back: { orderName: "Herbal Tea", requiresSupplies: { tea: 1 }, reward: { money: 1, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "hp-ht-4", front: { archetypeId: "health_person" }, back: { orderName: "Herbal Tea", requiresSupplies: { tea: 1 }, reward: { money: 1, prestige: 0 }, failRule: "no_penalty" } },
+  // Tea w/ Oat Milk ×4 (2 supplies = $2)
+  { id: "hp-tom-1", front: { archetypeId: "health_person" }, back: { orderName: "Tea w/ Oat Milk", requiresSupplies: { tea: 1, milk: 1 }, reward: { money: 2, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "hp-tom-2", front: { archetypeId: "health_person" }, back: { orderName: "Tea w/ Oat Milk", requiresSupplies: { tea: 1, milk: 1 }, reward: { money: 2, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "hp-tom-3", front: { archetypeId: "health_person" }, back: { orderName: "Tea w/ Oat Milk", requiresSupplies: { tea: 1, milk: 1 }, reward: { money: 2, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "hp-tom-4", front: { archetypeId: "health_person" }, back: { orderName: "Tea w/ Oat Milk", requiresSupplies: { tea: 1, milk: 1 }, reward: { money: 2, prestige: 0 }, failRule: "no_penalty" } },
+  // Tea Pot ×2 (2 supplies = $2)
+  { id: "hp-tp-1", front: { archetypeId: "health_person" }, back: { orderName: "Tea Pot", requiresSupplies: { tea: 2 }, reward: { money: 2, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "hp-tp-2", front: { archetypeId: "health_person" }, back: { orderName: "Tea Pot", requiresSupplies: { tea: 2 }, reward: { money: 2, prestige: 0 }, failRule: "no_penalty" } },
+  // Tea with Honey ×2 (2 supplies = $2)
+  { id: "hp-th-1", front: { archetypeId: "health_person" }, back: { orderName: "Tea with Honey", requiresSupplies: { tea: 1, syrup: 1 }, reward: { money: 2, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "hp-th-2", front: { archetypeId: "health_person" }, back: { orderName: "Tea with Honey", requiresSupplies: { tea: 1, syrup: 1 }, reward: { money: 2, prestige: 0 }, failRule: "no_penalty" } },
 
   // ==========================================================================
   // BULK ORDERER (4 cards)
   // ==========================================================================
-  // Office Coffee Runner ×2 (5 supplies = $10)
-  { id: "bo-ocr-1", front: { archetypeId: "bulk_orderer" }, back: { orderName: "Office Coffee Runner", requiresSupplies: { coffeeBeans: 3, milk: 2 }, reward: { money: 10, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "bo-ocr-2", front: { archetypeId: "bulk_orderer" }, back: { orderName: "Office Coffee Runner", requiresSupplies: { coffeeBeans: 3, milk: 2 }, reward: { money: 10, prestige: 0 }, failRule: "no_penalty" } },
-  // Party Order ×2 (6 supplies = $12)
-  { id: "bo-po-1", front: { archetypeId: "bulk_orderer" }, back: { orderName: "Party Order", requiresSupplies: { coffeeBeans: 2, tea: 2, milk: 2 }, reward: { money: 12, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "bo-po-2", front: { archetypeId: "bulk_orderer" }, back: { orderName: "Party Order", requiresSupplies: { coffeeBeans: 2, tea: 2, milk: 2 }, reward: { money: 12, prestige: 0 }, failRule: "no_penalty" } },
+  // Office Coffee Runner ×2 (5 supplies = $5)
+  { id: "bo-ocr-1", front: { archetypeId: "bulk_orderer" }, back: { orderName: "Office Coffee Runner", requiresSupplies: { coffeeBeans: 3, milk: 2 }, reward: { money: 5, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "bo-ocr-2", front: { archetypeId: "bulk_orderer" }, back: { orderName: "Office Coffee Runner", requiresSupplies: { coffeeBeans: 3, milk: 2 }, reward: { money: 5, prestige: 0 }, failRule: "no_penalty" } },
+  // Party Order ×2 (6 supplies = $6)
+  { id: "bo-po-1", front: { archetypeId: "bulk_orderer" }, back: { orderName: "Party Order", requiresSupplies: { coffeeBeans: 2, tea: 2, milk: 2 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
+  { id: "bo-po-2", front: { archetypeId: "bulk_orderer" }, back: { orderName: "Party Order", requiresSupplies: { coffeeBeans: 2, tea: 2, milk: 2 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
 ];
 
 function createCustomerDeck(ctx: GameContext): CustomerCard[] {
