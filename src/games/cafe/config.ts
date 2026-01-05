@@ -21,9 +21,9 @@ export type CafePhase =
 
 export const GAME_CONFIG = {
   TOTAL_ROUNDS: 5,
-  STARTING_MONEY: 10,
+  STARTING_MONEY: 40,
   RENT_PER_ROUND: 2,
-  // Customers per round = number of players (set dynamically)
+  CUSTOMERS_PER_PLAYER: 3, // 2 players = 6, 3 players = 9, 4 players = 12
 };
 
 // =============================================================================
@@ -40,6 +40,7 @@ export type CustomerArchetypeId =
 export interface CustomerArchetype {
   id: CustomerArchetypeId;
   name: string;
+  emoji: string;
   description: string;
 }
 
@@ -47,26 +48,31 @@ export const CUSTOMER_ARCHETYPES: Record<CustomerArchetypeId, CustomerArchetype>
   average_joe: {
     id: "average_joe",
     name: "Average Joe",
+    emoji: "👤",
     description: "Just here for a simple cup. Easy to please, reliable business.",
   },
   coffee_snob: {
     id: "coffee_snob",
     name: "Coffee Snob",
+    emoji: "🧐",
     description: "Demands only the finest brews. Expects quality and expertise.",
   },
   influencer: {
     id: "influencer",
     name: "Influencer",
+    emoji: "📸",
     description: "Here for the aesthetic. Loves presentation and seasonal items.",
   },
   health_person: {
     id: "health_person",
     name: "Health Person",
+    emoji: "🧘",
     description: "Focused on wellness. Prefers tea and healthy alternatives.",
   },
   bulk_orderer: {
     id: "bulk_orderer",
     name: "Bulk Orderer",
+    emoji: "💼",
     description: "Ordering for the whole team. Big order, big payout.",
   },
 };
@@ -169,6 +175,10 @@ export interface CafeState {
   // Round rotation
   firstDrawerIndex: number; // Who draws first this round (rotates each round)
 
+  // Resolution phase - manual fulfillment
+  selectedForFulfillment: Record<string, number[]>; // Indices of customers each player selected to fulfill
+  playersConfirmedResolution: string[]; // Players who confirmed their selections
+
   // Cleanup phase - rent tracking
   rentOwed: Record<string, number>; // How much each player owes in rent
   rentPaidBy: Record<string, string | null>; // Who paid each player's rent (null = self, oderId = bailed out)
@@ -195,7 +205,9 @@ export type CafeActionType =
   | "TAKE_CUSTOMER"
   | "PASS_CUSTOMER"
   // Customer resolution phase
-  | "RESOLVE_CUSTOMERS"
+  | "TOGGLE_CUSTOMER_FULFILL" // Toggle whether to fulfill a customer
+  | "CONFIRM_RESOLUTION" // Player confirms their selections
+  | "RESOLVE_CUSTOMERS" // Host processes all resolutions
   // Shop closed phase
   | "CLOSE_SHOP"
   // Cleanup phase
@@ -211,6 +223,7 @@ export interface CafeAction {
     supplyType?: SupplyType;
     upgradeType?: CafeUpgradeType;
     targetPlayerId?: string; // For bailout - who to pay rent for
+    customerIndex?: number; // For toggling customer fulfillment
   };
 }
 
@@ -379,6 +392,8 @@ function initialState(players: Player[]): CafeState {
     currentDeciderIndex: 0,
     passCount: 0,
     firstDrawerIndex: 0,
+    selectedForFulfillment: {},
+    playersConfirmedResolution: [],
     rentOwed: {},
     rentPaidBy: {},
     winnerId: null,
@@ -402,9 +417,10 @@ function reducer(
       const customerDeck = createCustomerDeck(ctx);
       const playerCount = state.playerOrder.length;
 
-      // Draw customers for first round (one per player)
-      const customersForRound = customerDeck.slice(0, playerCount);
-      const remainingDeck = customerDeck.slice(playerCount);
+      // Draw customers for first round (3 per player)
+      const customersThisRound = playerCount * GAME_CONFIG.CUSTOMERS_PER_PLAYER;
+      const customersForRound = customerDeck.slice(0, customersThisRound);
+      const remainingDeck = customerDeck.slice(customersThisRound);
 
       return {
         ...state,
@@ -544,15 +560,24 @@ function reducer(
       );
 
       if (allCustomersDealt) {
-        // Move to resolution phase
+        // Move to resolution phase - initialize selection state
+        const selectedForFulfillment: Record<string, number[]> = {};
+        const updatedPlayersWithSelection = {
+          ...state.players,
+          [deciderId]: updatedPlayer,
+        };
+        // Default: select all customers for fulfillment
+        for (const pid of state.playerOrder) {
+          const p = pid === deciderId ? updatedPlayer : state.players[pid];
+          selectedForFulfillment[pid] = p.customerLine.map((_, i) => i);
+        }
         return {
           ...state,
-          players: {
-            ...state.players,
-            [deciderId]: updatedPlayer,
-          },
+          players: updatedPlayersWithSelection,
           currentCustomer: null,
           phase: "customerResolution",
+          selectedForFulfillment,
+          playersConfirmedResolution: [],
         };
       }
 
@@ -604,14 +629,23 @@ function reducer(
         );
 
         if (allCustomersDealt) {
+          // Move to resolution phase - initialize selection state
+          const selectedForFulfillment: Record<string, number[]> = {};
+          const updatedPlayersWithSelection = {
+            ...state.players,
+            [drawerId]: updatedDrawer,
+          };
+          for (const pid of state.playerOrder) {
+            const p = pid === drawerId ? updatedDrawer : state.players[pid];
+            selectedForFulfillment[pid] = p.customerLine.map((_, i) => i);
+          }
           return {
             ...state,
-            players: {
-              ...state.players,
-              [drawerId]: updatedDrawer,
-            },
+            players: updatedPlayersWithSelection,
             currentCustomer: null,
             phase: "customerResolution",
+            selectedForFulfillment,
+            playersConfirmedResolution: [],
           };
         }
 
@@ -639,11 +673,48 @@ function reducer(
     // =========================================================================
     // CUSTOMER RESOLUTION PHASE
     // =========================================================================
+    case "TOGGLE_CUSTOMER_FULFILL": {
+      const { customerIndex } = action.payload || {};
+      if (customerIndex === undefined) return state;
+
+      const playerId = action.playerId;
+      const currentSelection = state.selectedForFulfillment[playerId] || [];
+
+      // Toggle the index
+      const newSelection = currentSelection.includes(customerIndex)
+        ? currentSelection.filter((i) => i !== customerIndex)
+        : [...currentSelection, customerIndex].sort((a, b) => a - b);
+
+      return {
+        ...state,
+        selectedForFulfillment: {
+          ...state.selectedForFulfillment,
+          [playerId]: newSelection,
+        },
+        // Remove from confirmed if they change selection
+        playersConfirmedResolution: state.playersConfirmedResolution.filter(
+          (id) => id !== playerId
+        ),
+      };
+    }
+
+    case "CONFIRM_RESOLUTION": {
+      const playerId = action.playerId;
+      if (state.playersConfirmedResolution.includes(playerId)) {
+        return state;
+      }
+      return {
+        ...state,
+        playersConfirmedResolution: [...state.playersConfirmedResolution, playerId],
+      };
+    }
+
     case "RESOLVE_CUSTOMERS": {
       const updatedPlayers = { ...state.players };
 
       for (const playerId of state.playerOrder) {
         const player = updatedPlayers[playerId];
+        const selectedIndices = state.selectedForFulfillment[playerId] || [];
         let totalMoney = 0;
         let totalPrestige = 0;
         let customersSuccessfullyServed = 0;
@@ -654,8 +725,14 @@ function reducer(
           syrup: 0,
         };
 
-        // Resolve customers in order (first in line to last)
-        for (const customer of player.customerLine) {
+        // Only process selected customers, in order
+        for (let i = 0; i < player.customerLine.length; i++) {
+          if (!selectedIndices.includes(i)) {
+            // Customer not selected - storms out
+            continue;
+          }
+
+          const customer = player.customerLine[i];
           const required = customer.back.requiresSupplies;
 
           // Check if player has enough supplies (all-or-nothing)
@@ -663,7 +740,6 @@ function reducer(
           for (const [supply, qty] of Object.entries(required)) {
             const supplyType = supply as SupplyType;
             const needed = qty || 0;
-            // Account for supplies already committed to previous customers
             const remaining = player.supplies[supplyType] - supplyCosts[supplyType];
             if (remaining < needed) {
               canFulfill = false;
@@ -680,7 +756,7 @@ function reducer(
             totalPrestige += customer.back.reward.prestige;
             customersSuccessfullyServed++;
           }
-          // Else: Customer storms out - no reward, no supplies consumed
+          // Else: Customer storms out despite being selected (not enough supplies)
         }
 
         updatedPlayers[playerId] = {
@@ -702,6 +778,8 @@ function reducer(
         ...state,
         players: updatedPlayers,
         phase: "shopClosed",
+        selectedForFulfillment: {},
+        playersConfirmedResolution: [],
       };
     }
 
@@ -825,14 +903,15 @@ function reducer(
       );
 
       // Draw new customers (replenish from deck or reshuffle if needed)
+      const customersThisRound = playerCount * GAME_CONFIG.CUSTOMERS_PER_PLAYER;
       let deck = state.customerDeck;
-      if (deck.length < playerCount) {
+      if (deck.length < customersThisRound) {
         // Reshuffle all cards
         deck = createCustomerDeck(ctx);
       }
 
-      const customersForRound = deck.slice(0, playerCount);
-      const remainingDeck = deck.slice(playerCount);
+      const customersForRound = deck.slice(0, customersThisRound);
+      const remainingDeck = deck.slice(customersThisRound);
 
       return {
         ...state,
@@ -930,6 +1009,18 @@ function isActionAllowed(
       const deciderId = state.playerOrder[state.currentDeciderIndex];
       return action.playerId === deciderId;
     }
+
+    case "TOGGLE_CUSTOMER_FULFILL": {
+      if (state.phase !== "customerResolution") return false;
+      if (!player) return false;
+      const { customerIndex } = action.payload || {};
+      if (customerIndex === undefined) return false;
+      // Must be a valid customer index
+      return customerIndex >= 0 && customerIndex < player.customerLine.length;
+    }
+
+    case "CONFIRM_RESOLUTION":
+      return state.phase === "customerResolution" && player !== undefined;
 
     case "RESOLVE_CUSTOMERS":
       return isHost && state.phase === "customerResolution";
