@@ -34,6 +34,7 @@ import { getDangerLevel } from "./theme/missionControl";
 import { ActionLogDisplay, ActionLogCompact } from "./components/ActionLogDisplay";
 import { PlayerAnalytics } from "./components/PlayerAnalytics";
 import { calculatePlayerStats, calculateGameAnalytics } from "./actionLog";
+import { Tutorial, TutorialButton } from "./components/Tutorial";
 
 // ============================================================================
 // TURN WIZARD TYPES
@@ -1145,6 +1146,9 @@ export function CometRushGameView({
   const [tradeDeck, setTradeDeck] = useState<CardDeckType | null>(null);
   const [isTradingCards, setIsTradingCards] = useState(false);
 
+  // Tutorial state
+  const [showTutorial, setShowTutorial] = useState(false);
+
   // UI state
   const [expandedAction, setExpandedAction] = useState<"build" | "launch" | "cards" | null>(null);
   const [buildSuccess, setBuildSuccess] = useState(false);
@@ -1566,6 +1570,19 @@ export function CometRushGameView({
                 Build rockets, research upgrades, and destroy the comet before it hits Earth!
               </p>
             </div>
+
+            {/* How to Play Button */}
+            <MissionButton
+              onClick={() => setShowTutorial(true)}
+              variant="warning"
+              size="lg"
+              className="w-full mb-4"
+            >
+              <span className="flex items-center justify-center gap-2">
+                <span>📖</span>
+                <span>How to Play</span>
+              </span>
+            </MissionButton>
 
             <div className="panel-retro p-3 mb-4">
               <div className="flex items-center justify-between">
@@ -2190,6 +2207,8 @@ export function CometRushGameView({
               Leave
             </MissionButton>
 
+            <TutorialButton onClick={() => setShowTutorial(true)} />
+
             {isMyTurn ? (
               <MissionButton
                 onClick={handleEndTurn}
@@ -2209,6 +2228,9 @@ export function CometRushGameView({
           </div>
         </div>
       )}
+
+      {/* Tutorial Modal */}
+      <Tutorial isOpen={showTutorial} onClose={() => setShowTutorial(false)} />
     </div>
   );
 }
