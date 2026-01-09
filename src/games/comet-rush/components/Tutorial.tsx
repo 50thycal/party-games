@@ -260,7 +260,7 @@ function TurnsSection() {
           <div>
             <p className="text-sm font-bold text-mission-cream">Begin Turn & Collect Income</p>
             <p className="text-xs text-mission-steel mt-1">
-              Click "Begin Turn" to collect your income (base 5 cubes + bonuses).
+              Click &quot;Begin Turn&quot; to collect your income (base 5 cubes + bonuses).
               If you&apos;re under an Embargo, you receive 0 income this turn.
             </p>
           </div>
@@ -326,7 +326,7 @@ function TurnsSection() {
           <div>
             <p className="text-sm font-bold text-mission-cream">End Turn</p>
             <p className="text-xs text-mission-steel mt-1">
-              Click "End Turn" to pass. After ALL players take their turn, a Movement card is drawn
+              Click &quot;End Turn&quot; to pass. After ALL players take their turn, a Movement card is drawn
               and the comet advances 1-3 spaces toward Earth!
             </p>
           </div>
@@ -498,7 +498,7 @@ function LaunchingSection() {
           <div>
             <p className="text-sm font-bold text-cyan-400">Reroll Token</p>
             <p className="text-xs text-mission-steel mt-1">
-              Earned from "Flight Adjustment" cards. If you miss, you can choose to reroll the dice
+              Earned from &quot;Flight Adjustment&quot; cards. If you miss, you can choose to reroll the dice
               for a second chance. The token is consumed whether you hit or miss on the reroll.
             </p>
           </div>
@@ -512,7 +512,7 @@ function LaunchingSection() {
           <div>
             <p className="text-sm font-bold text-mission-red">Sabotage (Forced Reroll)</p>
             <p className="text-xs text-mission-steel mt-1">
-              If an opponent played "Sabotage Construction" on you, your next launch is risky!
+              If an opponent played &quot;Sabotage Construction&quot; on you, your next launch is risky!
               Even if you HIT, you MUST reroll - and might miss!
             </p>
           </div>
@@ -526,7 +526,7 @@ function LaunchingSection() {
           <div>
             <p className="text-sm font-bold text-mission-green">Rocket Calibration</p>
             <p className="text-xs text-mission-steel mt-1">
-              Play the "Rocket Calibration" card to gain +1 Accuracy OR +1 Power for your next
+              Play the &quot;Rocket Calibration&quot; card to gain +1 Accuracy OR +1 Power for your next
               launch. Stack multiple cards for bigger bonuses!
             </p>
           </div>
@@ -684,7 +684,7 @@ function UISection() {
             <p className="text-sm font-bold text-mission-cream">Mission Control Header</p>
             <p className="text-xs text-mission-steel mt-1">
               Shows the current <strong>Round number</strong> and whose turn it is.
-              A green "YOUR TURN" light indicates when you can act.
+              A green &quot;YOUR TURN&quot; light indicates when you can act.
             </p>
           </div>
         </div>
@@ -802,7 +802,7 @@ function UISection() {
 
       <InfoBox variant="warning">
         <p className="text-xs text-mission-amber">
-          <strong>Pro Tip:</strong> You can access this tutorial anytime by clicking the "?" button
+          <strong>Pro Tip:</strong> You can access this tutorial anytime by clicking the &quot;?&quot; button
           during the game!
         </p>
       </InfoBox>
