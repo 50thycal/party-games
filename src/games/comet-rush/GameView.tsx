@@ -35,7 +35,7 @@ import { ActionLogDisplay, ActionLogCompact } from "./components/ActionLogDispla
 import { PlayerAnalytics } from "./components/PlayerAnalytics";
 import { calculatePlayerStats, calculateGameAnalytics } from "./actionLog";
 import { Tutorial, TutorialButton } from "./components/Tutorial";
-import { LiveActionFeed, ActionNotification } from "./components/LiveActionFeed";
+import { LiveActionFeed, ActionNotification, TargetedNotification, checkIfTargeted } from "./components/LiveActionFeed";
 
 // ============================================================================
 // TURN WIZARD TYPES
@@ -1153,6 +1153,7 @@ export function CometRushGameView({
   // Action notification state
   const [lastNotifiedActionId, setLastNotifiedActionId] = useState(0);
   const [pendingNotification, setPendingNotification] = useState<typeof gameState.actionLog[0] | null>(null);
+  const [pendingTargetedNotification, setPendingTargetedNotification] = useState<typeof gameState.actionLog[0] | null>(null);
 
   // UI state
   const [expandedAction, setExpandedAction] = useState<"build" | "launch" | "cards" | null>(null);
@@ -1276,24 +1277,36 @@ export function CometRushGameView({
 
     const latestAction = gameState.actionLog[gameState.actionLog.length - 1];
     if (latestAction && latestAction.id > lastNotifiedActionId) {
-      // Check if this is an important action worth notifying
-      const importantActions = [
-        "LAUNCH_ROCKET",
-        "ROUND_END",
-        "GAME_OVER",
-        "PLAY_CARD",
-      ];
-
-      // Only notify for actions from OTHER players (not your own)
+      // Only process actions from OTHER players (not your own)
       const isOtherPlayer = latestAction.playerId !== playerId;
 
-      if (importantActions.includes(latestAction.action) && isOtherPlayer) {
-        setPendingNotification(latestAction);
+      if (isOtherPlayer) {
+        // PRIORITY 1: Check if current player was targeted by a card
+        // This gets the dramatic TargetedNotification
+        if (latestAction.action === "PLAY_CARD" && player?.name) {
+          const targetInfo = checkIfTargeted(latestAction, player.name);
+          if (targetInfo.isTargeted) {
+            setPendingTargetedNotification(latestAction);
+            setLastNotifiedActionId(latestAction.id);
+            return; // Don't also show a regular notification
+          }
+        }
+
+        // PRIORITY 2: Check for other important actions worth notifying
+        const importantActions = [
+          "LAUNCH_ROCKET",
+          "ROUND_END",
+          "GAME_OVER",
+        ];
+
+        if (importantActions.includes(latestAction.action)) {
+          setPendingNotification(latestAction);
+        }
       }
 
       setLastNotifiedActionId(latestAction.id);
     }
-  }, [gameState?.actionLog, lastNotifiedActionId, playerId]);
+  }, [gameState?.actionLog, lastNotifiedActionId, playerId, player?.name]);
 
   // Action handlers
   async function handleStartGame() {
@@ -1594,6 +1607,13 @@ export function CometRushGameView({
         entry={pendingNotification}
         currentPlayerId={playerId}
         onDismiss={() => setPendingNotification(null)}
+      />
+
+      {/* Targeted Notification - Dramatic alert when YOU are attacked */}
+      <TargetedNotification
+        entry={pendingTargetedNotification}
+        currentPlayerName={player?.name ?? ""}
+        onDismiss={() => setPendingTargetedNotification(null)}
       />
 
       <div className="max-w-2xl mx-auto px-4 py-4 pb-24">
@@ -2195,6 +2215,7 @@ export function CometRushGameView({
               <LiveActionFeed
                 actionLog={gameState.actionLog}
                 currentPlayerId={playerId}
+                currentPlayerName={player?.name ?? ""}
                 maxVisible={6}
                 className="mb-4"
               />

@@ -12,8 +12,119 @@ import type { MultiplayerLogEntry } from "../actionLog";
 interface LiveActionFeedProps {
   actionLog: MultiplayerLogEntry[];
   currentPlayerId: string;
+  currentPlayerName: string;
   maxVisible?: number;
   className?: string;
+}
+
+// ============================================================================
+// TARGETING CARD DEFINITIONS
+// ============================================================================
+
+interface TargetingCardInfo {
+  icon: string;
+  alertTitle: string;
+  alertMessage: string;
+  effectDescription: string;
+}
+
+const TARGETING_CARDS: Record<string, TargetingCardInfo> = {
+  "Resource Seizure": {
+    icon: "💸",
+    alertTitle: "RESOURCES STOLEN!",
+    alertMessage: "stole 3 cubes from you!",
+    effectDescription: "You lost 3 resource cubes",
+  },
+  "Espionage Agent": {
+    icon: "🕵️",
+    alertTitle: "CARD STOLEN!",
+    alertMessage: "stole a card from your hand!",
+    effectDescription: "A random card was taken from you",
+  },
+  "Embargo": {
+    icon: "🚫",
+    alertTitle: "EMBARGO PLACED!",
+    alertMessage: "embargoed you!",
+    effectDescription: "You will receive NO income next turn",
+  },
+  "Sabotage Construction": {
+    icon: "💣",
+    alertTitle: "LAUNCH SABOTAGED!",
+    alertMessage: "sabotaged your rockets!",
+    effectDescription: "Your next launch will be forced to reroll",
+  },
+  "Diplomatic Pressure": {
+    icon: "🛡️",
+    alertTitle: "CARD PLAY BLOCKED!",
+    alertMessage: "is blocking your next card!",
+    effectDescription: "Your next card play will be cancelled",
+  },
+  "Regulatory Review": {
+    icon: "📋",
+    alertTitle: "BUILD DELAYED!",
+    alertMessage: "delayed your rocket construction!",
+    effectDescription: "+1 turn added to your rocket build time",
+  },
+  "Covert Rocket Strike": {
+    icon: "💥",
+    alertTitle: "ROCKET DESTROYED!",
+    alertMessage: "destroyed one of your rockets!",
+    effectDescription: "One of your rockets was eliminated",
+  },
+};
+
+// ============================================================================
+// HELPER: Check if current player was targeted
+// ============================================================================
+
+interface TargetedResult {
+  isTargeted: boolean;
+  attackerName: string;
+  cardName: string;
+  cardInfo: TargetingCardInfo | null;
+}
+
+function checkIfTargeted(
+  entry: MultiplayerLogEntry,
+  currentPlayerName: string
+): TargetedResult {
+  const result: TargetedResult = {
+    isTargeted: false,
+    attackerName: entry.playerName,
+    cardName: "",
+    cardInfo: null,
+  };
+
+  if (entry.action !== "PLAY_CARD") {
+    return result;
+  }
+
+  // Extract card name from details: Played "Card Name"
+  const cardMatch = entry.details.match(/Played "([^"]+)"/);
+  if (!cardMatch) {
+    return result;
+  }
+
+  result.cardName = cardMatch[1];
+
+  // Check if this card targets players and if current player is the target
+  // The details format is: Played "Card Name" targeting PlayerName - effect
+  const targetMatch = entry.details.match(/targeting (\w+)/);
+  if (!targetMatch) {
+    return result;
+  }
+
+  const targetName = targetMatch[1];
+
+  // Check if the current player is the target
+  // Compare case-insensitively and allow partial matches for names
+  if (targetName.toLowerCase() === currentPlayerName.toLowerCase() ||
+      currentPlayerName.toLowerCase().startsWith(targetName.toLowerCase())) {
+    result.isTargeted = true;
+    result.cardInfo = TARGETING_CARDS[result.cardName] || null;
+  }
+
+  return result;
 }
 
 // ============================================================================
@@ -279,9 +390,12 @@ function ActionEntry({
 export function LiveActionFeed({
   actionLog,
   currentPlayerId,
+  currentPlayerName,
   maxVisible = 8,
   className,
 }: LiveActionFeedProps) {
+  // Note: currentPlayerName is available for future use in enhanced targeting detection
+  void currentPlayerName; // Prevent unused variable warning
   const containerRef = useRef<HTMLDivElement>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [seenCount, setSeenCount] = useState(actionLog.length);
@@ -444,3 +558,131 @@ export function ActionNotification({
     </AnimatePresence>
   );
 }
+
+// ============================================================================
+// TARGETED NOTIFICATION - Dramatic alert when YOU are targeted by a card
+// ============================================================================
+
+interface TargetedNotificationProps {
+  entry: MultiplayerLogEntry | null;
+  currentPlayerName: string;
+  onDismiss: () => void;
+}
+
+export function TargetedNotification({
+  entry,
+  currentPlayerName,
+  onDismiss,
+}: TargetedNotificationProps) {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    if (entry) {
+      setIsVisible(true);
+      const timer = setTimeout(() => {
+        setIsVisible(false);
+        setTimeout(onDismiss, 300); // Allow exit animation
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [entry, onDismiss]);
+
+  if (!entry) return null;
+
+  const targetInfo = checkIfTargeted(entry, currentPlayerName);
+
+  // Only show if this player was actually targeted
+  if (!targetInfo.isTargeted) return null;
+
+  const cardInfo = targetInfo.cardInfo || {
+    icon: "⚠️",
+    alertTitle: "YOU WERE TARGETED!",
+    alertMessage: `played a card against you!`,
+    effectDescription: `${targetInfo.cardName} was used on you`,
+  };
+
+  return (
+    <AnimatePresence>
+      {isVisible && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8, y: -100 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.8, y: -50 }}
+          transition={{ type: "spring", damping: 15, stiffness: 300 }}
+          className="fixed inset-x-4 top-4 z-[100] max-w-md mx-auto"
+          onClick={onDismiss}
+        >
+          {/* Dramatic red alert box */}
+          <div className="bg-gradient-to-b from-mission-red/30 to-mission-red/10 border-2 border-mission-red rounded-lg shadow-2xl overflow-hidden">
+            {/* Flashing header */}
+            <motion.div
+              animate={{ opacity: [1, 0.7, 1] }}
+              transition={{ repeat: Infinity, duration: 0.8 }}
+              className="bg-mission-red/40 px-4 py-2 border-b border-mission-red/50"
+            >
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-2xl">{cardInfo.icon}</span>
+                <span className="text-lg font-bold text-mission-red uppercase tracking-wider">
+                  {cardInfo.alertTitle}
+                </span>
+                <span className="text-2xl">{cardInfo.icon}</span>
+              </div>
+            </motion.div>
+
+            {/* Content */}
+            <div className="p-4 space-y-3">
+              {/* Attacker info */}
+              <div className="text-center">
+                <span className="text-xl font-bold text-mission-amber">
+                  {targetInfo.attackerName}
+                </span>
+                <span className="text-mission-cream ml-2">
+                  {cardInfo.alertMessage}
+                </span>
+              </div>
+
+              {/* Card name */}
+              <div className="flex justify-center">
+                <div className="px-3 py-1 bg-mission-dark/50 rounded border border-mission-steel">
+                  <span className="text-xs text-mission-steel">Card: </span>
+                  <span className="text-sm font-medium text-mission-cream">
+                    {targetInfo.cardName}
+                  </span>
+                </div>
+              </div>
+
+              {/* Effect description */}
+              <div className="text-center">
+                <p className="text-sm text-mission-red/90 font-medium">
+                  {cardInfo.effectDescription}
+                </p>
+              </div>
+
+              {/* Dismiss hint */}
+              <div className="text-center pt-1">
+                <span className="text-[10px] text-mission-steel">
+                  Tap to dismiss
+                </span>
+              </div>
+            </div>
+
+            {/* Animated border glow */}
+            <motion.div
+              animate={{ opacity: [0.3, 0.6, 0.3] }}
+              transition={{ repeat: Infinity, duration: 1.5 }}
+              className="absolute inset-0 border-2 border-mission-red rounded-lg pointer-events-none"
+              style={{ boxShadow: "0 0 20px rgba(239, 68, 68, 0.5)" }}
+            />
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// ============================================================================
+// HELPER: Export targeting check for use in GameView
+// ============================================================================
+
+export { checkIfTargeted, TARGETING_CARDS };
+export type { TargetedResult, TargetingCardInfo };
