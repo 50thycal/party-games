@@ -35,6 +35,7 @@ import { ActionLogDisplay, ActionLogCompact } from "./components/ActionLogDispla
 import { PlayerAnalytics } from "./components/PlayerAnalytics";
 import { calculatePlayerStats, calculateGameAnalytics } from "./actionLog";
 import { Tutorial, TutorialButton } from "./components/Tutorial";
+import { LiveActionFeed, ActionNotification } from "./components/LiveActionFeed";
 
 // ============================================================================
 // TURN WIZARD TYPES
@@ -1149,6 +1150,10 @@ export function CometRushGameView({
   // Tutorial state
   const [showTutorial, setShowTutorial] = useState(false);
 
+  // Action notification state
+  const [lastNotifiedActionId, setLastNotifiedActionId] = useState(0);
+  const [pendingNotification, setPendingNotification] = useState<typeof gameState.actionLog[0] | null>(null);
+
   // UI state
   const [expandedAction, setExpandedAction] = useState<"build" | "launch" | "cards" | null>(null);
   const [buildSuccess, setBuildSuccess] = useState(false);
@@ -1264,6 +1269,31 @@ export function CometRushGameView({
       prevLaunchResultRef.current = currentKey;
     }
   }, [gameState?.lastLaunchResult]);
+
+  // Detect new important actions for floating notifications
+  useEffect(() => {
+    if (!gameState?.actionLog?.length) return;
+
+    const latestAction = gameState.actionLog[gameState.actionLog.length - 1];
+    if (latestAction && latestAction.id > lastNotifiedActionId) {
+      // Check if this is an important action worth notifying
+      const importantActions = [
+        "LAUNCH_ROCKET",
+        "ROUND_END",
+        "GAME_OVER",
+        "PLAY_CARD",
+      ];
+
+      // Only notify for actions from OTHER players (not your own)
+      const isOtherPlayer = latestAction.playerId !== playerId;
+
+      if (importantActions.includes(latestAction.action) && isOtherPlayer) {
+        setPendingNotification(latestAction);
+      }
+
+      setLastNotifiedActionId(latestAction.id);
+    }
+  }, [gameState?.actionLog, lastNotifiedActionId, playerId]);
 
   // Action handlers
   async function handleStartGame() {
@@ -1558,6 +1588,13 @@ export function CometRushGameView({
           />
         )}
       </AnimatePresence>
+
+      {/* Floating Action Notification */}
+      <ActionNotification
+        entry={pendingNotification}
+        currentPlayerId={playerId}
+        onDismiss={() => setPendingNotification(null)}
+      />
 
       <div className="max-w-2xl mx-auto px-4 py-4 pb-24">
         {/* LOBBY PHASE */}
@@ -2153,7 +2190,17 @@ export function CometRushGameView({
               </ActionPanel>
             </div>
 
-            {/* Host-only Action Log (during gameplay) */}
+            {/* Live Action Feed (visible to all players) */}
+            {gameState.actionLog.length > 0 && (
+              <LiveActionFeed
+                actionLog={gameState.actionLog}
+                currentPlayerId={playerId}
+                maxVisible={6}
+                className="mb-4"
+              />
+            )}
+
+            {/* Host-only detailed Action Log (during gameplay) */}
             {isHost && gameState.actionLog.length > 0 && (
               <ActionLogCompact
                 actionLog={gameState.actionLog}
