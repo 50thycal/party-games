@@ -308,7 +308,7 @@ function TurnsSection() {
           <div>
             <p className="text-sm font-bold text-mission-cream">Main Actions (Any Order)</p>
             <ul className="text-xs text-mission-steel mt-1 space-y-1">
-              <li>• <strong>Build ONE rocket</strong> (costs cubes)</li>
+              <li>• <strong>Build rockets</strong> (as many as you can afford!)</li>
               <li>• <strong>Launch rockets</strong> (as many ready rockets as you want)</li>
               <li>• <strong>Play cards</strong> from your hand</li>
               <li>• <strong>Trade cards</strong> (discard 2 → draw 1) - free action!</li>
@@ -428,8 +428,8 @@ function RocketsSection() {
 
       <InfoBox variant="warning">
         <p className="text-xs text-mission-amber">
-          <strong>Limits:</strong> You can only build ONE rocket per turn, and have a maximum
-          of 3 rockets in progress at once.
+          <strong>Limits:</strong> You can have a maximum of 3 rockets in progress at once.
+          Build as many as you can afford, but manage your hangar space wisely!
         </p>
       </InfoBox>
     </div>
@@ -536,123 +536,216 @@ function LaunchingSection() {
   );
 }
 
+// Helper component for individual card display
+function CardEntry({
+  name,
+  description,
+  strategy,
+  rarity,
+}: {
+  name: string;
+  description: string;
+  strategy: string;
+  rarity: "common" | "uncommon" | "rare";
+}) {
+  const rarityColors = {
+    common: "text-mission-steel",
+    uncommon: "text-cyan-400",
+    rare: "text-purple-400",
+  };
+  const rarityBg = {
+    common: "bg-mission-steel/10",
+    uncommon: "bg-cyan-400/10",
+    rare: "bg-purple-400/10",
+  };
+
+  return (
+    <div className={cn("p-2 rounded border border-mission-steel-dark/50 mb-2", rarityBg[rarity])}>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs font-bold text-mission-cream">{name}</span>
+        <span className={cn("text-[9px] uppercase font-bold", rarityColors[rarity])}>
+          {rarity}
+        </span>
+      </div>
+      <p className="text-[10px] text-mission-steel mb-1">{description}</p>
+      <p className="text-[10px] text-mission-amber italic">💡 {strategy}</p>
+    </div>
+  );
+}
+
 function CardsSection() {
   return (
     <div className="space-y-4">
       <SectionHeader>Card Decks</SectionHeader>
       <p className="text-sm text-mission-cream/80 mb-4">
         There are three card decks, each with unique strategies. You draw 4 cards at game start
-        and 1 per turn (2 when comet is close!).
+        and 1 per turn (2 when comet is close!). Each deck has 44 cards total.
       </p>
 
-      {/* Engineering */}
-      <InfoBox variant="success">
-        <div className="flex items-start gap-3">
-          <span className="text-2xl">🔧</span>
+      {/* Engineering Deck */}
+      <div className="border-2 border-mission-green/50 rounded-lg overflow-hidden">
+        <div className="bg-mission-green/20 px-3 py-2 flex items-center gap-2">
+          <span className="text-xl">🔧</span>
           <div>
             <p className="text-sm font-bold text-mission-green">Engineering Deck</p>
-            <p className="text-xs text-mission-steel mb-2">
-              Upgrades, optimizations, and rocket improvements.
-            </p>
-            <div className="space-y-1 text-[10px]">
-              <div className="flex justify-between">
-                <span className="text-mission-cream">Warhead/Guidance Upgrade</span>
-                <span className="text-mission-steel">+1 Power/Accuracy cap</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-mission-cream">Flight Adjustment</span>
-                <span className="text-mission-steel">Get a reroll token</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-mission-cream">Rocket Calibration</span>
-                <span className="text-mission-steel">+1 Acc or Power for launch</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-mission-cream">Streamlined Assembly</span>
-                <span className="text-mission-steel">-1 build time for a rocket</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-mission-cream">Comet Analysis</span>
-                <span className="text-mission-steel">Peek at next card</span>
-              </div>
-            </div>
+            <p className="text-[10px] text-mission-steel">Upgrades, optimizations, and rocket improvements</p>
           </div>
         </div>
-      </InfoBox>
+        <div className="p-3 space-y-0">
+          <CardEntry
+            name="Warhead Upgrade"
+            description="+1 to your maximum power cap (up to 8 total)"
+            strategy="Essential for late game. Higher power = destroy segments faster. Stack these early!"
+            rarity="uncommon"
+          />
+          <CardEntry
+            name="Guidance System Upgrade"
+            description="+1 to your maximum accuracy cap (up to 5 total)"
+            strategy="Accuracy 5 = 83% hit rate. Prioritize these to land more hits consistently."
+            rarity="uncommon"
+          />
+          <CardEntry
+            name="Mass Production"
+            description="−1 build time for ALL rockets currently building"
+            strategy="Play when you have multiple rockets building. Can make slow rockets instant!"
+            rarity="rare"
+          />
+          <CardEntry
+            name="Flight Adjustment"
+            description="Gain a reroll token - if your next launch misses, you can roll again"
+            strategy="Save for high-power rockets. A miss with power 6+ hurts - reroll gives you a second chance."
+            rarity="rare"
+          />
+          <CardEntry
+            name="Streamlined Assembly"
+            description="−1 build time for one rocket of your choice"
+            strategy="Best on slow (BT1) rockets to get them ready faster without paying instant costs."
+            rarity="common"
+          />
+          <CardEntry
+            name="Rocket Calibration"
+            description="Play before launching: +1 Accuracy OR +1 Power for that launch"
+            strategy="Stack multiple for big launches! +2 Accuracy can turn a risky shot into a sure hit."
+            rarity="common"
+          />
+          <CardEntry
+            name="Comet Analysis"
+            description="Peek at the next strength or movement card that will be drawn"
+            strategy="Check movement to time your attacks. Know when the comet will surge forward!"
+            rarity="common"
+          />
+        </div>
+      </div>
 
-      {/* Espionage */}
-      <InfoBox variant="danger">
-        <div className="flex items-start gap-3">
-          <span className="text-2xl">🕵️</span>
+      {/* Espionage Deck */}
+      <div className="border-2 border-mission-red/50 rounded-lg overflow-hidden">
+        <div className="bg-mission-red/20 px-3 py-2 flex items-center gap-2">
+          <span className="text-xl">🕵️</span>
           <div>
             <p className="text-sm font-bold text-mission-red">Espionage Deck</p>
-            <p className="text-xs text-mission-steel mb-2">
-              Sabotage, theft, and interference with opponents.
-            </p>
-            <div className="space-y-1 text-[10px]">
-              <div className="flex justify-between">
-                <span className="text-mission-cream">Resource Seizure</span>
-                <span className="text-mission-steel">Steal 3 cubes</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-mission-cream">Sabotage Construction</span>
-                <span className="text-mission-steel">Force opponent to reroll</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-mission-cream">Embargo</span>
-                <span className="text-mission-steel">Block their income</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-mission-cream">Espionage Agent</span>
-                <span className="text-mission-steel">Steal a random card</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-mission-cream">Covert Rocket Strike</span>
-                <span className="text-mission-steel">Destroy their rocket</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-mission-cream">Diplomatic Pressure</span>
-                <span className="text-mission-steel">Block their next card</span>
-              </div>
-            </div>
+            <p className="text-[10px] text-mission-steel">Sabotage, theft, and interference with opponents</p>
           </div>
         </div>
-      </InfoBox>
+        <div className="p-3 space-y-0">
+          <CardEntry
+            name="Resource Seizure"
+            description="Steal 3 resource cubes from target player"
+            strategy="Hit the leader or someone about to build. Denying resources slows their rockets."
+            rarity="common"
+          />
+          <CardEntry
+            name="Sabotage Construction"
+            description="Force target player to re-roll their next successful launch"
+            strategy="Save for when someone is about to destroy a segment. Turn their hit into a potential miss!"
+            rarity="common"
+          />
+          <CardEntry
+            name="Regulatory Review"
+            description="+1 build time added to one of opponent&apos;s building rockets"
+            strategy="Target instant (BT3) rockets to delay them. Disrupts fast attack strategies."
+            rarity="common"
+          />
+          <CardEntry
+            name="Espionage Agent"
+            description="Steal a random card from target player&apos;s hand"
+            strategy="Target players with large hands. You might steal a rare upgrade or key card!"
+            rarity="uncommon"
+          />
+          <CardEntry
+            name="Diplomatic Pressure"
+            description="Block any card a target player attempts to play (reactive)"
+            strategy="Hold this as a threat! Counter enemy sabotage or block their crucial upgrade."
+            rarity="uncommon"
+          />
+          <CardEntry
+            name="Covert Rocket Strike"
+            description="Destroy any rocket (building or ready) belonging to another player"
+            strategy="Devastating against ready high-power rockets. Erase their investment completely!"
+            rarity="rare"
+          />
+          <CardEntry
+            name="Embargo"
+            description="Target player gains no income at the start of their next turn"
+            strategy="Hit players who just spent their cubes. No income = no recovery = no rockets."
+            rarity="rare"
+          />
+        </div>
+      </div>
 
-      {/* Economic */}
-      <InfoBox variant="warning">
-        <div className="flex items-start gap-3">
-          <span className="text-2xl">💰</span>
+      {/* Economic Deck */}
+      <div className="border-2 border-mission-amber/50 rounded-lg overflow-hidden">
+        <div className="bg-mission-amber/20 px-3 py-2 flex items-center gap-2">
+          <span className="text-xl">💰</span>
           <div>
             <p className="text-sm font-bold text-mission-amber">Economic Deck</p>
-            <p className="text-xs text-mission-steel mb-2">
-              Resources, funding, and financial advantages.
-            </p>
-            <div className="space-y-1 text-[10px]">
-              <div className="flex justify-between">
-                <span className="text-mission-cream">Increase Income</span>
-                <span className="text-mission-steel">+1 permanent income</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-mission-cream">Emergency Funding</span>
-                <span className="text-mission-steel">Get income now</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-mission-cream">Funding Pressure</span>
-                <span className="text-mission-steel">4-12 cubes based on distance</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-mission-cream">Program Prestige</span>
-                <span className="text-mission-steel">+1 cube per card played</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-mission-cream">Rocket Salvage</span>
-                <span className="text-mission-steel">+1 cube per launch</span>
-              </div>
-            </div>
+            <p className="text-[10px] text-mission-steel">Resources, funding, and financial advantages</p>
           </div>
         </div>
-      </InfoBox>
+        <div className="p-3 space-y-0">
+          <CardEntry
+            name="Emergency Funding"
+            description="Immediately gain resources equal to your current income"
+            strategy="Excellent after upgrading income. With +3 income upgrades, this gives 8 cubes!"
+            rarity="common"
+          />
+          <CardEntry
+            name="Public Donation Drive"
+            description="Gain 2 resources for each rocket you have built (building + ready)"
+            strategy="Build lots of cheap rockets first, then cash in. 3 rockets = 6 free cubes!"
+            rarity="common"
+          />
+          <CardEntry
+            name="Program Prestige"
+            description="+1 resource gained each time you play a card (stacks up to 3)"
+            strategy="Play early! Every card after this pays you back. Multiple copies stack."
+            rarity="common"
+          />
+          <CardEntry
+            name="Increase Income"
+            description="+1 to your permanent income each turn (max +3 total)"
+            strategy="The earlier you play these, the more value. +3 income doubles your resources!"
+            rarity="uncommon"
+          />
+          <CardEntry
+            name="Rocket Salvage"
+            description="+1 resource gained each time you launch a rocket (stacks up to 3)"
+            strategy="Great for aggressive launchers. Launch often? Get paid for it."
+            rarity="uncommon"
+          />
+          <CardEntry
+            name="International Grant"
+            description="You gain 5 resources, all other players gain 2"
+            strategy="Best when you need resources NOW. The 2 to others is worth your 5."
+            rarity="rare"
+          />
+          <CardEntry
+            name="Funding Pressure"
+            description="Gain resources based on comet distance: 4 (far), 8 (mid), or 12 (close)"
+            strategy="Save for when comet is close! At distance ≤6, this gives 12 cubes - massive!"
+            rarity="rare"
+          />
+        </div>
+      </div>
 
       <SectionHeader>Card Trading</SectionHeader>
       <InfoBox>
@@ -663,6 +756,17 @@ function CardsSection() {
           Use this to cycle bad cards or dig for specific deck types. You can trade multiple times
           per turn if you have enough cards.
         </p>
+      </InfoBox>
+
+      <InfoBox variant="warning">
+        <p className="text-xs text-mission-amber">
+          <strong>Deck Strategy Tips:</strong>
+        </p>
+        <ul className="text-xs text-mission-steel mt-1 space-y-1">
+          <li>• <strong className="text-mission-green">Engineering:</strong> Best for building powerful rockets that hit consistently</li>
+          <li>• <strong className="text-mission-red">Espionage:</strong> Best for disrupting the leader and controlling the competition</li>
+          <li>• <strong className="text-mission-amber">Economic:</strong> Best for snowballing resources and outpacing everyone</li>
+        </ul>
       </InfoBox>
     </div>
   );
