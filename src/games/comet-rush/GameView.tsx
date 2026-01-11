@@ -36,6 +36,8 @@ import { PlayerAnalytics } from "./components/PlayerAnalytics";
 import { calculatePlayerStats, calculateGameAnalytics } from "./actionLog";
 import { Tutorial, TutorialButton } from "./components/Tutorial";
 import { LiveActionFeed, ActionNotification, TargetedNotification, checkIfTargeted } from "./components/LiveActionFeed";
+import { LiveStatsDashboard } from "./components/LiveStatsDashboard";
+import { EmojiReactionsCompact } from "./components/EmojiReactions";
 
 // ============================================================================
 // TURN WIZARD TYPES
@@ -1724,6 +1726,9 @@ export function CometRushGameView({
             {/* Shared Board - Player Status Grid */}
             <PlayerStatusGrid players={allPlayersInfo} className="mb-4" />
 
+            {/* Live Statistics Dashboard */}
+            <LiveStatsDashboard gameState={gameState} className="mb-4" />
+
             {/* Card Result Notification */}
             {gameState.lastCardResult &&
               gameState.lastCardResult.playerId === playerId && (
@@ -2276,6 +2281,9 @@ export function CometRushGameView({
             </MissionButton>
 
             <TutorialButton onClick={() => setShowTutorial(true)} />
+
+            {/* Emoji Reactions */}
+            <EmojiReactionsCompact />
 
             {isMyTurn ? (
               <MissionButton
