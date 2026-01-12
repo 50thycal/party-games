@@ -420,7 +420,7 @@ function createMovementDeck(): MovementCard[] {
       cards.push({ id: `M${idCounter++}`, moveSpaces });
     }
   };
-  add(1, 4);
+  // Only 2 and 3 space movements for faster games (8 cards total, max 8 rounds)
   add(2, 4);
   add(3, 4);
   return cards;
@@ -429,10 +429,10 @@ function createMovementDeck(): MovementCard[] {
 function createStrengthDeck(count: number): StrengthCard[] {
   const cards: StrengthCard[] = [];
   let idCounter = 1;
-  // Create strength cards with values starting from 4
-  // For 4 cards: values 4-7, for 5 cards: values 4-8, for 6 cards: values 4-9
+  // Create strength cards with values starting from 2 (reduced by 2 for faster games)
+  // For 6 cards: values 2-7, for 7 cards: values 2-8, for 8 cards: values 2-9
   for (let i = 0; i < count; i++) {
-    const strength = 4 + i;
+    const strength = 2 + i;
     cards.push({
       id: `S${idCounter++}`,
       baseStrength: strength,
