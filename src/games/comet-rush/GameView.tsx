@@ -1232,18 +1232,25 @@ export function CometRushGameView({
 
   // Detect turn start for wizard (or draft phase)
   useEffect(() => {
-    if (phase !== "playing" || !isMyTurn) return;
-
-    // Check if player is in initial draft phase (has drawn < 4 cards)
-    const isInDraftPhase = player && player.initialCardsDrawn < 4;
-
-    if (isInDraftPhase) {
-      // Show draft wizard
-      if (turnWizardStep !== "draft" && turnWizardStep !== "showCard") {
-        setTurnWizardStep("draft");
+    // During initial draft phase, ALL players can draw simultaneously
+    if (phase === "initialDraft") {
+      const isInDraftPhase = player && player.initialCardsDrawn < 4;
+      if (isInDraftPhase) {
+        // Show draft wizard for all players who haven't finished drafting
+        if (turnWizardStep !== "draft" && turnWizardStep !== "showCard") {
+          setTurnWizardStep("draft");
+        }
+      } else {
+        // Player finished drafting, hide wizard (waiting for others)
+        if (turnWizardStep === "draft") {
+          setTurnWizardStep(null);
+        }
       }
       return;
     }
+
+    // Normal playing phase - only active player
+    if (phase !== "playing" || !isMyTurn) return;
 
     // Normal turn detection
     if (!turnMeta) return;
@@ -1675,6 +1682,82 @@ export function CometRushGameView({
           </div>
         )}
 
+        {/* INITIAL DRAFT PHASE - All players draw 4 cards simultaneously */}
+        {phase === "initialDraft" && gameState && player && (
+          <>
+            {/* Draft Phase Header */}
+            <div className="panel-retro p-3 mb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-sm font-bold text-mission-cream uppercase tracking-wider">
+                    Mission Briefing
+                  </h1>
+                  <span className="text-[10px] text-mission-steel">ALL AGENTS DRAFTING</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <StatusLight
+                    status={player.initialCardsDrawn < 4 ? "on" : "off"}
+                    pulse={player.initialCardsDrawn < 4}
+                    label={player.initialCardsDrawn < 4 ? "DRAFTING" : "READY"}
+                  />
+                  <span className="led-segment text-lg text-mission-amber">
+                    {player.initialCardsDrawn}/4
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Show other players' draft progress */}
+            <div className="panel-retro p-3 mb-4">
+              <h3 className="label-embossed text-[10px] mb-2">AGENT STATUS</h3>
+              <div className="grid grid-cols-2 gap-2">
+                {gameState.playerOrder.map((pid) => {
+                  const p = gameState.players[pid];
+                  if (!p) return null;
+                  const isDone = p.initialCardsDrawn >= 4;
+                  return (
+                    <div key={pid} className="flex items-center justify-between bg-mission-dark/50 p-2 rounded">
+                      <span className={`text-xs ${pid === playerId ? "text-mission-green font-bold" : "text-mission-cream"}`}>
+                        {p.name}{pid === playerId ? " (You)" : ""}
+                      </span>
+                      <span className={`text-xs ${isDone ? "text-mission-green" : "text-mission-amber"}`}>
+                        {isDone ? "READY" : `${p.initialCardsDrawn}/4`}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Turn Wizard for drafting */}
+            {turnWizardStep && player.initialCardsDrawn < 4 && (
+              <TurnWizard
+                step={turnWizardStep}
+                turnMeta={turnMeta}
+                player={player}
+                distanceToImpact={gameState.distanceToImpact}
+                isBeginningTurn={isBeginningTurn}
+                isDrawingCard={isDrawingCard}
+                selectedDeck={selectedDeck}
+                onBeginTurn={handleBeginTurn}
+                onDrawCard={handleDrawCard}
+                onDismiss={dismissWizard}
+              />
+            )}
+
+            {/* Waiting message when done drafting */}
+            {player.initialCardsDrawn >= 4 && (
+              <div className="panel-retro p-4 text-center">
+                <span className="text-2xl block mb-2">⏳</span>
+                <h3 className="text-lg font-bold text-mission-green mb-2">BRIEFING COMPLETE</h3>
+                <p className="text-sm text-mission-cream/80">
+                  Waiting for other agents to complete their briefings...
+                </p>
+              </div>
+            )}
+          </>
+        )}
+
         {/* PLAYING PHASE */}
         {phase === "playing" && gameState && player && (
           <>
@@ -1783,7 +1866,7 @@ export function CometRushGameView({
                 </motion.div>
               )}
 
-            {/* Turn Wizard */}
+            {/* Turn Wizard - only for active player during playing phase */}
             {isMyTurn && turnWizardStep && (
               <TurnWizard
                 step={turnWizardStep}

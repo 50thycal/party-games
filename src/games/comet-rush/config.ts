@@ -26,7 +26,7 @@ import {
 // PHASES
 // ============================================================================
 
-export type CometRushPhase = "lobby" | "playing" | "gameOver";
+export type CometRushPhase = "lobby" | "initialDraft" | "playing" | "gameOver";
 
 // ============================================================================
 // CORE TYPES
@@ -750,15 +750,13 @@ function reducer(
       const espionageDeck = shuffle(createEspionageDeck(), ctx.random);
       const economicDeck = shuffle(createEconomicDeck(), ctx.random);
 
-      // Players start with empty hands - they will draft 4 cards at the start of their first turn
+      // Players start with empty hands - all players will draft 4 cards simultaneously
       // (initialCardsDrawn is already 0 from buildPlayerState)
 
-      // Initialize turnMeta for first player
-      const firstPlayerId = state.playerOrder[0];
-
+      // No turnMeta during initial draft - all players draw simultaneously
       return {
         ...state,
-        phase: "playing",
+        phase: "initialDraft",
         round: 1,
         movementDeck,
         strengthDeck,
@@ -773,15 +771,7 @@ function reducer(
         lastMovementCard: null,
         lastLaunchResult: null,
         pendingCardPlay: null,
-        turnMeta: {
-          playerId: firstPlayerId,
-          incomeGained: 0,
-          newTotalCubes: state.players[firstPlayerId]?.resourceCubes ?? STARTING_CUBES,
-          lastDrawnCardId: null,
-          lastDrawnDeck: null,
-          wasEmbargoed: false,
-          cardsDrawnThisTurn: 0,
-        },
+        turnMeta: null, // No turn meta during initial draft - all players draw simultaneously
         actionLog: [],
         gameStartTime: ctx.now(),
       };
@@ -851,10 +841,9 @@ function reducer(
     }
 
     case "DRAW_CARD": {
-      if (state.phase !== "playing") return state;
-
-      const activePlayerId = getActivePlayerId(state);
-      if (action.playerId !== activePlayerId) return state;
+      // Allow drawing during initialDraft (all players) or playing (active player only)
+      const isInitialDraftPhase = state.phase === "initialDraft";
+      if (state.phase !== "playing" && !isInitialDraftPhase) return state;
 
       const payload = action.payload as DrawCardPayload | undefined;
       if (!payload || !payload.deck) return state;
@@ -862,11 +851,15 @@ function reducer(
       const player = state.players[action.playerId];
       if (!player) return state;
 
-      // Initial draft phase: players draw 4 cards at the start of the game
-      const isInitialDraft = player.initialCardsDrawn < 4;
+      // During initial draft phase, any player can draw if they have < 4 cards
+      if (isInitialDraftPhase) {
+        if (player.initialCardsDrawn >= 4) return state; // Already drafted 4 cards
+      } else {
+        // Normal playing phase - must be active player
+        const activePlayerId = getActivePlayerId(state);
+        if (action.playerId !== activePlayerId) return state;
 
-      // If not drafting, must have called BEGIN_TURN first
-      if (!isInitialDraft) {
+        // Must have called BEGIN_TURN first
         if (!state.turnMeta || state.turnMeta.playerId !== action.playerId) return state;
 
         // Check if player can still draw cards this turn
@@ -930,8 +923,8 @@ function reducer(
       const updatedPlayer: CometRushPlayerState = {
         ...player,
         hand: newHand,
-        // Increment initial cards drawn if drafting
-        initialCardsDrawn: isInitialDraft ? player.initialCardsDrawn + 1 : player.initialCardsDrawn,
+        // Increment initial cards drawn if in initial draft phase
+        initialCardsDrawn: isInitialDraftPhase ? player.initialCardsDrawn + 1 : player.initialCardsDrawn,
       };
 
       // Build turnMeta - always update lastDrawnCardId so the card can be displayed
@@ -943,25 +936,55 @@ function reducer(
           lastDrawnCardId: drawnCardId,
           lastDrawnDeck: deckType,
           // Only increment cards drawn counter during normal turns, not initial draft
-          cardsDrawnThisTurn: isInitialDraft
+          cardsDrawnThisTurn: isInitialDraftPhase
             ? (state.turnMeta.cardsDrawnThisTurn ?? 0)
             : (state.turnMeta.cardsDrawnThisTurn ?? 0) + 1,
         };
       }
 
+      // Update players with the new player state
+      const updatedPlayers = {
+        ...state.players,
+        [action.playerId]: updatedPlayer,
+      };
+
+      // Check if all players have completed initial draft (all have 4 cards)
+      let newPhase: CometRushPhase = state.phase;
+      let newTurnMeta = updatedTurnMeta;
+      if (isInitialDraftPhase) {
+        const allPlayersDrafted = state.playerOrder.every(pid => {
+          const p = pid === action.playerId ? updatedPlayer : state.players[pid];
+          return p && p.initialCardsDrawn >= 4;
+        });
+
+        if (allPlayersDrafted) {
+          // Transition to playing phase - first player begins their turn
+          newPhase = "playing";
+          const firstPlayerId = state.playerOrder[0];
+          const firstPlayer = updatedPlayers[firstPlayerId];
+          newTurnMeta = {
+            playerId: firstPlayerId,
+            incomeGained: 0,
+            newTotalCubes: firstPlayer?.resourceCubes ?? STARTING_CUBES,
+            lastDrawnCardId: null,
+            lastDrawnDeck: null,
+            wasEmbargoed: false,
+            cardsDrawnThisTurn: 0,
+          };
+        }
+      }
+
       const drawCardState: CometRushState = {
         ...state,
+        phase: newPhase,
         engineeringDeck,
         engineeringDiscard,
         espionageDeck,
         espionageDiscard,
         economicDeck,
         economicDiscard,
-        players: {
-          ...state.players,
-          [action.playerId]: updatedPlayer,
-        },
-        turnMeta: updatedTurnMeta,
+        players: updatedPlayers,
+        turnMeta: newTurnMeta,
       };
 
       // Add action log entry
