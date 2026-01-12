@@ -2748,8 +2748,16 @@ function isActionAllowed(
     case "START_GAME":
       return isHost && state.phase === "lobby";
 
-    case "BEGIN_TURN":
     case "DRAW_CARD":
+      // During initial draft, any player can draw if they haven't drawn 4 cards yet
+      if (state.phase === "initialDraft") {
+        const player = state.players[ctx.playerId];
+        return player !== undefined && player.initialCardsDrawn < 4;
+      }
+      // During normal play, only active player can draw
+      return state.phase === "playing" && ctx.playerId === activePlayerId;
+
+    case "BEGIN_TURN":
     case "PLAY_CARD":
     case "TRADE_CARDS":
     case "BUILD_ROCKET":
