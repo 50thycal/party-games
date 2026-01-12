@@ -1250,7 +1250,10 @@ export function CometRushGameView({
   useEffect(() => {
     // During initial draft phase, ALL players can draw simultaneously
     if (phase === "initialDraft") {
-      const isInDraftPhase = player && player.initialCardsDrawn < 4;
+      // Don't change wizard state if player data isn't loaded yet
+      if (!player) return;
+
+      const isInDraftPhase = player.initialCardsDrawn < 4;
       if (isInDraftPhase) {
         // Show draft wizard for all players who haven't finished drafting
         if (turnWizardStep !== "draft" && turnWizardStep !== "showCard") {
