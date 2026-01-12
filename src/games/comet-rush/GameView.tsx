@@ -458,9 +458,10 @@ function TurnWizard({
 }) {
   if (!step) return null;
 
+  // Find the drawn card - either from turnMeta or the last card in hand (for initial draft)
   const drawnCard = turnMeta?.lastDrawnCardId
     ? player.hand.find((c) => c.id === turnMeta.lastDrawnCardId)
-    : null;
+    : player.hand.length > 0 ? player.hand[player.hand.length - 1] : null;
 
   // Late game: can draw 2 cards when comet ≤9 from Earth
   const maxDraws = distanceToImpact <= 9 ? 2 : 1;
