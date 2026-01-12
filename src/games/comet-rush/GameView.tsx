@@ -262,7 +262,7 @@ function BuildRocketForm({
         disabled={!canAfford || !hasSlot || isBuilding || !isMyTurn}
         variant="success"
         size="lg"
-        className="w-full"
+        className="w-full text-lg font-bold"
         isLoading={isBuilding}
       >
         {isBuilding
@@ -273,7 +273,7 @@ function BuildRocketForm({
               ? "No Slots Available"
               : !canAfford
                 ? "Insufficient Cubes"
-                : "Initiate Construction"}
+                : "🔧 BUILD ROCKET"}
       </MissionButton>
     </div>
   );
@@ -337,18 +337,18 @@ function RocketCard({
           onClick={onLaunch}
           disabled={!canLaunch || isLaunching}
           variant="danger"
-          size="md"
-          className="w-full"
+          size="lg"
+          className="w-full text-lg font-bold"
           isLoading={isLaunching}
         >
-          {isLaunching ? "Launching..." : "LAUNCH"}
+          {isLaunching ? "Launching..." : "🚀 LAUNCH"}
         </MissionButton>
       )}
     </div>
   );
 }
 
-// Action Panel with retro accordion style
+// Action Panel with retro accordion style - Primary interaction areas
 function ActionPanel({
   title,
   summary,
@@ -366,18 +366,21 @@ function ActionPanel({
   children: React.ReactNode;
   variant?: "default" | "build" | "launch" | "cards";
 }) {
-  const variantStyles = {
-    default: "border-mission-steel",
-    build: "border-emerald-700",
-    launch: "border-rose-700",
-    cards: "border-cyan-700",
+  const variantConfig = {
+    default: { border: "border-mission-steel", bg: "", icon: "▶", iconColor: "text-mission-green" },
+    build: { border: "border-emerald-600", bg: "bg-emerald-950/30", icon: "🔧", iconColor: "text-emerald-400" },
+    launch: { border: "border-rose-600", bg: "bg-rose-950/30", icon: "🚀", iconColor: "text-rose-400" },
+    cards: { border: "border-cyan-600", bg: "bg-cyan-950/30", icon: "🃏", iconColor: "text-cyan-400" },
   };
+
+  const config = variantConfig[variant];
 
   return (
     <div
       className={cn(
-        "panel-retro overflow-hidden transition-all",
-        isExpanded && variantStyles[variant],
+        "panel-retro overflow-hidden transition-all border-2",
+        isExpanded ? config.border : "border-mission-steel-dark",
+        isExpanded && config.bg,
         disabled && "opacity-50"
       )}
     >
@@ -385,18 +388,30 @@ function ActionPanel({
         type="button"
         onClick={onToggle}
         disabled={disabled}
-        className="w-full px-3 py-2 flex items-center justify-between text-left hover:bg-mission-panel-light/50 transition-colors"
+        className={cn(
+          "w-full px-4 py-3 flex items-center justify-between text-left transition-all",
+          "hover:bg-mission-panel-light/50",
+          isExpanded && config.bg
+        )}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <motion.span
-            animate={{ rotate: isExpanded ? 90 : 0 }}
-            className="text-mission-green text-sm"
+            animate={{ scale: isExpanded ? 1.1 : 1 }}
+            className={cn("text-2xl", config.iconColor)}
           >
-            ▶
+            {config.icon}
           </motion.span>
-          <span className="text-sm font-bold uppercase text-mission-cream">{title}</span>
+          <span className="text-base font-bold uppercase text-mission-cream tracking-wide">{title}</span>
         </div>
-        <span className="text-xs text-mission-steel">{summary}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-mission-steel">{summary}</span>
+          <motion.span
+            animate={{ rotate: isExpanded ? 180 : 0 }}
+            className="text-mission-green text-lg"
+          >
+            ▼
+          </motion.span>
+        </div>
       </button>
 
       <AnimatePresence>
@@ -407,8 +422,8 @@ function ActionPanel({
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <div className="px-3 pb-3 border-t border-mission-steel-dark/50">
-              <div className="pt-3">{children}</div>
+            <div className="px-4 pb-4 border-t border-mission-steel-dark/50">
+              <div className="pt-4">{children}</div>
             </div>
           </motion.div>
         )}
@@ -991,7 +1006,7 @@ function CardWithInlineControls({
               </div>
             )}
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 mt-2">
               <MissionButton
                 onClick={() => {
                   setSelectedCardId(null);
@@ -1001,7 +1016,7 @@ function CardWithInlineControls({
                   setCalibrationChoice(null);
                 }}
                 variant="primary"
-                size="sm"
+                size="md"
                 className="flex-1"
               >
                 Cancel
@@ -1010,11 +1025,11 @@ function CardWithInlineControls({
                 onClick={handlePlayCard}
                 disabled={!canPlayCard() || isPlayingCard}
                 variant="success"
-                size="sm"
-                className="flex-1"
+                size="lg"
+                className="flex-1 text-lg font-bold"
                 isLoading={isPlayingCard}
               >
-                {isPlayingCard ? "Playing..." : "Execute"}
+                {isPlayingCard ? "Playing..." : "🃏 PLAY CARD"}
               </MissionButton>
             </div>
           </motion.div>
@@ -1232,18 +1247,25 @@ export function CometRushGameView({
 
   // Detect turn start for wizard (or draft phase)
   useEffect(() => {
-    if (phase !== "playing" || !isMyTurn) return;
-
-    // Check if player is in initial draft phase (has drawn < 4 cards)
-    const isInDraftPhase = player && player.initialCardsDrawn < 4;
-
-    if (isInDraftPhase) {
-      // Show draft wizard
-      if (turnWizardStep !== "draft" && turnWizardStep !== "showCard") {
-        setTurnWizardStep("draft");
+    // During initial draft phase, ALL players can draw simultaneously
+    if (phase === "initialDraft") {
+      const isInDraftPhase = player && player.initialCardsDrawn < 4;
+      if (isInDraftPhase) {
+        // Show draft wizard for all players who haven't finished drafting
+        if (turnWizardStep !== "draft" && turnWizardStep !== "showCard") {
+          setTurnWizardStep("draft");
+        }
+      } else {
+        // Player finished drafting, hide wizard (waiting for others)
+        if (turnWizardStep === "draft") {
+          setTurnWizardStep(null);
+        }
       }
       return;
     }
+
+    // Normal playing phase - only active player
+    if (phase !== "playing" || !isMyTurn) return;
 
     // Normal turn detection
     if (!turnMeta) return;
@@ -1675,6 +1697,82 @@ export function CometRushGameView({
           </div>
         )}
 
+        {/* INITIAL DRAFT PHASE - All players draw 4 cards simultaneously */}
+        {phase === "initialDraft" && gameState && player && (
+          <>
+            {/* Draft Phase Header */}
+            <div className="panel-retro p-3 mb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-sm font-bold text-mission-cream uppercase tracking-wider">
+                    Mission Briefing
+                  </h1>
+                  <span className="text-[10px] text-mission-steel">ALL AGENTS DRAFTING</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <StatusLight
+                    status={player.initialCardsDrawn < 4 ? "on" : "off"}
+                    pulse={player.initialCardsDrawn < 4}
+                    label={player.initialCardsDrawn < 4 ? "DRAFTING" : "READY"}
+                  />
+                  <span className="led-segment text-lg text-mission-amber">
+                    {player.initialCardsDrawn}/4
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Show other players' draft progress */}
+            <div className="panel-retro p-3 mb-4">
+              <h3 className="label-embossed text-[10px] mb-2">AGENT STATUS</h3>
+              <div className="grid grid-cols-2 gap-2">
+                {gameState.playerOrder.map((pid) => {
+                  const p = gameState.players[pid];
+                  if (!p) return null;
+                  const isDone = p.initialCardsDrawn >= 4;
+                  return (
+                    <div key={pid} className="flex items-center justify-between bg-mission-dark/50 p-2 rounded">
+                      <span className={`text-xs ${pid === playerId ? "text-mission-green font-bold" : "text-mission-cream"}`}>
+                        {p.name}{pid === playerId ? " (You)" : ""}
+                      </span>
+                      <span className={`text-xs ${isDone ? "text-mission-green" : "text-mission-amber"}`}>
+                        {isDone ? "READY" : `${p.initialCardsDrawn}/4`}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Turn Wizard for drafting */}
+            {turnWizardStep && player.initialCardsDrawn < 4 && (
+              <TurnWizard
+                step={turnWizardStep}
+                turnMeta={turnMeta}
+                player={player}
+                distanceToImpact={gameState.distanceToImpact}
+                isBeginningTurn={isBeginningTurn}
+                isDrawingCard={isDrawingCard}
+                selectedDeck={selectedDeck}
+                onBeginTurn={handleBeginTurn}
+                onDrawCard={handleDrawCard}
+                onDismiss={dismissWizard}
+              />
+            )}
+
+            {/* Waiting message when done drafting */}
+            {player.initialCardsDrawn >= 4 && (
+              <div className="panel-retro p-4 text-center">
+                <span className="text-2xl block mb-2">⏳</span>
+                <h3 className="text-lg font-bold text-mission-green mb-2">BRIEFING COMPLETE</h3>
+                <p className="text-sm text-mission-cream/80">
+                  Waiting for other agents to complete their briefings...
+                </p>
+              </div>
+            )}
+          </>
+        )}
+
         {/* PLAYING PHASE */}
         {phase === "playing" && gameState && player && (
           <>
@@ -1783,7 +1881,7 @@ export function CometRushGameView({
                 </motion.div>
               )}
 
-            {/* Turn Wizard */}
+            {/* Turn Wizard - only for active player during playing phase */}
             {isMyTurn && turnWizardStep && (
               <TurnWizard
                 step={turnWizardStep}
@@ -1999,8 +2097,8 @@ export function CometRushGameView({
               );
             })()}
 
-            {/* Action Panels */}
-            <div className="space-y-2 mb-4">
+            {/* Action Panels - Primary Player Interactions */}
+            <div className="space-y-3 mb-4">
               {/* Build Rocket */}
               <ActionPanel
                 title="Build Rocket"
