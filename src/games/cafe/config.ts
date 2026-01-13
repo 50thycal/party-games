@@ -22,7 +22,7 @@ export type CafePhase =
 export const GAME_CONFIG = {
   TOTAL_ROUNDS: 5,
   STARTING_MONEY: 40,
-  RENT_PER_ROUND: 2,
+  RENT_PER_ROUND: 10,
   CUSTOMERS_PER_PLAYER: 3, // 2 players = 6, 3 players = 9, 4 players = 12
 };
 
@@ -160,6 +160,7 @@ export interface CafeState {
   // Player management
   playerOrder: string[];
   players: Record<string, CafePlayerState>;
+  eliminatedPlayers: string[]; // Players who went bankrupt
 
   // Customer deck
   customerDeck: CustomerCard[];
@@ -366,6 +367,28 @@ function getNextPlayerIndex(currentIndex: number, playerCount: number): number {
   return (currentIndex + 1) % playerCount;
 }
 
+function getNextActivePlayerIndex(
+  currentIndex: number,
+  playerOrder: string[],
+  eliminatedPlayers: string[]
+): number {
+  const playerCount = playerOrder.length;
+  let nextIndex = (currentIndex + 1) % playerCount;
+  let iterations = 0;
+
+  // Find next player who isn't eliminated
+  while (eliminatedPlayers.includes(playerOrder[nextIndex]) && iterations < playerCount) {
+    nextIndex = (nextIndex + 1) % playerCount;
+    iterations++;
+  }
+
+  return nextIndex;
+}
+
+function getActivePlayerCount(playerOrder: string[], eliminatedPlayers: string[]): number {
+  return playerOrder.filter(id => !eliminatedPlayers.includes(id)).length;
+}
+
 // =============================================================================
 // INITIAL STATE
 // =============================================================================
@@ -384,6 +407,7 @@ function initialState(players: Player[]): CafeState {
     round: 0,
     playerOrder,
     players: playerStates,
+    eliminatedPlayers: [],
     customerDeck: [],
     currentRoundCustomers: [],
     customersDealtThisRound: 0,
@@ -541,7 +565,6 @@ function reducer(
       if (action.playerId !== deciderId) return state;
 
       const player = state.players[deciderId];
-      const playerCount = state.playerOrder.length;
 
       // Add customer to player's line
       const updatedPlayer = {
@@ -553,10 +576,11 @@ function reducer(
       const allCustomersDealt =
         state.customersDealtThisRound >= state.currentRoundCustomers.length;
 
-      // Next drawer rotates clockwise from the current drawer
-      const nextDrawerIndex = getNextPlayerIndex(
+      // Next drawer rotates clockwise, skipping eliminated players
+      const nextDrawerIndex = getNextActivePlayerIndex(
         state.currentDrawerIndex,
-        playerCount
+        state.playerOrder,
+        state.eliminatedPlayers
       );
 
       if (allCustomersDealt) {
@@ -566,8 +590,9 @@ function reducer(
           ...state.players,
           [deciderId]: updatedPlayer,
         };
-        // Default: select all customers for fulfillment
+        // Default: select all customers for fulfillment (only for active players)
         for (const pid of state.playerOrder) {
+          if (state.eliminatedPlayers.includes(pid)) continue;
           const p = pid === deciderId ? updatedPlayer : state.players[pid];
           selectedForFulfillment[pid] = p.customerLine.map((_, i) => i);
         }
@@ -601,16 +626,17 @@ function reducer(
       const deciderId = state.playerOrder[state.currentDeciderIndex];
       if (action.playerId !== deciderId) return state;
 
-      const playerCount = state.playerOrder.length;
-      const nextDeciderIndex = getNextPlayerIndex(
+      const activePlayerCount = getActivePlayerCount(state.playerOrder, state.eliminatedPlayers);
+      const nextDeciderIndex = getNextActivePlayerIndex(
         state.currentDeciderIndex,
-        playerCount
+        state.playerOrder,
+        state.eliminatedPlayers
       );
 
       // Check if customer has gone full circle (forced take)
-      // passCount tracks how many players have passed
-      // When passCount === playerCount - 1, the customer returns to drawer
-      if (state.passCount >= playerCount - 1) {
+      // passCount tracks how many active players have passed
+      // When passCount === activePlayerCount - 1, the customer returns to drawer
+      if (state.passCount >= activePlayerCount - 1) {
         // Customer returned to drawer - forced take
         const drawerId = state.playerOrder[state.currentDrawerIndex];
         const drawer = state.players[drawerId];
@@ -623,9 +649,10 @@ function reducer(
         const allCustomersDealt =
           state.customersDealtThisRound >= state.currentRoundCustomers.length;
 
-        const nextDrawerIndex = getNextPlayerIndex(
+        const nextDrawerIndex = getNextActivePlayerIndex(
           state.currentDrawerIndex,
-          playerCount
+          state.playerOrder,
+          state.eliminatedPlayers
         );
 
         if (allCustomersDealt) {
@@ -636,6 +663,7 @@ function reducer(
             [drawerId]: updatedDrawer,
           };
           for (const pid of state.playerOrder) {
+            if (state.eliminatedPlayers.includes(pid)) continue;
             const p = pid === drawerId ? updatedDrawer : state.players[pid];
             selectedForFulfillment[pid] = p.customerLine.map((_, i) => i);
           }
@@ -662,7 +690,7 @@ function reducer(
         };
       }
 
-      // Normal pass - move to next player
+      // Normal pass - move to next active player
       return {
         ...state,
         currentDeciderIndex: nextDeciderIndex,
@@ -713,6 +741,9 @@ function reducer(
       const updatedPlayers = { ...state.players };
 
       for (const playerId of state.playerOrder) {
+        // Skip eliminated players
+        if (state.eliminatedPlayers.includes(playerId)) continue;
+
         const player = updatedPlayers[playerId];
         const selectedIndices = state.selectedForFulfillment[playerId] || [];
         let totalMoney = 0;
@@ -851,31 +882,79 @@ function reducer(
 
     case "END_ROUND": {
       const updatedPlayers = { ...state.players };
+      const newlyEliminated: string[] = [];
 
-      // Pay rent - only for players who weren't bailed out
-      // Allow negative money (debt)
-      for (const playerId of state.playerOrder) {
+      // Get active players (not already eliminated)
+      const activePlayers = state.playerOrder.filter(
+        (id) => !state.eliminatedPlayers.includes(id)
+      );
+
+      // Process rent for each active player
+      for (const playerId of activePlayers) {
         const player = updatedPlayers[playerId];
         const wasBailedOut = state.rentPaidBy[playerId] !== null;
 
-        if (!wasBailedOut) {
-          // Player pays their own rent - can go into debt
+        if (wasBailedOut) {
+          // Rent was already paid by someone else - player is safe
+          continue;
+        }
+
+        // Check if player can afford rent
+        if (player.money >= GAME_CONFIG.RENT_PER_ROUND) {
+          // Player pays their own rent
           updatedPlayers[playerId] = {
             ...player,
             money: player.money - GAME_CONFIG.RENT_PER_ROUND,
           };
+        } else {
+          // Player can't afford rent - they go bankrupt!
+          newlyEliminated.push(playerId);
         }
-        // If bailed out, rent was already paid by someone else
       }
 
-      // Check if game is over
+      const allEliminated = [...state.eliminatedPlayers, ...newlyEliminated];
+
+      // Check remaining active players
+      const remainingPlayers = state.playerOrder.filter(
+        (id) => !allEliminated.includes(id)
+      );
+
+      // Check win conditions:
+      // 1. Last player standing wins
+      // 2. If all rounds complete, highest money wins
+      if (remainingPlayers.length === 1) {
+        // Last player standing!
+        return {
+          ...state,
+          players: updatedPlayers,
+          eliminatedPlayers: allEliminated,
+          phase: "gameOver",
+          winnerId: remainingPlayers[0],
+          rentOwed: {},
+          rentPaidBy: {},
+        };
+      }
+
+      if (remainingPlayers.length === 0) {
+        // Everyone went bankrupt at once - no winner
+        return {
+          ...state,
+          players: updatedPlayers,
+          eliminatedPlayers: allEliminated,
+          phase: "gameOver",
+          winnerId: null,
+          rentOwed: {},
+          rentPaidBy: {},
+        };
+      }
+
+      // Check if game is over (all rounds complete)
       if (state.round >= GAME_CONFIG.TOTAL_ROUNDS) {
         let winnerId: string | null = null;
         let highestScore = -Infinity;
 
-        for (const playerId of state.playerOrder) {
+        for (const playerId of remainingPlayers) {
           const player = updatedPlayers[playerId];
-          // Score = money + prestige * 2 (negative money hurts!)
           const score = player.money + player.prestige * 2;
           if (score > highestScore) {
             highestScore = score;
@@ -886,6 +965,7 @@ function reducer(
         return {
           ...state,
           players: updatedPlayers,
+          eliminatedPlayers: allEliminated,
           phase: "gameOver",
           winnerId,
           rentOwed: {},
@@ -894,15 +974,22 @@ function reducer(
       }
 
       // Prepare next round
-      const playerCount = state.playerOrder.length;
+      const playerCount = remainingPlayers.length;
 
-      // Rotate first drawer for next round
-      const nextFirstDrawer = getNextPlayerIndex(
+      // Find next valid drawer index among remaining players
+      let nextFirstDrawer = getNextPlayerIndex(
         state.firstDrawerIndex,
-        playerCount
+        state.playerOrder.length
       );
+      // Skip eliminated players
+      while (allEliminated.includes(state.playerOrder[nextFirstDrawer])) {
+        nextFirstDrawer = getNextPlayerIndex(
+          nextFirstDrawer,
+          state.playerOrder.length
+        );
+      }
 
-      // Draw new customers (replenish from deck or reshuffle if needed)
+      // Draw new customers (based on remaining players)
       const customersThisRound = playerCount * GAME_CONFIG.CUSTOMERS_PER_PLAYER;
       let deck = state.customerDeck;
       if (deck.length < customersThisRound) {
@@ -916,6 +1003,7 @@ function reducer(
       return {
         ...state,
         players: updatedPlayers,
+        eliminatedPlayers: allEliminated,
         phase: "planning",
         round: state.round + 1,
         customerDeck: remainingDeck,
@@ -939,8 +1027,9 @@ function reducer(
       const customerDeck = createCustomerDeck(ctx);
       const playerCount = newState.playerOrder.length;
 
-      const customersForRound = customerDeck.slice(0, playerCount);
-      const remainingDeck = customerDeck.slice(playerCount);
+      const customersThisRound = playerCount * GAME_CONFIG.CUSTOMERS_PER_PLAYER;
+      const customersForRound = customerDeck.slice(0, customersThisRound);
+      const remainingDeck = customerDeck.slice(customersThisRound);
 
       return {
         ...newState,
@@ -948,6 +1037,7 @@ function reducer(
         round: 1,
         customerDeck: remainingDeck,
         currentRoundCustomers: customersForRound,
+        eliminatedPlayers: [], // Reset eliminations
       };
     }
 
@@ -975,6 +1065,12 @@ function isActionAllowed(
 ): boolean {
   const isHost = ctx.room.hostId === ctx.playerId;
   const player = state.players[action.playerId];
+  const isEliminated = state.eliminatedPlayers.includes(action.playerId);
+
+  // Eliminated players can't take any actions (except viewing)
+  if (isEliminated && action.type !== "PLAY_AGAIN") {
+    return false;
+  }
 
   switch (action.type) {
     case "START_GAME":
@@ -1034,6 +1130,8 @@ function isActionAllowed(
       if (!targetPlayerId) return false;
       // Can't bailout yourself
       if (action.playerId === targetPlayerId) return false;
+      // Target must not be eliminated
+      if (state.eliminatedPlayers.includes(targetPlayerId)) return false;
       // Target must still owe rent and not be bailed out yet
       if ((state.rentOwed[targetPlayerId] || 0) <= 0) return false;
       if (state.rentPaidBy[targetPlayerId] !== null) return false;

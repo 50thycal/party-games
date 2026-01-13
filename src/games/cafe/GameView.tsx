@@ -3,6 +3,7 @@
 import type { GameViewProps } from "@/games/views";
 import {
   SUPPLY_COST,
+  GAME_CONFIG,
   CUSTOMER_ARCHETYPES,
   getCardArchetype,
   type CafeState,
@@ -24,6 +25,7 @@ export function CafeGameView({
   const gameState = state as CafeState;
   const phase = gameState?.phase ?? "lobby";
   const player = playerId ? gameState?.players?.[playerId] : null;
+  const isEliminated = playerId ? gameState?.eliminatedPlayers?.includes(playerId) : false;
 
   async function dispatch(action: string, payload?: Record<string, unknown>) {
     setIsLoading(true);
@@ -52,10 +54,11 @@ export function CafeGameView({
           </div>
           {player && (
             <div className="text-right">
-              <p className={`font-bold ${player.money < 0 ? "text-red-400" : "text-yellow-400"}`}>
-                ${player.money}
-                {player.money < 0 && <span className="text-xs ml-1">(IN DEBT)</span>}
-              </p>
+              {isEliminated ? (
+                <p className="font-bold text-red-400">BANKRUPT</p>
+              ) : (
+                <p className="font-bold text-yellow-400">${player.money}</p>
+              )}
               {/* Prestige hidden for now
               <p className="text-purple-400 text-sm">
                 {player.prestige} prestige
@@ -69,19 +72,29 @@ export function CafeGameView({
       {/* Host Controls */}
       {isHost && <HostControls phase={phase} gameState={gameState} dispatch={dispatch} isLoading={isLoading} />}
 
+      {/* Eliminated player banner */}
+      {isEliminated && phase !== "gameOver" && (
+        <section className="bg-red-900/30 border border-red-700 rounded-lg p-6 text-center">
+          <h2 className="text-xl font-bold text-red-400 mb-2">You're Out!</h2>
+          <p className="text-gray-400">
+            You went bankrupt and can no longer participate. Watch the remaining players battle it out!
+          </p>
+        </section>
+      )}
+
       {/* Phase-specific content */}
       {phase === "lobby" && <LobbyView />}
-      {phase === "planning" && player && (
+      {phase === "planning" && player && !isEliminated && (
         <PlanningView player={player} />
       )}
-      {phase === "investment" && player && (
+      {phase === "investment" && player && !isEliminated && (
         <InvestmentView
           player={player}
           dispatch={dispatch}
           isLoading={isLoading}
         />
       )}
-      {phase === "customerDraft" && player && (
+      {phase === "customerDraft" && player && !isEliminated && (
         <CustomerDraftView
           gameState={gameState}
           player={player}
@@ -90,7 +103,7 @@ export function CafeGameView({
           isLoading={isLoading}
         />
       )}
-      {phase === "customerResolution" && player && (
+      {phase === "customerResolution" && player && !isEliminated && (
         <CustomerResolutionView
           gameState={gameState}
           player={player}
@@ -102,7 +115,7 @@ export function CafeGameView({
       {phase === "shopClosed" && (
         <ShopClosedView gameState={gameState} />
       )}
-      {phase === "cleanup" && player && (
+      {phase === "cleanup" && player && !isEliminated && (
         <CleanupView
           gameState={gameState}
           player={player}
@@ -121,6 +134,7 @@ export function CafeGameView({
           players={gameState.players}
           playerOrder={gameState.playerOrder}
           currentPlayerId={playerId!}
+          eliminatedPlayers={gameState.eliminatedPlayers}
         />
       )}
     </div>
@@ -786,17 +800,25 @@ function CustomerResolutionView({
 }
 
 function ShopClosedView({ gameState }: { gameState: CafeState }) {
-  // Calculate summary for each player
-  const summaries = gameState.playerOrder.map(id => {
-    const player = gameState.players[id];
-    return {
-      id,
-      name: player.name,
-      money: player.money,
-      prestige: player.prestige,
-      customersServed: player.customersServed,
-    };
-  });
+  const rent = GAME_CONFIG.RENT_PER_ROUND;
+
+  // Calculate summary for each active player
+  const summaries = gameState.playerOrder
+    .filter(id => !gameState.eliminatedPlayers.includes(id))
+    .map(id => {
+      const player = gameState.players[id];
+      const canAffordRent = player.money >= rent;
+      return {
+        id,
+        name: player.name,
+        money: player.money,
+        prestige: player.prestige,
+        customersServed: player.customersServed,
+        canAffordRent,
+      };
+    });
+
+  const playersAtRisk = summaries.filter(p => !p.canAffordRent);
 
   return (
     <section className="bg-gray-800 border border-gray-700 rounded-lg p-6">
@@ -810,24 +832,37 @@ function ShopClosedView({ gameState }: { gameState: CafeState }) {
         <div className="space-y-2">
           {summaries.map(p => (
             <div key={p.id} className="flex justify-between items-center text-sm">
-              <span>{p.name}</span>
+              <span className="flex items-center gap-2">
+                {p.name}
+                {!p.canAffordRent && (
+                  <span className="text-xs bg-red-600 text-white px-1.5 py-0.5 rounded">AT RISK</span>
+                )}
+              </span>
               <div className="flex gap-4">
-                <span className={p.money < 0 ? "text-red-400" : "text-yellow-400"}>
+                <span className={p.canAffordRent ? "text-yellow-400" : "text-red-400"}>
                   ${p.money}
                 </span>
-                {/* Prestige hidden for now
-                <span className="text-purple-400">{p.prestige} prestige</span>
-                */}
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="bg-amber-900/30 border border-amber-700 rounded-lg p-4 text-center">
-        <p className="text-amber-400">
-          Time to pay rent: $2 per player
+      <div className={`rounded-lg p-4 text-center border ${
+        playersAtRisk.length > 0
+          ? "bg-red-900/30 border-red-700"
+          : "bg-amber-900/30 border-amber-700"
+      }`}>
+        <p className={playersAtRisk.length > 0 ? "text-red-400" : "text-amber-400"}>
+          Time to pay rent: ${rent} per player
         </p>
+        {playersAtRisk.length > 0 && (
+          <p className="text-red-300 text-sm mt-2">
+            {playersAtRisk.length === 1
+              ? `${playersAtRisk[0].name} cannot afford rent and will go bankrupt!`
+              : `${playersAtRisk.map(p => p.name).join(", ")} cannot afford rent and will go bankrupt!`}
+          </p>
+        )}
         <p className="text-gray-400 text-sm mt-2">
           Waiting for host to proceed...
         </p>
@@ -849,14 +884,14 @@ function CleanupView({
   dispatch: (action: string, payload?: Record<string, unknown>) => Promise<void>;
   isLoading: boolean;
 }) {
-  const rent = 2; // GAME_CONFIG.RENT_PER_ROUND
+  const rent = GAME_CONFIG.RENT_PER_ROUND;
   const canAffordRent = player.money >= rent;
   const myRentPaidBy = gameState.rentPaidBy[playerId];
   const amBailedOut = myRentPaidBy !== null;
 
-  // Find players who need bailout (can't afford rent and not yet bailed out)
+  // Find players who need bailout (can't afford rent and not yet bailed out, excluding eliminated)
   const playersNeedingBailout = gameState.playerOrder
-    .filter(id => id !== playerId)
+    .filter(id => id !== playerId && !gameState.eliminatedPlayers.includes(id))
     .map(id => ({
       id,
       player: gameState.players[id],
@@ -885,7 +920,7 @@ function CleanupView({
           <div>
             <p className="text-sm text-gray-400">Rent due: ${rent}</p>
             <p className="text-sm text-gray-400">
-              Your money: <span className={player.money < 0 ? "text-red-400" : "text-yellow-400"}>${player.money}</span>
+              Your money: <span className="text-yellow-400">${player.money}</span>
             </p>
           </div>
           <div className="text-right">
@@ -897,8 +932,8 @@ function CleanupView({
               <span className="text-green-400">Can pay</span>
             ) : (
               <div>
-                <span className="text-red-400 font-semibold">Will go into debt</span>
-                <p className="text-xs text-gray-500">After rent: ${player.money - rent}</p>
+                <span className="text-red-400 font-semibold">BANKRUPTCY!</span>
+                <p className="text-xs text-red-300 mt-1">You will be eliminated!</p>
               </div>
             )}
           </div>
@@ -910,20 +945,23 @@ function CleanupView({
         <div className="bg-gray-900 rounded-lg p-4">
           <h3 className="font-semibold mb-3">Bailout Options</h3>
           <p className="text-xs text-gray-500 mb-3">
-            Other players struggling with rent. You can pay their rent for them.
+            Save another player from bankruptcy by paying their rent!
           </p>
           <div className="space-y-2">
             {playersNeedingBailout.map(({ id, player: targetPlayer, needsBailout, wasBailedOut, bailedOutBy }) => (
               <div key={id} className="flex justify-between items-center p-2 bg-gray-800 rounded">
                 <div>
                   <span className="font-medium">{targetPlayer.name}</span>
-                  <span className={`text-sm ml-2 ${targetPlayer.money < 0 ? "text-red-400" : "text-yellow-400"}`}>
+                  <span className="text-sm ml-2 text-yellow-400">
                     (${targetPlayer.money})
                   </span>
+                  {needsBailout && !wasBailedOut && (
+                    <span className="text-xs bg-red-600 text-white px-1.5 py-0.5 rounded ml-2">GOING BANKRUPT</span>
+                  )}
                 </div>
                 {wasBailedOut ? (
                   <span className="text-green-400 text-sm">
-                    Bailed out by {gameState.players[bailedOutBy!]?.name}
+                    Saved by {gameState.players[bailedOutBy!]?.name}
                   </span>
                 ) : needsBailout && canBailoutOthers ? (
                   <button
@@ -931,10 +969,10 @@ function CleanupView({
                     disabled={isLoading}
                     className="text-sm bg-green-600 hover:bg-green-700 disabled:bg-gray-700 px-3 py-1 rounded transition-colors"
                   >
-                    Pay ${rent} for them
+                    Save them (${rent})
                   </button>
                 ) : needsBailout ? (
-                  <span className="text-red-400 text-sm">Needs bailout</span>
+                  <span className="text-red-400 text-sm">Will go bankrupt</span>
                 ) : null}
               </div>
             ))}
@@ -947,7 +985,7 @@ function CleanupView({
         <p className="text-blue-300 text-sm">
           {gameState.round >= 5
             ? "This is the final round! After rent, the game will end."
-            : "After rent is paid, the next round will begin."}
+            : "Players who can't pay rent will go bankrupt and be eliminated!"}
         </p>
       </div>
     </section>
@@ -967,24 +1005,42 @@ function GameOverView({
     ? gameState.players[gameState.winnerId]
     : null;
   const isWinner = gameState.winnerId === playerId;
+  const eliminatedPlayers = gameState.eliminatedPlayers;
 
-  // Sort players by score (prestige disabled for now, just use money)
-  const sortedPlayers = gameState.playerOrder
+  // Check if won by last player standing
+  const activePlayers = gameState.playerOrder.filter(
+    id => !eliminatedPlayers.includes(id)
+  );
+  const wonByLastStanding = activePlayers.length === 1 && winner !== null;
+
+  // Sort active players by score (prestige disabled for now, just use money)
+  const sortedActivePlayers = gameState.playerOrder
+    .filter(id => !eliminatedPlayers.includes(id))
     .map((id) => {
       const p = gameState.players[id];
       return {
         ...p,
-        // score: p.money + p.prestige * 2, // Prestige disabled
         score: p.money,
+        eliminated: false,
       };
     })
     .sort((a, b) => b.score - a.score);
+
+  // Get eliminated players in order they were eliminated (reverse order in array)
+  const eliminatedPlayersList = eliminatedPlayers.map(id => {
+    const p = gameState.players[id];
+    return {
+      ...p,
+      score: p.money,
+      eliminated: true,
+    };
+  });
 
   return (
     <section className="bg-gray-800 border border-gray-700 rounded-lg p-6">
       <h2 className="text-2xl font-bold text-center mb-6">Game Over!</h2>
 
-      {winner && (
+      {winner ? (
         <div
           className={`text-center p-6 rounded-lg mb-6 ${
             isWinner
@@ -992,22 +1048,34 @@ function GameOverView({
               : "bg-gray-900"
           }`}
         >
-          <p className="text-gray-400 mb-2">Winner</p>
+          <p className="text-gray-400 mb-2">
+            {wonByLastStanding ? "Last Player Standing!" : "Winner"}
+          </p>
           <p className="text-3xl font-bold text-yellow-400">
             {winner.name}
             {isWinner && " (You!)"}
           </p>
           <p className="text-gray-400 mt-2">
-            {/* Score: {winner.money + winner.prestige * 2} // Prestige disabled */}
             Final Money: ${winner.money}
           </p>
+          {wonByLastStanding && (
+            <p className="text-sm text-amber-400 mt-2">
+              All other players went bankrupt!
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="text-center p-6 rounded-lg mb-6 bg-gray-900">
+          <p className="text-gray-400 mb-2">No Winner</p>
+          <p className="text-xl text-red-400">Everyone went bankrupt!</p>
         </div>
       )}
 
       <div className="bg-gray-900 rounded-lg p-4">
         <h3 className="font-semibold mb-3">Final Standings</h3>
         <div className="space-y-2">
-          {sortedPlayers.map((p, i) => (
+          {/* Active players first */}
+          {sortedActivePlayers.map((p, i) => (
             <div
               key={p.id}
               className={`flex justify-between items-center p-2 rounded ${
@@ -1018,18 +1086,34 @@ function GameOverView({
                 #{i + 1} {p.name}
               </span>
               <div className="text-right text-sm">
-                <span className={p.money < 0 ? "text-red-400" : "text-yellow-400"} title="Final Money">
+                <span className="text-yellow-400" title="Final Money">
                   ${p.money}
                 </span>
-                {/* Prestige hidden for now
-                <span className="mx-2 text-gray-500">+</span>
-                <span className="text-purple-400">{p.prestige} prestige</span>
-                <span className="mx-2 text-gray-500">=</span>
-                <span className="font-bold">{p.score}</span>
-                */}
               </div>
             </div>
           ))}
+
+          {/* Eliminated players */}
+          {eliminatedPlayersList.length > 0 && (
+            <>
+              <div className="border-t border-gray-700 my-3"></div>
+              <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Bankrupt</p>
+              {eliminatedPlayersList.map((p) => (
+                <div
+                  key={p.id}
+                  className={`flex justify-between items-center p-2 rounded opacity-60 ${
+                    p.id === playerId ? "bg-red-900/30" : "bg-gray-800"
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="text-red-400">💀</span>
+                    {p.name}
+                  </span>
+                  <span className="text-xs text-red-400">BANKRUPT</span>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       </div>
     </section>
@@ -1044,10 +1128,12 @@ function PlayerStatusGrid({
   players,
   playerOrder,
   currentPlayerId,
+  eliminatedPlayers = [],
 }: {
   players: Record<string, CafePlayerState>;
   playerOrder: string[];
   currentPlayerId: string;
+  eliminatedPlayers?: string[];
 }) {
   return (
     <section className="bg-gray-800 border border-gray-700 rounded-lg p-4">
@@ -1056,36 +1142,33 @@ function PlayerStatusGrid({
         {playerOrder.map((id) => {
           const p = players[id];
           const isMe = id === currentPlayerId;
+          const isEliminated = eliminatedPlayers.includes(id);
           const totalSupplies = p.supplies.coffeeBeans + p.supplies.tea + p.supplies.milk + p.supplies.syrup;
           return (
             <div
               key={id}
               className={`bg-gray-900 rounded-lg p-3 ${
                 isMe ? "ring-2 ring-blue-500" : ""
-              }`}
+              } ${isEliminated ? "opacity-50" : ""}`}
             >
               <p className="font-semibold text-sm truncate">
                 {p.name}
                 {isMe && " (You)"}
               </p>
-              {p.money < 0 && (
-                <span className="text-xs bg-red-600 text-white px-1 rounded">IN DEBT</span>
+              {isEliminated && (
+                <span className="text-xs bg-red-600 text-white px-1 rounded">BANKRUPT</span>
               )}
               <div className="text-xs text-gray-400 mt-1 space-y-0.5">
                 <div className="flex justify-between">
                   <span>Money:</span>
-                  <span className={p.money < 0 ? "text-red-400" : "text-yellow-400"}>${p.money}</span>
+                  <span className={isEliminated ? "text-red-400" : "text-yellow-400"}>
+                    {isEliminated ? "---" : `$${p.money}`}
+                  </span>
                 </div>
-                {/* Prestige hidden for now
-                <div className="flex justify-between">
-                  <span>Prestige:</span>
-                  <span className="text-purple-400">{p.prestige}</span>
-                </div>
-                */}
                 <div className="flex justify-between">
                   <span>Supplies:</span>
                   <span title={`Beans: ${p.supplies.coffeeBeans}, Tea: ${p.supplies.tea}, Milk: ${p.supplies.milk}, Syrup: ${p.supplies.syrup}`}>
-                    {totalSupplies}
+                    {isEliminated ? "---" : totalSupplies}
                   </span>
                 </div>
                 <div className="flex justify-between">
