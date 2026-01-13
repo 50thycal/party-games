@@ -1748,20 +1748,77 @@ export function CometRushGameView({
               </div>
             </div>
 
-            {/* Turn Wizard for drafting */}
-            {turnWizardStep && player.initialCardsDrawn < 4 && (
-              <TurnWizard
-                step={turnWizardStep}
-                turnMeta={turnMeta}
-                player={player}
-                distanceToImpact={gameState.distanceToImpact}
-                isBeginningTurn={isBeginningTurn}
-                isDrawingCard={isDrawingCard}
-                selectedDeck={selectedDeck}
-                onBeginTurn={handleBeginTurn}
-                onDrawCard={handleDrawCard}
-                onDismiss={dismissWizard}
-              />
+            {/* Turn Wizard for drafting - show card after draw OR deck selection */}
+            {player.initialCardsDrawn < 4 && (
+              turnWizardStep === "showCard" ? (
+                <TurnWizard
+                  step={turnWizardStep}
+                  turnMeta={turnMeta}
+                  player={player}
+                  distanceToImpact={gameState.distanceToImpact}
+                  isBeginningTurn={isBeginningTurn}
+                  isDrawingCard={isDrawingCard}
+                  selectedDeck={selectedDeck}
+                  onBeginTurn={handleBeginTurn}
+                  onDrawCard={handleDrawCard}
+                  onDismiss={dismissWizard}
+                />
+              ) : (
+                /* Always show deck selection during draft - don't depend on turnWizardStep */
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="panel-retro p-4 mb-4 border-mission-green"
+                >
+                  <div className="text-center mb-4">
+                    <span className="text-2xl block mb-2">📋</span>
+                    <h3 className="text-lg font-bold text-mission-green mb-2">MISSION BRIEFING</h3>
+                    <p className="text-sm text-mission-cream/80 mb-2">
+                      Select your starting intelligence cards.
+                    </p>
+                    <span className="led-segment text-2xl text-mission-amber">
+                      {player.initialCardsDrawn}/4
+                    </span>
+                    <span className="text-sm text-mission-steel block mt-1">cards drafted</span>
+                  </div>
+
+                  <div className="text-center mb-3">
+                    <span className="text-sm text-mission-cream">
+                      Choose a deck to draw from:
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <MissionButton
+                      onClick={() => handleDrawCard("engineering")}
+                      disabled={isDrawingCard}
+                      variant="success"
+                      size="sm"
+                      isLoading={isDrawingCard && selectedDeck === "engineering"}
+                    >
+                      <span className="text-[9px] sm:text-xs">Engineering</span>
+                    </MissionButton>
+                    <MissionButton
+                      onClick={() => handleDrawCard("espionage")}
+                      disabled={isDrawingCard}
+                      variant="danger"
+                      size="sm"
+                      isLoading={isDrawingCard && selectedDeck === "espionage"}
+                    >
+                      <span className="text-[9px] sm:text-xs">Espionage</span>
+                    </MissionButton>
+                    <MissionButton
+                      onClick={() => handleDrawCard("economic")}
+                      disabled={isDrawingCard}
+                      variant="warning"
+                      size="sm"
+                      isLoading={isDrawingCard && selectedDeck === "economic"}
+                    >
+                      <span className="text-[9px] sm:text-xs">Economic</span>
+                    </MissionButton>
+                  </div>
+                </motion.div>
+              )
             )}
 
             {/* Waiting message when done drafting */}
