@@ -6,6 +6,7 @@ import {
   GAME_CONFIG,
   CUSTOMER_ARCHETYPES,
   getCardArchetype,
+  getReputationCustomerModifier,
   type CafeState,
   type CafePlayerState,
   type CustomerCard,
@@ -68,6 +69,14 @@ export function CafeGameView({
           )}
         </div>
       </header>
+
+      {/* Reputation Track - shown during active game phases */}
+      {phase !== "lobby" && phase !== "gameOver" && (
+        <ReputationTrackPanel
+          reputation={gameState.reputation}
+          playerCount={gameState.playerOrder.filter(id => !gameState.eliminatedPlayers.includes(id)).length}
+        />
+      )}
 
       {/* Host Controls */}
       {isHost && <HostControls phase={phase} gameState={gameState} dispatch={dispatch} isLoading={isLoading} />}
@@ -1114,6 +1123,109 @@ function GameOverView({
               ))}
             </>
           )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// =============================================================================
+// REPUTATION TRACK PANEL
+// =============================================================================
+
+function ReputationTrackPanel({
+  reputation,
+  playerCount,
+}: {
+  reputation: number;
+  playerCount: number;
+}) {
+  const modifier = getReputationCustomerModifier(reputation);
+  const baseCustomers = playerCount * GAME_CONFIG.CUSTOMERS_PER_PLAYER;
+  const nextRoundCustomers = Math.max(1, baseCustomers + modifier);
+
+  // Determine tier label
+  let tierLabel: string;
+  let tierColor: string;
+  if (reputation <= -2) {
+    tierLabel = "Low";
+    tierColor = "text-red-400";
+  } else if (reputation >= 2) {
+    tierLabel = "High";
+    tierColor = "text-green-400";
+  } else {
+    tierLabel = "Neutral";
+    tierColor = "text-gray-400";
+  }
+
+  // Create visual track markers
+  const trackPositions = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5];
+
+  return (
+    <section className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+      <div className="flex justify-between items-center mb-3">
+        <h2 className="font-semibold">Shop Reputation</h2>
+        <div className="text-right">
+          <span className={`font-bold ${tierColor}`}>{tierLabel}</span>
+          <span className="text-gray-400 ml-2">({reputation >= 0 ? "+" : ""}{reputation})</span>
+        </div>
+      </div>
+
+      {/* Visual track */}
+      <div className="bg-gray-900 rounded-lg p-3 mb-3">
+        <div className="flex justify-between items-center">
+          {trackPositions.map((pos) => {
+            const isActive = pos === reputation;
+            const isNegative = pos < 0;
+            const isPositive = pos > 0;
+            const isNeutral = pos === 0;
+
+            let bgColor = "bg-gray-700";
+            if (isActive) {
+              if (isNegative) bgColor = "bg-red-500";
+              else if (isPositive) bgColor = "bg-green-500";
+              else bgColor = "bg-yellow-500";
+            } else if (isNegative) {
+              bgColor = "bg-red-900/50";
+            } else if (isPositive) {
+              bgColor = "bg-green-900/50";
+            }
+
+            return (
+              <div key={pos} className="flex flex-col items-center">
+                <div
+                  className={`w-6 h-6 rounded-full ${bgColor} flex items-center justify-center text-xs font-bold transition-all ${
+                    isActive ? "ring-2 ring-white scale-110" : ""
+                  }`}
+                >
+                  {isActive && (pos >= 0 ? "+" : "")}{isActive && pos}
+                </div>
+                {(pos === -5 || pos === 0 || pos === 5) && (
+                  <span className="text-xs text-gray-500 mt-1">
+                    {pos === -5 ? "-5" : pos === 0 ? "0" : "+5"}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Customer effect info */}
+      <div className="flex justify-between items-center text-sm">
+        <div className="text-gray-400">
+          <span>Next round customers: </span>
+          <span className="text-white font-semibold">{nextRoundCustomers}</span>
+          {modifier !== 0 && (
+            <span className={modifier > 0 ? "text-green-400 ml-1" : "text-red-400 ml-1"}>
+              ({modifier > 0 ? "+" : ""}{modifier})
+            </span>
+          )}
+        </div>
+        <div className="text-xs text-gray-500">
+          {modifier > 0 && "More customers attracted!"}
+          {modifier < 0 && "Fewer customers coming..."}
+          {modifier === 0 && "Normal customer flow"}
         </div>
       </div>
     </section>

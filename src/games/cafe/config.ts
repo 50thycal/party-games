@@ -24,7 +24,26 @@ export const GAME_CONFIG = {
   STARTING_MONEY: 40,
   RENT_PER_ROUND: 10,
   CUSTOMERS_PER_PLAYER: 3, // 2 players = 6, 3 players = 9, 4 players = 12
+  // Reputation track settings
+  REPUTATION_MIN: -5,
+  REPUTATION_MAX: 5,
+  REPUTATION_START: 0, // Neutral midpoint
 };
+
+// Calculate customer modifier based on reputation level
+// -5 → -4 customers, -4 → -3, -3 → -2, -2 → -1, -1 to +1 → 0, +2 → +1, +3 → +2, +4 → +3, +5 → +4
+export function getReputationCustomerModifier(reputation: number): number {
+  if (reputation <= -5) return -4;
+  if (reputation === -4) return -3;
+  if (reputation === -3) return -2;
+  if (reputation === -2) return -1;
+  if (reputation >= -1 && reputation <= 1) return 0;
+  if (reputation === 2) return 1;
+  if (reputation === 3) return 2;
+  if (reputation === 4) return 3;
+  if (reputation >= 5) return 4;
+  return 0;
+}
 
 // =============================================================================
 // CUSTOMER ARCHETYPE SYSTEM (5 Archetypes)
@@ -156,6 +175,9 @@ export interface CafePlayerState {
 export interface CafeState {
   phase: CafePhase;
   round: number;
+
+  // Shared reputation track (-5 to +5, starts at 0)
+  reputation: number;
 
   // Player management
   playerOrder: string[];
@@ -405,6 +427,7 @@ function initialState(players: Player[]): CafeState {
   return {
     phase: "lobby",
     round: 0,
+    reputation: GAME_CONFIG.REPUTATION_START,
     playerOrder,
     players: playerStates,
     eliminatedPlayers: [],
@@ -441,8 +464,11 @@ function reducer(
       const customerDeck = createCustomerDeck(ctx);
       const playerCount = state.playerOrder.length;
 
-      // Draw customers for first round (3 per player)
-      const customersThisRound = playerCount * GAME_CONFIG.CUSTOMERS_PER_PLAYER;
+      // Draw customers for first round (3 per player + reputation modifier)
+      // At game start, reputation is 0 (neutral), so modifier is 0
+      const reputationModifier = getReputationCustomerModifier(state.reputation);
+      const baseCustomers = playerCount * GAME_CONFIG.CUSTOMERS_PER_PLAYER;
+      const customersThisRound = Math.max(1, baseCustomers + reputationModifier);
       const customersForRound = customerDeck.slice(0, customersThisRound);
       const remainingDeck = customerDeck.slice(customersThisRound);
 
@@ -739,6 +765,8 @@ function reducer(
 
     case "RESOLVE_CUSTOMERS": {
       const updatedPlayers = { ...state.players };
+      let totalFulfilled = 0;
+      let totalStormedOut = 0;
 
       for (const playerId of state.playerOrder) {
         // Skip eliminated players
@@ -759,7 +787,8 @@ function reducer(
         // Only process selected customers, in order
         for (let i = 0; i < player.customerLine.length; i++) {
           if (!selectedIndices.includes(i)) {
-            // Customer not selected - storms out
+            // Customer not selected - storms out (affects reputation)
+            totalStormedOut++;
             continue;
           }
 
@@ -786,8 +815,11 @@ function reducer(
             totalMoney += customer.back.reward.money;
             totalPrestige += customer.back.reward.prestige;
             customersSuccessfullyServed++;
+            totalFulfilled++;
+          } else {
+            // Customer storms out despite being selected (not enough supplies)
+            totalStormedOut++;
           }
-          // Else: Customer storms out despite being selected (not enough supplies)
         }
 
         updatedPlayers[playerId] = {
@@ -805,9 +837,17 @@ function reducer(
         };
       }
 
+      // Update reputation: +1 per fulfilled, -1 per stormed out
+      const reputationChange = totalFulfilled - totalStormedOut;
+      const newReputation = Math.max(
+        GAME_CONFIG.REPUTATION_MIN,
+        Math.min(GAME_CONFIG.REPUTATION_MAX, state.reputation + reputationChange)
+      );
+
       return {
         ...state,
         players: updatedPlayers,
+        reputation: newReputation,
         phase: "shopClosed",
         selectedForFulfillment: {},
         playersConfirmedResolution: [],
@@ -989,8 +1029,10 @@ function reducer(
         );
       }
 
-      // Draw new customers (based on remaining players)
-      const customersThisRound = playerCount * GAME_CONFIG.CUSTOMERS_PER_PLAYER;
+      // Draw new customers (based on remaining players + reputation modifier)
+      const reputationModifier = getReputationCustomerModifier(state.reputation);
+      const baseCustomers = playerCount * GAME_CONFIG.CUSTOMERS_PER_PLAYER;
+      const customersThisRound = Math.max(1, baseCustomers + reputationModifier);
       let deck = state.customerDeck;
       if (deck.length < customersThisRound) {
         // Reshuffle all cards
@@ -1027,7 +1069,10 @@ function reducer(
       const customerDeck = createCustomerDeck(ctx);
       const playerCount = newState.playerOrder.length;
 
-      const customersThisRound = playerCount * GAME_CONFIG.CUSTOMERS_PER_PLAYER;
+      // At game start, reputation is 0 (neutral), so modifier is 0
+      const reputationModifier = getReputationCustomerModifier(newState.reputation);
+      const baseCustomers = playerCount * GAME_CONFIG.CUSTOMERS_PER_PLAYER;
+      const customersThisRound = Math.max(1, baseCustomers + reputationModifier);
       const customersForRound = customerDeck.slice(0, customersThisRound);
       const remainingDeck = customerDeck.slice(customersThisRound);
 
