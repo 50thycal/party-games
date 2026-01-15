@@ -8,9 +8,7 @@
 import type {
   CafeState,
   CafePlayerState,
-  CafeAction,
   SupplyType,
-  CafeUpgradeType,
   CustomerCard,
 } from "./config";
 import { GAME_CONFIG, SUPPLY_COST } from "./config";
@@ -25,8 +23,6 @@ export interface CafePersonalityConfig {
   name: string;
   // Supply purchasing preferences (higher = more likely to buy)
   supplyPreferences: Record<SupplyType, number>;
-  // Upgrade preferences (higher = more likely to upgrade)
-  upgradePreferences: Record<CafeUpgradeType, number>;
   // 0-1 scale: how willing to take customers without guaranteed supplies
   riskTolerance: number;
   // Minimum money to keep before investing (for rent safety)
@@ -35,8 +31,6 @@ export interface CafePersonalityConfig {
   passThreshold: number;
   // Strategy for fulfillment: "all" attempts all, "profitable" only high-reward, "safe" only guaranteed
   fulfillmentStrategy: "all" | "profitable" | "safe";
-  // How aggressively to spend on supplies vs upgrades (0 = upgrades, 1 = supplies)
-  supplyVsUpgradeRatio: number;
 }
 
 export const CAFE_PERSONALITIES: Record<CafeBotPersonality, CafePersonalityConfig> = {
@@ -48,17 +42,10 @@ export const CAFE_PERSONALITIES: Record<CafeBotPersonality, CafePersonalityConfi
       milk: 0.7,
       syrup: 0.5,
     },
-    upgradePreferences: {
-      seating: 0.4,
-      ambiance: 0.3,
-      equipment: 0.5,
-      menu: 0.4,
-    },
     riskTolerance: 0.3,
     minMoneyBuffer: 12, // Keeps rent + small buffer
     passThreshold: 2,
     fulfillmentStrategy: "all",
-    supplyVsUpgradeRatio: 0.7,
   },
   hoarder: {
     name: "Hoarder",
@@ -68,17 +55,10 @@ export const CAFE_PERSONALITIES: Record<CafeBotPersonality, CafePersonalityConfi
       milk: 0.9,
       syrup: 0.7,
     },
-    upgradePreferences: {
-      seating: 0.2,
-      ambiance: 0.1,
-      equipment: 0.3,
-      menu: 0.2,
-    },
     riskTolerance: 0.1,
     minMoneyBuffer: 15, // Very conservative
     passThreshold: 3,
     fulfillmentStrategy: "safe",
-    supplyVsUpgradeRatio: 0.9,
   },
   gambler: {
     name: "Gambler",
@@ -88,17 +68,10 @@ export const CAFE_PERSONALITIES: Record<CafeBotPersonality, CafePersonalityConfi
       milk: 0.5,
       syrup: 0.3,
     },
-    upgradePreferences: {
-      seating: 0.6,
-      ambiance: 0.7,
-      equipment: 0.5,
-      menu: 0.8,
-    },
     riskTolerance: 0.8,
     minMoneyBuffer: 10, // Just enough for rent
     passThreshold: 1,
     fulfillmentStrategy: "all",
-    supplyVsUpgradeRatio: 0.4,
   },
   specialist: {
     name: "Specialist",
@@ -108,17 +81,10 @@ export const CAFE_PERSONALITIES: Record<CafeBotPersonality, CafePersonalityConfi
       milk: 0.8, // Needs milk for lattes
       syrup: 0.4,
     },
-    upgradePreferences: {
-      seating: 0.3,
-      ambiance: 0.4,
-      equipment: 0.8, // Wants good equipment
-      menu: 0.3,
-    },
     riskTolerance: 0.4,
     minMoneyBuffer: 12,
     passThreshold: 2,
     fulfillmentStrategy: "profitable",
-    supplyVsUpgradeRatio: 0.6,
   },
 };
 
@@ -177,20 +143,13 @@ function getMissingSupplies(player: CafePlayerState, customer: CustomerCard): nu
   return missing;
 }
 
-// Get upgrade cost for a specific type at current level
-function getUpgradeCost(player: CafePlayerState, upgradeType: CafeUpgradeType): number {
-  const currentLevel = player.upgrades[upgradeType];
-  return (currentLevel + 1) * 3;
-}
-
 // =============================================================================
 // INVESTMENT PHASE DECISIONS
 // =============================================================================
 
 export interface InvestmentDecision {
-  action: "PURCHASE_SUPPLY" | "UPGRADE_CAFE" | "END_INVESTMENT";
+  action: "PURCHASE_SUPPLY" | "END_INVESTMENT";
   supplyType?: SupplyType;
-  upgradeType?: CafeUpgradeType;
   reason: string;
 }
 
@@ -210,71 +169,30 @@ export function decideInvestmentAction(
     return { action: "END_INVESTMENT", reason: "No budget remaining" };
   }
 
-  // Decide between supplies and upgrades based on personality ratio
-  const buySupplies = random() < config.supplyVsUpgradeRatio;
+  // Only supplies are available for purchase (upgrades not implemented in game UI)
+  const supplyTypes: SupplyType[] = ["coffeeBeans", "tea", "milk", "syrup"];
 
-  if (buySupplies) {
-    // Try to buy a supply
-    const supplyTypes: SupplyType[] = ["coffeeBeans", "tea", "milk", "syrup"];
+  // Weight supplies by preference
+  const weightedSupplies: { type: SupplyType; weight: number }[] = supplyTypes.map(type => ({
+    type,
+    weight: config.supplyPreferences[type] * (1 + random() * 0.3), // Add some randomness
+  }));
 
-    // Weight supplies by preference
-    const weightedSupplies: { type: SupplyType; weight: number }[] = supplyTypes.map(type => ({
-      type,
-      weight: config.supplyPreferences[type] * (1 + random() * 0.3), // Add some randomness
-    }));
+  // Sort by weight (highest first)
+  weightedSupplies.sort((a, b) => b.weight - a.weight);
 
-    // Sort by weight (highest first)
-    weightedSupplies.sort((a, b) => b.weight - a.weight);
-
-    // Pick the highest weighted supply we can afford
-    for (const { type } of weightedSupplies) {
-      if (availableBudget >= SUPPLY_COST) {
-        return {
-          action: "PURCHASE_SUPPLY",
-          supplyType: type,
-          reason: `Buying ${type} (preference: ${config.supplyPreferences[type].toFixed(1)})`,
-        };
-      }
-    }
-  } else {
-    // Try to buy an upgrade
-    const upgradeTypes: CafeUpgradeType[] = ["seating", "ambiance", "equipment", "menu"];
-
-    // Weight upgrades by preference and affordability
-    const weightedUpgrades: { type: CafeUpgradeType; weight: number; cost: number }[] = upgradeTypes
-      .filter(type => player.upgrades[type] < 3) // Can only upgrade to level 3
-      .map(type => ({
-        type,
-        weight: config.upgradePreferences[type] * (1 + random() * 0.3),
-        cost: getUpgradeCost(player, type),
-      }))
-      .filter(u => u.cost <= availableBudget); // Must be affordable
-
-    if (weightedUpgrades.length > 0) {
-      // Sort by weight (highest first)
-      weightedUpgrades.sort((a, b) => b.weight - a.weight);
-
-      const chosen = weightedUpgrades[0];
+  // Pick the highest weighted supply we can afford
+  for (const { type } of weightedSupplies) {
+    if (availableBudget >= SUPPLY_COST) {
       return {
-        action: "UPGRADE_CAFE",
-        upgradeType: chosen.type,
-        reason: `Upgrading ${chosen.type} to level ${player.upgrades[chosen.type] + 1} (cost: $${chosen.cost})`,
+        action: "PURCHASE_SUPPLY",
+        supplyType: type,
+        reason: `Buying ${type} (preference: ${config.supplyPreferences[type].toFixed(1)})`,
       };
     }
   }
 
-  // Fallback: try to buy any supply
-  if (availableBudget >= SUPPLY_COST) {
-    const supplyTypes: SupplyType[] = ["coffeeBeans", "tea", "milk", "syrup"];
-    const randomSupply = supplyTypes[Math.floor(random() * supplyTypes.length)];
-    return {
-      action: "PURCHASE_SUPPLY",
-      supplyType: randomSupply,
-      reason: `Fallback: buying ${randomSupply}`,
-    };
-  }
-
-  return { action: "END_INVESTMENT", reason: "Cannot afford any action" };
+  return { action: "END_INVESTMENT", reason: "Cannot afford any supplies" };
 }
 
 // =============================================================================
@@ -550,5 +468,4 @@ export {
   getOrderProfit,
   canFulfillOrder,
   getMissingSupplies,
-  getUpgradeCost,
 };

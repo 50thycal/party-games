@@ -1998,7 +1998,6 @@ function runCafeSimulation(
           for (const playerId of state.playerOrder) {
             if (state.eliminatedPlayers.includes(playerId)) continue;
 
-            const player = state.players[playerId];
             const personality = getCafePlayerPersonality(playerId);
 
             // Make multiple investment decisions until done
@@ -2007,7 +2006,9 @@ function runCafeSimulation(
 
             while (investmentActions < maxInvestmentActions) {
               investmentActions++;
-              const decision = decideInvestmentAction(player, personality, state, random);
+              // Always get fresh player state for each decision
+              const currentPlayer = state.players[playerId];
+              const decision = decideInvestmentAction(currentPlayer, personality, state, random);
 
               if (decision.action === "END_INVESTMENT") {
                 break;
@@ -2021,17 +2022,9 @@ function runCafeSimulation(
                 })) {
                   addLog(playerId, "PURCHASE_SUPPLY", `Bought ${decision.supplyType}`, decision.reason);
                 }
-              } else if (decision.action === "UPGRADE_CAFE" && decision.upgradeType) {
-                if (dispatch({
-                  type: "UPGRADE_CAFE",
-                  playerId,
-                  payload: { upgradeType: decision.upgradeType },
-                })) {
-                  addLog(playerId, "UPGRADE_CAFE", `Upgraded ${decision.upgradeType}`, decision.reason);
-                }
               }
 
-              // Re-fetch player state after action
+              // Check if player is running low on money (re-fetch after action)
               const updatedPlayer = state.players[playerId];
               if (updatedPlayer.money <= CAFE_CONFIG.RENT_PER_ROUND) {
                 break; // Stop if running low on money
