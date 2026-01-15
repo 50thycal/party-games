@@ -23,7 +23,6 @@ import {
   CafeAction,
   CafePlayerState,
   GAME_CONFIG as CAFE_CONFIG,
-  SupplyType,
 } from "@/games/cafe/config";
 import {
   CAFE_PERSONALITIES,
@@ -32,7 +31,6 @@ import {
   decideOnCustomer,
   selectCustomersToFulfill,
   decideBailout,
-  type CafeBotPersonality,
 } from "@/games/cafe/bots";
 
 // Union type for non-engineering cards (espionage + economic)
