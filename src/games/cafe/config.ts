@@ -206,6 +206,9 @@ export interface CafeState {
   rentOwed: Record<string, number>; // How much each player owes in rent
   rentPaidBy: Record<string, string | null>; // Who paid each player's rent (null = self, oderId = bailed out)
 
+  // Ready queue - players who clicked ready for current phase
+  playersReady: string[];
+
   // End game
   winnerId: string | null;
 }
@@ -217,6 +220,8 @@ export interface CafeState {
 export type CafeActionType =
   // Lobby
   | "START_GAME"
+  // Ready queue (used across multiple phases)
+  | "PLAYER_READY"
   // Planning phase
   | "END_PLANNING"
   // Investment phase
@@ -443,6 +448,7 @@ function initialState(players: Player[]): CafeState {
     playersConfirmedResolution: [],
     rentOwed: {},
     rentPaidBy: {},
+    playersReady: [],
     winnerId: null,
   };
 }
@@ -488,12 +494,26 @@ function reducer(
     }
 
     // =========================================================================
+    // READY QUEUE (used across multiple phases)
+    // =========================================================================
+    case "PLAYER_READY": {
+      if (state.playersReady.includes(action.playerId)) {
+        return state;
+      }
+      return {
+        ...state,
+        playersReady: [...state.playersReady, action.playerId],
+      };
+    }
+
+    // =========================================================================
     // PLANNING PHASE
     // =========================================================================
     case "END_PLANNING": {
       return {
         ...state,
         phase: "investment",
+        playersReady: [], // Reset ready queue for next phase
       };
     }
 
@@ -560,6 +580,7 @@ function reducer(
         currentDrawerIndex: state.firstDrawerIndex,
         currentDeciderIndex: state.firstDrawerIndex,
         passCount: 0,
+        playersReady: [], // Reset ready queue for next phase
       };
     }
 
@@ -851,6 +872,7 @@ function reducer(
         phase: "shopClosed",
         selectedForFulfillment: {},
         playersConfirmedResolution: [],
+        playersReady: [], // Reset ready queue for next phase
       };
     }
 
@@ -872,6 +894,7 @@ function reducer(
         phase: "cleanup",
         rentOwed,
         rentPaidBy,
+        playersReady: [], // Reset ready queue for next phase
       };
     }
 
@@ -1058,6 +1081,7 @@ function reducer(
         passCount: 0,
         rentOwed: {},
         rentPaidBy: {},
+        playersReady: [], // Reset ready queue for next round
       };
     }
 
@@ -1103,6 +1127,14 @@ function getPhase(state: CafeState): string {
 // ACTION VALIDATION
 // =============================================================================
 
+// Helper to check if all active players are ready
+function allPlayersReady(state: CafeState): boolean {
+  const activePlayers = state.playerOrder.filter(
+    id => !state.eliminatedPlayers.includes(id)
+  );
+  return activePlayers.every(id => state.playersReady.includes(id));
+}
+
 function isActionAllowed(
   state: CafeState,
   action: CafeAction,
@@ -1121,15 +1153,26 @@ function isActionAllowed(
     case "START_GAME":
       return isHost && state.phase === "lobby";
 
+    case "PLAYER_READY": {
+      // Can mark ready during planning, investment, shopClosed, or cleanup phases
+      const validPhases = ["planning", "investment", "shopClosed", "cleanup"];
+      if (!validPhases.includes(state.phase)) return false;
+      // Must be an active player
+      if (!player) return false;
+      // Can't ready twice
+      if (state.playersReady.includes(action.playerId)) return false;
+      return true;
+    }
+
     case "END_PLANNING":
-      return isHost && state.phase === "planning";
+      return isHost && state.phase === "planning" && allPlayersReady(state);
 
     case "PURCHASE_SUPPLY":
     case "UPGRADE_CAFE":
       return state.phase === "investment" && player !== undefined;
 
     case "END_INVESTMENT":
-      return isHost && state.phase === "investment";
+      return isHost && state.phase === "investment" && allPlayersReady(state);
 
     case "DRAW_CUSTOMER": {
       if (state.phase !== "customerDraft") return false;
@@ -1167,7 +1210,7 @@ function isActionAllowed(
       return isHost && state.phase === "customerResolution";
 
     case "CLOSE_SHOP":
-      return isHost && state.phase === "shopClosed";
+      return isHost && state.phase === "shopClosed" && allPlayersReady(state);
 
     case "PAY_RENT_FOR": {
       if (state.phase !== "cleanup") return false;
@@ -1186,7 +1229,7 @@ function isActionAllowed(
     }
 
     case "END_ROUND":
-      return isHost && state.phase === "cleanup";
+      return isHost && state.phase === "cleanup" && allPlayersReady(state);
 
     case "PLAY_AGAIN":
       return isHost && state.phase === "gameOver";
