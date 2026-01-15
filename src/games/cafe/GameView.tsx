@@ -84,7 +84,7 @@ export function CafeGameView({
       {/* Eliminated player banner */}
       {isEliminated && phase !== "gameOver" && (
         <section className="bg-red-900/30 border border-red-700 rounded-lg p-6 text-center">
-          <h2 className="text-xl font-bold text-red-400 mb-2">You're Out!</h2>
+          <h2 className="text-xl font-bold text-red-400 mb-2">You&apos;re Out!</h2>
           <p className="text-gray-400">
             You went bankrupt and can no longer participate. Watch the remaining players battle it out!
           </p>
