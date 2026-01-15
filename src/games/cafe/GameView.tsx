@@ -94,11 +94,19 @@ export function CafeGameView({
       {/* Phase-specific content */}
       {phase === "lobby" && <LobbyView />}
       {phase === "planning" && player && !isEliminated && (
-        <PlanningView player={player} />
+        <PlanningView
+          gameState={gameState}
+          player={player}
+          playerId={playerId!}
+          dispatch={dispatch}
+          isLoading={isLoading}
+        />
       )}
       {phase === "investment" && player && !isEliminated && (
         <InvestmentView
+          gameState={gameState}
           player={player}
+          playerId={playerId!}
           dispatch={dispatch}
           isLoading={isLoading}
         />
@@ -121,8 +129,13 @@ export function CafeGameView({
           isLoading={isLoading}
         />
       )}
-      {phase === "shopClosed" && (
-        <ShopClosedView gameState={gameState} />
+      {phase === "shopClosed" && player && !isEliminated && (
+        <ShopClosedView
+          gameState={gameState}
+          playerId={playerId!}
+          dispatch={dispatch}
+          isLoading={isLoading}
+        />
       )}
       {phase === "cleanup" && player && !isEliminated && (
         <CleanupView
@@ -165,9 +178,27 @@ function HostControls({
   dispatch: (action: string, payload?: Record<string, unknown>) => Promise<void>;
   isLoading: boolean;
 }) {
+  // Check if all active players are ready
+  const activePlayers = gameState.playerOrder.filter(
+    id => !gameState.eliminatedPlayers.includes(id)
+  );
+  const readyCount = gameState.playersReady.length;
+  const totalActive = activePlayers.length;
+  const allReady = activePlayers.every(id => gameState.playersReady.includes(id));
+
+  // Phases that require ready queue
+  const requiresReady = ["planning", "investment", "shopClosed", "cleanup"].includes(phase);
+
   return (
     <section className="bg-gray-800 border border-gray-700 rounded-lg p-4">
-      <h2 className="font-semibold mb-3">Host Controls</h2>
+      <div className="flex justify-between items-center mb-3">
+        <h2 className="font-semibold">Host Controls</h2>
+        {requiresReady && (
+          <span className={`text-sm ${allReady ? "text-green-400" : "text-yellow-400"}`}>
+            Ready: {readyCount}/{totalActive}
+          </span>
+        )}
+      </div>
       <div className="flex flex-wrap gap-2">
         {phase === "lobby" && (
           <button
@@ -182,7 +213,7 @@ function HostControls({
         {phase === "planning" && (
           <button
             onClick={() => dispatch("END_PLANNING")}
-            disabled={isLoading}
+            disabled={isLoading || !allReady}
             className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 px-4 py-2 rounded-lg font-semibold transition-colors"
           >
             Begin Investment Phase
@@ -192,7 +223,7 @@ function HostControls({
         {phase === "investment" && (
           <button
             onClick={() => dispatch("END_INVESTMENT")}
-            disabled={isLoading}
+            disabled={isLoading || !allReady}
             className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 px-4 py-2 rounded-lg font-semibold transition-colors"
           >
             Start Customer Draft
@@ -212,7 +243,7 @@ function HostControls({
         {phase === "shopClosed" && (
           <button
             onClick={() => dispatch("CLOSE_SHOP")}
-            disabled={isLoading}
+            disabled={isLoading || !allReady}
             className="bg-amber-600 hover:bg-amber-700 disabled:bg-gray-700 px-4 py-2 rounded-lg font-semibold transition-colors"
           >
             Pay Rent & End Day
@@ -222,7 +253,7 @@ function HostControls({
         {phase === "cleanup" && (
           <button
             onClick={() => dispatch("END_ROUND")}
-            disabled={isLoading}
+            disabled={isLoading || !allReady}
             className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 px-4 py-2 rounded-lg font-semibold transition-colors"
           >
             {gameState.round >= 5 ? "End Game" : "Start Next Round"}
@@ -240,6 +271,57 @@ function HostControls({
         )}
       </div>
     </section>
+  );
+}
+
+// =============================================================================
+// READY BUTTON COMPONENT
+// =============================================================================
+
+function ReadyButton({
+  gameState,
+  playerId,
+  dispatch,
+  isLoading,
+}: {
+  gameState: CafeState;
+  playerId: string;
+  dispatch: (action: string, payload?: Record<string, unknown>) => Promise<void>;
+  isLoading: boolean;
+}) {
+  const isReady = gameState.playersReady.includes(playerId);
+  const activePlayers = gameState.playerOrder.filter(
+    id => !gameState.eliminatedPlayers.includes(id)
+  );
+  const readyCount = gameState.playersReady.length;
+  const totalActive = activePlayers.length;
+
+  return (
+    <div className="bg-gray-900 rounded-lg p-4 mt-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <span className="text-gray-400 text-sm">
+            Players ready: <span className="text-white">{readyCount}/{totalActive}</span>
+          </span>
+          {!isReady && readyCount < totalActive && (
+            <p className="text-xs text-gray-500 mt-1">
+              Click ready when you&apos;re done
+            </p>
+          )}
+        </div>
+        {isReady ? (
+          <span className="text-green-400 font-semibold px-4 py-2">Ready!</span>
+        ) : (
+          <button
+            onClick={() => dispatch("PLAYER_READY")}
+            disabled={isLoading}
+            className="bg-green-600 hover:bg-green-700 disabled:bg-gray-700 px-4 py-2 rounded-lg font-semibold transition-colors"
+          >
+            Ready
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -262,7 +344,19 @@ function LobbyView() {
   );
 }
 
-function PlanningView({ player }: { player: CafePlayerState }) {
+function PlanningView({
+  gameState,
+  player,
+  playerId,
+  dispatch,
+  isLoading,
+}: {
+  gameState: CafeState;
+  player: CafePlayerState;
+  playerId: string;
+  dispatch: (action: string, payload?: Record<string, unknown>) => Promise<void>;
+  isLoading: boolean;
+}) {
   return (
     <section className="bg-gray-800 border border-gray-700 rounded-lg p-6">
       <h2 className="text-lg font-bold mb-4">Planning Phase</h2>
@@ -290,6 +384,13 @@ function PlanningView({ player }: { player: CafePlayerState }) {
           </div>
         </div>
       </div>
+
+      <ReadyButton
+        gameState={gameState}
+        playerId={playerId}
+        dispatch={dispatch}
+        isLoading={isLoading}
+      />
     </section>
   );
 }
@@ -303,11 +404,15 @@ const SUPPLY_INFO: Record<SupplyType, { label: string; color: string }> = {
 };
 
 function InvestmentView({
+  gameState,
   player,
+  playerId,
   dispatch,
   isLoading,
 }: {
+  gameState: CafeState;
   player: CafePlayerState;
+  playerId: string;
   dispatch: (action: string, payload?: Record<string, unknown>) => Promise<void>;
   isLoading: boolean;
 }) {
@@ -346,6 +451,13 @@ function InvestmentView({
           })}
         </div>
       </div>
+
+      <ReadyButton
+        gameState={gameState}
+        playerId={playerId}
+        dispatch={dispatch}
+        isLoading={isLoading}
+      />
     </section>
   );
 }
@@ -808,7 +920,17 @@ function CustomerResolutionView({
   );
 }
 
-function ShopClosedView({ gameState }: { gameState: CafeState }) {
+function ShopClosedView({
+  gameState,
+  playerId,
+  dispatch,
+  isLoading,
+}: {
+  gameState: CafeState;
+  playerId: string;
+  dispatch: (action: string, payload?: Record<string, unknown>) => Promise<void>;
+  isLoading: boolean;
+}) {
   const rent = GAME_CONFIG.RENT_PER_ROUND;
 
   // Calculate summary for each active player
@@ -824,6 +946,7 @@ function ShopClosedView({ gameState }: { gameState: CafeState }) {
         prestige: player.prestige,
         customersServed: player.customersServed,
         canAffordRent,
+        afterRent: canAffordRent ? player.money - rent : 0,
       };
     });
 
@@ -851,6 +974,11 @@ function ShopClosedView({ gameState }: { gameState: CafeState }) {
                 <span className={p.canAffordRent ? "text-yellow-400" : "text-red-400"}>
                   ${p.money}
                 </span>
+                {p.canAffordRent && (
+                  <span className="text-gray-500">
+                    → ${p.afterRent}
+                  </span>
+                )}
               </div>
             </div>
           ))}
@@ -872,10 +1000,14 @@ function ShopClosedView({ gameState }: { gameState: CafeState }) {
               : `${playersAtRisk.map(p => p.name).join(", ")} cannot afford rent and will go bankrupt!`}
           </p>
         )}
-        <p className="text-gray-400 text-sm mt-2">
-          Waiting for host to proceed...
-        </p>
       </div>
+
+      <ReadyButton
+        gameState={gameState}
+        playerId={playerId}
+        dispatch={dispatch}
+        isLoading={isLoading}
+      />
     </section>
   );
 }
@@ -930,6 +1062,9 @@ function CleanupView({
             <p className="text-sm text-gray-400">Rent due: ${rent}</p>
             <p className="text-sm text-gray-400">
               Your money: <span className="text-yellow-400">${player.money}</span>
+              {canAffordRent && !amBailedOut && (
+                <span className="text-gray-500"> → ${player.money - rent} after rent</span>
+              )}
             </p>
           </div>
           <div className="text-right">
@@ -994,9 +1129,16 @@ function CleanupView({
         <p className="text-blue-300 text-sm">
           {gameState.round >= 5
             ? "This is the final round! After rent, the game will end."
-            : "Players who can't pay rent will go bankrupt and be eliminated!"}
+            : "Players who can&apos;t pay rent will go bankrupt and be eliminated!"}
         </p>
       </div>
+
+      <ReadyButton
+        gameState={gameState}
+        playerId={playerId}
+        dispatch={dispatch}
+        isLoading={isLoading}
+      />
     </section>
   );
 }
