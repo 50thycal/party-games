@@ -16,6 +16,25 @@ import {
   calculateScores,
 } from "@/games/comet-rush/config";
 
+// Cafe game imports
+import {
+  cafeGame,
+  CafeState,
+  CafeAction,
+  CafePlayerState,
+  GAME_CONFIG as CAFE_CONFIG,
+  SupplyType,
+} from "@/games/cafe/config";
+import {
+  CAFE_PERSONALITIES,
+  getCafePlayerPersonality,
+  decideInvestmentAction,
+  decideOnCustomer,
+  selectCustomersToFulfill,
+  decideBailout,
+  type CafeBotPersonality,
+} from "@/games/cafe/bots";
+
 // Union type for non-engineering cards (espionage + economic)
 type ActionCard = EspionageCard | EconomicCard;
 import type { Player, GameContext, Room } from "@/engine/types";
@@ -1766,6 +1785,414 @@ function runLLMCometRushSimulation(
 }
 
 // ============================================================================
+// CAFE SIMULATION TYPES
+// ============================================================================
+
+interface CafeSimLogEntry {
+  id: number;
+  round: number;
+  phase: string;
+  playerId: string;
+  playerLabel: string;
+  personality: string;
+  action: string;
+  actionType: string;
+  details: string;
+  // Player state
+  money: number;
+  supplies: string;
+  customerCount: number;
+  // Game state
+  reputation: number;
+  customersRemaining: number;
+  // Decision context
+  decision: string;
+}
+
+interface CafeSimSummary {
+  totalRounds: number;
+  winner: string | null;
+  endReason: "lastStanding" | "maxRounds" | "allBankrupt";
+  playerScores: Record<string, { money: number; prestige: number; total: number }>;
+  eliminatedPlayers: string[];
+  finalReputation: number;
+  customersServed: number;
+  aborted?: boolean;
+}
+
+interface CafeSimRow {
+  id: number;
+  timestamp: number;
+  players: number;
+  rounds: number;
+  endReason: "lastStanding" | "maxRounds" | "allBankrupt";
+  winnerIds: string[];
+  customersServed: number;
+  finalReputation: number;
+}
+
+// ============================================================================
+// CAFE SIMULATION HELPERS
+// ============================================================================
+
+function createCafeTestRoom(players: Player[]): Room {
+  return {
+    roomCode: "TEST",
+    hostId: players[0].id,
+    players,
+    gameId: "cafe",
+    createdAt: Date.now(),
+    mode: "simulation",
+  };
+}
+
+function formatSupplies(player: CafePlayerState): string {
+  const { coffeeBeans, tea, milk, syrup } = player.supplies;
+  return `C:${coffeeBeans} T:${tea} M:${milk} S:${syrup}`;
+}
+
+function getActivePlayerCount(state: CafeState): number {
+  return state.playerOrder.filter(id => !state.eliminatedPlayers.includes(id)).length;
+}
+
+// ============================================================================
+// CAFE SIMULATION RUNNER
+// ============================================================================
+
+const CAFE_MAX_ROUNDS = 10;
+const CAFE_MAX_ACTIONS = 500;
+
+function runCafeSimulation(
+  playerCount: number,
+  maxRounds: number = CAFE_MAX_ROUNDS
+): Promise<{ summary: CafeSimSummary; log: CafeSimLogEntry[]; aborted?: boolean }> {
+  return new Promise((resolve) => {
+    console.log(`[Cafe Simulation] Starting game with ${playerCount} players`);
+    const players = createTestPlayers(playerCount);
+    const room = createCafeTestRoom(players);
+    let seed = Date.now();
+
+    // Seeded random function
+    const createRandom = () => {
+      let s = seed++;
+      return () => {
+        s = (s * 1103515245 + 12345) & 0x7fffffff;
+        return s / 0x7fffffff;
+      };
+    };
+
+    // Create initial state
+    let state = cafeGame.initialState(players);
+
+    const log: CafeSimLogEntry[] = [];
+    let actionCounter = 0;
+    let aborted = false;
+
+    const addLog = (
+      playerId: string,
+      actionType: string,
+      details: string,
+      decision: string
+    ) => {
+      const player = state.players[playerId];
+      const personality = getCafePlayerPersonality(playerId);
+      const personalityName = CAFE_PERSONALITIES[personality].name;
+
+      log.push({
+        id: log.length,
+        round: state.round,
+        phase: state.phase,
+        playerId,
+        playerLabel: playerId.replace("player-", "P"),
+        personality: personalityName,
+        action: actionType,
+        actionType,
+        details,
+        money: player?.money ?? 0,
+        supplies: player ? formatSupplies(player) : "-",
+        customerCount: player?.customerLine.length ?? 0,
+        reputation: state.reputation,
+        customersRemaining: state.currentRoundCustomers.length - state.customersDealtThisRound,
+        decision,
+      });
+    };
+
+    const dispatch = (action: CafeAction): boolean => {
+      const random = createRandom();
+      const ctx: GameContext = {
+        room,
+        playerId: action.playerId,
+        random,
+        now: () => Date.now(),
+      };
+
+      const allowed = cafeGame.isActionAllowed?.(state, action, ctx) ?? true;
+      if (allowed) {
+        state = cafeGame.reducer(state, action, ctx);
+        actionCounter++;
+        return true;
+      }
+      return false;
+    };
+
+    // Start game (as host)
+    dispatch({ type: "START_GAME", playerId: players[0].id });
+    addLog("SYSTEM", "START_GAME", `Game started with ${playerCount} players`, "Game initialization");
+
+    // Main simulation loop
+    function runNextPhase() {
+      // Check termination conditions
+      if (state.phase === "gameOver" || state.round > maxRounds || actionCounter >= CAFE_MAX_ACTIONS) {
+        if (state.round > maxRounds || actionCounter >= CAFE_MAX_ACTIONS) {
+          console.warn(`[Cafe Simulation] ABORTED at round ${state.round}`);
+          aborted = true;
+        }
+
+        // Build summary
+        const playerScores: Record<string, { money: number; prestige: number; total: number }> = {};
+        let totalCustomersServed = 0;
+
+        for (const [id, player] of Object.entries(state.players)) {
+          const total = player.money + player.prestige * 2;
+          playerScores[player.name] = {
+            money: player.money,
+            prestige: player.prestige,
+            total,
+          };
+          totalCustomersServed += player.customersServed;
+        }
+
+        const endReason: "lastStanding" | "maxRounds" | "allBankrupt" =
+          state.eliminatedPlayers.length === state.playerOrder.length
+            ? "allBankrupt"
+            : state.winnerId
+            ? "lastStanding"
+            : "maxRounds";
+
+        const summary: CafeSimSummary = {
+          totalRounds: state.round,
+          winner: state.winnerId ? state.players[state.winnerId]?.name ?? null : null,
+          endReason,
+          playerScores,
+          eliminatedPlayers: state.eliminatedPlayers.map(id => state.players[id]?.name ?? id),
+          finalReputation: state.reputation,
+          customersServed: totalCustomersServed,
+          aborted,
+        };
+
+        resolve({ summary, log, aborted });
+        return;
+      }
+
+      const hostId = players[0].id;
+      const random = createRandom();
+
+      switch (state.phase) {
+        case "planning": {
+          // Host ends planning
+          dispatch({ type: "END_PLANNING", playerId: hostId });
+          addLog(hostId, "END_PLANNING", "Planning phase ended", "Host action");
+          break;
+        }
+
+        case "investment": {
+          // Each active player makes investment decisions
+          for (const playerId of state.playerOrder) {
+            if (state.eliminatedPlayers.includes(playerId)) continue;
+
+            const player = state.players[playerId];
+            const personality = getCafePlayerPersonality(playerId);
+
+            // Make multiple investment decisions until done
+            let investmentActions = 0;
+            const maxInvestmentActions = 20;
+
+            while (investmentActions < maxInvestmentActions) {
+              investmentActions++;
+              const decision = decideInvestmentAction(player, personality, state, random);
+
+              if (decision.action === "END_INVESTMENT") {
+                break;
+              }
+
+              if (decision.action === "PURCHASE_SUPPLY" && decision.supplyType) {
+                if (dispatch({
+                  type: "PURCHASE_SUPPLY",
+                  playerId,
+                  payload: { supplyType: decision.supplyType },
+                })) {
+                  addLog(playerId, "PURCHASE_SUPPLY", `Bought ${decision.supplyType}`, decision.reason);
+                }
+              } else if (decision.action === "UPGRADE_CAFE" && decision.upgradeType) {
+                if (dispatch({
+                  type: "UPGRADE_CAFE",
+                  playerId,
+                  payload: { upgradeType: decision.upgradeType },
+                })) {
+                  addLog(playerId, "UPGRADE_CAFE", `Upgraded ${decision.upgradeType}`, decision.reason);
+                }
+              }
+
+              // Re-fetch player state after action
+              const updatedPlayer = state.players[playerId];
+              if (updatedPlayer.money <= CAFE_CONFIG.RENT_PER_ROUND) {
+                break; // Stop if running low on money
+              }
+            }
+          }
+
+          // Host ends investment
+          dispatch({ type: "END_INVESTMENT", playerId: hostId });
+          addLog(hostId, "END_INVESTMENT", "Investment phase ended", "Host action");
+          break;
+        }
+
+        case "customerDraft": {
+          // Draft loop until all customers are dealt
+          let draftIterations = 0;
+          const maxDraftIterations = 100;
+
+          while (
+            state.phase === "customerDraft" &&
+            draftIterations < maxDraftIterations
+          ) {
+            draftIterations++;
+
+            // If no current customer, drawer draws
+            if (state.currentCustomer === null) {
+              const drawerId = state.playerOrder[state.currentDrawerIndex];
+              if (state.eliminatedPlayers.includes(drawerId)) continue;
+
+              if (state.customersDealtThisRound >= state.currentRoundCustomers.length) {
+                break; // All customers dealt
+              }
+
+              dispatch({ type: "DRAW_CUSTOMER", playerId: drawerId });
+              addLog(drawerId, "DRAW_CUSTOMER", "Drew a customer", "Drawer action");
+              continue;
+            }
+
+            // Current customer exists - decider decides
+            const deciderId = state.playerOrder[state.currentDeciderIndex];
+            if (state.eliminatedPlayers.includes(deciderId)) continue;
+
+            const player = state.players[deciderId];
+            const personality = getCafePlayerPersonality(deciderId);
+            const isDrawer = state.currentDrawerIndex === state.currentDeciderIndex;
+            const activeCount = getActivePlayerCount(state);
+
+            const decision = decideOnCustomer(
+              player,
+              state.currentCustomer,
+              personality,
+              state.passCount,
+              activeCount,
+              isDrawer,
+              random
+            );
+
+            if (decision.action === "TAKE_CUSTOMER") {
+              dispatch({ type: "TAKE_CUSTOMER", playerId: deciderId });
+              addLog(deciderId, "TAKE_CUSTOMER", `Took customer`, decision.reason);
+            } else {
+              dispatch({ type: "PASS_CUSTOMER", playerId: deciderId });
+              addLog(deciderId, "PASS_CUSTOMER", `Passed customer`, decision.reason);
+            }
+          }
+          break;
+        }
+
+        case "customerResolution": {
+          // Each player selects which customers to fulfill
+          for (const playerId of state.playerOrder) {
+            if (state.eliminatedPlayers.includes(playerId)) continue;
+
+            const player = state.players[playerId];
+            const personality = getCafePlayerPersonality(playerId);
+            const decision = selectCustomersToFulfill(player, personality);
+
+            // Toggle off any customers not in selection
+            const currentSelection = state.selectedForFulfillment[playerId] || [];
+            for (const idx of currentSelection) {
+              if (!decision.customerIndices.includes(idx)) {
+                dispatch({
+                  type: "TOGGLE_CUSTOMER_FULFILL",
+                  playerId,
+                  payload: { customerIndex: idx },
+                });
+              }
+            }
+
+            // Toggle on selected customers
+            for (const idx of decision.customerIndices) {
+              if (!currentSelection.includes(idx)) {
+                dispatch({
+                  type: "TOGGLE_CUSTOMER_FULFILL",
+                  playerId,
+                  payload: { customerIndex: idx },
+                });
+              }
+            }
+
+            // Confirm resolution
+            dispatch({ type: "CONFIRM_RESOLUTION", playerId });
+            addLog(playerId, "CONFIRM_RESOLUTION", `Selected ${decision.customerIndices.length} customers`, decision.reason);
+          }
+
+          // Host resolves customers
+          dispatch({ type: "RESOLVE_CUSTOMERS", playerId: hostId });
+          addLog(hostId, "RESOLVE_CUSTOMERS", "Customers resolved", "Host action");
+          break;
+        }
+
+        case "shopClosed": {
+          // Host closes shop
+          dispatch({ type: "CLOSE_SHOP", playerId: hostId });
+          addLog(hostId, "CLOSE_SHOP", "Shop closed for the day", "Host action");
+          break;
+        }
+
+        case "cleanup": {
+          // Check for bailout opportunities
+          for (const playerId of state.playerOrder) {
+            if (state.eliminatedPlayers.includes(playerId)) continue;
+
+            const player = state.players[playerId];
+            const personality = getCafePlayerPersonality(playerId);
+            const bailoutDecision = decideBailout(player, state, personality, random);
+
+            if (bailoutDecision.targetPlayerId) {
+              dispatch({
+                type: "PAY_RENT_FOR",
+                playerId,
+                payload: { targetPlayerId: bailoutDecision.targetPlayerId },
+              });
+              addLog(playerId, "PAY_RENT_FOR", `Bailed out ${bailoutDecision.targetPlayerId}`, bailoutDecision.reason);
+            }
+          }
+
+          // Host ends round
+          dispatch({ type: "END_ROUND", playerId: hostId });
+          addLog(hostId, "END_ROUND", `Round ${state.round} ended`, "Host action");
+          break;
+        }
+
+        default:
+          // Unknown phase - should not happen
+          console.warn(`[Cafe Simulation] Unknown phase: ${state.phase}`);
+          break;
+      }
+
+      // Continue to next phase
+      setTimeout(runNextPhase, 0);
+    }
+
+    // Start simulation loop
+    runNextPhase();
+  });
+}
+
+// ============================================================================
 // COMPONENT
 // ============================================================================
 
@@ -1775,17 +2202,27 @@ export default function TestGamePage() {
   const gameId = params.gameId as string;
   const playerCount = Number(searchParams.get("players")) || 2;
 
+  // Comet Rush state
   const [summary, setSummary] = useState<SimSummary | null>(null);
   const [log, setLog] = useState<SimLogEntry[]>([]);
+
+  // Cafe state
+  const [cafeSummary, setCafeSummary] = useState<CafeSimSummary | null>(null);
+  const [cafeLog, setCafeLog] = useState<CafeSimLogEntry[]>([]);
+  const [cafeSimRows, setCafeSimRows] = useState<CafeSimRow[]>([]);
+
   const [isRunning, setIsRunning] = useState(false);
 
-  // LLM bot mode
+  // LLM bot mode (only for Comet Rush currently)
   const [useLLMBot, setUseLLMBot] = useState(false);
   const [llmProgress, setLLMProgress] = useState<string | null>(null);
 
-  // All simulation runs
+  // All simulation runs (Comet Rush)
   const [simRows, setSimRows] = useState<SimRow[]>([]);
   const [nextId, setNextId] = useState(1);
+
+  // Determine if this is a cafe game
+  const isCafe = gameId === "cafe";
 
   // Sorting state
   const [sortKey, setSortKey] = useState<SortKey>("id");
@@ -1814,50 +2251,83 @@ export default function TestGamePage() {
 
   const runSimulation = useCallback(async () => {
     setIsRunning(true);
-    setSummary(null);
-    setLog([]);
     setLLMProgress(null);
 
-    // Run async simulation (LLM or hardcoded)
-    const result = useLLMBot
-      ? await runLLMCometRushSimulation(playerCount, MAX_ROUNDS_PER_GAME, setLLMProgress)
-      : await runCometRushSimulation(playerCount);
+    if (isCafe) {
+      // Run Cafe simulation
+      setCafeSummary(null);
+      setCafeLog([]);
 
-    setLLMProgress(null);
+      const result = await runCafeSimulation(playerCount);
 
-    // Add aborted flag to summary if present
-    const summaryWithAborted: SimSummary = {
-      ...result.summary,
-      aborted: result.aborted,
-    };
+      const summaryWithAborted: CafeSimSummary = {
+        ...result.summary,
+        aborted: result.aborted,
+      };
 
-    setSummary(summaryWithAborted);
-    setLog(result.log);
-    setIsRunning(false);
+      setCafeSummary(summaryWithAborted);
+      setCafeLog(result.log);
+      setIsRunning(false);
 
-    // Add to simulation rows
-    const endReason = result.aborted
-      ? "maxRounds"
-      : result.summary.cometDestroyed
-      ? "cometDestroyed"
-      : result.summary.earthDestroyed
-      ? "earthDestroyed"
-      : "maxRounds";
+      // Add to cafe simulation rows
+      const row: CafeSimRow = {
+        id: nextId,
+        timestamp: Date.now(),
+        players: playerCount,
+        rounds: result.summary.totalRounds,
+        endReason: result.summary.endReason,
+        winnerIds: result.summary.winner ? [result.summary.winner] : [],
+        customersServed: result.summary.customersServed,
+        finalReputation: result.summary.finalReputation,
+      };
 
-    const row: SimRow = {
-      id: nextId,
-      timestamp: Date.now(),
-      players: playerCount,
-      rounds: result.summary.totalRounds,
-      endReason: endReason as "earthDestroyed" | "cometDestroyed" | "maxRounds",
-      winnerIds: result.summary.winner ? [result.summary.winner] : [],
-      rocketsBuilt: result.summary.totalRocketsBuilt,
-      rocketsLaunched: result.summary.totalRocketsLaunched,
-    };
+      setCafeSimRows((prev) => [...prev, row]);
+      setNextId((id) => id + 1);
+    } else {
+      // Run Comet Rush simulation
+      setSummary(null);
+      setLog([]);
 
-    setSimRows((prev) => [...prev, row]);
-    setNextId((id) => id + 1);
-  }, [playerCount, nextId, useLLMBot]);
+      const result = useLLMBot
+        ? await runLLMCometRushSimulation(playerCount, MAX_ROUNDS_PER_GAME, setLLMProgress)
+        : await runCometRushSimulation(playerCount);
+
+      setLLMProgress(null);
+
+      // Add aborted flag to summary if present
+      const summaryWithAborted: SimSummary = {
+        ...result.summary,
+        aborted: result.aborted,
+      };
+
+      setSummary(summaryWithAborted);
+      setLog(result.log);
+      setIsRunning(false);
+
+      // Add to simulation rows
+      const endReason = result.aborted
+        ? "maxRounds"
+        : result.summary.cometDestroyed
+        ? "cometDestroyed"
+        : result.summary.earthDestroyed
+        ? "earthDestroyed"
+        : "maxRounds";
+
+      const row: SimRow = {
+        id: nextId,
+        timestamp: Date.now(),
+        players: playerCount,
+        rounds: result.summary.totalRounds,
+        endReason: endReason as "earthDestroyed" | "cometDestroyed" | "maxRounds",
+        winnerIds: result.summary.winner ? [result.summary.winner] : [],
+        rocketsBuilt: result.summary.totalRocketsBuilt,
+        rocketsLaunched: result.summary.totalRocketsLaunched,
+      };
+
+      setSimRows((prev) => [...prev, row]);
+      setNextId((id) => id + 1);
+    }
+  }, [playerCount, nextId, useLLMBot, isCafe]);
 
   // Sorting logic
   const handleSort = useCallback((column: SortKey) => {
@@ -2147,21 +2617,23 @@ export default function TestGamePage() {
           </Link>
         </div>
 
-        {/* LLM Bot Toggle */}
-        <label className="flex items-center gap-3 cursor-pointer">
-          <span className="text-sm text-gray-400">Hardcoded Bots</span>
-          <div className="relative">
-            <input
-              type="checkbox"
-              checked={useLLMBot}
-              onChange={(e) => setUseLLMBot(e.target.checked)}
-              disabled={isRunning}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-          </div>
-          <span className="text-sm text-gray-400">LLM Bots (GPT-4o-mini)</span>
-        </label>
+        {/* LLM Bot Toggle - only for Comet Rush */}
+        {!isCafe && (
+          <label className="flex items-center gap-3 cursor-pointer">
+            <span className="text-sm text-gray-400">Hardcoded Bots</span>
+            <div className="relative">
+              <input
+                type="checkbox"
+                checked={useLLMBot}
+                onChange={(e) => setUseLLMBot(e.target.checked)}
+                disabled={isRunning}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+            </div>
+            <span className="text-sm text-gray-400">LLM Bots (GPT-4o-mini)</span>
+          </label>
+        )}
 
         {/* LLM Progress */}
         {llmProgress && (
@@ -2171,7 +2643,8 @@ export default function TestGamePage() {
         )}
       </div>
 
-      {/* Simulation Runs Table */}
+      {/* Simulation Runs Table - Comet Rush */}
+      {!isCafe && (
       <section className="w-full max-w-6xl mb-8">
         <div className="flex items-center justify-between gap-2 mb-3">
           <h2 className="text-sm font-semibold text-slate-100">
@@ -2360,9 +2833,83 @@ export default function TestGamePage() {
           </div>
         </div>
       </section>
+      )}
 
-      {/* Last Run Summary */}
-      {summary && (
+      {/* Simulation Runs Table - Cafe */}
+      {isCafe && (
+        <section className="w-full max-w-6xl mb-8">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <h2 className="text-sm font-semibold text-slate-100">
+              Simulation Runs ({cafeSimRows.length})
+            </h2>
+          </div>
+
+          <div className="rounded-xl border border-slate-700 bg-slate-900/60 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-xs text-slate-200">
+                <thead>
+                  <tr className="border-b border-slate-700 text-[11px] uppercase tracking-wide text-slate-400">
+                    <th className="px-2 py-1">#</th>
+                    <th className="px-2 py-1">Players</th>
+                    <th className="px-2 py-1">Rounds</th>
+                    <th className="px-2 py-1">End Reason</th>
+                    <th className="px-2 py-1">Customers</th>
+                    <th className="px-2 py-1">Final Rep</th>
+                    <th className="px-2 py-1">Time</th>
+                    <th className="px-2 py-1">Winner</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cafeSimRows.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={8}
+                        className="px-2 py-3 text-center text-[11px] text-slate-500"
+                      >
+                        No simulation runs yet. Click &quot;Run Simulation&quot; to get started.
+                      </td>
+                    </tr>
+                  ) : (
+                    cafeSimRows.map((row) => (
+                      <tr key={row.id} className="border-b border-slate-800 hover:bg-slate-800/30">
+                        <td className="px-2 py-1 text-[11px]">{row.id}</td>
+                        <td className="px-2 py-1 text-[11px]">{row.players}</td>
+                        <td className="px-2 py-1 text-[11px]">{row.rounds}</td>
+                        <td className="px-2 py-1 text-[11px]">
+                          <span
+                            className={
+                              row.endReason === "lastStanding"
+                                ? "text-green-400"
+                                : row.endReason === "allBankrupt"
+                                ? "text-red-400"
+                                : "text-yellow-400"
+                            }
+                          >
+                            {row.endReason}
+                          </span>
+                        </td>
+                        <td className="px-2 py-1 text-[11px]">{row.customersServed}</td>
+                        <td className={`px-2 py-1 text-[11px] ${row.finalReputation >= 0 ? "text-green-400" : "text-red-400"}`}>
+                          {row.finalReputation > 0 ? "+" : ""}{row.finalReputation}
+                        </td>
+                        <td className="px-2 py-1 text-[11px]">
+                          {new Date(row.timestamp).toLocaleTimeString()}
+                        </td>
+                        <td className="px-2 py-1 text-[11px]">
+                          {row.winnerIds.join(", ") || "—"}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Last Run Summary - Comet Rush */}
+      {!isCafe && summary && (
         <div className="w-full max-w-2xl mb-8">
           <h2 className="text-xl font-semibold mb-4">Last Run Summary</h2>
           <div className="bg-gray-800 rounded-lg p-4 space-y-2">
@@ -2411,8 +2958,76 @@ export default function TestGamePage() {
         </div>
       )}
 
-      {/* Analytics */}
-      {summary?.analytics && (
+      {/* Last Run Summary - Cafe */}
+      {isCafe && cafeSummary && (
+        <div className="w-full max-w-2xl mb-8">
+          <h2 className="text-xl font-semibold mb-4">Last Run Summary</h2>
+          <div className="bg-gray-800 rounded-lg p-4 space-y-2">
+            {cafeSummary.aborted && (
+              <div className="bg-orange-900/30 border border-orange-600 rounded p-2 mb-2">
+                <span className="text-orange-400 font-semibold">⚠ SIMULATION ABORTED</span>
+                <p className="text-orange-300 text-sm mt-1">
+                  Hit safety cap (max rounds or actions). Check console for details.
+                </p>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span className="text-gray-400">End Reason:</span>
+              <span
+                className={
+                  cafeSummary.endReason === "lastStanding"
+                    ? "text-green-400"
+                    : cafeSummary.endReason === "allBankrupt"
+                    ? "text-red-400"
+                    : "text-yellow-400"
+                }
+              >
+                {cafeSummary.endReason === "lastStanding"
+                  ? "Last Standing!"
+                  : cafeSummary.endReason === "allBankrupt"
+                  ? "All Bankrupt"
+                  : "Max Rounds"}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Total Rounds:</span>
+              <span>{cafeSummary.totalRounds}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Winner:</span>
+              <span className="text-yellow-400">{cafeSummary.winner ?? "N/A"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Customers Served:</span>
+              <span>{cafeSummary.customersServed}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Final Reputation:</span>
+              <span className={cafeSummary.finalReputation >= 0 ? "text-green-400" : "text-red-400"}>
+                {cafeSummary.finalReputation > 0 ? "+" : ""}{cafeSummary.finalReputation}
+              </span>
+            </div>
+            {cafeSummary.eliminatedPlayers.length > 0 && (
+              <div className="flex justify-between">
+                <span className="text-gray-400">Eliminated:</span>
+                <span className="text-red-400">{cafeSummary.eliminatedPlayers.join(", ")}</span>
+              </div>
+            )}
+            <div className="border-t border-gray-700 pt-2 mt-2">
+              <span className="text-gray-400 block mb-2">Final Scores:</span>
+              {Object.entries(cafeSummary.playerScores).map(([name, score]) => (
+                <div key={name} className="flex justify-between pl-4">
+                  <span>{name}</span>
+                  <span>${score.money} + {score.prestige}★ = {score.total} pts</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Analytics - Comet Rush only */}
+      {!isCafe && summary?.analytics && (
         <div className="w-full max-w-2xl mb-8">
           <h2 className="text-xl font-semibold mb-4">Rocket Statistics</h2>
           <div className="bg-gray-800 rounded-lg p-4 space-y-4">
@@ -2512,8 +3127,8 @@ export default function TestGamePage() {
         </div>
       )}
 
-      {/* Action Log */}
-      {log.length > 0 && (
+      {/* Action Log - Comet Rush */}
+      {!isCafe && log.length > 0 && (
         <section className="w-full max-w-6xl">
           <div className="flex items-center justify-between gap-2 mb-3">
             <h2 className="text-sm font-semibold text-slate-100">
@@ -2792,6 +3407,69 @@ export default function TestGamePage() {
                       </tr>
                     ))
                   )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Action Log - Cafe */}
+      {isCafe && cafeLog.length > 0 && (
+        <section className="w-full max-w-6xl">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <h2 className="text-sm font-semibold text-slate-100">
+              Action Log ({cafeLog.length})
+            </h2>
+          </div>
+
+          <div className="rounded-xl border border-slate-700 bg-slate-900/60 overflow-hidden">
+            <div className="overflow-x-auto max-h-96">
+              <table className="min-w-full text-left text-xs text-slate-200">
+                <thead className="sticky top-0 bg-slate-900">
+                  <tr className="border-b border-slate-700 text-[11px] uppercase tracking-wide text-slate-400">
+                    <th className="px-2 py-1">#</th>
+                    <th className="px-2 py-1">Round</th>
+                    <th className="px-2 py-1">Phase</th>
+                    <th className="px-2 py-1">Player</th>
+                    <th className="px-2 py-1">Type</th>
+                    <th className="px-2 py-1">Action</th>
+                    <th className="px-2 py-1">Money</th>
+                    <th className="px-2 py-1">Supplies</th>
+                    <th className="px-2 py-1">Customers</th>
+                    <th className="px-2 py-1">Rep</th>
+                    <th className="px-2 py-1">Details</th>
+                    <th className="px-2 py-1">Decision</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cafeLog.map((row) => (
+                    <tr key={row.id} className="border-b border-slate-800 hover:bg-slate-800/30">
+                      <td className="px-2 py-1 text-[11px]">{row.id}</td>
+                      <td className="px-2 py-1 text-[11px]">{row.round}</td>
+                      <td className="px-2 py-1 text-[11px] text-blue-300">{row.phase}</td>
+                      <td className="px-2 py-1 text-[11px]">
+                        <span className="text-cyan-300">{row.playerLabel}</span>
+                        <span className="text-slate-500 ml-1">({row.personality})</span>
+                      </td>
+                      <td className="px-2 py-1 text-[11px] text-purple-300">{row.personality}</td>
+                      <td className="px-2 py-1 text-[11px] font-medium text-yellow-300">
+                        {row.actionType}
+                      </td>
+                      <td className="px-2 py-1 text-[11px] text-green-300">${row.money}</td>
+                      <td className="px-2 py-1 text-[11px] text-orange-300">{row.supplies}</td>
+                      <td className="px-2 py-1 text-[11px]">{row.customerCount}</td>
+                      <td className={`px-2 py-1 text-[11px] ${row.reputation >= 0 ? "text-green-300" : "text-red-300"}`}>
+                        {row.reputation > 0 ? "+" : ""}{row.reputation}
+                      </td>
+                      <td className="px-2 py-1 text-[11px] max-w-xs truncate" title={row.details}>
+                        {row.details}
+                      </td>
+                      <td className="px-2 py-1 text-[11px] text-slate-400 max-w-xs truncate" title={row.decision}>
+                        {row.decision}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>

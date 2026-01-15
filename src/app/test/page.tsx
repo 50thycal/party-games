@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 const AVAILABLE_GAMES = [
   { id: "comet-rush", name: "Comet Rush" },
+  { id: "cafe", name: "Cafe" },
 ];
 
 export default function TestPage() {
