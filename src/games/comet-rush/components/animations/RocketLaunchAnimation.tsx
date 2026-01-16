@@ -37,6 +37,26 @@ type AnimationPhase =
   | "impact"
   | "complete";
 
+// Generate random particles for explosion effect
+function generateParticles(count: number, isDestroyed: boolean) {
+  return Array.from({ length: count }, (_, i) => {
+    const angle = (i / count) * 360 + Math.random() * 30;
+    const distance = 40 + Math.random() * 60;
+    const size = isDestroyed ? 4 + Math.random() * 6 : 3 + Math.random() * 4;
+    const duration = 0.4 + Math.random() * 0.4;
+    return {
+      id: i,
+      angle,
+      distance,
+      size,
+      duration,
+      color: isDestroyed
+        ? ['#ff6b35', '#f7931e', '#ffcc00', '#ff4444'][Math.floor(Math.random() * 4)]
+        : ['#ffcc00', '#f7931e', '#ffaa00'][Math.floor(Math.random() * 3)],
+    };
+  });
+}
+
 /**
  * Full rocket launch animation sequence:
  * 0. Wait for player to click Roll button
@@ -72,6 +92,8 @@ export function RocketLaunchAnimation({
     waitingForRoll ? "waiting_for_roll" : "dice_rolling"
   );
   const [displayValue, setDisplayValue] = useState(1);
+  const [particles, setParticles] = useState<ReturnType<typeof generateParticles>>([]);
+  const [isShaking, setIsShaking] = useState(false);
 
   // Handle roll button click - now dispatches to server instead of local animation
   const handleRollClick = () => {
@@ -158,17 +180,36 @@ export function RocketLaunchAnimation({
     return () => clearTimeout(timeout);
   }, [phase]);
 
-  // Impact
+  // Impact - trigger particles and screen shake for hits
   useEffect(() => {
     if (phase !== "impact") return;
 
+    // Generate explosion particles on hit
+    if (isHit) {
+      setParticles(generateParticles(destroyed ? 16 : 10, destroyed));
+      setIsShaking(true);
+      // Stop shaking after 300ms
+      const shakeTimeout = setTimeout(() => setIsShaking(false), 300);
+
+      const timeout = setTimeout(() => {
+        setPhase("complete");
+        onComplete?.();
+      }, 1500);
+
+      return () => {
+        clearTimeout(timeout);
+        clearTimeout(shakeTimeout);
+      };
+    }
+
+    // Miss - no particles, just continue
     const timeout = setTimeout(() => {
       setPhase("complete");
       onComplete?.();
     }, 1500);
 
     return () => clearTimeout(timeout);
-  }, [phase, onComplete]);
+  }, [phase, onComplete, isHit, destroyed]);
 
   // Dice face dot patterns
   const getDiceFace = (value: number) => {
@@ -439,7 +480,14 @@ export function RocketLaunchAnimation({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            <div className="relative bg-mission-dark rounded border-2 border-mission-steel-dark p-4 overflow-hidden h-48">
+            <motion.div
+              className="relative bg-mission-dark rounded border-2 border-mission-steel-dark p-4 overflow-hidden h-48"
+              animate={isShaking ? {
+                x: [0, -3, 4, -4, 3, -2, 2, 0],
+                y: [0, 2, -3, 2, -2, 3, -1, 0],
+              } : { x: 0, y: 0 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+            >
               {/* Starfield background */}
               <div className="absolute inset-0">
                 {[...Array(20)].map((_, i) => (
@@ -519,7 +567,7 @@ export function RocketLaunchAnimation({
                       : phase === "impact"
                         ? isHit
                           ? { x: 140, y: -100, opacity: 0, scale: 0 }
-                          : { x: 200, y: -120, opacity: 0.3 }
+                          : { x: 280, y: -140, opacity: 0, scale: 0.2, rotate: -30 }
                         : {}
                 }
                 transition={
@@ -527,7 +575,9 @@ export function RocketLaunchAnimation({
                     ? { duration: 0.5, ease: "easeOut" }
                     : phase === "rocket_flying"
                       ? { duration: 1, ease: "easeIn" }
-                      : { duration: 0.3 }
+                      : phase === "impact" && !isHit
+                        ? { duration: 1.2, ease: "easeIn" }
+                        : { duration: 0.3 }
                 }
               >
                 <div className="relative">
@@ -578,30 +628,105 @@ export function RocketLaunchAnimation({
                 </span>
               </motion.div>
 
-              {/* Miss effect - rocket flies past */}
+              {/* Miss effect - rocket flies past with "SIGNAL LOST" */}
               {phase === "impact" && !isHit && (
-                <motion.div
-                  className="absolute top-4 right-4 text-2xl"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: [0, 1, 0] }}
-                  transition={{ duration: 0.5 }}
-                >
-                  💨
-                </motion.div>
+                <>
+                  {/* Rocket continues flying off screen */}
+                  <motion.div
+                    className="absolute top-2 right-2 text-xs text-mission-red font-bold"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: [0, 1, 1, 0.5, 1, 0.5, 0] }}
+                    transition={{ duration: 1.2, ease: "linear" }}
+                  >
+                    SIGNAL LOST
+                  </motion.div>
+                  {/* Fading trail */}
+                  <motion.div
+                    className="absolute top-1/3 right-0 w-2 h-2 rounded-full bg-mission-amber/50"
+                    initial={{ opacity: 0.8, x: 0 }}
+                    animate={{ opacity: 0, x: 60 }}
+                    transition={{ duration: 0.8 }}
+                  />
+                </>
               )}
 
-              {/* Hit effect - explosion */}
+              {/* Hit effect - particles, shockwave, and flash */}
               {phase === "impact" && isHit && (
-                <motion.div
-                  className="absolute top-4 right-4"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: [0, 1.5, 1] }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <span className="text-3xl">{destroyed ? "💥" : "💫"}</span>
-                </motion.div>
+                <>
+                  {/* Flash overlay */}
+                  <motion.div
+                    className="absolute inset-0 rounded pointer-events-none"
+                    initial={{ opacity: 0.8 }}
+                    animate={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    style={{
+                      background: destroyed
+                        ? "radial-gradient(circle at 80% 30%, rgba(255,100,0,0.6) 0%, transparent 50%)"
+                        : "radial-gradient(circle at 80% 30%, rgba(255,200,0,0.4) 0%, transparent 40%)",
+                    }}
+                  />
+
+                  {/* Shockwave ring */}
+                  <motion.div
+                    className="absolute top-4 right-4"
+                    initial={{ scale: 0, opacity: 1 }}
+                    animate={{ scale: 3, opacity: 0 }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                  >
+                    <div
+                      className="w-10 h-10 rounded-full border-2"
+                      style={{
+                        borderColor: destroyed ? "#ff6b35" : "#ffcc00",
+                      }}
+                    />
+                  </motion.div>
+
+                  {/* Particle explosion */}
+                  {particles.map((particle) => (
+                    <motion.div
+                      key={particle.id}
+                      className="absolute rounded-full"
+                      style={{
+                        width: particle.size,
+                        height: particle.size,
+                        backgroundColor: particle.color,
+                        top: "24px",
+                        right: "24px",
+                        boxShadow: `0 0 ${particle.size}px ${particle.color}`,
+                      }}
+                      initial={{ scale: 1, x: 0, y: 0, opacity: 1 }}
+                      animate={{
+                        x: Math.cos((particle.angle * Math.PI) / 180) * particle.distance,
+                        y: Math.sin((particle.angle * Math.PI) / 180) * particle.distance,
+                        opacity: 0,
+                        scale: 0.3,
+                      }}
+                      transition={{
+                        duration: particle.duration,
+                        ease: "easeOut",
+                      }}
+                    />
+                  ))}
+
+                  {/* Central impact glow */}
+                  <motion.div
+                    className="absolute top-4 right-4"
+                    initial={{ scale: 0.5, opacity: 1 }}
+                    animate={{ scale: [0.5, 1.2, 0.8], opacity: [1, 1, 0] }}
+                    transition={{ duration: 0.4 }}
+                  >
+                    <div
+                      className="w-10 h-10 rounded-full"
+                      style={{
+                        background: destroyed
+                          ? "radial-gradient(circle, #ff6b35 0%, #ff4444 40%, transparent 70%)"
+                          : "radial-gradient(circle, #ffcc00 0%, #f7931e 40%, transparent 70%)",
+                      }}
+                    />
+                  </motion.div>
+                </>
               )}
-            </div>
+            </motion.div>
           </motion.div>
         )}
 
