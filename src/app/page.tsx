@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { versionInfo } from "@/lib/version-info";
 
 export default function HomePage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8">
+    <main className="relative flex min-h-screen flex-col items-center justify-center p-8">
       <h1 className="text-4xl font-bold mb-8">Party Games</h1>
       <p className="text-gray-400 mb-8 text-center max-w-md">
         A Jackbox-style party game framework. Create a room or join with a code.
@@ -29,6 +30,10 @@ export default function HomePage() {
       >
         Test game (dev)
       </Link>
+
+      <div className="absolute bottom-4 left-0 right-0 text-center text-xs text-gray-600">
+        Latest: PR #{versionInfo.prNumber} - {versionInfo.prTitle} ({versionInfo.mergedAt})
+      </div>
     </main>
   );
 }
