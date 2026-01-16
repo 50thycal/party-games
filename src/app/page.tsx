@@ -1,7 +1,12 @@
 import Link from "next/link";
-import { versionInfo } from "@/lib/version-info";
+import { getLatestPR } from "@/lib/version-info";
 
-export default function HomePage() {
+// Ensure fresh PR data on each request
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  const prInfo = await getLatestPR();
+
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center p-8">
       <h1 className="text-4xl font-bold mb-8">Party Games</h1>
@@ -32,7 +37,11 @@ export default function HomePage() {
       </Link>
 
       <div className="absolute bottom-4 left-0 right-0 text-center text-xs text-gray-600">
-        Latest: PR #{versionInfo.prNumber} - {versionInfo.prTitle} ({versionInfo.mergedAt})
+        {prInfo.prNumber > 0 ? (
+          <>Latest: PR #{prInfo.prNumber} - {prInfo.prTitle} ({prInfo.mergedAt})</>
+        ) : (
+          <>Version info unavailable</>
+        )}
       </div>
     </main>
   );
