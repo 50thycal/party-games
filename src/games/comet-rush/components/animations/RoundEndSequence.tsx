@@ -46,6 +46,7 @@ export function RoundEndSequence({
   const moveSpaces = movementCard.moveSpaces;
   const isDanger = newDistance <= 6;
   const isWarning = newDistance <= 12 && newDistance > 6;
+  const isCritical = newDistance <= 3;
 
   return (
     <motion.div
@@ -62,7 +63,65 @@ export function RoundEndSequence({
         paddingBottom: "max(32px, calc(env(safe-area-inset-bottom) + 80px))",
       }}
     >
-      <div className="max-w-md w-full mx-4 my-auto">
+      {/* Danger vignette overlay */}
+      <AnimatePresence>
+        {(phase === "advance" || phase === "complete") && (isDanger || isWarning) && (
+          <motion.div
+            className="fixed inset-0 pointer-events-none z-[201]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: isDanger ? 1 : 0.6 }}
+            exit={{ opacity: 0 }}
+            style={{
+              background: isDanger
+                ? "radial-gradient(ellipse at center, transparent 30%, rgba(255, 50, 50, 0.4) 100%)"
+                : "radial-gradient(ellipse at center, transparent 40%, rgba(255, 150, 0, 0.25) 100%)",
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Critical pulsing border */}
+      <AnimatePresence>
+        {(phase === "advance" || phase === "complete") && isCritical && (
+          <motion.div
+            className="fixed inset-0 pointer-events-none z-[202]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0.3, 0.8, 0.3] }}
+            transition={{ duration: 0.8, repeat: Infinity, ease: "easeInOut" }}
+            style={{
+              boxShadow: "inset 0 0 60px 20px rgba(255, 50, 50, 0.6)",
+            }}
+          />
+        )}
+      </AnimatePresence>
+      <div className="max-w-md w-full mx-4 my-auto relative z-[210]">
+        {/* Proximity Alert Banner */}
+        <AnimatePresence>
+          {(phase === "advance" || phase === "complete") && isDanger && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              className="mb-4"
+            >
+              <motion.div
+                className={cn(
+                  "text-center py-2 px-4 rounded border-2",
+                  "bg-mission-red/30 border-mission-red",
+                  "font-bold text-mission-red text-lg uppercase tracking-wider"
+                )}
+                animate={{
+                  backgroundColor: ["rgba(255,51,51,0.3)", "rgba(255,51,51,0.5)", "rgba(255,51,51,0.3)"],
+                  borderColor: ["#ff3333", "#ff6666", "#ff3333"],
+                }}
+                transition={{ duration: 0.6, repeat: Infinity }}
+              >
+                ⚠ PROXIMITY ALERT ⚠
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Header */}
         <motion.div
           initial={{ y: -20, opacity: 0 }}
@@ -70,7 +129,10 @@ export function RoundEndSequence({
           className="text-center mb-6"
         >
           <span className="label-embossed">END OF ROUND {round}</span>
-          <h2 className="text-2xl font-bold text-mission-cream mt-2">
+          <h2 className={cn(
+            "text-2xl font-bold mt-2",
+            isDanger ? "text-mission-red" : "text-mission-cream"
+          )}>
             COMET APPROACH UPDATE
           </h2>
         </motion.div>

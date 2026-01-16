@@ -30,6 +30,8 @@ import { DiceRoll, DiceResultBadge } from "./components/animations/DiceRoll";
 import { CardDrawAnimation, GameCardDisplay } from "./components/animations/CardDrawAnimation";
 import { RoundEndSequence, MovementCardReveal } from "./components/animations/RoundEndSequence";
 import { RocketLaunchAnimation } from "./components/animations/RocketLaunchAnimation";
+import { TurnAnnouncementOverlay } from "./components/animations/TurnAnnouncementOverlay";
+import { GameOutcomeSequence } from "./components/animations/GameOutcomeSequence";
 import { getDangerLevel } from "./theme/missionControl";
 import { ActionLogDisplay, ActionLogCompact } from "./components/ActionLogDisplay";
 import { PlayerAnalytics } from "./components/PlayerAnalytics";
@@ -1196,6 +1198,16 @@ export function CometRushGameView({
   const prevRoundRef = useRef<number>(-1);
   const prevDistanceRef = useRef<number>(999);
 
+  // Turn announcement overlay state
+  const [showTurnAnnouncement, setShowTurnAnnouncement] = useState(false);
+  const [turnAnnouncementPlayer, setTurnAnnouncementPlayer] = useState<string>("");
+  const prevActivePlayerRef = useRef<string | null>(null);
+
+  // Game outcome sequence state
+  const [showOutcomeSequence, setShowOutcomeSequence] = useState(false);
+  const [outcomeSequenceShown, setOutcomeSequenceShown] = useState(false);
+  const prevPhaseRef = useRef<string | null>(null);
+
   // Track launch animation completion for trophy display timing
   const [launchAnimationComplete, setLaunchAnimationComplete] = useState(false);
   const prevLaunchResultRef = useRef<string | null>(null);
@@ -1289,6 +1301,37 @@ export function CometRushGameView({
 
     prevTurnMetaRef.current = turnMeta;
   }, [phase, isMyTurn, turnMeta, playerId, player, player?.hand.length, turnWizardStep]);
+
+  // Detect active player changes for turn announcement overlay
+  useEffect(() => {
+    if (phase !== "playing" || !activePlayerId) return;
+
+    // Skip if this is the initial load (ref is null)
+    if (prevActivePlayerRef.current === null) {
+      prevActivePlayerRef.current = activePlayerId;
+      return;
+    }
+
+    // Detect turn change
+    if (activePlayerId !== prevActivePlayerRef.current) {
+      const activePlayer = gameState?.players?.[activePlayerId];
+      const playerName = activePlayer?.name || "Player";
+      setTurnAnnouncementPlayer(playerName);
+      setShowTurnAnnouncement(true);
+    }
+
+    prevActivePlayerRef.current = activePlayerId;
+  }, [phase, activePlayerId, gameState?.players]);
+
+  // Detect game over for outcome sequence
+  useEffect(() => {
+    // Detect transition to gameOver phase
+    if (phase === "gameOver" && prevPhaseRef.current !== "gameOver" && !outcomeSequenceShown) {
+      setShowOutcomeSequence(true);
+      setOutcomeSequenceShown(true);
+    }
+    prevPhaseRef.current = phase;
+  }, [phase, outcomeSequenceShown]);
 
   // Reset launch animation state when a new launch result comes in
   useEffect(() => {
@@ -1630,6 +1673,27 @@ export function CometRushGameView({
             previousDistance={roundEndData.previousDistance}
             round={roundEndData.round}
             onComplete={() => setShowRoundEnd(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Turn Announcement Overlay */}
+      <AnimatePresence>
+        {showTurnAnnouncement && (
+          <TurnAnnouncementOverlay
+            playerName={turnAnnouncementPlayer}
+            isCurrentPlayer={activePlayerId === playerId}
+            onComplete={() => setShowTurnAnnouncement(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Game Outcome Sequence */}
+      <AnimatePresence>
+        {showOutcomeSequence && (
+          <GameOutcomeSequence
+            outcome={gameState?.earthDestroyed ? "defeat" : "victory"}
+            onComplete={() => setShowOutcomeSequence(false)}
           />
         )}
       </AnimatePresence>
