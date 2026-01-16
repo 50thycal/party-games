@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/cn";
 
@@ -13,6 +13,7 @@ interface EmojiReaction {
   emoji: string;
   x: number;
   timestamp: number;
+  comboCount?: number;
 }
 
 interface EmojiReactionsProps {
@@ -23,6 +24,7 @@ interface EmojiReactionsProps {
 interface FloatingEmojiProps {
   emoji: string;
   x: number;
+  comboCount?: number;
   onComplete: () => void;
 }
 
@@ -45,30 +47,113 @@ const REACTION_EMOJIS = [
 // FLOATING EMOJI ANIMATION
 // ============================================================================
 
-function FloatingEmoji({ emoji, x, onComplete }: FloatingEmojiProps) {
+function FloatingEmoji({ emoji, x, comboCount = 1, onComplete }: FloatingEmojiProps) {
   useEffect(() => {
     const timer = setTimeout(onComplete, 2000);
     return () => clearTimeout(timer);
   }, [onComplete]);
 
+  const isCombo = comboCount >= 2;
+  const isMegaCombo = comboCount >= 4;
+
+  // Scale based on combo
+  const baseScale = isMegaCombo ? 1.5 : isCombo ? 1.2 : 1;
+  const maxScale = isMegaCombo ? 2.2 : isCombo ? 1.8 : 1.4;
+
   return (
     <motion.div
-      initial={{ opacity: 1, y: 0, scale: 1 }}
+      initial={{ opacity: 1, y: 0, scale: baseScale }}
       animate={{
         opacity: 0,
-        y: -150,
-        scale: [1, 1.4, 1.2],
-        rotate: [0, -10, 10, -5, 0],
+        y: isMegaCombo ? -220 : isCombo ? -180 : -150,
+        scale: [baseScale, maxScale, maxScale * 0.9],
+        rotate: isMegaCombo ? [0, -20, 20, -15, 15, -10, 10, 0] : [0, -10, 10, -5, 0],
+        x: isMegaCombo ? [0, -10, 10, -5, 5, 0] : 0,
       }}
       transition={{
-        duration: 2,
+        duration: isMegaCombo ? 2.5 : 2,
         ease: "easeOut",
-        rotate: { duration: 0.5, repeat: 3 },
+        rotate: { duration: isMegaCombo ? 0.3 : 0.5, repeat: isMegaCombo ? 5 : 3 },
+        x: isMegaCombo ? { duration: 0.4, repeat: 4 } : undefined,
       }}
       style={{ left: `${x}%` }}
-      className="fixed bottom-24 text-4xl pointer-events-none z-50"
+      className={cn(
+        "fixed bottom-24 pointer-events-none z-50",
+        isMegaCombo ? "text-6xl" : isCombo ? "text-5xl" : "text-4xl"
+      )}
     >
-      {emoji}
+      {/* Combo glow effect */}
+      {isCombo && (
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center"
+          initial={{ opacity: 0.8 }}
+          animate={{ opacity: 0 }}
+          transition={{ duration: 0.5 }}
+          style={{
+            filter: isMegaCombo ? "blur(12px)" : "blur(8px)",
+            transform: "scale(1.5)",
+          }}
+        >
+          {emoji}
+        </motion.div>
+      )}
+
+      {/* Main emoji */}
+      <span
+        className="relative"
+        style={{
+          textShadow: isMegaCombo
+            ? "0 0 20px rgba(255,200,0,0.8), 0 0 40px rgba(255,150,0,0.6)"
+            : isCombo
+              ? "0 0 10px rgba(255,200,0,0.5)"
+              : undefined,
+        }}
+      >
+        {emoji}
+      </span>
+
+      {/* Combo counter */}
+      {isCombo && (
+        <motion.span
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className={cn(
+            "absolute -top-2 -right-2 px-1.5 py-0.5 rounded-full text-xs font-bold",
+            isMegaCombo
+              ? "bg-mission-amber text-mission-dark"
+              : "bg-mission-green text-mission-dark"
+          )}
+        >
+          x{comboCount}
+        </motion.span>
+      )}
+
+      {/* Sparkles for mega combo */}
+      {isMegaCombo && (
+        <>
+          {[...Array(6)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-2 h-2 bg-mission-amber rounded-full"
+              style={{
+                left: "50%",
+                top: "50%",
+              }}
+              initial={{ scale: 0, x: 0, y: 0, opacity: 1 }}
+              animate={{
+                scale: [0, 1, 0],
+                x: Math.cos((i / 6) * Math.PI * 2) * 40,
+                y: Math.sin((i / 6) * Math.PI * 2) * 40,
+                opacity: [1, 1, 0],
+              }}
+              transition={{
+                duration: 0.6,
+                delay: 0.1,
+              }}
+            />
+          ))}
+        </>
+      )}
     </motion.div>
   );
 }
@@ -124,15 +209,36 @@ function EmojiButton({
 export function EmojiReactions({ onSendReaction, className }: EmojiReactionsProps) {
   const [reactions, setReactions] = useState<EmojiReaction[]>([]);
   const [cooldown, setCooldown] = useState(false);
+  const [lastEmoji, setLastEmoji] = useState<string | null>(null);
+  const [comboCount, setComboCount] = useState(0);
+  const comboTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleReaction = useCallback((emoji: string) => {
     if (cooldown) return;
+
+    // Track combos - same emoji within 1.5 seconds
+    let newComboCount = 1;
+    if (emoji === lastEmoji && comboCount > 0) {
+      newComboCount = comboCount + 1;
+    }
+
+    // Reset combo timeout
+    if (comboTimeoutRef.current) {
+      clearTimeout(comboTimeoutRef.current);
+    }
+    comboTimeoutRef.current = setTimeout(() => {
+      setComboCount(0);
+      setLastEmoji(null);
+    }, 1500);
+
+    setLastEmoji(emoji);
+    setComboCount(newComboCount);
 
     // Create floating emoji
     const id = `${Date.now()}-${Math.random()}`;
     const x = 20 + Math.random() * 60; // Random x position between 20% and 80%
 
-    setReactions(prev => [...prev, { id, emoji, x, timestamp: Date.now() }]);
+    setReactions(prev => [...prev, { id, emoji, x, timestamp: Date.now(), comboCount: newComboCount }]);
 
     // Notify parent (could be used to send to other players)
     onSendReaction?.(emoji);
@@ -140,7 +246,7 @@ export function EmojiReactions({ onSendReaction, className }: EmojiReactionsProp
     // Brief cooldown to prevent spam
     setCooldown(true);
     setTimeout(() => setCooldown(false), 300);
-  }, [cooldown, onSendReaction]);
+  }, [cooldown, onSendReaction, lastEmoji, comboCount]);
 
   const removeReaction = useCallback((id: string) => {
     setReactions(prev => prev.filter(r => r.id !== id));
@@ -155,6 +261,7 @@ export function EmojiReactions({ onSendReaction, className }: EmojiReactionsProp
             key={reaction.id}
             emoji={reaction.emoji}
             x={reaction.x}
+            comboCount={reaction.comboCount}
             onComplete={() => removeReaction(reaction.id)}
           />
         ))}
@@ -184,14 +291,34 @@ export function EmojiReactionsCompact({ onSendReaction, className }: EmojiReacti
   const [isOpen, setIsOpen] = useState(false);
   const [reactions, setReactions] = useState<EmojiReaction[]>([]);
   const [cooldown, setCooldown] = useState(false);
+  const [lastEmoji, setLastEmoji] = useState<string | null>(null);
+  const [comboCount, setComboCount] = useState(0);
+  const comboTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleReaction = useCallback((emoji: string) => {
     if (cooldown) return;
 
+    // Track combos
+    let newComboCount = 1;
+    if (emoji === lastEmoji && comboCount > 0) {
+      newComboCount = comboCount + 1;
+    }
+
+    if (comboTimeoutRef.current) {
+      clearTimeout(comboTimeoutRef.current);
+    }
+    comboTimeoutRef.current = setTimeout(() => {
+      setComboCount(0);
+      setLastEmoji(null);
+    }, 1500);
+
+    setLastEmoji(emoji);
+    setComboCount(newComboCount);
+
     const id = `${Date.now()}-${Math.random()}`;
     const x = 20 + Math.random() * 60;
 
-    setReactions(prev => [...prev, { id, emoji, x, timestamp: Date.now() }]);
+    setReactions(prev => [...prev, { id, emoji, x, timestamp: Date.now(), comboCount: newComboCount }]);
     onSendReaction?.(emoji);
 
     setCooldown(true);
@@ -199,7 +326,7 @@ export function EmojiReactionsCompact({ onSendReaction, className }: EmojiReacti
 
     // Close picker after selection
     setIsOpen(false);
-  }, [cooldown, onSendReaction]);
+  }, [cooldown, onSendReaction, lastEmoji, comboCount]);
 
   const removeReaction = useCallback((id: string) => {
     setReactions(prev => prev.filter(r => r.id !== id));
@@ -214,6 +341,7 @@ export function EmojiReactionsCompact({ onSendReaction, className }: EmojiReacti
             key={reaction.id}
             emoji={reaction.emoji}
             x={reaction.x}
+            comboCount={reaction.comboCount}
             onComplete={() => removeReaction(reaction.id)}
           />
         ))}

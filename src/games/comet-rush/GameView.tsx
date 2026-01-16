@@ -32,6 +32,7 @@ import { RoundEndSequence, MovementCardReveal } from "./components/animations/Ro
 import { RocketLaunchAnimation } from "./components/animations/RocketLaunchAnimation";
 import { TurnAnnouncementOverlay } from "./components/animations/TurnAnnouncementOverlay";
 import { GameOutcomeSequence } from "./components/animations/GameOutcomeSequence";
+import { CardPlayEffect } from "./components/animations/CardPlayEffect";
 import { getDangerLevel } from "./theme/missionControl";
 import { ActionLogDisplay, ActionLogCompact } from "./components/ActionLogDisplay";
 import { PlayerAnalytics } from "./components/PlayerAnalytics";
@@ -72,8 +73,36 @@ function MissionControlHeader({
   activePlayerName: string;
 }) {
   return (
-    <div className="panel-retro p-3 mb-4">
-      <div className="flex items-center justify-between">
+    <motion.div
+      className="panel-retro p-3 mb-4 relative overflow-hidden"
+      animate={{
+        opacity: [1, 0.98, 1, 0.97, 1],
+      }}
+      transition={{
+        duration: 8,
+        repeat: Infinity,
+        ease: "linear",
+        times: [0, 0.4, 0.41, 0.8, 1],
+      }}
+    >
+      {/* Ambient console glow */}
+      <motion.div
+        className="absolute inset-0 pointer-events-none"
+        animate={{
+          background: [
+            "radial-gradient(ellipse at 20% 50%, rgba(51,255,51,0.03) 0%, transparent 50%)",
+            "radial-gradient(ellipse at 80% 50%, rgba(51,255,51,0.03) 0%, transparent 50%)",
+            "radial-gradient(ellipse at 20% 50%, rgba(51,255,51,0.03) 0%, transparent 50%)",
+          ],
+        }}
+        transition={{
+          duration: 10,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+      />
+
+      <div className="flex items-center justify-between relative">
         {/* Title and Round */}
         <div className="flex items-center gap-4">
           <div>
@@ -102,7 +131,7 @@ function MissionControlHeader({
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -297,16 +326,45 @@ function RocketCard({
   const isBuilding = rocket.status === "building";
 
   return (
-    <div
+    <motion.div
       className={cn(
-        "panel-retro p-3",
+        "panel-retro p-3 relative overflow-hidden",
         isReady && "border-mission-green",
         isBuilding && "border-mission-amber"
       )}
+      animate={isReady ? {
+        boxShadow: [
+          "0 0 0px rgba(51,255,51,0)",
+          "0 0 15px rgba(51,255,51,0.4)",
+          "0 0 0px rgba(51,255,51,0)",
+        ],
+      } : {}}
+      transition={isReady ? { duration: 2, repeat: Infinity, ease: "easeInOut" } : {}}
     >
-      <div className="flex items-center justify-between mb-2">
+      {/* Ready state glow effect */}
+      {isReady && (
+        <motion.div
+          className="absolute inset-0 pointer-events-none"
+          animate={{
+            background: [
+              "radial-gradient(ellipse at center, rgba(51,255,51,0) 0%, transparent 70%)",
+              "radial-gradient(ellipse at center, rgba(51,255,51,0.15) 0%, transparent 70%)",
+              "radial-gradient(ellipse at center, rgba(51,255,51,0) 0%, transparent 70%)",
+            ],
+          }}
+          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+        />
+      )}
+
+      <div className="flex items-center justify-between mb-2 relative">
         <div className="flex items-center gap-2">
-          <span className="text-xl">{isReady ? "🚀" : "🔧"}</span>
+          <motion.span
+            className="text-xl"
+            animate={isReady ? { scale: [1, 1.1, 1], rotate: [0, -5, 5, 0] } : {}}
+            transition={isReady ? { duration: 1.5, repeat: Infinity } : {}}
+          >
+            {isReady ? "🚀" : "🔧"}
+          </motion.span>
           <span
             className={cn(
               "text-xs font-bold uppercase",
@@ -319,7 +377,7 @@ function RocketCard({
         </div>
         <StatusLight
           status={isReady ? "on" : "warning"}
-          pulse={isBuilding}
+          pulse={isBuilding || isReady}
         />
       </div>
 
@@ -340,13 +398,13 @@ function RocketCard({
           disabled={!canLaunch || isLaunching}
           variant="danger"
           size="lg"
-          className="w-full text-lg font-bold"
+          className="w-full text-lg font-bold relative"
           isLoading={isLaunching}
         >
           {isLaunching ? "Launching..." : "🚀 LAUNCH"}
         </MissionButton>
       )}
-    </div>
+    </motion.div>
   );
 }
 
@@ -1208,6 +1266,10 @@ export function CometRushGameView({
   const [outcomeSequenceShown, setOutcomeSequenceShown] = useState(false);
   const prevPhaseRef = useRef<string | null>(null);
 
+  // Card play effect state
+  const [cardPlayEffect, setCardPlayEffect] = useState<"espionage" | "engineering" | "economic" | null>(null);
+  const lastCardPlayActionIdRef = useRef<number>(0);
+
   // Track launch animation completion for trophy display timing
   const [launchAnimationComplete, setLaunchAnimationComplete] = useState(false);
   const prevLaunchResultRef = useRef<string | null>(null);
@@ -1382,6 +1444,42 @@ export function CometRushGameView({
       setLastNotifiedActionId(latestAction.id);
     }
   }, [gameState?.actionLog, lastNotifiedActionId, playerId, player?.name]);
+
+  // Detect card plays for visual effects
+  useEffect(() => {
+    if (!gameState?.actionLog?.length) return;
+
+    const latestAction = gameState.actionLog[gameState.actionLog.length - 1];
+    if (latestAction && latestAction.id > lastCardPlayActionIdRef.current) {
+      if (latestAction.action === "PLAY_CARD") {
+        // Determine card type from the action details
+        // Details format: Played "Card Name" ...
+        const details = latestAction.details.toLowerCase();
+
+        // Engineering cards (construction, tech, rockets)
+        const engineeringKeywords = ["extra draw", "calibration", "prototype", "surplus", "rapid assembly", "boost", "precision"];
+        // Espionage cards (spying, stealing, sabotage)
+        const espionageKeywords = ["seizure", "espionage", "embargo", "sabotage", "pressure", "regulatory", "covert", "strike", "spy", "steal"];
+        // Economic cards (resources, income, trading)
+        const economicKeywords = ["stimulus", "subsidy", "efficiency", "grant", "partnership", "trade", "profit", "resource"];
+
+        let effectType: "espionage" | "engineering" | "economic" | null = null;
+
+        if (espionageKeywords.some(kw => details.includes(kw))) {
+          effectType = "espionage";
+        } else if (economicKeywords.some(kw => details.includes(kw))) {
+          effectType = "economic";
+        } else if (engineeringKeywords.some(kw => details.includes(kw))) {
+          effectType = "engineering";
+        }
+
+        if (effectType) {
+          setCardPlayEffect(effectType);
+        }
+      }
+      lastCardPlayActionIdRef.current = latestAction.id;
+    }
+  }, [gameState?.actionLog]);
 
   // Action handlers
   async function handleStartGame() {
@@ -1697,6 +1795,12 @@ export function CometRushGameView({
           />
         )}
       </AnimatePresence>
+
+      {/* Card Play Effect */}
+      <CardPlayEffect
+        cardType={cardPlayEffect}
+        onComplete={() => setCardPlayEffect(null)}
+      />
 
       {/* Floating Action Notification */}
       <ActionNotification
