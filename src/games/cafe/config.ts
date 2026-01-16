@@ -56,11 +56,33 @@ export type CustomerArchetypeId =
   | "health_person"
   | "bulk_orderer";
 
+// =============================================================================
+// DELIGHT & STORM OUT SYSTEM
+// =============================================================================
+
+export type DelightCondition =
+  | { type: "serve_multiple"; count: number }
+  | { type: "surplus_supply"; supply: SupplyType; amount: number }
+  | { type: "all_supplies_stocked" }
+  | { type: "total_surplus"; amount: number };
+
+export type StormOutEffect =
+  | { type: "none" }
+  | { type: "lose_money"; amount: number }
+  | { type: "extra_reputation_loss"; total: number }
+  | { type: "lose_supply"; supply: SupplyType; amount: number };
+
+export type CustomerOutcome = "delighted" | "satisfied" | "stormed_out";
+
 export interface CustomerArchetype {
   id: CustomerArchetypeId;
   name: string;
   emoji: string;
   description: string;
+  delightCondition: DelightCondition;
+  delightDescription: string;
+  stormOutEffect: StormOutEffect;
+  stormOutDescription: string;
 }
 
 export const CUSTOMER_ARCHETYPES: Record<CustomerArchetypeId, CustomerArchetype> = {
@@ -69,30 +91,50 @@ export const CUSTOMER_ARCHETYPES: Record<CustomerArchetypeId, CustomerArchetype>
     name: "Average Joe",
     emoji: "👤",
     description: "Just here for a simple cup. Easy to please, reliable business.",
+    delightCondition: { type: "serve_multiple", count: 2 },
+    delightDescription: "Serve 2+ Average Joes this round",
+    stormOutEffect: { type: "none" },
+    stormOutDescription: "No additional effect",
   },
   coffee_snob: {
     id: "coffee_snob",
     name: "Coffee Snob",
     emoji: "🧐",
     description: "Demands only the finest brews. Expects quality and expertise.",
+    delightCondition: { type: "surplus_supply", supply: "coffeeBeans", amount: 2 },
+    delightDescription: "Have 2+ coffee beans after serving",
+    stormOutEffect: { type: "lose_money", amount: 2 },
+    stormOutDescription: "Lose $2",
   },
   influencer: {
     id: "influencer",
     name: "Influencer",
     emoji: "📸",
     description: "Here for the aesthetic. Loves presentation and seasonal items.",
+    delightCondition: { type: "all_supplies_stocked" },
+    delightDescription: "Have all 4 supply types in stock",
+    stormOutEffect: { type: "extra_reputation_loss", total: 2 },
+    stormOutDescription: "Reputation -2 instead of -1",
   },
   health_person: {
     id: "health_person",
     name: "Health Person",
     emoji: "🧘",
     description: "Focused on wellness. Prefers tea and healthy alternatives.",
+    delightCondition: { type: "surplus_supply", supply: "tea", amount: 2 },
+    delightDescription: "Have 2+ tea after serving",
+    stormOutEffect: { type: "lose_supply", supply: "tea", amount: 1 },
+    stormOutDescription: "Lose 1 tea",
   },
   bulk_orderer: {
     id: "bulk_orderer",
     name: "Bulk Orderer",
     emoji: "💼",
     description: "Ordering for the whole team. Big order, big payout.",
+    delightCondition: { type: "total_surplus", amount: 3 },
+    delightDescription: "Have 3+ total supplies after serving",
+    stormOutEffect: { type: "lose_money", amount: 5 },
+    stormOutDescription: "Lose $5",
   },
 };
 
@@ -786,8 +828,9 @@ function reducer(
 
     case "RESOLVE_CUSTOMERS": {
       const updatedPlayers = { ...state.players };
-      let totalFulfilled = 0;
+      let totalDelighted = 0;
       let totalStormedOut = 0;
+      let totalInfluencerStormedOut = 0; // Track separately for extra reputation loss
 
       for (const playerId of state.playerOrder) {
         // Skip eliminated players
@@ -798,6 +841,13 @@ function reducer(
         let totalMoney = 0;
         let totalPrestige = 0;
         let customersSuccessfullyServed = 0;
+        let moneyPenalty = 0;
+        let supplyPenalty: Record<SupplyType, number> = {
+          coffeeBeans: 0,
+          tea: 0,
+          milk: 0,
+          syrup: 0,
+        };
         let supplyCosts: Record<SupplyType, number> = {
           coffeeBeans: 0,
           tea: 0,
@@ -805,15 +855,50 @@ function reducer(
           syrup: 0,
         };
 
-        // Only process selected customers, in order
+        // Track fulfilled customers by archetype for "serve_multiple" delight condition
+        const fulfilledByArchetype: Record<CustomerArchetypeId, number[]> = {
+          average_joe: [],
+          coffee_snob: [],
+          influencer: [],
+          health_person: [],
+          bulk_orderer: [],
+        };
+
+        // Track which customers are delighted (for Average Joe second-pass)
+        const customerOutcomes: CustomerOutcome[] = [];
+
+        // First pass: process all customers
         for (let i = 0; i < player.customerLine.length; i++) {
+          const customer = player.customerLine[i];
+          const archetype = CUSTOMER_ARCHETYPES[customer.front.archetypeId];
+
           if (!selectedIndices.includes(i)) {
-            // Customer not selected - storms out (affects reputation)
-            totalStormedOut++;
+            // Customer not selected - storms out
+            customerOutcomes.push("stormed_out");
+
+            // Apply storm out effect
+            const effect = archetype.stormOutEffect;
+            if (effect.type === "lose_money") {
+              moneyPenalty += effect.amount;
+            } else if (effect.type === "lose_supply") {
+              supplyPenalty[effect.supply] += effect.amount;
+            } else if (effect.type === "extra_reputation_loss") {
+              totalInfluencerStormedOut++;
+            } else {
+              // type === "none" - just count as stormed out
+              totalStormedOut++;
+            }
+
+            // Count non-influencer storm outs (influencers tracked separately)
+            if (effect.type !== "extra_reputation_loss") {
+              // Already counted above for "none" type
+            }
+            if (effect.type === "lose_money" || effect.type === "lose_supply") {
+              totalStormedOut++;
+            }
             continue;
           }
 
-          const customer = player.customerLine[i];
           const required = customer.back.requiresSupplies;
 
           // Check if player has enough supplies (all-or-nothing)
@@ -829,37 +914,122 @@ function reducer(
           }
 
           if (canFulfill) {
-            // Fulfilled: consume supplies and grant reward
+            // Consume supplies
             for (const [supply, qty] of Object.entries(required)) {
               supplyCosts[supply as SupplyType] += qty || 0;
             }
+
+            // Calculate remaining supplies after this order
+            const remainingSupplies: Record<SupplyType, number> = {
+              coffeeBeans: player.supplies.coffeeBeans - supplyCosts.coffeeBeans,
+              tea: player.supplies.tea - supplyCosts.tea,
+              milk: player.supplies.milk - supplyCosts.milk,
+              syrup: player.supplies.syrup - supplyCosts.syrup,
+            };
+
+            // Check delight condition (except serve_multiple which is checked in second pass)
+            const condition = archetype.delightCondition;
+            let isDelighted = false;
+
+            if (condition.type === "surplus_supply") {
+              isDelighted = remainingSupplies[condition.supply] >= condition.amount;
+            } else if (condition.type === "all_supplies_stocked") {
+              // Check BEFORE consuming (use original supplies minus costs so far, but before this order)
+              const beforeThisOrder: Record<SupplyType, number> = {
+                coffeeBeans: player.supplies.coffeeBeans - (supplyCosts.coffeeBeans - (required.coffeeBeans || 0)),
+                tea: player.supplies.tea - (supplyCosts.tea - (required.tea || 0)),
+                milk: player.supplies.milk - (supplyCosts.milk - (required.milk || 0)),
+                syrup: player.supplies.syrup - (supplyCosts.syrup - (required.syrup || 0)),
+              };
+              isDelighted = beforeThisOrder.coffeeBeans >= 1 &&
+                           beforeThisOrder.tea >= 1 &&
+                           beforeThisOrder.milk >= 1 &&
+                           beforeThisOrder.syrup >= 1;
+            } else if (condition.type === "total_surplus") {
+              const totalRemaining = remainingSupplies.coffeeBeans +
+                                    remainingSupplies.tea +
+                                    remainingSupplies.milk +
+                                    remainingSupplies.syrup;
+              isDelighted = totalRemaining >= condition.amount;
+            }
+            // serve_multiple is handled in second pass
+
+            // Track for serve_multiple check
+            fulfilledByArchetype[customer.front.archetypeId].push(i);
+
+            // Mark outcome (may be upgraded to delighted in second pass for Average Joe)
+            customerOutcomes.push(isDelighted ? "delighted" : "satisfied");
+
+            // Grant reward
             totalMoney += customer.back.reward.money;
             totalPrestige += customer.back.reward.prestige;
             customersSuccessfullyServed++;
-            totalFulfilled++;
+
+            if (isDelighted) {
+              totalDelighted++;
+            }
           } else {
             // Customer storms out despite being selected (not enough supplies)
-            totalStormedOut++;
+            customerOutcomes.push("stormed_out");
+
+            // Apply storm out effect
+            const effect = archetype.stormOutEffect;
+            if (effect.type === "lose_money") {
+              moneyPenalty += effect.amount;
+              totalStormedOut++;
+            } else if (effect.type === "lose_supply") {
+              supplyPenalty[effect.supply] += effect.amount;
+              totalStormedOut++;
+            } else if (effect.type === "extra_reputation_loss") {
+              totalInfluencerStormedOut++;
+            } else {
+              totalStormedOut++;
+            }
           }
         }
 
+        // Second pass: check "serve_multiple" delight condition (Average Joe)
+        for (const [archetypeId, indices] of Object.entries(fulfilledByArchetype)) {
+          const archetype = CUSTOMER_ARCHETYPES[archetypeId as CustomerArchetypeId];
+          if (archetype.delightCondition.type === "serve_multiple") {
+            const requiredCount = archetype.delightCondition.count;
+            if (indices.length >= requiredCount) {
+              // Upgrade all fulfilled customers of this archetype to delighted
+              for (const idx of indices) {
+                if (customerOutcomes[idx] === "satisfied") {
+                  customerOutcomes[idx] = "delighted";
+                  totalDelighted++;
+                }
+              }
+            }
+          }
+        }
+
+        // Apply supply penalties (floor at 0)
+        const finalSupplies: Record<SupplyType, number> = {
+          coffeeBeans: Math.max(0, player.supplies.coffeeBeans - supplyCosts.coffeeBeans - supplyPenalty.coffeeBeans),
+          tea: Math.max(0, player.supplies.tea - supplyCosts.tea - supplyPenalty.tea),
+          milk: Math.max(0, player.supplies.milk - supplyCosts.milk - supplyPenalty.milk),
+          syrup: Math.max(0, player.supplies.syrup - supplyCosts.syrup - supplyPenalty.syrup),
+        };
+
+        // Apply money (floor at 0)
+        const finalMoney = Math.max(0, player.money + totalMoney - moneyPenalty);
+
         updatedPlayers[playerId] = {
           ...player,
-          money: player.money + totalMoney,
+          money: finalMoney,
           prestige: player.prestige + totalPrestige,
-          supplies: {
-            coffeeBeans: player.supplies.coffeeBeans - supplyCosts.coffeeBeans,
-            tea: player.supplies.tea - supplyCosts.tea,
-            milk: player.supplies.milk - supplyCosts.milk,
-            syrup: player.supplies.syrup - supplyCosts.syrup,
-          },
+          supplies: finalSupplies,
           customersServed: player.customersServed + customersSuccessfullyServed,
           customerLine: [], // Clear line after resolution
         };
       }
 
-      // Update reputation: +1 per fulfilled, -1 per stormed out
-      const reputationChange = totalFulfilled - totalStormedOut;
+      // Update reputation:
+      // +1 per delighted (satisfied = +0)
+      // -1 per stormed out (or -2 for influencer, tracked as totalInfluencerStormedOut)
+      const reputationChange = totalDelighted - totalStormedOut - (totalInfluencerStormedOut * 2);
       const newReputation = Math.max(
         GAME_CONFIG.REPUTATION_MIN,
         Math.min(GAME_CONFIG.REPUTATION_MAX, state.reputation + reputationChange)
