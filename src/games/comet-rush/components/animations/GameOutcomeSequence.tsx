@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/cn";
 
@@ -49,16 +49,20 @@ export function GameOutcomeSequence({
   const [confetti] = useState(() => generateConfetti(40));
   const [debris] = useState(() => generateDebris(24));
 
+  // Use ref to avoid resetting timers when onComplete callback changes
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
   useEffect(() => {
     const timers = [
       setTimeout(() => setPhase("action"), 800),
       setTimeout(() => setPhase("result"), 2000),
       setTimeout(() => setPhase("fadeout"), 4500),
-      setTimeout(() => onComplete?.(), 5000),
+      setTimeout(() => onCompleteRef.current?.(), 5000),
     ];
 
     return () => timers.forEach(clearTimeout);
-  }, [onComplete]);
+  }, []); // Empty deps - run once on mount
 
   const isVictory = outcome === "victory";
 

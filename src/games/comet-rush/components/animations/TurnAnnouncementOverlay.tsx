@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/cn";
 
@@ -23,15 +23,19 @@ export function TurnAnnouncementOverlay({
 }: TurnAnnouncementOverlayProps) {
   const [phase, setPhase] = useState<"enter" | "display" | "exit">("enter");
 
+  // Use ref to avoid resetting timers when onComplete callback changes
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
   useEffect(() => {
     const timers = [
       setTimeout(() => setPhase("display"), 100),
       setTimeout(() => setPhase("exit"), 1200),
-      setTimeout(() => onComplete?.(), 1600),
+      setTimeout(() => onCompleteRef.current?.(), 1600),
     ];
 
     return () => timers.forEach(clearTimeout);
-  }, [onComplete]);
+  }, []); // Empty deps - run once on mount
 
   return (
     <AnimatePresence>

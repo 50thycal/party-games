@@ -52,6 +52,28 @@ export function CometTrack({
 
       {/* Track display */}
       <div className="relative bg-mission-dark rounded border border-mission-steel-dark p-2 overflow-hidden">
+        {/* Ambient stars background */}
+        <div className="absolute inset-0 pointer-events-none">
+          {[...Array(12)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-0.5 h-0.5 bg-white rounded-full"
+              style={{
+                left: `${10 + (i * 7) % 85}%`,
+                top: `${15 + (i * 13) % 70}%`,
+              }}
+              animate={{
+                opacity: [0.2, 0.6, 0.2],
+              }}
+              transition={{
+                duration: 2 + (i % 3),
+                repeat: Infinity,
+                delay: i * 0.3,
+              }}
+            />
+          ))}
+        </div>
+
         {/* Scan line effect */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute inset-x-0 h-px bg-gradient-to-r from-transparent via-mission-green/30 to-transparent animate-scan-line" />
@@ -114,9 +136,38 @@ export function CometTrack({
                           transition: { duration: 0.6, ease: "easeInOut" }
                         } : {}}
                       >
-                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-lg">
+                        {/* Comet tail flare */}
+                        <motion.div
+                          className="absolute -top-2 left-1/2 w-8 h-3 pointer-events-none"
+                          style={{
+                            background: "linear-gradient(to right, rgba(255,191,0,0.6), rgba(255,150,0,0.3), transparent)",
+                            filter: "blur(2px)",
+                            transformOrigin: "left center",
+                          }}
+                          animate={{
+                            scaleX: [1, 1.4, 1, 1.2, 1],
+                            opacity: [0.5, 0.8, 0.4, 0.7, 0.5],
+                          }}
+                          transition={{
+                            duration: 2,
+                            repeat: Infinity,
+                            ease: "easeInOut",
+                          }}
+                        />
+                        <motion.div
+                          className="absolute -top-3 left-1/2 -translate-x-1/2 text-lg"
+                          animate={{
+                            scale: [1, 1.05, 1],
+                            rotate: [0, 2, -2, 0],
+                          }}
+                          transition={{
+                            duration: 3,
+                            repeat: Infinity,
+                            ease: "easeInOut",
+                          }}
+                        >
                           ☄️
-                        </div>
+                        </motion.div>
                       </motion.div>
                     )}
                   </div>
