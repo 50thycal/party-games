@@ -7,10 +7,13 @@ import {
   CUSTOMER_ARCHETYPES,
   getCardArchetype,
   getReputationCustomerModifier,
+  UPGRADE_CONFIG,
   type CafeState,
   type CafePlayerState,
   type CustomerCard,
   type SupplyType,
+  type UpgradeCard,
+  type UpgradeCardCategory,
 } from "./config";
 import { useState } from "react";
 
@@ -316,11 +319,15 @@ function ReadyButton({
   playerId,
   dispatch,
   isLoading,
+  disabled,
+  disabledMessage,
 }: {
   gameState: CafeState;
   playerId: string;
   dispatch: (action: string, payload?: Record<string, unknown>) => Promise<void>;
   isLoading: boolean;
+  disabled?: boolean;
+  disabledMessage?: string;
 }) {
   const isReady = gameState.playersReady.includes(playerId);
   const activePlayers = gameState.playerOrder.filter(
@@ -336,9 +343,14 @@ function ReadyButton({
           <span className="text-gray-400 text-sm">
             Players ready: <span className="text-white">{readyCount}/{totalActive}</span>
           </span>
-          {!isReady && readyCount < totalActive && (
+          {!isReady && !disabled && readyCount < totalActive && (
             <p className="text-xs text-gray-500 mt-1">
               Click ready when you&apos;re done
+            </p>
+          )}
+          {disabled && disabledMessage && (
+            <p className="text-xs text-red-400 mt-1">
+              {disabledMessage}
             </p>
           )}
         </div>
@@ -347,8 +359,8 @@ function ReadyButton({
         ) : (
           <button
             onClick={() => dispatch("PLAYER_READY")}
-            disabled={isLoading}
-            className="bg-green-600 hover:bg-green-700 disabled:bg-gray-700 px-4 py-2 rounded-lg font-semibold transition-colors"
+            disabled={isLoading || disabled}
+            className="bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:text-gray-500 px-4 py-2 rounded-lg font-semibold transition-colors"
           >
             Ready
           </button>
@@ -390,31 +402,58 @@ function PlanningView({
   dispatch: (action: string, payload?: Record<string, unknown>) => Promise<void>;
   isLoading: boolean;
 }) {
+  const needsDiscard = gameState.playersNeedingHandDiscard.includes(playerId);
+
   return (
     <section className="bg-gray-800 border border-gray-700 rounded-lg p-6">
       <h2 className="text-lg font-bold mb-4">Planning Phase</h2>
       <p className="text-gray-400 mb-4">
         Review your resources before investing.
+        {gameState.round > 1 && " You drew a new upgrade card this round!"}
       </p>
-      <div className="bg-gray-900 rounded-lg p-4">
-        <h3 className="font-semibold mb-2">Supplies</h3>
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <div className="flex justify-between">
-            <span>Coffee Beans:</span>
-            <span className="text-amber-400">{player.supplies.coffeeBeans}</span>
+
+      <div className="space-y-4">
+        {/* Supplies */}
+        <div className="bg-gray-900 rounded-lg p-4">
+          <h3 className="font-semibold mb-2">Supplies</h3>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="flex justify-between">
+              <span>Coffee Beans:</span>
+              <span className="text-amber-400">{player.supplies.coffeeBeans}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Tea:</span>
+              <span className="text-green-400">{player.supplies.tea}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Milk:</span>
+              <span className="text-blue-200">{player.supplies.milk}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Syrup:</span>
+              <span className="text-pink-400">{player.supplies.syrup}</span>
+            </div>
           </div>
-          <div className="flex justify-between">
-            <span>Tea:</span>
-            <span className="text-green-400">{player.supplies.tea}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Milk:</span>
-            <span className="text-blue-200">{player.supplies.milk}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Syrup:</span>
-            <span className="text-pink-400">{player.supplies.syrup}</span>
-          </div>
+        </div>
+
+        {/* Upgrade Cards Section */}
+        <div className="grid md:grid-cols-2 gap-4">
+          {/* Upgrade Hand - with discard if needed */}
+          <UpgradeHandPanel
+            player={player}
+            gameState={gameState}
+            playerId={playerId}
+            dispatch={dispatch}
+            isLoading={isLoading}
+            showActivate={false}
+            showDiscard={needsDiscard}
+          />
+
+          {/* Active Upgrades - view only */}
+          <ActiveUpgradesPanel
+            player={player}
+            isLoading={isLoading}
+          />
         </div>
       </div>
 
@@ -423,6 +462,8 @@ function PlanningView({
         playerId={playerId}
         dispatch={dispatch}
         isLoading={isLoading}
+        disabled={needsDiscard}
+        disabledMessage={needsDiscard ? "You must discard cards before continuing" : undefined}
       />
     </section>
   );
@@ -435,6 +476,291 @@ const SUPPLY_INFO: Record<SupplyType, { label: string; color: string }> = {
   milk: { label: "Milk", color: "text-blue-200" },
   syrup: { label: "Syrup", color: "text-pink-400" },
 };
+
+const UPGRADE_CATEGORY_INFO: Record<UpgradeCardCategory, { label: string; color: string; bgColor: string }> = {
+  efficiency: { label: "Efficiency", color: "text-blue-400", bgColor: "bg-blue-900/30" },
+  capacity: { label: "Capacity", color: "text-green-400", bgColor: "bg-green-900/30" },
+  reputation: { label: "Reputation", color: "text-purple-400", bgColor: "bg-purple-900/30" },
+  specialty: { label: "Specialty", color: "text-yellow-400", bgColor: "bg-yellow-900/30" },
+};
+
+// ============================================================================
+// UPGRADE CARD COMPONENTS
+// ============================================================================
+
+function UpgradeCardDisplay({
+  card,
+  onActivate,
+  onDiscard,
+  isActivatable,
+  isDiscardable,
+  isActive,
+  isLoading,
+  canAfford,
+}: {
+  card: UpgradeCard;
+  onActivate?: () => void;
+  onDiscard?: () => void;
+  isActivatable?: boolean;
+  isDiscardable?: boolean;
+  isActive?: boolean;
+  isLoading?: boolean;
+  canAfford?: boolean;
+}) {
+  const categoryInfo = UPGRADE_CATEGORY_INFO[card.category];
+  const cost = card.cost;
+
+  // Build cost string
+  const costParts: string[] = [];
+  if (cost.money) {
+    costParts.push(`$${cost.money}`);
+  }
+  if (cost.supplies) {
+    for (const [supply, qty] of Object.entries(cost.supplies)) {
+      if (qty) {
+        costParts.push(`${qty} ${SUPPLY_INFO[supply as SupplyType]?.label || supply}`);
+      }
+    }
+  }
+  const costString = costParts.length > 0 ? costParts.join(", ") : "Free";
+
+  return (
+    <div className={`${categoryInfo.bgColor} border border-gray-600 rounded-lg p-3 ${isActive ? "ring-2 ring-yellow-500" : ""}`}>
+      <div className="flex justify-between items-start mb-2">
+        <div>
+          <span className={`text-xs ${categoryInfo.color} uppercase tracking-wide`}>
+            {categoryInfo.label}
+          </span>
+          <h4 className="font-semibold text-white text-sm">{card.name}</h4>
+        </div>
+      </div>
+
+      <p className="text-xs text-gray-400 mb-2">{card.description}</p>
+
+      <div className="flex justify-between items-center">
+        <span className={`text-xs ${canAfford === false ? "text-red-400" : "text-gray-300"}`}>
+          Cost: {costString}
+        </span>
+
+        <div className="flex gap-1">
+          {isActivatable && onActivate && (
+            <button
+              onClick={onActivate}
+              disabled={isLoading || canAfford === false}
+              className="text-xs bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:text-gray-500 px-2 py-1 rounded transition-colors"
+            >
+              Activate
+            </button>
+          )}
+          {isDiscardable && onDiscard && (
+            <button
+              onClick={onDiscard}
+              disabled={isLoading}
+              className="text-xs bg-red-600 hover:bg-red-700 disabled:bg-gray-700 px-2 py-1 rounded transition-colors"
+            >
+              Discard
+            </button>
+          )}
+        </div>
+      </div>
+
+      {card.prerequisite && (
+        <div className="mt-2 text-xs text-orange-400">
+          Requires: {card.prerequisite.requiresUpgradeCategory
+            ? `Active ${UPGRADE_CATEGORY_INFO[card.prerequisite.requiresUpgradeCategory].label} upgrade`
+            : card.prerequisite.requiresCafeUpgrade
+              ? `${card.prerequisite.requiresCafeUpgrade.type} level ${card.prerequisite.requiresCafeUpgrade.minLevel}+`
+              : ""}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function UpgradeHandPanel({
+  player,
+  gameState,
+  playerId,
+  dispatch,
+  isLoading,
+  showActivate,
+  showDiscard,
+  onSelectForReplace,
+  selectedForReplace,
+}: {
+  player: CafePlayerState;
+  gameState: CafeState;
+  playerId: string;
+  dispatch: (action: string, payload?: Record<string, unknown>) => Promise<void>;
+  isLoading: boolean;
+  showActivate?: boolean;
+  showDiscard?: boolean;
+  onSelectForReplace?: (index: number) => void;
+  selectedForReplace?: number | null;
+}) {
+  const needsDiscard = gameState.playersNeedingHandDiscard.includes(playerId);
+  const hand = player.upgradeHand;
+
+  if (hand.length === 0) {
+    return (
+      <div className="bg-gray-900 rounded-lg p-4">
+        <h3 className="font-semibold mb-2">Upgrade Cards in Hand</h3>
+        <p className="text-gray-500 text-sm">No upgrade cards in hand</p>
+      </div>
+    );
+  }
+
+  // Check if player can afford each card
+  const canAffordCard = (card: UpgradeCard) => {
+    if ((card.cost.money || 0) > player.money) return false;
+    if (card.cost.supplies) {
+      for (const [supply, qty] of Object.entries(card.cost.supplies)) {
+        if ((qty || 0) > player.supplies[supply as SupplyType]) return false;
+      }
+    }
+    return true;
+  };
+
+  // Check prerequisites for each card
+  const meetsPrerequisites = (card: UpgradeCard) => {
+    if (!card.prerequisite) return true;
+    const prereq = card.prerequisite;
+
+    if (prereq.requiresUpgradeCategory) {
+      const hasCategory = player.activeUpgrades.some(
+        (u) => u.category === prereq.requiresUpgradeCategory
+      );
+      if (!hasCategory) return false;
+    }
+
+    if (prereq.requiresCafeUpgrade) {
+      const currentLevel = player.upgrades[prereq.requiresCafeUpgrade.type];
+      if (currentLevel < prereq.requiresCafeUpgrade.minLevel) return false;
+    }
+
+    return true;
+  };
+
+  return (
+    <div className="bg-gray-900 rounded-lg p-4">
+      <div className="flex justify-between items-center mb-3">
+        <h3 className="font-semibold">Upgrade Cards in Hand</h3>
+        <span className="text-xs text-gray-400">{hand.length}/{UPGRADE_CONFIG.MAX_HAND_SIZE}</span>
+      </div>
+
+      {needsDiscard && (
+        <div className="bg-red-900/40 border border-red-600 rounded p-2 mb-3">
+          <p className="text-red-400 text-sm font-semibold">
+            Over hand limit! You must discard {hand.length - UPGRADE_CONFIG.MAX_HAND_SIZE} card(s).
+          </p>
+        </div>
+      )}
+
+      <div className="grid gap-2">
+        {hand.map((card, index) => {
+          const affordable = canAffordCard(card);
+          const prereqMet = meetsPrerequisites(card);
+          const canActivate = showActivate && affordable && prereqMet;
+
+          return (
+            <div
+              key={card.id}
+              className={selectedForReplace === index ? "ring-2 ring-blue-500 rounded-lg" : ""}
+              onClick={onSelectForReplace ? () => onSelectForReplace(index) : undefined}
+            >
+              <UpgradeCardDisplay
+                card={card}
+                isActivatable={canActivate}
+                isDiscardable={showDiscard || needsDiscard}
+                isLoading={isLoading}
+                canAfford={affordable && prereqMet}
+                onActivate={canActivate ? () => {
+                  // Check if we need to replace an active upgrade
+                  if (player.activeUpgrades.length >= UPGRADE_CONFIG.MAX_ACTIVE_UPGRADES) {
+                    // Need to select which active upgrade to replace
+                    if (onSelectForReplace) {
+                      onSelectForReplace(index);
+                    }
+                  } else {
+                    dispatch("ACTIVATE_UPGRADE", { upgradeCardIndex: index });
+                  }
+                } : undefined}
+                onDiscard={(showDiscard || needsDiscard) ? () => {
+                  dispatch("DISCARD_UPGRADE_FROM_HAND", { upgradeCardIndex: index });
+                } : undefined}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ActiveUpgradesPanel({
+  player,
+  isLoading,
+  onSelectForReplace,
+  selectedForReplace,
+  pendingActivation,
+  dispatch,
+}: {
+  player: CafePlayerState;
+  isLoading: boolean;
+  onSelectForReplace?: (index: number) => void;
+  selectedForReplace?: number | null;
+  pendingActivation?: number | null;
+  dispatch?: (action: string, payload?: Record<string, unknown>) => Promise<void>;
+}) {
+  const activeUpgrades = player.activeUpgrades;
+
+  return (
+    <div className="bg-gray-900 rounded-lg p-4">
+      <div className="flex justify-between items-center mb-3">
+        <h3 className="font-semibold">Active Upgrades</h3>
+        <span className="text-xs text-gray-400">{activeUpgrades.length}/{UPGRADE_CONFIG.MAX_ACTIVE_UPGRADES}</span>
+      </div>
+
+      {pendingActivation !== null && pendingActivation !== undefined && (
+        <div className="bg-blue-900/40 border border-blue-600 rounded p-2 mb-3">
+          <p className="text-blue-400 text-sm">
+            Select an active upgrade to replace, or click the card again to cancel.
+          </p>
+        </div>
+      )}
+
+      {activeUpgrades.length === 0 ? (
+        <p className="text-gray-500 text-sm">No active upgrades</p>
+      ) : (
+        <div className="grid gap-2">
+          {activeUpgrades.map((card, index) => (
+            <div
+              key={card.id}
+              className={`cursor-pointer ${selectedForReplace === index ? "ring-2 ring-red-500 rounded-lg" : ""}`}
+              onClick={() => {
+                if (pendingActivation !== null && pendingActivation !== undefined && onSelectForReplace && dispatch) {
+                  // Confirm replacement
+                  dispatch("ACTIVATE_UPGRADE", {
+                    upgradeCardIndex: pendingActivation,
+                    activeUpgradeIndex: index,
+                  });
+                } else if (onSelectForReplace) {
+                  onSelectForReplace(index);
+                }
+              }}
+            >
+              <UpgradeCardDisplay
+                card={card}
+                isActive={true}
+                isLoading={isLoading}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function InvestmentView({
   gameState,
@@ -451,6 +777,20 @@ function InvestmentView({
 }) {
   const supplyTypes: SupplyType[] = ["coffeeBeans", "tea", "milk", "syrup"];
 
+  // State for tracking upgrade activation when at max active upgrades
+  const [pendingActivation, setPendingActivation] = useState<number | null>(null);
+
+  const handleSelectCardForActivation = (handIndex: number) => {
+    if (player.activeUpgrades.length >= UPGRADE_CONFIG.MAX_ACTIVE_UPGRADES) {
+      // Toggle selection - if already selected, cancel
+      if (pendingActivation === handIndex) {
+        setPendingActivation(null);
+      } else {
+        setPendingActivation(handIndex);
+      }
+    }
+  };
+
   return (
     <section className="bg-gray-800 border border-gray-700 rounded-lg p-6">
       <h2 className="text-lg font-bold mb-4">Investment Phase</h2>
@@ -458,30 +798,64 @@ function InvestmentView({
         Spend money to prepare for customers. Money: <span className="text-yellow-400 font-bold">${player.money}</span>
       </p>
 
-      {/* Supplies */}
-      <div className="bg-gray-900 rounded-lg p-4">
-        <h3 className="font-semibold mb-3">Buy Supplies</h3>
-        <p className="text-gray-500 text-xs mb-3">${SUPPLY_COST} each</p>
-        <div className="space-y-2">
-          {supplyTypes.map((type) => {
-            const info = SUPPLY_INFO[type];
-            const canBuy = player.money >= SUPPLY_COST;
-            return (
-              <div key={type} className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <span className={`${info.color} font-medium`}>{player.supplies[type]}</span>
-                  <span className="text-sm text-gray-300">{info.label}</span>
+      <div className="space-y-4">
+        {/* Supplies */}
+        <div className="bg-gray-900 rounded-lg p-4">
+          <h3 className="font-semibold mb-3">Buy Supplies</h3>
+          <p className="text-gray-500 text-xs mb-3">${SUPPLY_COST} each</p>
+          <div className="space-y-2">
+            {supplyTypes.map((type) => {
+              const info = SUPPLY_INFO[type];
+              const canBuy = player.money >= SUPPLY_COST;
+              return (
+                <div key={type} className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <span className={`${info.color} font-medium`}>{player.supplies[type]}</span>
+                    <span className="text-sm text-gray-300">{info.label}</span>
+                  </div>
+                  <button
+                    onClick={() => dispatch("PURCHASE_SUPPLY", { supplyType: type })}
+                    disabled={isLoading || !canBuy}
+                    className="text-xs bg-green-600 hover:bg-green-700 disabled:bg-gray-700 px-3 py-1 rounded transition-colors"
+                  >
+                    +1
+                  </button>
                 </div>
-                <button
-                  onClick={() => dispatch("PURCHASE_SUPPLY", { supplyType: type })}
-                  disabled={isLoading || !canBuy}
-                  className="text-xs bg-green-600 hover:bg-green-700 disabled:bg-gray-700 px-3 py-1 rounded transition-colors"
-                >
-                  +1
-                </button>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Upgrade Cards Section */}
+        <div className="grid md:grid-cols-2 gap-4">
+          {/* Upgrade Hand */}
+          <UpgradeHandPanel
+            player={player}
+            gameState={gameState}
+            playerId={playerId}
+            dispatch={dispatch}
+            isLoading={isLoading}
+            showActivate={true}
+            onSelectForReplace={handleSelectCardForActivation}
+            selectedForReplace={pendingActivation}
+          />
+
+          {/* Active Upgrades */}
+          <ActiveUpgradesPanel
+            player={player}
+            isLoading={isLoading}
+            pendingActivation={pendingActivation}
+            dispatch={dispatch}
+            onSelectForReplace={(index) => {
+              if (pendingActivation !== null) {
+                dispatch("ACTIVATE_UPGRADE", {
+                  upgradeCardIndex: pendingActivation,
+                  activeUpgradeIndex: index,
+                });
+                setPendingActivation(null);
+              }
+            }}
+          />
         </div>
       </div>
 
