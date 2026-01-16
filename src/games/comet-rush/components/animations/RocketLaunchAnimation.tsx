@@ -567,7 +567,7 @@ export function RocketLaunchAnimation({
                       : phase === "impact"
                         ? isHit
                           ? { x: 140, y: -100, opacity: 0, scale: 0 }
-                          : { x: 280, y: -140, opacity: 0, scale: 0.2, rotate: -30 }
+                          : { x: 320, y: -160, opacity: 0, scale: 0.1, rotate: -720 }
                         : {}
                 }
                 transition={
@@ -576,7 +576,7 @@ export function RocketLaunchAnimation({
                     : phase === "rocket_flying"
                       ? { duration: 1, ease: "easeIn" }
                       : phase === "impact" && !isHit
-                        ? { duration: 1.2, ease: "easeIn" }
+                        ? { duration: 1.4, ease: [0.2, 0, 0.8, 1] }
                         : { duration: 0.3 }
                 }
               >
