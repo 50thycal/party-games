@@ -190,6 +190,211 @@ export type SupplyType =
 export const SUPPLY_COST = 1;
 
 // =============================================================================
+// UPGRADE CARD SYSTEM
+// =============================================================================
+
+export const UPGRADE_CONFIG = {
+  MAX_HAND_SIZE: 3,
+  MAX_ACTIVE_UPGRADES: 3,
+  STARTING_HAND_SIZE: 3,
+  CARDS_DRAWN_PER_ROUND: 1,
+};
+
+export type UpgradeCardCategory =
+  | "efficiency"    // Reduces costs or increases output
+  | "capacity"      // Increases limits or storage
+  | "reputation"    // Affects reputation gains/losses
+  | "specialty";    // Unique effects
+
+export interface UpgradeCost {
+  money?: number;
+  supplies?: Partial<Record<SupplyType, number>>;
+}
+
+export interface UpgradePrerequisite {
+  // Requires another upgrade to be active
+  requiresUpgradeCategory?: UpgradeCardCategory;
+  // Requires minimum cafe upgrade level
+  requiresCafeUpgrade?: {
+    type: CafeUpgradeType;
+    minLevel: number;
+  };
+}
+
+export interface UpgradeCard {
+  id: string;
+  name: string;
+  category: UpgradeCardCategory;
+  description: string;
+  cost: UpgradeCost;
+  prerequisite?: UpgradePrerequisite;
+  // Effect is placeholder for now - will be implemented later
+  effectId: string;
+}
+
+// Placeholder upgrade cards - effects to be implemented later
+const UPGRADE_CARD_TEMPLATES: Omit<UpgradeCard, "id">[] = [
+  // ==========================================================================
+  // EFFICIENCY UPGRADES (5 cards) - Reduce costs or increase output
+  // ==========================================================================
+  {
+    name: "Bulk Supplier Contract",
+    category: "efficiency",
+    description: "Placeholder: Reduces supply costs",
+    cost: { money: 5 },
+    effectId: "bulk_supplier",
+  },
+  {
+    name: "Efficient Brewing",
+    category: "efficiency",
+    description: "Placeholder: Get more from your supplies",
+    cost: { money: 4 },
+    effectId: "efficient_brewing",
+  },
+  {
+    name: "Staff Training",
+    category: "efficiency",
+    description: "Placeholder: Serve customers faster",
+    cost: { money: 6 },
+    effectId: "staff_training",
+  },
+  {
+    name: "Loyalty Program",
+    category: "efficiency",
+    description: "Placeholder: Repeat customers cost less to serve",
+    cost: { money: 5 },
+    effectId: "loyalty_program",
+  },
+  {
+    name: "Streamlined Menu",
+    category: "efficiency",
+    description: "Placeholder: Simplified operations",
+    cost: { money: 3 },
+    effectId: "streamlined_menu",
+  },
+
+  // ==========================================================================
+  // CAPACITY UPGRADES (5 cards) - Increase limits or storage
+  // ==========================================================================
+  {
+    name: "Extra Storage",
+    category: "capacity",
+    description: "Placeholder: Store more supplies",
+    cost: { money: 4 },
+    effectId: "extra_storage",
+  },
+  {
+    name: "Expanded Seating",
+    category: "capacity",
+    description: "Placeholder: Serve more customers",
+    cost: { money: 6 },
+    effectId: "expanded_seating",
+  },
+  {
+    name: "Second Register",
+    category: "capacity",
+    description: "Placeholder: Handle more orders",
+    cost: { money: 5 },
+    effectId: "second_register",
+  },
+  {
+    name: "Delivery Service",
+    category: "capacity",
+    description: "Placeholder: Reach more customers",
+    cost: { money: 7 },
+    effectId: "delivery_service",
+  },
+  {
+    name: "Outdoor Patio",
+    category: "capacity",
+    description: "Placeholder: Additional seating area",
+    cost: { money: 5 },
+    effectId: "outdoor_patio",
+  },
+
+  // ==========================================================================
+  // REPUTATION UPGRADES (4 cards) - Affect reputation gains/losses
+  // ==========================================================================
+  {
+    name: "Social Media Presence",
+    category: "reputation",
+    description: "Placeholder: Boost reputation gains",
+    cost: { money: 4 },
+    effectId: "social_media",
+  },
+  {
+    name: "Customer Apology Card",
+    category: "reputation",
+    description: "Placeholder: Reduce reputation losses",
+    cost: { money: 3 },
+    effectId: "apology_card",
+  },
+  {
+    name: "Local Partnerships",
+    category: "reputation",
+    description: "Placeholder: Community reputation boost",
+    cost: { money: 5 },
+    effectId: "local_partnerships",
+  },
+  {
+    name: "Quality Guarantee",
+    category: "reputation",
+    description: "Placeholder: Protect your reputation",
+    cost: { money: 6 },
+    effectId: "quality_guarantee",
+  },
+
+  // ==========================================================================
+  // SPECIALTY UPGRADES (6 cards) - Unique effects
+  // ==========================================================================
+  {
+    name: "Barista Championship",
+    category: "specialty",
+    description: "Placeholder: Prestige from coffee orders",
+    cost: { money: 5, supplies: { coffeeBeans: 2 } },
+    effectId: "barista_championship",
+  },
+  {
+    name: "Tea Ceremony Master",
+    category: "specialty",
+    description: "Placeholder: Prestige from tea orders",
+    cost: { money: 5, supplies: { tea: 2 } },
+    effectId: "tea_ceremony",
+  },
+  {
+    name: "Happy Hour Special",
+    category: "specialty",
+    description: "Placeholder: Bonus during certain rounds",
+    cost: { money: 4 },
+    effectId: "happy_hour",
+  },
+  {
+    name: "VIP Treatment",
+    category: "specialty",
+    description: "Placeholder: Special handling for tough customers",
+    cost: { money: 6 },
+    prerequisite: { requiresCafeUpgrade: { type: "ambiance", minLevel: 1 } },
+    effectId: "vip_treatment",
+  },
+  {
+    name: "Secret Menu",
+    category: "specialty",
+    description: "Placeholder: Hidden options for regulars",
+    cost: { money: 4 },
+    prerequisite: { requiresUpgradeCategory: "efficiency" },
+    effectId: "secret_menu",
+  },
+  {
+    name: "Catering License",
+    category: "specialty",
+    description: "Placeholder: Handle bulk orders better",
+    cost: { money: 8 },
+    prerequisite: { requiresCafeUpgrade: { type: "equipment", minLevel: 1 } },
+    effectId: "catering_license",
+  },
+];
+
+// =============================================================================
 // PLAYER STATE
 // =============================================================================
 
@@ -202,6 +407,10 @@ export interface CafePlayerState {
   // Cafe setup
   upgrades: Record<CafeUpgradeType, number>; // Level 0-3
   supplies: Record<SupplyType, number>;
+
+  // Upgrade card system
+  upgradeHand: UpgradeCard[]; // Cards in hand (max 3)
+  activeUpgrades: UpgradeCard[]; // Activated upgrades (max 3)
 
   // Current round state
   customerLine: CustomerCard[]; // Customers taken this round
@@ -228,6 +437,12 @@ export interface CafeState {
 
   // Customer deck
   customerDeck: CustomerCard[];
+
+  // Upgrade card deck
+  upgradeDeck: UpgradeCard[];
+  upgradeDiscardPile: UpgradeCard[];
+  // Players who must discard from hand before continuing (exceeded hand limit after draw)
+  playersNeedingHandDiscard: string[];
 
   // Draft state
   currentRoundCustomers: CustomerCard[]; // Customers for this round
@@ -269,6 +484,9 @@ export type CafeActionType =
   // Investment phase
   | "PURCHASE_SUPPLY"
   | "UPGRADE_CAFE"
+  | "ACTIVATE_UPGRADE" // Activate an upgrade card from hand (pay cost)
+  | "DISCARD_UPGRADE_FROM_HAND" // Forced discard when hand exceeds limit
+  | "DISCARD_ACTIVE_UPGRADE" // Remove an active upgrade (when activating new one at limit)
   | "END_INVESTMENT"
   // Customer draft phase
   | "DRAW_CUSTOMER"
@@ -294,6 +512,9 @@ export interface CafeAction {
     upgradeType?: CafeUpgradeType;
     targetPlayerId?: string; // For bailout - who to pay rent for
     customerIndex?: number; // For toggling customer fulfillment
+    // Upgrade card actions
+    upgradeCardIndex?: number; // Index of upgrade card in hand
+    activeUpgradeIndex?: number; // Index of active upgrade to discard
   };
 }
 
@@ -319,6 +540,8 @@ function createInitialPlayerState(player: Player): CafePlayerState {
       milk: 0,
       syrup: 0,
     },
+    upgradeHand: [],
+    activeUpgrades: [],
     customerLine: [],
     customersServed: 0,
   };
@@ -432,6 +655,57 @@ function createCustomerDeck(ctx: GameContext): CustomerCard[] {
   return deck;
 }
 
+function createUpgradeDeck(ctx: GameContext): UpgradeCard[] {
+  const deck = UPGRADE_CARD_TEMPLATES.map((card, index) => ({
+    ...card,
+    id: `upgrade-${index}-${Math.floor(ctx.random() * 10000)}`,
+  }));
+
+  // Fisher-Yates shuffle
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(ctx.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+
+  return deck;
+}
+
+// Draw upgrade cards from deck, reshuffling discard if needed
+function drawUpgradeCards(
+  deck: UpgradeCard[],
+  discardPile: UpgradeCard[],
+  count: number,
+  ctx: GameContext
+): { drawnCards: UpgradeCard[]; newDeck: UpgradeCard[]; newDiscard: UpgradeCard[] } {
+  let currentDeck = [...deck];
+  let currentDiscard = [...discardPile];
+  const drawnCards: UpgradeCard[] = [];
+
+  for (let i = 0; i < count; i++) {
+    if (currentDeck.length === 0) {
+      // Reshuffle discard pile into deck
+      if (currentDiscard.length === 0) {
+        // No cards left anywhere - stop drawing
+        break;
+      }
+      currentDeck = [...currentDiscard];
+      currentDiscard = [];
+      // Shuffle the new deck
+      for (let j = currentDeck.length - 1; j > 0; j--) {
+        const k = Math.floor(ctx.random() * (j + 1));
+        [currentDeck[j], currentDeck[k]] = [currentDeck[k], currentDeck[j]];
+      }
+    }
+
+    const card = currentDeck.shift();
+    if (card) {
+      drawnCards.push(card);
+    }
+  }
+
+  return { drawnCards, newDeck: currentDeck, newDiscard: currentDiscard };
+}
+
 function getNextPlayerIndex(currentIndex: number, playerCount: number): number {
   return (currentIndex + 1) % playerCount;
 }
@@ -479,6 +753,9 @@ function initialState(players: Player[]): CafeState {
     players: playerStates,
     eliminatedPlayers: [],
     customerDeck: [],
+    upgradeDeck: [],
+    upgradeDiscardPile: [],
+    playersNeedingHandDiscard: [],
     currentRoundCustomers: [],
     customersDealtThisRound: 0,
     currentCustomer: null,
@@ -520,11 +797,35 @@ function reducer(
       const customersForRound = customerDeck.slice(0, customersThisRound);
       const remainingDeck = customerDeck.slice(customersThisRound);
 
+      // Create and distribute upgrade cards - each player draws 3 at game start
+      let upgradeDeck = createUpgradeDeck(ctx);
+      let upgradeDiscardPile: UpgradeCard[] = [];
+      const updatedPlayers = { ...state.players };
+
+      for (const playerId of state.playerOrder) {
+        const { drawnCards, newDeck, newDiscard } = drawUpgradeCards(
+          upgradeDeck,
+          upgradeDiscardPile,
+          UPGRADE_CONFIG.STARTING_HAND_SIZE,
+          ctx
+        );
+        upgradeDeck = newDeck;
+        upgradeDiscardPile = newDiscard;
+
+        updatedPlayers[playerId] = {
+          ...updatedPlayers[playerId],
+          upgradeHand: drawnCards,
+        };
+      }
+
       return {
         ...state,
         phase: "planning",
         round: 1,
+        players: updatedPlayers,
         customerDeck: remainingDeck,
+        upgradeDeck,
+        upgradeDiscardPile,
         currentRoundCustomers: customersForRound,
         customersDealtThisRound: 0,
         currentCustomer: null,
@@ -608,6 +909,166 @@ function reducer(
             },
           },
         },
+      };
+    }
+
+    case "ACTIVATE_UPGRADE": {
+      const { upgradeCardIndex, activeUpgradeIndex } = action.payload || {};
+      if (upgradeCardIndex === undefined) return state;
+
+      const player = state.players[action.playerId];
+      if (upgradeCardIndex < 0 || upgradeCardIndex >= player.upgradeHand.length) {
+        return state;
+      }
+
+      const upgradeCard = player.upgradeHand[upgradeCardIndex];
+
+      // Check if player can pay the cost
+      const moneyCost = upgradeCard.cost.money || 0;
+      if (player.money < moneyCost) return state;
+
+      // Check supply costs
+      const supplyCosts = upgradeCard.cost.supplies || {};
+      for (const [supply, amount] of Object.entries(supplyCosts)) {
+        if (player.supplies[supply as SupplyType] < (amount || 0)) {
+          return state;
+        }
+      }
+
+      // Check prerequisites
+      if (upgradeCard.prerequisite) {
+        const prereq = upgradeCard.prerequisite;
+
+        // Check if requires a specific category of active upgrade
+        if (prereq.requiresUpgradeCategory) {
+          const hasCategory = player.activeUpgrades.some(
+            (u) => u.category === prereq.requiresUpgradeCategory
+          );
+          if (!hasCategory) return state;
+        }
+
+        // Check if requires a minimum cafe upgrade level
+        if (prereq.requiresCafeUpgrade) {
+          const currentLevel = player.upgrades[prereq.requiresCafeUpgrade.type];
+          if (currentLevel < prereq.requiresCafeUpgrade.minLevel) {
+            return state;
+          }
+        }
+      }
+
+      // Check if player already has max active upgrades
+      if (player.activeUpgrades.length >= UPGRADE_CONFIG.MAX_ACTIVE_UPGRADES) {
+        // Must specify which active upgrade to replace
+        if (activeUpgradeIndex === undefined) return state;
+        if (activeUpgradeIndex < 0 || activeUpgradeIndex >= player.activeUpgrades.length) {
+          return state;
+        }
+      }
+
+      // Pay the cost
+      let newMoney = player.money - moneyCost;
+      const newSupplies = { ...player.supplies };
+      for (const [supply, amount] of Object.entries(supplyCosts)) {
+        newSupplies[supply as SupplyType] -= amount || 0;
+      }
+
+      // Remove card from hand
+      const newHand = player.upgradeHand.filter((_, i) => i !== upgradeCardIndex);
+
+      // Update active upgrades
+      let newActiveUpgrades = [...player.activeUpgrades];
+      let discardedUpgrade: UpgradeCard | null = null;
+
+      if (player.activeUpgrades.length >= UPGRADE_CONFIG.MAX_ACTIVE_UPGRADES && activeUpgradeIndex !== undefined) {
+        // Replace the specified active upgrade
+        discardedUpgrade = player.activeUpgrades[activeUpgradeIndex];
+        newActiveUpgrades = newActiveUpgrades.filter((_, i) => i !== activeUpgradeIndex);
+      }
+      newActiveUpgrades.push(upgradeCard);
+
+      // Add discarded upgrade to discard pile
+      const newDiscardPile = discardedUpgrade
+        ? [...state.upgradeDiscardPile, discardedUpgrade]
+        : state.upgradeDiscardPile;
+
+      return {
+        ...state,
+        players: {
+          ...state.players,
+          [action.playerId]: {
+            ...player,
+            money: newMoney,
+            supplies: newSupplies,
+            upgradeHand: newHand,
+            activeUpgrades: newActiveUpgrades,
+          },
+        },
+        upgradeDiscardPile: newDiscardPile,
+      };
+    }
+
+    case "DISCARD_UPGRADE_FROM_HAND": {
+      const { upgradeCardIndex } = action.payload || {};
+      if (upgradeCardIndex === undefined) return state;
+
+      // Only allow if player is in the list of players needing to discard
+      if (!state.playersNeedingHandDiscard.includes(action.playerId)) {
+        return state;
+      }
+
+      const player = state.players[action.playerId];
+      if (upgradeCardIndex < 0 || upgradeCardIndex >= player.upgradeHand.length) {
+        return state;
+      }
+
+      const discardedCard = player.upgradeHand[upgradeCardIndex];
+      const newHand = player.upgradeHand.filter((_, i) => i !== upgradeCardIndex);
+
+      // Remove player from needing discard list if they're now at or below limit
+      const stillNeedsDiscard = newHand.length > UPGRADE_CONFIG.MAX_HAND_SIZE;
+      const newPlayersNeedingDiscard = stillNeedsDiscard
+        ? state.playersNeedingHandDiscard
+        : state.playersNeedingHandDiscard.filter((id) => id !== action.playerId);
+
+      return {
+        ...state,
+        players: {
+          ...state.players,
+          [action.playerId]: {
+            ...player,
+            upgradeHand: newHand,
+          },
+        },
+        upgradeDiscardPile: [...state.upgradeDiscardPile, discardedCard],
+        playersNeedingHandDiscard: newPlayersNeedingDiscard,
+      };
+    }
+
+    case "DISCARD_ACTIVE_UPGRADE": {
+      // This action is for voluntarily discarding an active upgrade
+      // Note: This is generally not allowed per the rules (can only discard when forced)
+      // But we provide it for edge cases or if the design changes
+      const { activeUpgradeIndex } = action.payload || {};
+      if (activeUpgradeIndex === undefined) return state;
+
+      const player = state.players[action.playerId];
+      if (activeUpgradeIndex < 0 || activeUpgradeIndex >= player.activeUpgrades.length) {
+        return state;
+      }
+
+      const discardedUpgrade = player.activeUpgrades[activeUpgradeIndex];
+      const newActiveUpgrades = player.activeUpgrades.filter((_, i) => i !== activeUpgradeIndex);
+
+      return {
+        ...state,
+        players: {
+          ...state.players,
+          [action.playerId]: {
+            ...player,
+            activeUpgrades: newActiveUpgrades,
+          },
+        },
+        upgradeDiscardPile: [...state.upgradeDiscardPile, discardedUpgrade],
       };
     }
 
@@ -1235,6 +1696,35 @@ function reducer(
       const customersForRound = deck.slice(0, customersThisRound);
       const remainingDeck = deck.slice(customersThisRound);
 
+      // Draw 1 upgrade card for each remaining player at round start
+      let currentUpgradeDeck = state.upgradeDeck;
+      let currentUpgradeDiscard = state.upgradeDiscardPile;
+      const playersNeedingHandDiscard: string[] = [];
+
+      for (const playerId of remainingPlayers) {
+        const { drawnCards, newDeck, newDiscard } = drawUpgradeCards(
+          currentUpgradeDeck,
+          currentUpgradeDiscard,
+          UPGRADE_CONFIG.CARDS_DRAWN_PER_ROUND,
+          ctx
+        );
+        currentUpgradeDeck = newDeck;
+        currentUpgradeDiscard = newDiscard;
+
+        const player = updatedPlayers[playerId];
+        const newHand = [...player.upgradeHand, ...drawnCards];
+
+        updatedPlayers[playerId] = {
+          ...player,
+          upgradeHand: newHand,
+        };
+
+        // Check if player exceeds hand limit and needs to discard
+        if (newHand.length > UPGRADE_CONFIG.MAX_HAND_SIZE) {
+          playersNeedingHandDiscard.push(playerId);
+        }
+      }
+
       return {
         ...state,
         players: updatedPlayers,
@@ -1242,6 +1732,9 @@ function reducer(
         phase: "planning",
         round: state.round + 1,
         customerDeck: remainingDeck,
+        upgradeDeck: currentUpgradeDeck,
+        upgradeDiscardPile: currentUpgradeDiscard,
+        playersNeedingHandDiscard,
         currentRoundCustomers: customersForRound,
         customersDealtThisRound: 0,
         currentCustomer: null,
@@ -1270,11 +1763,35 @@ function reducer(
       const customersForRound = customerDeck.slice(0, customersThisRound);
       const remainingDeck = customerDeck.slice(customersThisRound);
 
+      // Create and distribute upgrade cards - each player draws 3 at game start
+      let upgradeDeck = createUpgradeDeck(ctx);
+      let upgradeDiscardPile: UpgradeCard[] = [];
+      const updatedPlayers = { ...newState.players };
+
+      for (const playerId of newState.playerOrder) {
+        const { drawnCards, newDeck, newDiscard } = drawUpgradeCards(
+          upgradeDeck,
+          upgradeDiscardPile,
+          UPGRADE_CONFIG.STARTING_HAND_SIZE,
+          ctx
+        );
+        upgradeDeck = newDeck;
+        upgradeDiscardPile = newDiscard;
+
+        updatedPlayers[playerId] = {
+          ...updatedPlayers[playerId],
+          upgradeHand: drawnCards,
+        };
+      }
+
       return {
         ...newState,
         phase: "planning",
         round: 1,
+        players: updatedPlayers,
         customerDeck: remainingDeck,
+        upgradeDeck,
+        upgradeDiscardPile,
         currentRoundCustomers: customersForRound,
         eliminatedPlayers: [], // Reset eliminations
       };
@@ -1343,11 +1860,94 @@ function isActionAllowed(
     }
 
     case "END_PLANNING":
+      // Cannot end planning if any players still need to discard upgrade cards
+      if (state.playersNeedingHandDiscard.length > 0) return false;
       return isHost && state.phase === "planning" && allPlayersReady(state);
 
     case "PURCHASE_SUPPLY":
     case "UPGRADE_CAFE":
       return state.phase === "investment" && player !== undefined;
+
+    case "ACTIVATE_UPGRADE": {
+      // Can activate upgrades during investment phase
+      if (state.phase !== "investment") return false;
+      if (!player) return false;
+
+      const { upgradeCardIndex, activeUpgradeIndex } = action.payload || {};
+      if (upgradeCardIndex === undefined) return false;
+      if (upgradeCardIndex < 0 || upgradeCardIndex >= player.upgradeHand.length) {
+        return false;
+      }
+
+      const upgradeCard = player.upgradeHand[upgradeCardIndex];
+
+      // Check if player can pay the money cost
+      const moneyCost = upgradeCard.cost.money || 0;
+      if (player.money < moneyCost) return false;
+
+      // Check supply costs
+      const supplyCosts = upgradeCard.cost.supplies || {};
+      for (const [supply, amount] of Object.entries(supplyCosts)) {
+        if (player.supplies[supply as SupplyType] < (amount || 0)) {
+          return false;
+        }
+      }
+
+      // Check prerequisites
+      if (upgradeCard.prerequisite) {
+        const prereq = upgradeCard.prerequisite;
+
+        if (prereq.requiresUpgradeCategory) {
+          const hasCategory = player.activeUpgrades.some(
+            (u) => u.category === prereq.requiresUpgradeCategory
+          );
+          if (!hasCategory) return false;
+        }
+
+        if (prereq.requiresCafeUpgrade) {
+          const currentLevel = player.upgrades[prereq.requiresCafeUpgrade.type];
+          if (currentLevel < prereq.requiresCafeUpgrade.minLevel) {
+            return false;
+          }
+        }
+      }
+
+      // If at max active upgrades, must specify which to replace
+      if (player.activeUpgrades.length >= UPGRADE_CONFIG.MAX_ACTIVE_UPGRADES) {
+        if (activeUpgradeIndex === undefined) return false;
+        if (activeUpgradeIndex < 0 || activeUpgradeIndex >= player.activeUpgrades.length) {
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    case "DISCARD_UPGRADE_FROM_HAND": {
+      // Can only discard from hand if player is in the needing discard list
+      // Allowed during planning (after round start draw) or investment phase
+      if (state.phase !== "planning" && state.phase !== "investment") {
+        return false;
+      }
+      if (!state.playersNeedingHandDiscard.includes(action.playerId)) {
+        return false;
+      }
+      if (!player) return false;
+
+      const { upgradeCardIndex } = action.payload || {};
+      if (upgradeCardIndex === undefined) return false;
+      if (upgradeCardIndex < 0 || upgradeCardIndex >= player.upgradeHand.length) {
+        return false;
+      }
+
+      return true;
+    }
+
+    case "DISCARD_ACTIVE_UPGRADE": {
+      // Generally not allowed per rules (can only discard when forced)
+      // This action is disabled for now, but the handler exists for future flexibility
+      return false;
+    }
 
     case "END_INVESTMENT":
       return isHost && state.phase === "investment" && allPlayersReady(state);
