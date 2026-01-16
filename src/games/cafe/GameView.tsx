@@ -58,13 +58,13 @@ export function CafeGameView({
               {isEliminated ? (
                 <p className="font-bold text-red-400">BANKRUPT</p>
               ) : (
-                <p className="font-bold text-yellow-400">${player.money}</p>
+                <>
+                  <p className="font-bold text-yellow-400">${player.money}</p>
+                  <p className="text-gray-400 text-sm">
+                    {player.customersServed} served
+                  </p>
+                </>
               )}
-              {/* Prestige hidden for now
-              <p className="text-purple-400 text-sm">
-                {player.prestige} prestige
-              </p>
-              */}
             </div>
           )}
         </div>
@@ -655,6 +655,19 @@ function CustomerCardHidden({ customer }: { customer: CustomerCard }) {
       <div className="text-6xl mb-3">{archetype.emoji}</div>
       <h3 className="text-xl font-bold text-white mb-2">{archetype.name}</h3>
       <p className="text-gray-400 text-sm mb-4">{archetype.description}</p>
+
+      {/* Delight & Storm hints */}
+      <div className="grid grid-cols-2 gap-2 mb-4 text-xs">
+        <div className="bg-yellow-900/30 border border-yellow-700/50 rounded p-2">
+          <p className="text-yellow-500 font-semibold mb-1">Delight</p>
+          <p className="text-yellow-300/80">{archetype.delightDescription}</p>
+        </div>
+        <div className="bg-red-900/30 border border-red-700/50 rounded p-2">
+          <p className="text-red-500 font-semibold mb-1">Storm Out</p>
+          <p className="text-red-300/80">{archetype.stormOutDescription}</p>
+        </div>
+      </div>
+
       <div className="bg-gray-700/50 rounded-lg p-3">
         <p className="text-gray-500 text-xs uppercase tracking-wide">Order Hidden</p>
         <p className="text-gray-400 text-sm mt-1">Will be revealed at resolution</p>
@@ -676,12 +689,6 @@ function CustomerCardFullDisplay({ customer }: { customer: CustomerCard }) {
       return `${qty} ${label}`;
     });
 
-  const failRuleText = {
-    no_penalty: "No penalty if unfulfilled",
-    lose_prestige: "Lose 1 prestige if unfulfilled",
-    pay_penalty: "Pay $2 penalty if unfulfilled",
-  }[back.failRule];
-
   return (
     <div className="bg-gradient-to-br from-amber-900/40 to-purple-900/40 border border-amber-600 rounded-lg p-4">
       <div className="flex justify-between items-start mb-3">
@@ -691,16 +698,13 @@ function CustomerCardFullDisplay({ customer }: { customer: CustomerCard }) {
         </div>
         <div className="flex gap-2">
           <span className="text-yellow-400 font-bold">${back.reward.money}</span>
-          {/* Prestige hidden for now
-          <span className="text-purple-400 font-bold">+{back.reward.prestige} prestige</span>
-          */}
         </div>
       </div>
 
       <p className="text-gray-300 text-sm mb-3">{archetype.description}</p>
 
       {/* Required Supplies */}
-      <div className="bg-gray-900/50 rounded p-3 mb-2">
+      <div className="bg-gray-900/50 rounded p-3 mb-3">
         <p className="text-xs text-gray-400 mb-2">Requires:</p>
         <div className="flex flex-wrap gap-2">
           {suppliesNeeded.length > 0 ? (
@@ -715,7 +719,17 @@ function CustomerCardFullDisplay({ customer }: { customer: CustomerCard }) {
         </div>
       </div>
 
-      <p className="text-xs text-gray-500">{failRuleText}</p>
+      {/* Delight & Storm Out conditions */}
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div className="bg-yellow-900/30 border border-yellow-700/50 rounded p-2">
+          <p className="text-yellow-500 font-semibold mb-1">Delight (Rep +1)</p>
+          <p className="text-yellow-300/80">{archetype.delightDescription}</p>
+        </div>
+        <div className="bg-red-900/30 border border-red-700/50 rounded p-2">
+          <p className="text-red-500 font-semibold mb-1">Storm Out</p>
+          <p className="text-red-300/80">{archetype.stormOutDescription}</p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -772,7 +786,6 @@ function CustomerResolutionView({
 }) {
   const selectedIndices = gameState.selectedForFulfillment[playerId] || [];
   const hasConfirmed = gameState.playersConfirmedResolution.includes(playerId);
-  const allConfirmed = gameState.playersConfirmedResolution.length === gameState.playerOrder.length;
 
   // Calculate supply usage for selected customers only
   const supplyCosts: Record<SupplyType, number> = {
@@ -793,12 +806,20 @@ function CustomerResolutionView({
     }
   }
 
-  // Check which selected customers can be fulfilled
-  const canFulfillSelected = (index: number): boolean => {
-    if (!selectedIndices.includes(index)) return false;
-    const remaining: Record<SupplyType, number> = { ...player.supplies };
+  // Check which selected customers can be fulfilled and predict outcome
+  type PredictedOutcome = "delighted" | "satisfied" | "stormed_out";
 
-    // Deduct earlier selected customers first
+  const predictOutcome = (index: number): { canFulfill: boolean; outcome: PredictedOutcome; remainingAfter: Record<SupplyType, number> } => {
+    const customer = player.customerLine[index];
+    const archetype = getCardArchetype(customer);
+    const isSelected = selectedIndices.includes(index);
+
+    if (!isSelected) {
+      return { canFulfill: false, outcome: "stormed_out", remainingAfter: player.supplies };
+    }
+
+    // Calculate remaining supplies after processing earlier customers
+    const remaining: Record<SupplyType, number> = { ...player.supplies };
     for (let i = 0; i < index; i++) {
       if (selectedIndices.includes(i)) {
         const req = player.customerLine[i].back.requiresSupplies;
@@ -808,19 +829,107 @@ function CustomerResolutionView({
       }
     }
 
-    // Check this customer
-    const required = player.customerLine[index].back.requiresSupplies;
+    // Check if can fulfill
+    const required = customer.back.requiresSupplies;
+    let canFulfill = true;
     for (const [supply, qty] of Object.entries(required)) {
       if (qty && qty > 0 && remaining[supply as SupplyType] < qty) {
-        return false;
+        canFulfill = false;
+        break;
       }
     }
-    return true;
+
+    if (!canFulfill) {
+      return { canFulfill: false, outcome: "stormed_out", remainingAfter: remaining };
+    }
+
+    // Calculate remaining after this order
+    const remainingAfter = { ...remaining };
+    for (const [supply, qty] of Object.entries(required)) {
+      if (qty && qty > 0) {
+        remainingAfter[supply as SupplyType] -= qty;
+      }
+    }
+
+    // Check delight condition
+    const condition = archetype.delightCondition;
+    let isDelighted = false;
+
+    if (condition.type === "surplus_supply") {
+      isDelighted = remainingAfter[condition.supply] >= condition.amount;
+    } else if (condition.type === "all_supplies_stocked") {
+      // Check supplies BEFORE consuming this order
+      isDelighted = remaining.coffeeBeans >= 1 &&
+                   remaining.tea >= 1 &&
+                   remaining.milk >= 1 &&
+                   remaining.syrup >= 1;
+    } else if (condition.type === "total_surplus") {
+      const total = remainingAfter.coffeeBeans + remainingAfter.tea + remainingAfter.milk + remainingAfter.syrup;
+      isDelighted = total >= condition.amount;
+    } else if (condition.type === "serve_multiple") {
+      // Count how many of this archetype are selected and can be fulfilled
+      let countOfArchetype = 0;
+      for (let j = 0; j < player.customerLine.length; j++) {
+        if (selectedIndices.includes(j)) {
+          const otherCustomer = player.customerLine[j];
+          if (otherCustomer.front.archetypeId === customer.front.archetypeId) {
+            // Check if this one can be fulfilled (simplified check)
+            const otherPrediction = j < index ? predictOutcome(j) : null;
+            if (j === index || (otherPrediction && otherPrediction.canFulfill)) {
+              countOfArchetype++;
+            } else if (j > index) {
+              // For later customers, do a quick fulfillability check
+              const laterRemaining = { ...remainingAfter };
+              for (let k = index + 1; k < j; k++) {
+                if (selectedIndices.includes(k)) {
+                  const kReq = player.customerLine[k].back.requiresSupplies;
+                  for (const [s, q] of Object.entries(kReq)) {
+                    if (q && q > 0) laterRemaining[s as SupplyType] -= q;
+                  }
+                }
+              }
+              const jReq = player.customerLine[j].back.requiresSupplies;
+              let jCanFulfill = true;
+              for (const [s, q] of Object.entries(jReq)) {
+                if (q && q > 0 && laterRemaining[s as SupplyType] < q) {
+                  jCanFulfill = false;
+                  break;
+                }
+              }
+              if (jCanFulfill) countOfArchetype++;
+            }
+          }
+        }
+      }
+      isDelighted = countOfArchetype >= condition.count;
+    }
+
+    return {
+      canFulfill: true,
+      outcome: isDelighted ? "delighted" : "satisfied",
+      remainingAfter,
+    };
   };
 
-  const totalMoney = selectedIndices
-    .filter(i => canFulfillSelected(i))
-    .reduce((sum, i) => sum + player.customerLine[i].back.reward.money, 0);
+  // Pre-calculate all predictions
+  const predictions = player.customerLine.map((_, i) => predictOutcome(i));
+
+  // Count outcomes for summary
+  const delightedCount = predictions.filter(p => p.outcome === "delighted").length;
+  const satisfiedCount = predictions.filter(p => p.outcome === "satisfied").length;
+  const stormedOutCount = predictions.filter(p => p.outcome === "stormed_out").length;
+
+  const totalMoney = predictions
+    .map((p, i) => p.canFulfill ? player.customerLine[i].back.reward.money : 0)
+    .reduce((sum, m) => sum + m, 0);
+
+  // Calculate predicted reputation change
+  const reputationChange = delightedCount - stormedOutCount -
+    predictions.filter((p, i) => {
+      if (p.outcome !== "stormed_out") return false;
+      const archetype = getCardArchetype(player.customerLine[i]);
+      return archetype.stormOutEffect.type === "extra_reputation_loss";
+    }).length; // Extra -1 for influencers
 
   return (
     <section className="bg-gray-800 border border-gray-700 rounded-lg p-6">
@@ -833,7 +942,7 @@ function CustomerResolutionView({
       <div className="bg-gray-900 rounded-lg p-3 mb-4">
         <div className="flex justify-between items-center text-sm">
           <span className="text-gray-400">
-            Confirmed: {gameState.playersConfirmedResolution.length} / {gameState.playerOrder.length}
+            Confirmed: {gameState.playersConfirmedResolution.length} / {gameState.playerOrder.filter(id => !gameState.eliminatedPlayers.includes(id)).length}
           </span>
           {hasConfirmed ? (
             <span className="text-green-400">You are ready</span>
@@ -873,21 +982,27 @@ function CustomerResolutionView({
             {player.customerLine.map((customer, i) => {
               const archetype = getCardArchetype(customer);
               const isSelected = selectedIndices.includes(i);
-              const willFulfill = canFulfillSelected(i);
+              const prediction = predictions[i];
               const requiredList = Object.entries(customer.back.requiresSupplies)
                 .filter(([_, qty]) => qty && qty > 0)
                 .map(([supply, qty]) => `${qty} ${SUPPLY_INFO[supply as SupplyType]?.label || supply}`);
 
+              // Determine border/background based on outcome
+              let borderClass = "bg-gray-900 border-gray-700 hover:border-gray-500";
+              if (isSelected) {
+                if (prediction.outcome === "delighted") {
+                  borderClass = "bg-yellow-900/30 border-yellow-500";
+                } else if (prediction.outcome === "satisfied") {
+                  borderClass = "bg-green-900/30 border-green-600";
+                } else {
+                  borderClass = "bg-red-900/30 border-red-600";
+                }
+              }
+
               return (
                 <div
                   key={i}
-                  className={`rounded-lg p-4 border cursor-pointer transition-colors ${
-                    isSelected
-                      ? willFulfill
-                        ? "bg-green-900/30 border-green-600"
-                        : "bg-red-900/30 border-red-600"
-                      : "bg-gray-900 border-gray-700 hover:border-gray-500"
-                  }`}
+                  className={`rounded-lg p-4 border cursor-pointer transition-colors ${borderClass}`}
                   onClick={() => !hasConfirmed && dispatch("TOGGLE_CUSTOMER_FULFILL", { customerIndex: i })}
                 >
                   <div className="flex justify-between items-start">
@@ -895,7 +1010,11 @@ function CustomerResolutionView({
                       {/* Checkbox */}
                       <div className={`w-6 h-6 rounded border-2 flex items-center justify-center mt-0.5 ${
                         isSelected
-                          ? willFulfill ? "bg-green-600 border-green-600" : "bg-red-600 border-red-600"
+                          ? prediction.outcome === "delighted"
+                            ? "bg-yellow-500 border-yellow-500"
+                            : prediction.outcome === "satisfied"
+                            ? "bg-green-600 border-green-600"
+                            : "bg-red-600 border-red-600"
                           : "border-gray-500"
                       }`}>
                         {isSelected && <span className="text-white text-sm">✓</span>}
@@ -904,17 +1023,47 @@ function CustomerResolutionView({
                         <div className="flex items-center gap-2">
                           <span className="text-lg">{archetype.emoji}</span>
                           <span className="font-semibold">{customer.back.orderName}</span>
+                          {/* Outcome badge */}
+                          {isSelected && (
+                            <span className={`text-xs px-2 py-0.5 rounded font-semibold ${
+                              prediction.outcome === "delighted"
+                                ? "bg-yellow-600 text-yellow-100"
+                                : prediction.outcome === "satisfied"
+                                ? "bg-green-700 text-green-100"
+                                : "bg-red-700 text-red-100"
+                            }`}>
+                              {prediction.outcome === "delighted" && "★ Delighted"}
+                              {prediction.outcome === "satisfied" && "Satisfied"}
+                              {prediction.outcome === "stormed_out" && "Storm Out!"}
+                            </span>
+                          )}
+                          {!isSelected && (
+                            <span className="text-xs px-2 py-0.5 rounded bg-gray-700 text-gray-400">
+                              Will storm out
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-gray-400">{archetype.name}</p>
                         <p className="text-xs text-gray-500 mt-1">
                           Requires: {requiredList.join(", ") || "Nothing"}
                         </p>
+                        {/* Delight condition hint */}
+                        <p className="text-xs text-yellow-500/70 mt-1">
+                          Delight: {archetype.delightDescription}
+                        </p>
                       </div>
                     </div>
                     <div className="text-right">
                       <span className="text-yellow-400 font-bold">${customer.back.reward.money}</span>
-                      {isSelected && !willFulfill && (
-                        <p className="text-xs text-red-400 mt-1">Not enough supplies</p>
+                      {isSelected && prediction.outcome === "stormed_out" && (
+                        <p className="text-xs text-red-400 mt-1">
+                          {archetype.stormOutDescription}
+                        </p>
+                      )}
+                      {!isSelected && (
+                        <p className="text-xs text-red-400 mt-1">
+                          {archetype.stormOutDescription}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -925,11 +1074,26 @@ function CustomerResolutionView({
 
           {/* Summary */}
           <div className="bg-gray-900 rounded-lg p-3 mb-4">
-            <div className="flex justify-between items-center">
-              <span className="text-gray-400">
-                {selectedIndices.filter(i => canFulfillSelected(i)).length} will be fulfilled
-              </span>
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-gray-400">Outcome Preview:</span>
               <span className="text-yellow-400 font-bold">+${totalMoney}</span>
+            </div>
+            <div className="flex flex-wrap gap-3 text-sm">
+              {delightedCount > 0 && (
+                <span className="text-yellow-400">★ {delightedCount} Delighted</span>
+              )}
+              {satisfiedCount > 0 && (
+                <span className="text-green-400">{satisfiedCount} Satisfied</span>
+              )}
+              {stormedOutCount > 0 && (
+                <span className="text-red-400">{stormedOutCount} Storm Out</span>
+              )}
+            </div>
+            <div className="mt-2 text-xs text-gray-500">
+              Reputation: {reputationChange >= 0 ? "+" : ""}{reputationChange}
+              {reputationChange > 0 && " (from delighted customers)"}
+              {reputationChange < 0 && " (from storm outs)"}
+              {reputationChange === 0 && " (no change)"}
             </div>
           </div>
         </>
