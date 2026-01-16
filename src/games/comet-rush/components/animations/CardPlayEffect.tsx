@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/cn";
 
@@ -51,11 +51,15 @@ export function CardPlayEffect({
   const [sparkles] = useState(() => generateSparkles(12));
   const [gears] = useState(() => generateGears(6));
 
+  // Use ref to avoid resetting timer when onComplete callback changes
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
   useEffect(() => {
     if (!cardType) return;
-    const timer = setTimeout(() => onComplete?.(), 1200);
+    const timer = setTimeout(() => onCompleteRef.current?.(), 1200);
     return () => clearTimeout(timer);
-  }, [cardType, onComplete]);
+  }, [cardType]); // Only re-run when cardType changes
 
   if (!cardType) return null;
 

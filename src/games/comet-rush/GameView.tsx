@@ -1445,12 +1445,14 @@ export function CometRushGameView({
     }
   }, [gameState?.actionLog, lastNotifiedActionId, playerId, player?.name]);
 
-  // Detect card plays for visual effects
+  // Detect card plays and actions for visual effects
   useEffect(() => {
     if (!gameState?.actionLog?.length) return;
 
     const latestAction = gameState.actionLog[gameState.actionLog.length - 1];
     if (latestAction && latestAction.id > lastCardPlayActionIdRef.current) {
+      let effectType: "espionage" | "engineering" | "economic" | null = null;
+
       if (latestAction.action === "PLAY_CARD") {
         // Determine card type from the action details
         // Details format: Played "Card Name" ...
@@ -1463,8 +1465,6 @@ export function CometRushGameView({
         // Economic cards (resources, income, trading)
         const economicKeywords = ["stimulus", "subsidy", "efficiency", "grant", "partnership", "trade", "profit", "resource"];
 
-        let effectType: "espionage" | "engineering" | "economic" | null = null;
-
         if (espionageKeywords.some(kw => details.includes(kw))) {
           effectType = "espionage";
         } else if (economicKeywords.some(kw => details.includes(kw))) {
@@ -1472,10 +1472,13 @@ export function CometRushGameView({
         } else if (engineeringKeywords.some(kw => details.includes(kw))) {
           effectType = "engineering";
         }
+      } else if (latestAction.action === "BUILD_ROCKET") {
+        // Rocket building triggers engineering effect
+        effectType = "engineering";
+      }
 
-        if (effectType) {
-          setCardPlayEffect(effectType);
-        }
+      if (effectType) {
+        setCardPlayEffect(effectType);
       }
       lastCardPlayActionIdRef.current = latestAction.id;
     }
