@@ -1135,6 +1135,14 @@ function allPlayersReady(state: CafeState): boolean {
   return activePlayers.every(id => state.playersReady.includes(id));
 }
 
+// Helper to check if all active players have confirmed their resolution
+function allPlayersConfirmedResolution(state: CafeState): boolean {
+  const activePlayers = state.playerOrder.filter(
+    id => !state.eliminatedPlayers.includes(id)
+  );
+  return activePlayers.every(id => state.playersConfirmedResolution.includes(id));
+}
+
 function isActionAllowed(
   state: CafeState,
   action: CafeAction,
@@ -1207,7 +1215,7 @@ function isActionAllowed(
       return state.phase === "customerResolution" && player !== undefined;
 
     case "RESOLVE_CUSTOMERS":
-      return isHost && state.phase === "customerResolution";
+      return isHost && state.phase === "customerResolution" && allPlayersConfirmedResolution(state);
 
     case "CLOSE_SHOP":
       return isHost && state.phase === "shopClosed" && allPlayersReady(state);
