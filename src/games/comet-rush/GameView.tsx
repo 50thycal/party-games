@@ -1256,7 +1256,11 @@ export function CometRushGameView({
       const isInDraftPhase = player.initialCardsDrawn < 4;
       if (isInDraftPhase) {
         // Show draft wizard for all players who haven't finished drafting
-        if (turnWizardStep !== "draft" && turnWizardStep !== "showCard") {
+        // If turnWizardStep is "showCard" but hand is empty, reset to "draft"
+        // This prevents empty panel when state gets out of sync
+        if (turnWizardStep === "showCard" && player.hand.length === 0) {
+          setTurnWizardStep("draft");
+        } else if (turnWizardStep !== "draft" && turnWizardStep !== "showCard") {
           setTurnWizardStep("draft");
         }
       } else {
@@ -1284,7 +1288,7 @@ export function CometRushGameView({
     }
 
     prevTurnMetaRef.current = turnMeta;
-  }, [phase, isMyTurn, turnMeta, playerId, player, turnWizardStep]);
+  }, [phase, isMyTurn, turnMeta, playerId, player, player?.hand.length, turnWizardStep]);
 
   // Reset launch animation state when a new launch result comes in
   useEffect(() => {
@@ -1750,7 +1754,7 @@ export function CometRushGameView({
 
             {/* Turn Wizard for drafting - show card after draw OR deck selection */}
             {player.initialCardsDrawn < 4 && (
-              turnWizardStep === "showCard" ? (
+              (turnWizardStep === "showCard" && player.hand.length > 0) ? (
                 <TurnWizard
                   step={turnWizardStep}
                   turnMeta={turnMeta}
