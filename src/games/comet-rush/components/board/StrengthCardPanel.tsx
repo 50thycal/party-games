@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/cn";
 import { motion, AnimatePresence } from "framer-motion";
 import { cardColors } from "../../theme/missionControl";
@@ -38,6 +39,24 @@ export function StrengthCardPanel({
   launchAnimationComplete = true,
   className,
 }: StrengthCardPanelProps) {
+  // Track damage flash effect
+  const [showDamageFlash, setShowDamageFlash] = useState(false);
+  const [flashIntensity, setFlashIntensity] = useState<"normal" | "critical">("normal");
+  const prevLaunchCompleteRef = useRef(launchAnimationComplete);
+
+  // Detect when launch animation completes and damage is dealt
+  useEffect(() => {
+    // Detect transition from animation running to complete
+    if (launchAnimationComplete && !prevLaunchCompleteRef.current && pendingLaunch?.isHit) {
+      // Trigger damage flash
+      setFlashIntensity(pendingLaunch.destroyed ? "critical" : "normal");
+      setShowDamageFlash(true);
+      const timeout = setTimeout(() => setShowDamageFlash(false), 400);
+      return () => clearTimeout(timeout);
+    }
+    prevLaunchCompleteRef.current = launchAnimationComplete;
+  }, [launchAnimationComplete, pendingLaunch]);
+
   // Determine if we should show pending (pre-damage) values
   // Show pending values if there's an active launch animation that hasn't completed
   const showPendingValues = pendingLaunch && !launchAnimationComplete;
@@ -116,13 +135,31 @@ export function StrengthCardPanel({
       </div>
 
       {/* Main strength display */}
-      <div className="relative bg-mission-dark rounded border border-mission-steel-dark p-4">
+      <div className="relative bg-mission-dark rounded border border-mission-steel-dark p-4 overflow-hidden">
         {/* Comet glow effect */}
         <div className="absolute inset-0 rounded opacity-30 pointer-events-none"
           style={{
             background: "radial-gradient(ellipse at center, rgba(245, 158, 11, 0.3) 0%, transparent 70%)"
           }}
         />
+
+        {/* Damage flash overlay */}
+        <AnimatePresence>
+          {showDamageFlash && (
+            <motion.div
+              className="absolute inset-0 rounded pointer-events-none z-10"
+              initial={{ opacity: 0.9 }}
+              animate={{ opacity: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              style={{
+                background: flashIntensity === "critical"
+                  ? "radial-gradient(ellipse at center, rgba(255, 50, 50, 0.7) 0%, rgba(255, 100, 0, 0.4) 50%, transparent 80%)"
+                  : "radial-gradient(ellipse at center, rgba(255, 100, 0, 0.5) 0%, rgba(255, 150, 0, 0.3) 50%, transparent 80%)",
+              }}
+            />
+          )}
+        </AnimatePresence>
 
         {/* Central strength readout */}
         <div className="relative flex items-center justify-center gap-6 mb-4">
