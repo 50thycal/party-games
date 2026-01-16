@@ -46,7 +46,7 @@ export function CafeGameView({
             <h1 className="text-xl font-bold">Cafe</h1>
             <p className="text-gray-400 text-sm">
               Phase: <span className="text-white capitalize">{phase}</span>
-              {phase !== "lobby" && phase !== "gameOver" && (
+              {phase !== "lobby" && phase !== "gameOver" && gameState && (
                 <span className="ml-2">
                   | Round {gameState.round} of 5
                 </span>
@@ -71,7 +71,7 @@ export function CafeGameView({
       </header>
 
       {/* Reputation Track - shown during active game phases */}
-      {phase !== "lobby" && phase !== "gameOver" && (
+      {phase !== "lobby" && phase !== "gameOver" && gameState && (
         <ReputationTrackPanel
           reputation={gameState.reputation}
           playerCount={gameState.playerOrder.filter(id => !gameState.eliminatedPlayers.includes(id)).length}
@@ -151,7 +151,7 @@ export function CafeGameView({
       )}
 
       {/* Player Status Grid */}
-      {phase !== "lobby" && phase !== "gameOver" && (
+      {phase !== "lobby" && phase !== "gameOver" && gameState && (
         <PlayerStatusGrid
           players={gameState.players}
           playerOrder={gameState.playerOrder}
@@ -174,10 +174,33 @@ function HostControls({
   isLoading,
 }: {
   phase: string;
-  gameState: CafeState;
+  gameState: CafeState | null;
   dispatch: (action: string, payload?: Record<string, unknown>) => Promise<void>;
   isLoading: boolean;
 }) {
+  // In lobby phase, gameState may be null - only show Start Game button
+  if (!gameState) {
+    if (phase === "lobby") {
+      return (
+        <section className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="font-semibold">Host Controls</h2>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => dispatch("START_GAME")}
+              disabled={isLoading}
+              className="bg-green-600 hover:bg-green-700 disabled:bg-gray-700 px-4 py-2 rounded-lg font-semibold transition-colors"
+            >
+              Start Game
+            </button>
+          </div>
+        </section>
+      );
+    }
+    return null;
+  }
+
   // Check if all active players are ready
   const activePlayers = gameState.playerOrder.filter(
     id => !gameState.eliminatedPlayers.includes(id)
