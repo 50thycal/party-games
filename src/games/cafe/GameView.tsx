@@ -209,8 +209,13 @@ function HostControls({
   const totalActive = activePlayers.length;
   const allReady = activePlayers.every(id => gameState.playersReady.includes(id));
 
+  // Check if all players have confirmed resolution (for customerResolution phase)
+  const confirmedCount = gameState.playersConfirmedResolution.length;
+  const allConfirmed = activePlayers.every(id => gameState.playersConfirmedResolution.includes(id));
+
   // Phases that require ready queue
   const requiresReady = ["planning", "investment", "shopClosed", "cleanup"].includes(phase);
+  const requiresConfirmation = phase === "customerResolution";
 
   return (
     <section className="bg-gray-800 border border-gray-700 rounded-lg p-4">
@@ -219,6 +224,11 @@ function HostControls({
         {requiresReady && (
           <span className={`text-sm ${allReady ? "text-green-400" : "text-yellow-400"}`}>
             Ready: {readyCount}/{totalActive}
+          </span>
+        )}
+        {requiresConfirmation && (
+          <span className={`text-sm ${allConfirmed ? "text-green-400" : "text-yellow-400"}`}>
+            Confirmed: {confirmedCount}/{totalActive}
           </span>
         )}
       </div>
@@ -256,7 +266,7 @@ function HostControls({
         {phase === "customerResolution" && (
           <button
             onClick={() => dispatch("RESOLVE_CUSTOMERS")}
-            disabled={isLoading}
+            disabled={isLoading || !allConfirmed}
             className="bg-green-600 hover:bg-green-700 disabled:bg-gray-700 px-4 py-2 rounded-lg font-semibold transition-colors"
           >
             Resolve & Collect Rewards
