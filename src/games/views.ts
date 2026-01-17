@@ -40,7 +40,7 @@ export const gameOptions: GameOption[] = [
     name: "Comet Rush",
     description: "Build rockets and destroy the comet before it hits Earth!",
     minPlayers: 2,
-    maxPlayers: 4,
+    maxPlayers: 6,
   },
   {
     id: "cafe",
