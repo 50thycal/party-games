@@ -1944,9 +1944,13 @@ function isActionAllowed(
     }
 
     case "DISCARD_ACTIVE_UPGRADE": {
-      // Generally not allowed per rules (can only discard when forced)
-      // This action is disabled for now, but the handler exists for future flexibility
-      return false;
+      // Allow players to voluntarily remove active upgrades during planning, investment, and draft phases
+      // This allows them to make room for new upgrades
+      const validPhases: CafePhase[] = ["planning", "investment", "customerDraft"];
+      if (!validPhases.includes(state.phase)) return false;
+      const player = state.players[action.playerId];
+      if (!player || player.activeUpgrades.length === 0) return false;
+      return true;
     }
 
     case "END_INVESTMENT":

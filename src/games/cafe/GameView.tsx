@@ -345,7 +345,7 @@ function ReadyButton({
           </span>
           {!isReady && !disabled && readyCount < totalActive && (
             <p className="text-xs text-gray-500 mt-1">
-              Click ready when you&apos;re done
+              Click Ready when done
             </p>
           )}
           {disabled && disabledMessage && (
@@ -449,10 +449,12 @@ function PlanningView({
             showDiscard={needsDiscard}
           />
 
-          {/* Active Upgrades - view only */}
+          {/* Active Upgrades - with remove option */}
           <ActiveUpgradesPanel
             player={player}
             isLoading={isLoading}
+            dispatch={dispatch}
+            allowRemove={true}
           />
         </div>
       </div>
@@ -704,6 +706,7 @@ function ActiveUpgradesPanel({
   selectedForReplace,
   pendingActivation,
   dispatch,
+  allowRemove,
 }: {
   player: CafePlayerState;
   isLoading: boolean;
@@ -711,6 +714,7 @@ function ActiveUpgradesPanel({
   selectedForReplace?: number | null;
   pendingActivation?: number | null;
   dispatch?: (action: string, payload?: Record<string, unknown>) => Promise<void>;
+  allowRemove?: boolean;
 }) {
   const activeUpgrades = player.activeUpgrades;
 
@@ -754,6 +758,18 @@ function ActiveUpgradesPanel({
                 isActive={true}
                 isLoading={isLoading}
               />
+              {allowRemove && dispatch && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    dispatch("DISCARD_ACTIVE_UPGRADE", { activeUpgradeIndex: index });
+                  }}
+                  disabled={isLoading}
+                  className="w-full mt-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-700 disabled:text-gray-500 px-2 py-1 rounded text-xs font-semibold transition-colors"
+                >
+                  Remove
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -846,6 +862,7 @@ function InvestmentView({
             isLoading={isLoading}
             pendingActivation={pendingActivation}
             dispatch={dispatch}
+            allowRemove={true}
             onSelectForReplace={(index) => {
               if (pendingActivation !== null) {
                 dispatch("ACTIVATE_UPGRADE", {
@@ -1016,6 +1033,25 @@ function CustomerDraftView({
           )}
         </div>
       )}
+
+      {/* Upgrade Cards Section - always visible during draft */}
+      <div className="grid md:grid-cols-2 gap-4 mt-4">
+        <UpgradeHandPanel
+          player={player}
+          gameState={gameState}
+          playerId={playerId}
+          dispatch={dispatch}
+          isLoading={isLoading}
+          showActivate={false}
+          showDiscard={false}
+        />
+        <ActiveUpgradesPanel
+          player={player}
+          isLoading={isLoading}
+          dispatch={dispatch}
+          allowRemove={true}
+        />
+      </div>
     </section>
   );
 }
@@ -1700,7 +1736,7 @@ function CleanupView({
         <p className="text-blue-300 text-sm">
           {gameState.round >= 5
             ? "This is the final round! After rent, the game will end."
-            : "Players who can&apos;t pay rent will go bankrupt and be eliminated!"}
+            : "Players who can't pay rent will go bankrupt and be eliminated!"}
         </p>
       </div>
 
