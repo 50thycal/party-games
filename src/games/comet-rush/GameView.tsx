@@ -1847,7 +1847,7 @@ export function CometRushGameView({
               <div className="flex items-center justify-between">
                 <span className="label-embossed text-[10px]">CREW ASSEMBLED</span>
                 <span className="led-segment text-xl text-mission-green">
-                  {room.players.length}/4
+                  {room.players.length}/6
                 </span>
               </div>
             </div>
