@@ -64,13 +64,25 @@ export type DelightCondition =
   | { type: "serve_multiple"; count: number }
   | { type: "surplus_supply"; supply: SupplyType; amount: number }
   | { type: "all_supplies_stocked" }
-  | { type: "total_surplus"; amount: number };
+  | { type: "total_surplus"; amount: number }
+  | { type: "always" }; // Always delighted when fulfilled
+
+// What happens when a customer is delighted (beyond normal satisfaction)
+export type DelightOutcome =
+  | { type: "bonus_money"; amount: number }
+  | { type: "bonus_reputation"; amount: number }
+  | { type: "bonus_supply"; supply: SupplyType; amount: number }
+  | { type: "draw_upgrade_card"; count: number }
+  | { type: "refund_supply"; supply: SupplyType; amount: number }
+  | { type: "none" }; // Just reputation +1 (default)
 
 export type StormOutEffect =
   | { type: "none" }
   | { type: "lose_money"; amount: number }
   | { type: "extra_reputation_loss"; total: number }
-  | { type: "lose_supply"; supply: SupplyType; amount: number };
+  | { type: "lose_supply"; supply: SupplyType; amount: number }
+  | { type: "lose_all_of_supply"; supply: SupplyType }
+  | { type: "pay_next_customer_double" }; // Affects next customer served
 
 export type CustomerOutcome = "delighted" | "satisfied" | "stormed_out";
 
@@ -153,13 +165,17 @@ export interface CustomerCardBack {
     money: number;
     prestige: number;
   };
-  failRule: CustomerFailRule;
+  // Card-level outcomes (unique per card)
+  delightCondition: DelightCondition;
+  delightDescription: string;
+  delightOutcome: DelightOutcome;
+  delightOutcomeDescription: string;
+  stormOutEffect: StormOutEffect;
+  stormOutDescription: string;
 }
 
-export type CustomerFailRule =
-  | "no_penalty"      // Customer leaves, no harm done
-  | "lose_prestige"   // Customer complains, lose prestige
-  | "pay_penalty";    // Must pay compensation
+// Note: CustomerFailRule is deprecated - storm out effects are now per-card
+export type CustomerFailRule = "no_penalty" | "lose_prestige" | "pay_penalty";
 
 export interface CustomerCard {
   id: string;
@@ -204,7 +220,8 @@ export type UpgradeCardCategory =
   | "efficiency"    // Reduces costs or increases output
   | "capacity"      // Increases limits or storage
   | "reputation"    // Affects reputation gains/losses
-  | "specialty";    // Unique effects
+  | "specialty"     // Unique effects
+  | "coffeeMachine"; // Special cards that can only go in the coffee machine slot
 
 export interface UpgradeCost {
   money?: number;
@@ -230,7 +247,15 @@ export interface UpgradeCard {
   prerequisite?: UpgradePrerequisite;
   // Effect is placeholder for now - will be implemented later
   effectId: string;
+  // Coffee machine cards can only be played in the special coffee machine slot
+  isCoffeeMachineCard?: boolean;
 }
+
+// Configuration for coffee machine bonuses
+export const COFFEE_MACHINE_CONFIG = {
+  // Free resources granted per stacked coffee machine card during investment phase
+  FREE_RESOURCES_PER_CARD: 1,
+};
 
 // Placeholder upgrade cards - effects to be implemented later
 const UPGRADE_CARD_TEMPLATES: Omit<UpgradeCard, "id">[] = [
@@ -392,6 +417,58 @@ const UPGRADE_CARD_TEMPLATES: Omit<UpgradeCard, "id">[] = [
     prerequisite: { requiresCafeUpgrade: { type: "equipment", minLevel: 1 } },
     effectId: "catering_license",
   },
+
+  // ==========================================================================
+  // COFFEE MACHINE UPGRADES (6 cards) - Stack on coffee machine for free resources
+  // ==========================================================================
+  {
+    name: "Premium Grinder",
+    category: "coffeeMachine",
+    description: "A high-quality grinder that improves coffee extraction. +1 free resource during investment.",
+    cost: { money: 3 },
+    effectId: "premium_grinder",
+    isCoffeeMachineCard: true,
+  },
+  {
+    name: "Steam Wand Upgrade",
+    category: "coffeeMachine",
+    description: "Better milk frothing capabilities. +1 free resource during investment.",
+    cost: { money: 4 },
+    effectId: "steam_wand",
+    isCoffeeMachineCard: true,
+  },
+  {
+    name: "Temperature Control",
+    category: "coffeeMachine",
+    description: "Precise brewing temperature. +1 free resource during investment.",
+    cost: { money: 3 },
+    effectId: "temp_control",
+    isCoffeeMachineCard: true,
+  },
+  {
+    name: "Dual Boiler System",
+    category: "coffeeMachine",
+    description: "Brew and steam simultaneously. +1 free resource during investment.",
+    cost: { money: 5 },
+    effectId: "dual_boiler",
+    isCoffeeMachineCard: true,
+  },
+  {
+    name: "Auto-Dosing Module",
+    category: "coffeeMachine",
+    description: "Consistent coffee dosing every time. +1 free resource during investment.",
+    cost: { money: 4 },
+    effectId: "auto_dosing",
+    isCoffeeMachineCard: true,
+  },
+  {
+    name: "Water Filtration System",
+    category: "coffeeMachine",
+    description: "Pure water for perfect coffee. +1 free resource during investment.",
+    cost: { money: 3 },
+    effectId: "water_filtration",
+    isCoffeeMachineCard: true,
+  },
 ];
 
 // =============================================================================
@@ -411,6 +488,10 @@ export interface CafePlayerState {
   // Upgrade card system
   upgradeHand: UpgradeCard[]; // Cards in hand (max 3)
   activeUpgrades: UpgradeCard[]; // Activated upgrades (max 3)
+
+  // Coffee machine slot - can stack unlimited coffee machine upgrade cards
+  // More cards = more free resources during investment phase
+  coffeeMachineUpgrades: UpgradeCard[];
 
   // Current round state
   customerLine: CustomerCard[]; // Customers taken this round
@@ -443,6 +524,9 @@ export interface CafeState {
   upgradeDiscardPile: UpgradeCard[];
   // Players who must discard from hand before continuing (exceeded hand limit after draw)
   playersNeedingHandDiscard: string[];
+
+  // Coffee machine bonus tracking (reset each round)
+  coffeeMachineBonusClaimed: Record<string, boolean>;
 
   // Draft state
   currentRoundCustomers: CustomerCard[]; // Customers for this round
@@ -495,6 +579,8 @@ export type CafeActionType =
   | "ACTIVATE_UPGRADE" // Activate an upgrade card from hand (pay cost)
   | "DISCARD_UPGRADE_FROM_HAND" // Forced discard when hand exceeds limit
   | "DISCARD_ACTIVE_UPGRADE" // Remove an active upgrade (when activating new one at limit)
+  | "ACTIVATE_COFFEE_MACHINE_UPGRADE" // Install a coffee machine card (stacks on the machine)
+  | "CLAIM_COFFEE_MACHINE_BONUS" // Claim free resources from coffee machine at start of investment
   | "END_INVESTMENT"
   // Customer draft phase
   | "DRAW_CUSTOMER"
@@ -551,102 +637,780 @@ function createInitialPlayerState(player: Player): CafePlayerState {
     },
     upgradeHand: [],
     activeUpgrades: [],
+    coffeeMachineUpgrades: [],
     customerLine: [],
     customersServed: 0,
   };
 }
 
 // Customer card templates - 52 total cards across 5 archetypes
+// Each card now has unique delight conditions, delight outcomes, and storm-out effects
 const CUSTOMER_CARD_TEMPLATES: CustomerCard[] = [
   // ==========================================================================
-  // AVERAGE JOE (12 cards) - Safe, reliable customers
+  // AVERAGE JOE (12 cards) - Safe, reliable customers with mild bonuses
   // ==========================================================================
-  // Black Coffee ×4 - Coffee ×1 = $4
-  { id: "aj-bc-1", front: { archetypeId: "average_joe" }, back: { orderName: "Black Coffee", requiresSupplies: { coffeeBeans: 1 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "aj-bc-2", front: { archetypeId: "average_joe" }, back: { orderName: "Black Coffee", requiresSupplies: { coffeeBeans: 1 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "aj-bc-3", front: { archetypeId: "average_joe" }, back: { orderName: "Black Coffee", requiresSupplies: { coffeeBeans: 1 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "aj-bc-4", front: { archetypeId: "average_joe" }, back: { orderName: "Black Coffee", requiresSupplies: { coffeeBeans: 1 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
-  // Coffee + Cream ×4 - Coffee ×1, Milk ×1 = $6
-  { id: "aj-cc-1", front: { archetypeId: "average_joe" }, back: { orderName: "Coffee + Cream", requiresSupplies: { coffeeBeans: 1, milk: 1 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "aj-cc-2", front: { archetypeId: "average_joe" }, back: { orderName: "Coffee + Cream", requiresSupplies: { coffeeBeans: 1, milk: 1 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "aj-cc-3", front: { archetypeId: "average_joe" }, back: { orderName: "Coffee + Cream", requiresSupplies: { coffeeBeans: 1, milk: 1 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "aj-cc-4", front: { archetypeId: "average_joe" }, back: { orderName: "Coffee + Cream", requiresSupplies: { coffeeBeans: 1, milk: 1 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
+  // Black Coffee ×4 - Coffee ×1 = $4 (Easy to delight, no storm penalty)
+  {
+    id: "aj-bc-1", front: { archetypeId: "average_joe" },
+    back: {
+      orderName: "Black Coffee",
+      requiresSupplies: { coffeeBeans: 1 },
+      reward: { money: 4, prestige: 0 },
+      delightCondition: { type: "serve_multiple", count: 2 },
+      delightDescription: "Serve 2+ Average Joes this round",
+      delightOutcome: { type: "bonus_money", amount: 2 },
+      delightOutcomeDescription: "+$2 tip for friendly service",
+      stormOutEffect: { type: "none" },
+      stormOutDescription: "Just leaves quietly",
+    }
+  },
+  {
+    id: "aj-bc-2", front: { archetypeId: "average_joe" },
+    back: {
+      orderName: "Black Coffee",
+      requiresSupplies: { coffeeBeans: 1 },
+      reward: { money: 4, prestige: 0 },
+      delightCondition: { type: "serve_multiple", count: 2 },
+      delightDescription: "Serve 2+ Average Joes this round",
+      delightOutcome: { type: "bonus_money", amount: 2 },
+      delightOutcomeDescription: "+$2 tip for friendly service",
+      stormOutEffect: { type: "none" },
+      stormOutDescription: "Just leaves quietly",
+    }
+  },
+  {
+    id: "aj-bc-3", front: { archetypeId: "average_joe" },
+    back: {
+      orderName: "Black Coffee",
+      requiresSupplies: { coffeeBeans: 1 },
+      reward: { money: 4, prestige: 0 },
+      delightCondition: { type: "always" },
+      delightDescription: "Regular customer - always happy when served!",
+      delightOutcome: { type: "none" },
+      delightOutcomeDescription: "Reputation +1",
+      stormOutEffect: { type: "none" },
+      stormOutDescription: "Just leaves quietly",
+    }
+  },
+  {
+    id: "aj-bc-4", front: { archetypeId: "average_joe" },
+    back: {
+      orderName: "Black Coffee",
+      requiresSupplies: { coffeeBeans: 1 },
+      reward: { money: 4, prestige: 0 },
+      delightCondition: { type: "surplus_supply", supply: "coffeeBeans", amount: 1 },
+      delightDescription: "Have 1+ coffee beans after serving",
+      delightOutcome: { type: "bonus_money", amount: 1 },
+      delightOutcomeDescription: "+$1 for quick service",
+      stormOutEffect: { type: "lose_money", amount: 1 },
+      stormOutDescription: "Complains to manager (-$1)",
+    }
+  },
+  // Coffee + Cream ×4 - Coffee ×1, Milk ×1 = $6 (Variety of outcomes)
+  {
+    id: "aj-cc-1", front: { archetypeId: "average_joe" },
+    back: {
+      orderName: "Coffee + Cream",
+      requiresSupplies: { coffeeBeans: 1, milk: 1 },
+      reward: { money: 6, prestige: 0 },
+      delightCondition: { type: "surplus_supply", supply: "milk", amount: 1 },
+      delightDescription: "Have 1+ milk after serving",
+      delightOutcome: { type: "refund_supply", supply: "milk", amount: 1 },
+      delightOutcomeDescription: "Didn't use all the cream - refund 1 milk",
+      stormOutEffect: { type: "none" },
+      stormOutDescription: "Just leaves quietly",
+    }
+  },
+  {
+    id: "aj-cc-2", front: { archetypeId: "average_joe" },
+    back: {
+      orderName: "Coffee + Cream",
+      requiresSupplies: { coffeeBeans: 1, milk: 1 },
+      reward: { money: 6, prestige: 0 },
+      delightCondition: { type: "serve_multiple", count: 2 },
+      delightDescription: "Serve 2+ Average Joes this round",
+      delightOutcome: { type: "bonus_money", amount: 2 },
+      delightOutcomeDescription: "+$2 brings a friend next time",
+      stormOutEffect: { type: "none" },
+      stormOutDescription: "Just leaves quietly",
+    }
+  },
+  {
+    id: "aj-cc-3", front: { archetypeId: "average_joe" },
+    back: {
+      orderName: "Coffee + Cream",
+      requiresSupplies: { coffeeBeans: 1, milk: 1 },
+      reward: { money: 6, prestige: 0 },
+      delightCondition: { type: "always" },
+      delightDescription: "Loyal regular - always satisfied!",
+      delightOutcome: { type: "none" },
+      delightOutcomeDescription: "Reputation +1",
+      stormOutEffect: { type: "lose_money", amount: 1 },
+      stormOutDescription: "Wanted extra cream (-$1 refund)",
+    }
+  },
+  {
+    id: "aj-cc-4", front: { archetypeId: "average_joe" },
+    back: {
+      orderName: "Coffee + Cream",
+      requiresSupplies: { coffeeBeans: 1, milk: 1 },
+      reward: { money: 6, prestige: 0 },
+      delightCondition: { type: "total_surplus", amount: 2 },
+      delightDescription: "Have 2+ total supplies after serving",
+      delightOutcome: { type: "bonus_reputation", amount: 1 },
+      delightOutcomeDescription: "Tells friends about you (+1 extra reputation)",
+      stormOutEffect: { type: "none" },
+      stormOutDescription: "Just leaves quietly",
+    }
+  },
   // Two Black Coffees ×2 - Coffee ×2 = $8
-  { id: "aj-2bc-1", front: { archetypeId: "average_joe" }, back: { orderName: "Two Black Coffees", requiresSupplies: { coffeeBeans: 2 }, reward: { money: 8, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "aj-2bc-2", front: { archetypeId: "average_joe" }, back: { orderName: "Two Black Coffees", requiresSupplies: { coffeeBeans: 2 }, reward: { money: 8, prestige: 0 }, failRule: "no_penalty" } },
-  // Tea ×2 - Tea ×1 = $4
-  { id: "aj-t-1", front: { archetypeId: "average_joe" }, back: { orderName: "Tea", requiresSupplies: { tea: 1 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "aj-t-2", front: { archetypeId: "average_joe" }, back: { orderName: "Tea", requiresSupplies: { tea: 1 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
+  {
+    id: "aj-2bc-1", front: { archetypeId: "average_joe" },
+    back: {
+      orderName: "Two Black Coffees",
+      requiresSupplies: { coffeeBeans: 2 },
+      reward: { money: 8, prestige: 0 },
+      delightCondition: { type: "surplus_supply", supply: "coffeeBeans", amount: 2 },
+      delightDescription: "Have 2+ coffee beans after serving",
+      delightOutcome: { type: "bonus_money", amount: 3 },
+      delightOutcomeDescription: "+$3 for the extra cups",
+      stormOutEffect: { type: "lose_money", amount: 2 },
+      stormOutDescription: "Had to wait too long (-$2)",
+    }
+  },
+  {
+    id: "aj-2bc-2", front: { archetypeId: "average_joe" },
+    back: {
+      orderName: "Two Black Coffees",
+      requiresSupplies: { coffeeBeans: 2 },
+      reward: { money: 8, prestige: 0 },
+      delightCondition: { type: "serve_multiple", count: 3 },
+      delightDescription: "Serve 3+ Average Joes this round",
+      delightOutcome: { type: "draw_upgrade_card", count: 1 },
+      delightOutcomeDescription: "Word spreads - draw 1 upgrade card",
+      stormOutEffect: { type: "none" },
+      stormOutDescription: "Just leaves quietly",
+    }
+  },
+  // Tea ×2 - Tea ×1 = $4 (Always delighted - loyal tea customer)
+  {
+    id: "aj-t-1", front: { archetypeId: "average_joe" },
+    back: {
+      orderName: "Simple Tea",
+      requiresSupplies: { tea: 1 },
+      reward: { money: 4, prestige: 0 },
+      delightCondition: { type: "always" },
+      delightDescription: "Simple tastes, always happy!",
+      delightOutcome: { type: "none" },
+      delightOutcomeDescription: "Reputation +1",
+      stormOutEffect: { type: "none" },
+      stormOutDescription: "Just leaves quietly",
+    }
+  },
+  {
+    id: "aj-t-2", front: { archetypeId: "average_joe" },
+    back: {
+      orderName: "Simple Tea",
+      requiresSupplies: { tea: 1 },
+      reward: { money: 4, prestige: 0 },
+      delightCondition: { type: "surplus_supply", supply: "tea", amount: 1 },
+      delightDescription: "Have 1+ tea after serving",
+      delightOutcome: { type: "bonus_money", amount: 2 },
+      delightOutcomeDescription: "+$2 buys a second cup",
+      stormOutEffect: { type: "none" },
+      stormOutDescription: "Just leaves quietly",
+    }
+  },
 
   // ==========================================================================
-  // COFFEE SNOB (12 cards) - Higher supply demand, okay returns
+  // COFFEE SNOB (12 cards) - Demanding but rewarding when pleased
   // ==========================================================================
   // Rare Beans Latte ×4 - Coffee ×2, Milk ×1 = $6
-  { id: "cs-rbl-1", front: { archetypeId: "coffee_snob" }, back: { orderName: "Rare Beans Latte", requiresSupplies: { coffeeBeans: 2, milk: 1 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "cs-rbl-2", front: { archetypeId: "coffee_snob" }, back: { orderName: "Rare Beans Latte", requiresSupplies: { coffeeBeans: 2, milk: 1 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "cs-rbl-3", front: { archetypeId: "coffee_snob" }, back: { orderName: "Rare Beans Latte", requiresSupplies: { coffeeBeans: 2, milk: 1 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "cs-rbl-4", front: { archetypeId: "coffee_snob" }, back: { orderName: "Rare Beans Latte", requiresSupplies: { coffeeBeans: 2, milk: 1 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
+  {
+    id: "cs-rbl-1", front: { archetypeId: "coffee_snob" },
+    back: {
+      orderName: "Rare Beans Latte",
+      requiresSupplies: { coffeeBeans: 2, milk: 1 },
+      reward: { money: 6, prestige: 0 },
+      delightCondition: { type: "surplus_supply", supply: "coffeeBeans", amount: 2 },
+      delightDescription: "Have 2+ coffee beans after serving",
+      delightOutcome: { type: "bonus_reputation", amount: 1 },
+      delightOutcomeDescription: "Impressed by quality (+1 extra reputation)",
+      stormOutEffect: { type: "lose_money", amount: 2 },
+      stormOutDescription: "Demands refund for 'subpar' beans (-$2)",
+    }
+  },
+  {
+    id: "cs-rbl-2", front: { archetypeId: "coffee_snob" },
+    back: {
+      orderName: "Rare Beans Latte",
+      requiresSupplies: { coffeeBeans: 2, milk: 1 },
+      reward: { money: 6, prestige: 0 },
+      delightCondition: { type: "surplus_supply", supply: "coffeeBeans", amount: 2 },
+      delightDescription: "Have 2+ coffee beans after serving",
+      delightOutcome: { type: "bonus_money", amount: 3 },
+      delightOutcomeDescription: "+$3 generous tip for quality",
+      stormOutEffect: { type: "lose_money", amount: 2 },
+      stormOutDescription: "Leaves scathing review (-$2)",
+    }
+  },
+  {
+    id: "cs-rbl-3", front: { archetypeId: "coffee_snob" },
+    back: {
+      orderName: "Single Origin Pour",
+      requiresSupplies: { coffeeBeans: 2, milk: 1 },
+      reward: { money: 6, prestige: 0 },
+      delightCondition: { type: "total_surplus", amount: 3 },
+      delightDescription: "Have 3+ total supplies after serving",
+      delightOutcome: { type: "draw_upgrade_card", count: 1 },
+      delightOutcomeDescription: "Recommends you to coffee network - draw 1 upgrade",
+      stormOutEffect: { type: "lose_money", amount: 3 },
+      stormOutDescription: "Rants about you online (-$3)",
+    }
+  },
+  {
+    id: "cs-rbl-4", front: { archetypeId: "coffee_snob" },
+    back: {
+      orderName: "Rare Beans Latte",
+      requiresSupplies: { coffeeBeans: 2, milk: 1 },
+      reward: { money: 6, prestige: 0 },
+      delightCondition: { type: "surplus_supply", supply: "coffeeBeans", amount: 3 },
+      delightDescription: "Have 3+ coffee beans after serving",
+      delightOutcome: { type: "bonus_money", amount: 4 },
+      delightOutcomeDescription: "+$4 - they're amazed by your selection",
+      stormOutEffect: { type: "lose_supply", supply: "coffeeBeans", amount: 1 },
+      stormOutDescription: "Spills your beans in disgust (-1 coffee)",
+    }
+  },
   // Flavored Latte ×4 - Coffee ×1, Milk ×1, Syrup ×1 = $6
-  { id: "cs-fl-1", front: { archetypeId: "coffee_snob" }, back: { orderName: "Flavored Latte", requiresSupplies: { coffeeBeans: 1, milk: 1, syrup: 1 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "cs-fl-2", front: { archetypeId: "coffee_snob" }, back: { orderName: "Flavored Latte", requiresSupplies: { coffeeBeans: 1, milk: 1, syrup: 1 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "cs-fl-3", front: { archetypeId: "coffee_snob" }, back: { orderName: "Flavored Latte", requiresSupplies: { coffeeBeans: 1, milk: 1, syrup: 1 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "cs-fl-4", front: { archetypeId: "coffee_snob" }, back: { orderName: "Flavored Latte", requiresSupplies: { coffeeBeans: 1, milk: 1, syrup: 1 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
+  {
+    id: "cs-fl-1", front: { archetypeId: "coffee_snob" },
+    back: {
+      orderName: "Artisan Flavored Latte",
+      requiresSupplies: { coffeeBeans: 1, milk: 1, syrup: 1 },
+      reward: { money: 6, prestige: 0 },
+      delightCondition: { type: "all_supplies_stocked" },
+      delightDescription: "Have all 4 supply types in stock",
+      delightOutcome: { type: "bonus_money", amount: 3 },
+      delightOutcomeDescription: "+$3 - impressed by your variety",
+      stormOutEffect: { type: "lose_money", amount: 2 },
+      stormOutDescription: "Demands compensation (-$2)",
+    }
+  },
+  {
+    id: "cs-fl-2", front: { archetypeId: "coffee_snob" },
+    back: {
+      orderName: "Signature Syrup Latte",
+      requiresSupplies: { coffeeBeans: 1, milk: 1, syrup: 1 },
+      reward: { money: 6, prestige: 0 },
+      delightCondition: { type: "surplus_supply", supply: "syrup", amount: 2 },
+      delightDescription: "Have 2+ syrup after serving",
+      delightOutcome: { type: "bonus_reputation", amount: 1 },
+      delightOutcomeDescription: "Posts about your syrups (+1 extra reputation)",
+      stormOutEffect: { type: "lose_supply", supply: "syrup", amount: 1 },
+      stormOutDescription: "Knocks over your syrup (-1 syrup)",
+    }
+  },
+  {
+    id: "cs-fl-3", front: { archetypeId: "coffee_snob" },
+    back: {
+      orderName: "Flavored Latte",
+      requiresSupplies: { coffeeBeans: 1, milk: 1, syrup: 1 },
+      reward: { money: 6, prestige: 0 },
+      delightCondition: { type: "surplus_supply", supply: "milk", amount: 2 },
+      delightDescription: "Have 2+ milk after serving",
+      delightOutcome: { type: "refund_supply", supply: "milk", amount: 1 },
+      delightOutcomeDescription: "Perfect foam - refund 1 milk",
+      stormOutEffect: { type: "lose_money", amount: 2 },
+      stormOutDescription: "Foam wasn't good enough (-$2)",
+    }
+  },
+  {
+    id: "cs-fl-4", front: { archetypeId: "coffee_snob" },
+    back: {
+      orderName: "Flavored Latte",
+      requiresSupplies: { coffeeBeans: 1, milk: 1, syrup: 1 },
+      reward: { money: 6, prestige: 0 },
+      delightCondition: { type: "total_surplus", amount: 2 },
+      delightDescription: "Have 2+ total supplies after serving",
+      delightOutcome: { type: "bonus_money", amount: 2 },
+      delightOutcomeDescription: "+$2 appreciation tip",
+      stormOutEffect: { type: "none" },
+      stormOutDescription: "Huffs and leaves",
+    }
+  },
   // Double Latte ×2 - Coffee ×2, Milk ×2 = $8
-  { id: "cs-dl-1", front: { archetypeId: "coffee_snob" }, back: { orderName: "Double Latte", requiresSupplies: { coffeeBeans: 2, milk: 2 }, reward: { money: 8, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "cs-dl-2", front: { archetypeId: "coffee_snob" }, back: { orderName: "Double Latte", requiresSupplies: { coffeeBeans: 2, milk: 2 }, reward: { money: 8, prestige: 0 }, failRule: "no_penalty" } },
+  {
+    id: "cs-dl-1", front: { archetypeId: "coffee_snob" },
+    back: {
+      orderName: "Double Latte",
+      requiresSupplies: { coffeeBeans: 2, milk: 2 },
+      reward: { money: 8, prestige: 0 },
+      delightCondition: { type: "surplus_supply", supply: "milk", amount: 2 },
+      delightDescription: "Have 2+ milk after serving",
+      delightOutcome: { type: "bonus_supply", supply: "coffeeBeans", amount: 1 },
+      delightOutcomeDescription: "Gives you rare beans as thanks (+1 coffee)",
+      stormOutEffect: { type: "lose_supply", supply: "milk", amount: 1 },
+      stormOutDescription: "Spills milk on the way out (-1 milk)",
+    }
+  },
+  {
+    id: "cs-dl-2", front: { archetypeId: "coffee_snob" },
+    back: {
+      orderName: "Double Latte",
+      requiresSupplies: { coffeeBeans: 2, milk: 2 },
+      reward: { money: 8, prestige: 0 },
+      delightCondition: { type: "surplus_supply", supply: "coffeeBeans", amount: 2 },
+      delightDescription: "Have 2+ coffee beans after serving",
+      delightOutcome: { type: "bonus_money", amount: 4 },
+      delightOutcomeDescription: "+$4 tip for excellent quality",
+      stormOutEffect: { type: "lose_money", amount: 3 },
+      stormOutDescription: "Loudly complains (-$3)",
+    }
+  },
   // Espresso Shot ×2 - Coffee ×4 = $8
-  { id: "cs-es-1", front: { archetypeId: "coffee_snob" }, back: { orderName: "Espresso Shot", requiresSupplies: { coffeeBeans: 4 }, reward: { money: 8, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "cs-es-2", front: { archetypeId: "coffee_snob" }, back: { orderName: "Espresso Shot", requiresSupplies: { coffeeBeans: 4 }, reward: { money: 8, prestige: 0 }, failRule: "no_penalty" } },
+  {
+    id: "cs-es-1", front: { archetypeId: "coffee_snob" },
+    back: {
+      orderName: "Quad Espresso",
+      requiresSupplies: { coffeeBeans: 4 },
+      reward: { money: 8, prestige: 0 },
+      delightCondition: { type: "surplus_supply", supply: "coffeeBeans", amount: 3 },
+      delightDescription: "Have 3+ coffee beans after serving",
+      delightOutcome: { type: "draw_upgrade_card", count: 1 },
+      delightOutcomeDescription: "True connoisseur! Draw 1 upgrade card",
+      stormOutEffect: { type: "lose_money", amount: 4 },
+      stormOutDescription: "Unacceptable! Demands full refund (-$4)",
+    }
+  },
+  {
+    id: "cs-es-2", front: { archetypeId: "coffee_snob" },
+    back: {
+      orderName: "Espresso Flight",
+      requiresSupplies: { coffeeBeans: 4 },
+      reward: { money: 8, prestige: 0 },
+      delightCondition: { type: "surplus_supply", supply: "coffeeBeans", amount: 4 },
+      delightDescription: "Have 4+ coffee beans after serving",
+      delightOutcome: { type: "bonus_money", amount: 6 },
+      delightOutcomeDescription: "+$6 - blown away by your coffee program",
+      stormOutEffect: { type: "lose_all_of_supply", supply: "coffeeBeans" },
+      stormOutDescription: "Throws your beans away in rage",
+    }
+  },
 
   // ==========================================================================
-  // INFLUENCER (12 cards) - High payout options
+  // INFLUENCER (12 cards) - High risk, high reward
   // ==========================================================================
   // Latte w/ Art ×4 - Coffee ×1, Milk ×2 = $8
-  { id: "inf-la-1", front: { archetypeId: "influencer" }, back: { orderName: "Latte w/ Art", requiresSupplies: { coffeeBeans: 1, milk: 2 }, reward: { money: 8, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "inf-la-2", front: { archetypeId: "influencer" }, back: { orderName: "Latte w/ Art", requiresSupplies: { coffeeBeans: 1, milk: 2 }, reward: { money: 8, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "inf-la-3", front: { archetypeId: "influencer" }, back: { orderName: "Latte w/ Art", requiresSupplies: { coffeeBeans: 1, milk: 2 }, reward: { money: 8, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "inf-la-4", front: { archetypeId: "influencer" }, back: { orderName: "Latte w/ Art", requiresSupplies: { coffeeBeans: 1, milk: 2 }, reward: { money: 8, prestige: 0 }, failRule: "no_penalty" } },
+  {
+    id: "inf-la-1", front: { archetypeId: "influencer" },
+    back: {
+      orderName: "Latte Art Special",
+      requiresSupplies: { coffeeBeans: 1, milk: 2 },
+      reward: { money: 8, prestige: 0 },
+      delightCondition: { type: "all_supplies_stocked" },
+      delightDescription: "Have all 4 supply types in stock",
+      delightOutcome: { type: "bonus_money", amount: 4 },
+      delightOutcomeDescription: "+$4 - posts your cafe with 10k likes",
+      stormOutEffect: { type: "extra_reputation_loss", total: 2 },
+      stormOutDescription: "Posts negative review (-2 reputation total)",
+    }
+  },
+  {
+    id: "inf-la-2", front: { archetypeId: "influencer" },
+    back: {
+      orderName: "Instagram Latte",
+      requiresSupplies: { coffeeBeans: 1, milk: 2 },
+      reward: { money: 8, prestige: 0 },
+      delightCondition: { type: "surplus_supply", supply: "milk", amount: 2 },
+      delightDescription: "Have 2+ milk after serving",
+      delightOutcome: { type: "bonus_reputation", amount: 2 },
+      delightOutcomeDescription: "Goes viral! +2 extra reputation",
+      stormOutEffect: { type: "extra_reputation_loss", total: 2 },
+      stormOutDescription: "Bad review goes viral (-2 reputation total)",
+    }
+  },
+  {
+    id: "inf-la-3", front: { archetypeId: "influencer" },
+    back: {
+      orderName: "Photo-Ready Latte",
+      requiresSupplies: { coffeeBeans: 1, milk: 2 },
+      reward: { money: 8, prestige: 0 },
+      delightCondition: { type: "total_surplus", amount: 3 },
+      delightDescription: "Have 3+ total supplies after serving",
+      delightOutcome: { type: "draw_upgrade_card", count: 1 },
+      delightOutcomeDescription: "Features you in article - draw 1 upgrade",
+      stormOutEffect: { type: "lose_money", amount: 3 },
+      stormOutDescription: "Demands free drinks for exposure (-$3)",
+    }
+  },
+  {
+    id: "inf-la-4", front: { archetypeId: "influencer" },
+    back: {
+      orderName: "Latte w/ Art",
+      requiresSupplies: { coffeeBeans: 1, milk: 2 },
+      reward: { money: 8, prestige: 0 },
+      delightCondition: { type: "surplus_supply", supply: "syrup", amount: 1 },
+      delightDescription: "Have 1+ syrup after serving",
+      delightOutcome: { type: "bonus_money", amount: 3 },
+      delightOutcomeDescription: "+$3 - loved the aesthetic options",
+      stormOutEffect: { type: "extra_reputation_loss", total: 2 },
+      stormOutDescription: "Complains about limited options (-2 rep)",
+    }
+  },
   // Seasonal Flavor Latte ×4 - Coffee ×1, Syrup ×2 = $10
-  { id: "inf-sfl-1", front: { archetypeId: "influencer" }, back: { orderName: "Seasonal Flavor Latte", requiresSupplies: { coffeeBeans: 1, syrup: 2 }, reward: { money: 10, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "inf-sfl-2", front: { archetypeId: "influencer" }, back: { orderName: "Seasonal Flavor Latte", requiresSupplies: { coffeeBeans: 1, syrup: 2 }, reward: { money: 10, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "inf-sfl-3", front: { archetypeId: "influencer" }, back: { orderName: "Seasonal Flavor Latte", requiresSupplies: { coffeeBeans: 1, syrup: 2 }, reward: { money: 10, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "inf-sfl-4", front: { archetypeId: "influencer" }, back: { orderName: "Seasonal Flavor Latte", requiresSupplies: { coffeeBeans: 1, syrup: 2 }, reward: { money: 10, prestige: 0 }, failRule: "no_penalty" } },
+  {
+    id: "inf-sfl-1", front: { archetypeId: "influencer" },
+    back: {
+      orderName: "Trending Flavor Latte",
+      requiresSupplies: { coffeeBeans: 1, syrup: 2 },
+      reward: { money: 10, prestige: 0 },
+      delightCondition: { type: "surplus_supply", supply: "syrup", amount: 2 },
+      delightDescription: "Have 2+ syrup after serving",
+      delightOutcome: { type: "bonus_reputation", amount: 2 },
+      delightOutcomeDescription: "TikTok sensation! +2 extra reputation",
+      stormOutEffect: { type: "extra_reputation_loss", total: 3 },
+      stormOutDescription: "Viral complaint video (-3 reputation total)",
+    }
+  },
+  {
+    id: "inf-sfl-2", front: { archetypeId: "influencer" },
+    back: {
+      orderName: "Seasonal Flavor Latte",
+      requiresSupplies: { coffeeBeans: 1, syrup: 2 },
+      reward: { money: 10, prestige: 0 },
+      delightCondition: { type: "all_supplies_stocked" },
+      delightDescription: "Have all 4 supply types in stock",
+      delightOutcome: { type: "bonus_money", amount: 5 },
+      delightOutcomeDescription: "+$5 - promotes you to followers",
+      stormOutEffect: { type: "extra_reputation_loss", total: 2 },
+      stormOutDescription: "Posts rant about you (-2 reputation total)",
+    }
+  },
+  {
+    id: "inf-sfl-3", front: { archetypeId: "influencer" },
+    back: {
+      orderName: "Limited Edition Latte",
+      requiresSupplies: { coffeeBeans: 1, syrup: 2 },
+      reward: { money: 10, prestige: 0 },
+      delightCondition: { type: "surplus_supply", supply: "coffeeBeans", amount: 2 },
+      delightDescription: "Have 2+ coffee beans after serving",
+      delightOutcome: { type: "draw_upgrade_card", count: 1 },
+      delightOutcomeDescription: "Collab opportunity - draw 1 upgrade",
+      stormOutEffect: { type: "lose_money", amount: 4 },
+      stormOutDescription: "Threatens lawsuit over 'false advertising' (-$4)",
+    }
+  },
+  {
+    id: "inf-sfl-4", front: { archetypeId: "influencer" },
+    back: {
+      orderName: "Seasonal Flavor Latte",
+      requiresSupplies: { coffeeBeans: 1, syrup: 2 },
+      reward: { money: 10, prestige: 0 },
+      delightCondition: { type: "total_surplus", amount: 4 },
+      delightDescription: "Have 4+ total supplies after serving",
+      delightOutcome: { type: "bonus_money", amount: 6 },
+      delightOutcomeDescription: "+$6 - becomes a regular feature",
+      stormOutEffect: { type: "lose_supply", supply: "syrup", amount: 2 },
+      stormOutDescription: "Knocks over syrup display (-2 syrup)",
+    }
+  },
   // Pour Over ×2 - Coffee ×3 = $10
-  { id: "inf-po-1", front: { archetypeId: "influencer" }, back: { orderName: "Pour Over", requiresSupplies: { coffeeBeans: 3 }, reward: { money: 10, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "inf-po-2", front: { archetypeId: "influencer" }, back: { orderName: "Pour Over", requiresSupplies: { coffeeBeans: 3 }, reward: { money: 10, prestige: 0 }, failRule: "no_penalty" } },
+  {
+    id: "inf-po-1", front: { archetypeId: "influencer" },
+    back: {
+      orderName: "Artisan Pour Over",
+      requiresSupplies: { coffeeBeans: 3 },
+      reward: { money: 10, prestige: 0 },
+      delightCondition: { type: "surplus_supply", supply: "coffeeBeans", amount: 3 },
+      delightDescription: "Have 3+ coffee beans after serving",
+      delightOutcome: { type: "bonus_money", amount: 8 },
+      delightOutcomeDescription: "+$8 - you're their new favorite spot",
+      stormOutEffect: { type: "lose_all_of_supply", supply: "coffeeBeans" },
+      stormOutDescription: "Destroys your coffee in disgust",
+    }
+  },
+  {
+    id: "inf-po-2", front: { archetypeId: "influencer" },
+    back: {
+      orderName: "Premium Pour Over",
+      requiresSupplies: { coffeeBeans: 3 },
+      reward: { money: 10, prestige: 0 },
+      delightCondition: { type: "total_surplus", amount: 5 },
+      delightDescription: "Have 5+ total supplies after serving",
+      delightOutcome: { type: "draw_upgrade_card", count: 2 },
+      delightOutcomeDescription: "Massive exposure! Draw 2 upgrade cards",
+      stormOutEffect: { type: "extra_reputation_loss", total: 3 },
+      stormOutDescription: "Devastating review (-3 reputation total)",
+    }
+  },
   // Seasonal Tea Latte ×2 - Tea ×1, Milk ×1, Syrup ×1 = $10
-  { id: "inf-stl-1", front: { archetypeId: "influencer" }, back: { orderName: "Seasonal Tea Latte", requiresSupplies: { tea: 1, milk: 1, syrup: 1 }, reward: { money: 10, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "inf-stl-2", front: { archetypeId: "influencer" }, back: { orderName: "Seasonal Tea Latte", requiresSupplies: { tea: 1, milk: 1, syrup: 1 }, reward: { money: 10, prestige: 0 }, failRule: "no_penalty" } },
+  {
+    id: "inf-stl-1", front: { archetypeId: "influencer" },
+    back: {
+      orderName: "Aesthetic Tea Latte",
+      requiresSupplies: { tea: 1, milk: 1, syrup: 1 },
+      reward: { money: 10, prestige: 0 },
+      delightCondition: { type: "all_supplies_stocked" },
+      delightDescription: "Have all 4 supply types in stock",
+      delightOutcome: { type: "draw_upgrade_card", count: 1 },
+      delightOutcomeDescription: "Perfect variety! Draw 1 upgrade",
+      stormOutEffect: { type: "extra_reputation_loss", total: 2 },
+      stormOutDescription: "Claims you're 'basic' (-2 reputation)",
+    }
+  },
+  {
+    id: "inf-stl-2", front: { archetypeId: "influencer" },
+    back: {
+      orderName: "Seasonal Tea Latte",
+      requiresSupplies: { tea: 1, milk: 1, syrup: 1 },
+      reward: { money: 10, prestige: 0 },
+      delightCondition: { type: "surplus_supply", supply: "tea", amount: 2 },
+      delightDescription: "Have 2+ tea after serving",
+      delightOutcome: { type: "bonus_reputation", amount: 2 },
+      delightOutcomeDescription: "Tea content goes viral! +2 extra reputation",
+      stormOutEffect: { type: "lose_money", amount: 5 },
+      stormOutDescription: "Demands compensation for 'wasted content' (-$5)",
+    }
+  },
 
   // ==========================================================================
-  // HEALTH PERSON (12 cards) - Always has tea, okay money
+  // HEALTH PERSON (12 cards) - Tea focused, moderate risk
   // ==========================================================================
   // Herbal Tea ×4 - Tea ×2 = $4
-  { id: "hp-ht-1", front: { archetypeId: "health_person" }, back: { orderName: "Herbal Tea", requiresSupplies: { tea: 2 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "hp-ht-2", front: { archetypeId: "health_person" }, back: { orderName: "Herbal Tea", requiresSupplies: { tea: 2 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "hp-ht-3", front: { archetypeId: "health_person" }, back: { orderName: "Herbal Tea", requiresSupplies: { tea: 2 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "hp-ht-4", front: { archetypeId: "health_person" }, back: { orderName: "Herbal Tea", requiresSupplies: { tea: 2 }, reward: { money: 4, prestige: 0 }, failRule: "no_penalty" } },
+  {
+    id: "hp-ht-1", front: { archetypeId: "health_person" },
+    back: {
+      orderName: "Herbal Blend",
+      requiresSupplies: { tea: 2 },
+      reward: { money: 4, prestige: 0 },
+      delightCondition: { type: "surplus_supply", supply: "tea", amount: 2 },
+      delightDescription: "Have 2+ tea after serving",
+      delightOutcome: { type: "refund_supply", supply: "tea", amount: 1 },
+      delightOutcomeDescription: "Efficient brewing - refund 1 tea",
+      stormOutEffect: { type: "lose_supply", supply: "tea", amount: 1 },
+      stormOutDescription: "Claims tea was stale (-1 tea)",
+    }
+  },
+  {
+    id: "hp-ht-2", front: { archetypeId: "health_person" },
+    back: {
+      orderName: "Wellness Tea",
+      requiresSupplies: { tea: 2 },
+      reward: { money: 4, prestige: 0 },
+      delightCondition: { type: "surplus_supply", supply: "tea", amount: 3 },
+      delightDescription: "Have 3+ tea after serving",
+      delightOutcome: { type: "bonus_reputation", amount: 1 },
+      delightOutcomeDescription: "Recommends to yoga class (+1 extra rep)",
+      stormOutEffect: { type: "none" },
+      stormOutDescription: "Silently judges you and leaves",
+    }
+  },
+  {
+    id: "hp-ht-3", front: { archetypeId: "health_person" },
+    back: {
+      orderName: "Herbal Tea",
+      requiresSupplies: { tea: 2 },
+      reward: { money: 4, prestige: 0 },
+      delightCondition: { type: "always" },
+      delightDescription: "Appreciates your tea selection!",
+      delightOutcome: { type: "none" },
+      delightOutcomeDescription: "Reputation +1",
+      stormOutEffect: { type: "lose_supply", supply: "tea", amount: 1 },
+      stormOutDescription: "Tea wasn't organic enough (-1 tea)",
+    }
+  },
+  {
+    id: "hp-ht-4", front: { archetypeId: "health_person" },
+    back: {
+      orderName: "Detox Herbal Tea",
+      requiresSupplies: { tea: 2 },
+      reward: { money: 4, prestige: 0 },
+      delightCondition: { type: "total_surplus", amount: 3 },
+      delightDescription: "Have 3+ total supplies after serving",
+      delightOutcome: { type: "bonus_money", amount: 2 },
+      delightOutcomeDescription: "+$2 - buys extra tea to go",
+      stormOutEffect: { type: "lose_money", amount: 1 },
+      stormOutDescription: "Complains about lack of options (-$1)",
+    }
+  },
   // Tea w/ Oat Milk ×4 - Tea ×1, Milk ×2 = $6
-  { id: "hp-tom-1", front: { archetypeId: "health_person" }, back: { orderName: "Tea w/ Oat Milk", requiresSupplies: { tea: 1, milk: 2 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "hp-tom-2", front: { archetypeId: "health_person" }, back: { orderName: "Tea w/ Oat Milk", requiresSupplies: { tea: 1, milk: 2 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "hp-tom-3", front: { archetypeId: "health_person" }, back: { orderName: "Tea w/ Oat Milk", requiresSupplies: { tea: 1, milk: 2 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "hp-tom-4", front: { archetypeId: "health_person" }, back: { orderName: "Tea w/ Oat Milk", requiresSupplies: { tea: 1, milk: 2 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
+  {
+    id: "hp-tom-1", front: { archetypeId: "health_person" },
+    back: {
+      orderName: "Tea w/ Oat Milk",
+      requiresSupplies: { tea: 1, milk: 2 },
+      reward: { money: 6, prestige: 0 },
+      delightCondition: { type: "surplus_supply", supply: "milk", amount: 2 },
+      delightDescription: "Have 2+ milk after serving",
+      delightOutcome: { type: "bonus_reputation", amount: 1 },
+      delightOutcomeDescription: "Loves your milk alternatives (+1 extra rep)",
+      stormOutEffect: { type: "lose_supply", supply: "milk", amount: 1 },
+      stormOutDescription: "Milk wasn't plant-based enough (-1 milk)",
+    }
+  },
+  {
+    id: "hp-tom-2", front: { archetypeId: "health_person" },
+    back: {
+      orderName: "Matcha Oat Latte",
+      requiresSupplies: { tea: 1, milk: 2 },
+      reward: { money: 6, prestige: 0 },
+      delightCondition: { type: "surplus_supply", supply: "tea", amount: 2 },
+      delightDescription: "Have 2+ tea after serving",
+      delightOutcome: { type: "bonus_money", amount: 3 },
+      delightOutcomeDescription: "+$3 - orders a second one",
+      stormOutEffect: { type: "lose_money", amount: 2 },
+      stormOutDescription: "Matcha wasn't ceremonial grade (-$2)",
+    }
+  },
+  {
+    id: "hp-tom-3", front: { archetypeId: "health_person" },
+    back: {
+      orderName: "Tea w/ Oat Milk",
+      requiresSupplies: { tea: 1, milk: 2 },
+      reward: { money: 6, prestige: 0 },
+      delightCondition: { type: "all_supplies_stocked" },
+      delightDescription: "Have all 4 supply types in stock",
+      delightOutcome: { type: "draw_upgrade_card", count: 1 },
+      delightOutcomeDescription: "Wellness blogger feature - draw 1 upgrade",
+      stormOutEffect: { type: "extra_reputation_loss", total: 2 },
+      stormOutDescription: "Bad Yelp review (-2 reputation total)",
+    }
+  },
+  {
+    id: "hp-tom-4", front: { archetypeId: "health_person" },
+    back: {
+      orderName: "Golden Milk Latte",
+      requiresSupplies: { tea: 1, milk: 2 },
+      reward: { money: 6, prestige: 0 },
+      delightCondition: { type: "surplus_supply", supply: "milk", amount: 1 },
+      delightDescription: "Have 1+ milk after serving",
+      delightOutcome: { type: "refund_supply", supply: "milk", amount: 1 },
+      delightOutcomeDescription: "Perfect portion - refund 1 milk",
+      stormOutEffect: { type: "none" },
+      stormOutDescription: "Quietly disappointed",
+    }
+  },
   // Tea Pot ×2 - Tea ×4 = $8
-  { id: "hp-tp-1", front: { archetypeId: "health_person" }, back: { orderName: "Tea Pot", requiresSupplies: { tea: 4 }, reward: { money: 8, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "hp-tp-2", front: { archetypeId: "health_person" }, back: { orderName: "Tea Pot", requiresSupplies: { tea: 4 }, reward: { money: 8, prestige: 0 }, failRule: "no_penalty" } },
+  {
+    id: "hp-tp-1", front: { archetypeId: "health_person" },
+    back: {
+      orderName: "Sharing Tea Pot",
+      requiresSupplies: { tea: 4 },
+      reward: { money: 8, prestige: 0 },
+      delightCondition: { type: "surplus_supply", supply: "tea", amount: 3 },
+      delightDescription: "Have 3+ tea after serving",
+      delightOutcome: { type: "draw_upgrade_card", count: 1 },
+      delightOutcomeDescription: "Brings whole wellness group - draw 1 upgrade",
+      stormOutEffect: { type: "lose_all_of_supply", supply: "tea" },
+      stormOutDescription: "Knocks over your entire tea display",
+    }
+  },
+  {
+    id: "hp-tp-2", front: { archetypeId: "health_person" },
+    back: {
+      orderName: "Premium Tea Service",
+      requiresSupplies: { tea: 4 },
+      reward: { money: 8, prestige: 0 },
+      delightCondition: { type: "surplus_supply", supply: "tea", amount: 4 },
+      delightDescription: "Have 4+ tea after serving",
+      delightOutcome: { type: "bonus_money", amount: 5 },
+      delightOutcomeDescription: "+$5 - becomes a regular",
+      stormOutEffect: { type: "lose_supply", supply: "tea", amount: 2 },
+      stormOutDescription: "Returns multiple cups as 'wrong' (-2 tea)",
+    }
+  },
   // Tea with Honey ×2 - Tea ×1, Syrup ×2 = $6
-  { id: "hp-th-1", front: { archetypeId: "health_person" }, back: { orderName: "Tea with Honey", requiresSupplies: { tea: 1, syrup: 2 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "hp-th-2", front: { archetypeId: "health_person" }, back: { orderName: "Tea with Honey", requiresSupplies: { tea: 1, syrup: 2 }, reward: { money: 6, prestige: 0 }, failRule: "no_penalty" } },
+  {
+    id: "hp-th-1", front: { archetypeId: "health_person" },
+    back: {
+      orderName: "Honey Ginger Tea",
+      requiresSupplies: { tea: 1, syrup: 2 },
+      reward: { money: 6, prestige: 0 },
+      delightCondition: { type: "surplus_supply", supply: "syrup", amount: 2 },
+      delightDescription: "Have 2+ syrup after serving",
+      delightOutcome: { type: "bonus_money", amount: 3 },
+      delightOutcomeDescription: "+$3 - buys honey to take home",
+      stormOutEffect: { type: "lose_supply", supply: "syrup", amount: 1 },
+      stormOutDescription: "Honey wasn't raw/local (-1 syrup)",
+    }
+  },
+  {
+    id: "hp-th-2", front: { archetypeId: "health_person" },
+    back: {
+      orderName: "Tea with Local Honey",
+      requiresSupplies: { tea: 1, syrup: 2 },
+      reward: { money: 6, prestige: 0 },
+      delightCondition: { type: "total_surplus", amount: 4 },
+      delightDescription: "Have 4+ total supplies after serving",
+      delightOutcome: { type: "bonus_reputation", amount: 1 },
+      delightOutcomeDescription: "Impressed by your selection (+1 extra rep)",
+      stormOutEffect: { type: "lose_money", amount: 2 },
+      stormOutDescription: "Lectures you about sourcing (-$2)",
+    }
+  },
 
   // ==========================================================================
-  // BULK ORDERER (4 cards) - High supplies, high payout
+  // BULK ORDERER (4 cards) - High risk, high reward
   // ==========================================================================
   // Office Coffee Runner ×2 - Coffee ×4, Milk ×2, Syrup ×2 = $20
-  { id: "bo-ocr-1", front: { archetypeId: "bulk_orderer" }, back: { orderName: "Office Coffee Runner", requiresSupplies: { coffeeBeans: 4, milk: 2, syrup: 2 }, reward: { money: 20, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "bo-ocr-2", front: { archetypeId: "bulk_orderer" }, back: { orderName: "Office Coffee Runner", requiresSupplies: { coffeeBeans: 4, milk: 2, syrup: 2 }, reward: { money: 20, prestige: 0 }, failRule: "no_penalty" } },
+  {
+    id: "bo-ocr-1", front: { archetypeId: "bulk_orderer" },
+    back: {
+      orderName: "Office Coffee Run",
+      requiresSupplies: { coffeeBeans: 4, milk: 2, syrup: 2 },
+      reward: { money: 20, prestige: 0 },
+      delightCondition: { type: "total_surplus", amount: 3 },
+      delightDescription: "Have 3+ total supplies after serving",
+      delightOutcome: { type: "bonus_money", amount: 5 },
+      delightOutcomeDescription: "+$5 tip from the whole office",
+      stormOutEffect: { type: "lose_money", amount: 6 },
+      stormOutDescription: "Office never comes back (-$6 lost business)",
+    }
+  },
+  {
+    id: "bo-ocr-2", front: { archetypeId: "bulk_orderer" },
+    back: {
+      orderName: "Corporate Account Order",
+      requiresSupplies: { coffeeBeans: 4, milk: 2, syrup: 2 },
+      reward: { money: 20, prestige: 0 },
+      delightCondition: { type: "surplus_supply", supply: "coffeeBeans", amount: 3 },
+      delightDescription: "Have 3+ coffee beans after serving",
+      delightOutcome: { type: "draw_upgrade_card", count: 1 },
+      delightOutcomeDescription: "Weekly corporate account! Draw 1 upgrade",
+      stormOutEffect: { type: "lose_money", amount: 8 },
+      stormOutDescription: "Company demands refund (-$8)",
+    }
+  },
   // Party Order ×2 - Coffee ×3, Tea ×3, Syrup ×1, Milk ×2 = $24
-  { id: "bo-po-1", front: { archetypeId: "bulk_orderer" }, back: { orderName: "Party Order", requiresSupplies: { coffeeBeans: 3, tea: 3, syrup: 1, milk: 2 }, reward: { money: 24, prestige: 0 }, failRule: "no_penalty" } },
-  { id: "bo-po-2", front: { archetypeId: "bulk_orderer" }, back: { orderName: "Party Order", requiresSupplies: { coffeeBeans: 3, tea: 3, syrup: 1, milk: 2 }, reward: { money: 24, prestige: 0 }, failRule: "no_penalty" } },
+  {
+    id: "bo-po-1", front: { archetypeId: "bulk_orderer" },
+    back: {
+      orderName: "Birthday Party Order",
+      requiresSupplies: { coffeeBeans: 3, tea: 3, syrup: 1, milk: 2 },
+      reward: { money: 24, prestige: 0 },
+      delightCondition: { type: "all_supplies_stocked" },
+      delightDescription: "Have all 4 supply types in stock",
+      delightOutcome: { type: "draw_upgrade_card", count: 2 },
+      delightOutcomeDescription: "Catering contract! Draw 2 upgrade cards",
+      stormOutEffect: { type: "lose_money", amount: 10 },
+      stormOutDescription: "Ruined the party! (-$10 compensation)",
+    }
+  },
+  {
+    id: "bo-po-2", front: { archetypeId: "bulk_orderer" },
+    back: {
+      orderName: "Event Catering Order",
+      requiresSupplies: { coffeeBeans: 3, tea: 3, syrup: 1, milk: 2 },
+      reward: { money: 24, prestige: 0 },
+      delightCondition: { type: "total_surplus", amount: 5 },
+      delightDescription: "Have 5+ total supplies after serving",
+      delightOutcome: { type: "bonus_money", amount: 10 },
+      delightOutcomeDescription: "+$10 - event was a huge success!",
+      stormOutEffect: { type: "extra_reputation_loss", total: 3 },
+      stormOutDescription: "Event disaster goes public (-3 reputation total)",
+    }
+  },
 ];
 
 function createCustomerDeck(ctx: GameContext): CustomerCard[] {
@@ -765,6 +1529,7 @@ function initialState(players: Player[]): CafeState {
     upgradeDeck: [],
     upgradeDiscardPile: [],
     playersNeedingHandDiscard: [],
+    coffeeMachineBonusClaimed: {},
     currentRoundCustomers: [],
     customersDealtThisRound: 0,
     currentCustomer: null,
@@ -867,6 +1632,7 @@ function reducer(
         ...state,
         phase: "investment",
         playersReady: [], // Reset ready queue for next phase
+        coffeeMachineBonusClaimed: {}, // Reset bonus claims for new investment phase
       };
     }
 
@@ -934,6 +1700,12 @@ function reducer(
       }
 
       const upgradeCard = player.upgradeHand[upgradeCardIndex];
+
+      // Coffee machine cards cannot be activated through this action
+      // They must use ACTIVATE_COFFEE_MACHINE_UPGRADE instead
+      if (upgradeCard.isCoffeeMachineCard) {
+        return state;
+      }
 
       // Check if player can pay the cost
       const moneyCost = upgradeCard.cost.money || 0;
@@ -1081,6 +1853,95 @@ function reducer(
           },
         },
         upgradeDiscardPile: [...state.upgradeDiscardPile, discardedUpgrade],
+      };
+    }
+
+    case "ACTIVATE_COFFEE_MACHINE_UPGRADE": {
+      // Install a coffee machine upgrade card (stacks on the machine, no limit)
+      const { upgradeCardIndex } = action.payload || {};
+      if (upgradeCardIndex === undefined) return state;
+
+      const player = state.players[action.playerId];
+      if (upgradeCardIndex < 0 || upgradeCardIndex >= player.upgradeHand.length) {
+        return state;
+      }
+
+      const upgradeCard = player.upgradeHand[upgradeCardIndex];
+
+      // Verify this is a coffee machine card
+      if (!upgradeCard.isCoffeeMachineCard) {
+        return state;
+      }
+
+      // Check if player can pay the cost
+      const moneyCost = upgradeCard.cost.money || 0;
+      if (player.money < moneyCost) return state;
+
+      // Check supply costs
+      const supplyCosts = upgradeCard.cost.supplies || {};
+      for (const [supply, amount] of Object.entries(supplyCosts)) {
+        if (player.supplies[supply as SupplyType] < (amount || 0)) {
+          return state;
+        }
+      }
+
+      // Pay the cost
+      const newMoney = player.money - moneyCost;
+      const newSupplies = { ...player.supplies };
+      for (const [supply, amount] of Object.entries(supplyCosts)) {
+        newSupplies[supply as SupplyType] -= amount || 0;
+      }
+
+      // Remove card from hand and add to coffee machine stack
+      const newHand = player.upgradeHand.filter((_, i) => i !== upgradeCardIndex);
+      const newCoffeeMachineUpgrades = [...player.coffeeMachineUpgrades, upgradeCard];
+
+      return {
+        ...state,
+        players: {
+          ...state.players,
+          [action.playerId]: {
+            ...player,
+            money: newMoney,
+            supplies: newSupplies,
+            upgradeHand: newHand,
+            coffeeMachineUpgrades: newCoffeeMachineUpgrades,
+          },
+        },
+      };
+    }
+
+    case "CLAIM_COFFEE_MACHINE_BONUS": {
+      // Claim free resources based on stacked coffee machine cards
+      const { supplyType } = action.payload || {};
+      if (!supplyType) return state;
+
+      const player = state.players[action.playerId];
+      const bonusAmount = player.coffeeMachineUpgrades.length * COFFEE_MACHINE_CONFIG.FREE_RESOURCES_PER_CARD;
+
+      if (bonusAmount <= 0) return state;
+
+      // Check if bonus already claimed this round (tracked in state)
+      if (state.coffeeMachineBonusClaimed?.[action.playerId]) {
+        return state;
+      }
+
+      return {
+        ...state,
+        players: {
+          ...state.players,
+          [action.playerId]: {
+            ...player,
+            supplies: {
+              ...player.supplies,
+              [supplyType]: player.supplies[supplyType] + bonusAmount,
+            },
+          },
+        },
+        coffeeMachineBonusClaimed: {
+          ...state.coffeeMachineBonusClaimed,
+          [action.playerId]: true,
+        },
       };
     }
 
@@ -1303,7 +2164,12 @@ function reducer(
       const updatedPlayers = { ...state.players };
       let totalDelighted = 0;
       let totalStormedOut = 0;
-      let totalInfluencerStormedOut = 0; // Track separately for extra reputation loss
+      let totalExtraReputationLoss = 0; // Card-level extra reputation loss
+
+      // Track upgrade deck changes from delight outcomes (drawing cards)
+      let upgradeDeck = [...state.upgradeDeck];
+      let upgradeDiscardPile = [...state.upgradeDiscardPile];
+      const newPlayersNeedingHandDiscard: string[] = [];
 
       // Track outcomes per player for summary display
       const lastRoundOutcomes: Record<string, {
@@ -1345,38 +2211,55 @@ function reducer(
           bulk_orderer: [],
         };
 
-        // Track which customers are delighted (for Average Joe second-pass)
+        // Track which customers are delighted (for second-pass for serve_multiple)
         const customerOutcomes: CustomerOutcome[] = [];
+
+        // Track delight bonuses (applied after determining delight status)
+        let delightBonusMoney = 0;
+        let delightBonusReputation = 0;
+        const delightBonusSupplies: Record<SupplyType, number> = {
+          coffeeBeans: 0, tea: 0, milk: 0, syrup: 0,
+        };
+        let upgradeCardsToDraw = 0;
+
+        // Track extra reputation loss from storm-outs (beyond the normal -1)
+        let extraReputationLoss = 0;
+
+        // Helper to apply storm-out effect (used for card-level effects)
+        const applyStormOutEffect = (effect: StormOutEffect) => {
+          if (effect.type === "lose_money") {
+            moneyPenalty += effect.amount;
+            totalStormedOut++;
+          } else if (effect.type === "lose_supply") {
+            supplyPenalty[effect.supply] += effect.amount;
+            totalStormedOut++;
+          } else if (effect.type === "lose_all_of_supply") {
+            // Mark to lose all of this supply (handled after all processing)
+            supplyPenalty[effect.supply] = 999; // Will be clamped later
+            totalStormedOut++;
+          } else if (effect.type === "extra_reputation_loss") {
+            // Extra rep loss beyond normal -1 (e.g., total: 2 means -2 instead of -1)
+            extraReputationLoss += (effect.total - 1);
+            totalStormedOut++;
+          } else if (effect.type === "pay_next_customer_double") {
+            // Future feature - for now just count as storm out
+            totalStormedOut++;
+          } else {
+            // type === "none" - just count as stormed out
+            totalStormedOut++;
+          }
+        };
 
         // First pass: process all customers
         for (let i = 0; i < player.customerLine.length; i++) {
           const customer = player.customerLine[i];
-          const archetype = CUSTOMER_ARCHETYPES[customer.front.archetypeId];
 
           if (!selectedIndices.includes(i)) {
             // Customer not selected - storms out
             customerOutcomes.push("stormed_out");
 
-            // Apply storm out effect
-            const effect = archetype.stormOutEffect;
-            if (effect.type === "lose_money") {
-              moneyPenalty += effect.amount;
-            } else if (effect.type === "lose_supply") {
-              supplyPenalty[effect.supply] += effect.amount;
-            } else if (effect.type === "extra_reputation_loss") {
-              totalInfluencerStormedOut++;
-            } else {
-              // type === "none" - just count as stormed out
-              totalStormedOut++;
-            }
-
-            // Count non-influencer storm outs (influencers tracked separately)
-            if (effect.type !== "extra_reputation_loss") {
-              // Already counted above for "none" type
-            }
-            if (effect.type === "lose_money" || effect.type === "lose_supply") {
-              totalStormedOut++;
-            }
+            // Apply card-level storm out effect
+            applyStormOutEffect(customer.back.stormOutEffect);
             continue;
           }
 
@@ -1408,11 +2291,14 @@ function reducer(
               syrup: player.supplies.syrup - supplyCosts.syrup,
             };
 
-            // Check delight condition (except serve_multiple which is checked in second pass)
-            const condition = archetype.delightCondition;
+            // Check card-level delight condition (except serve_multiple which is checked in second pass)
+            const condition = customer.back.delightCondition;
             let isDelighted = false;
 
-            if (condition.type === "surplus_supply") {
+            if (condition.type === "always") {
+              // Always delighted when fulfilled
+              isDelighted = true;
+            } else if (condition.type === "surplus_supply") {
               isDelighted = remainingSupplies[condition.supply] >= condition.amount;
             } else if (condition.type === "all_supplies_stocked") {
               // Check BEFORE consuming (use original supplies minus costs so far, but before this order)
@@ -1438,53 +2324,75 @@ function reducer(
             // Track for serve_multiple check
             fulfilledByArchetype[customer.front.archetypeId].push(i);
 
-            // Mark outcome (may be upgraded to delighted in second pass for Average Joe)
+            // Mark outcome (may be upgraded to delighted in second pass for serve_multiple)
             customerOutcomes.push(isDelighted ? "delighted" : "satisfied");
 
-            // Grant reward
+            // Grant base reward
             totalMoney += customer.back.reward.money;
             totalPrestige += customer.back.reward.prestige;
             customersSuccessfullyServed++;
 
-            if (isDelighted) {
+            // Apply delight outcome if delighted (and not serve_multiple which is checked later)
+            if (isDelighted && condition.type !== "serve_multiple") {
               totalDelighted++;
+              const outcome = customer.back.delightOutcome;
+              if (outcome.type === "bonus_money") {
+                delightBonusMoney += outcome.amount;
+              } else if (outcome.type === "bonus_reputation") {
+                delightBonusReputation += outcome.amount;
+              } else if (outcome.type === "bonus_supply") {
+                delightBonusSupplies[outcome.supply] += outcome.amount;
+              } else if (outcome.type === "draw_upgrade_card") {
+                upgradeCardsToDraw += outcome.count;
+              } else if (outcome.type === "refund_supply") {
+                delightBonusSupplies[outcome.supply] += outcome.amount;
+              }
+              // type === "none" - just the normal +1 reputation
             }
           } else {
             // Customer storms out despite being selected (not enough supplies)
             customerOutcomes.push("stormed_out");
 
-            // Apply storm out effect
-            const effect = archetype.stormOutEffect;
-            if (effect.type === "lose_money") {
-              moneyPenalty += effect.amount;
-              totalStormedOut++;
-            } else if (effect.type === "lose_supply") {
-              supplyPenalty[effect.supply] += effect.amount;
-              totalStormedOut++;
-            } else if (effect.type === "extra_reputation_loss") {
-              totalInfluencerStormedOut++;
-            } else {
-              totalStormedOut++;
-            }
+            // Apply card-level storm out effect
+            applyStormOutEffect(customer.back.stormOutEffect);
           }
         }
 
-        // Second pass: check "serve_multiple" delight condition (Average Joe)
+        // Second pass: check "serve_multiple" delight condition
         for (const [archetypeId, indices] of Object.entries(fulfilledByArchetype)) {
-          const archetype = CUSTOMER_ARCHETYPES[archetypeId as CustomerArchetypeId];
-          if (archetype.delightCondition.type === "serve_multiple") {
-            const requiredCount = archetype.delightCondition.count;
-            if (indices.length >= requiredCount) {
-              // Upgrade all fulfilled customers of this archetype to delighted
-              for (const idx of indices) {
-                if (customerOutcomes[idx] === "satisfied") {
-                  customerOutcomes[idx] = "delighted";
-                  totalDelighted++;
+          // Check each fulfilled customer for serve_multiple condition
+          for (const idx of indices) {
+            const customer = player.customerLine[idx];
+            const condition = customer.back.delightCondition;
+
+            if (condition.type === "serve_multiple") {
+              const requiredCount = condition.count;
+              if (indices.length >= requiredCount && customerOutcomes[idx] === "satisfied") {
+                // Upgrade to delighted
+                customerOutcomes[idx] = "delighted";
+                totalDelighted++;
+
+                // Apply delight outcome
+                const outcome = customer.back.delightOutcome;
+                if (outcome.type === "bonus_money") {
+                  delightBonusMoney += outcome.amount;
+                } else if (outcome.type === "bonus_reputation") {
+                  delightBonusReputation += outcome.amount;
+                } else if (outcome.type === "bonus_supply") {
+                  delightBonusSupplies[outcome.supply] += outcome.amount;
+                } else if (outcome.type === "draw_upgrade_card") {
+                  upgradeCardsToDraw += outcome.count;
+                } else if (outcome.type === "refund_supply") {
+                  delightBonusSupplies[outcome.supply] += outcome.amount;
                 }
               }
             }
           }
         }
+
+        // Add delight bonuses to totals
+        totalMoney += delightBonusMoney;
+        totalPrestige += delightBonusReputation;
 
         // Store outcomes for this player
         const playerDelighted = customerOutcomes.filter(o => o === "delighted").length;
@@ -1497,16 +2405,46 @@ function reducer(
           stormedOut: playerStormedOut,
         };
 
-        // Apply supply penalties (floor at 0)
+        // Apply supply penalties and bonuses (floor at 0)
         const finalSupplies: Record<SupplyType, number> = {
-          coffeeBeans: Math.max(0, player.supplies.coffeeBeans - supplyCosts.coffeeBeans - supplyPenalty.coffeeBeans),
-          tea: Math.max(0, player.supplies.tea - supplyCosts.tea - supplyPenalty.tea),
-          milk: Math.max(0, player.supplies.milk - supplyCosts.milk - supplyPenalty.milk),
-          syrup: Math.max(0, player.supplies.syrup - supplyCosts.syrup - supplyPenalty.syrup),
+          coffeeBeans: Math.max(0, player.supplies.coffeeBeans - supplyCosts.coffeeBeans - supplyPenalty.coffeeBeans + delightBonusSupplies.coffeeBeans),
+          tea: Math.max(0, player.supplies.tea - supplyCosts.tea - supplyPenalty.tea + delightBonusSupplies.tea),
+          milk: Math.max(0, player.supplies.milk - supplyCosts.milk - supplyPenalty.milk + delightBonusSupplies.milk),
+          syrup: Math.max(0, player.supplies.syrup - supplyCosts.syrup - supplyPenalty.syrup + delightBonusSupplies.syrup),
         };
 
         // Apply money (floor at 0)
         const finalMoney = Math.max(0, player.money + totalMoney - moneyPenalty);
+
+        // Draw upgrade cards from delight outcomes
+        let newUpgradeHand = [...player.upgradeHand];
+        let currentUpgradeDeck = upgradeDeck;
+        let currentUpgradeDiscardPile = upgradeDiscardPile;
+
+        for (let i = 0; i < upgradeCardsToDraw; i++) {
+          if (currentUpgradeDeck.length === 0 && currentUpgradeDiscardPile.length > 0) {
+            // Reshuffle discard pile into deck
+            currentUpgradeDeck = [...currentUpgradeDiscardPile];
+            currentUpgradeDiscardPile = [];
+            // Simple shuffle
+            for (let j = currentUpgradeDeck.length - 1; j > 0; j--) {
+              const k = Math.floor(Math.random() * (j + 1));
+              [currentUpgradeDeck[j], currentUpgradeDeck[k]] = [currentUpgradeDeck[k], currentUpgradeDeck[j]];
+            }
+          }
+          if (currentUpgradeDeck.length > 0) {
+            const drawnCard = currentUpgradeDeck.shift()!;
+            newUpgradeHand.push(drawnCard);
+          }
+        }
+
+        // Track if player needs to discard (hand exceeds max)
+        if (newUpgradeHand.length > UPGRADE_CONFIG.MAX_HAND_SIZE) {
+          newPlayersNeedingHandDiscard.push(playerId);
+        }
+
+        upgradeDeck = currentUpgradeDeck;
+        upgradeDiscardPile = currentUpgradeDiscardPile;
 
         updatedPlayers[playerId] = {
           ...player,
@@ -1515,13 +2453,17 @@ function reducer(
           supplies: finalSupplies,
           customersServed: player.customersServed + customersSuccessfullyServed,
           customerLine: [], // Clear line after resolution
+          upgradeHand: newUpgradeHand,
         };
+
+        // Track extra reputation loss from card-level effects
+        totalExtraReputationLoss += extraReputationLoss;
       }
 
       // Update reputation:
       // +1 per delighted (satisfied = +0)
-      // -1 per stormed out (or -2 for influencer, tracked as totalInfluencerStormedOut)
-      const reputationChange = totalDelighted - totalStormedOut - (totalInfluencerStormedOut * 2);
+      // -1 per stormed out (plus extra reputation loss from card effects)
+      const reputationChange = totalDelighted - totalStormedOut - totalExtraReputationLoss;
       const newReputation = Math.max(
         GAME_CONFIG.REPUTATION_MIN,
         Math.min(GAME_CONFIG.REPUTATION_MAX, state.reputation + reputationChange)
@@ -1531,6 +2473,12 @@ function reducer(
         ...state,
         players: updatedPlayers,
         reputation: newReputation,
+        upgradeDeck,
+        upgradeDiscardPile,
+        playersNeedingHandDiscard: [
+          ...state.playersNeedingHandDiscard.filter(id => !newPlayersNeedingHandDiscard.includes(id)),
+          ...newPlayersNeedingHandDiscard,
+        ],
         phase: "shopClosed",
         selectedForFulfillment: {},
         playersConfirmedResolution: [],
@@ -1913,6 +2861,9 @@ function isActionAllowed(
 
       const upgradeCard = player.upgradeHand[upgradeCardIndex];
 
+      // Coffee machine cards cannot be activated through this action
+      if (upgradeCard.isCoffeeMachineCard) return false;
+
       // Check if player can pay the money cost
       const moneyCost = upgradeCard.cost.money || 0;
       if (player.money < moneyCost) return false;
@@ -1982,6 +2933,55 @@ function isActionAllowed(
       if (!validPhases.includes(state.phase)) return false;
       const player = state.players[action.playerId];
       if (!player || player.activeUpgrades.length === 0) return false;
+      return true;
+    }
+
+    case "ACTIVATE_COFFEE_MACHINE_UPGRADE": {
+      // Can activate coffee machine upgrades during investment phase
+      if (state.phase !== "investment") return false;
+      if (!player) return false;
+
+      const { upgradeCardIndex } = action.payload || {};
+      if (upgradeCardIndex === undefined) return false;
+      if (upgradeCardIndex < 0 || upgradeCardIndex >= player.upgradeHand.length) {
+        return false;
+      }
+
+      const upgradeCard = player.upgradeHand[upgradeCardIndex];
+
+      // Must be a coffee machine card
+      if (!upgradeCard.isCoffeeMachineCard) return false;
+
+      // Check if player can pay the money cost
+      const moneyCost = upgradeCard.cost.money || 0;
+      if (player.money < moneyCost) return false;
+
+      // Check supply costs
+      const supplyCosts = upgradeCard.cost.supplies || {};
+      for (const [supply, amount] of Object.entries(supplyCosts)) {
+        if (player.supplies[supply as SupplyType] < (amount || 0)) {
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    case "CLAIM_COFFEE_MACHINE_BONUS": {
+      // Can claim coffee machine bonus during investment phase
+      if (state.phase !== "investment") return false;
+      if (!player) return false;
+
+      // Must have at least one coffee machine upgrade
+      if (player.coffeeMachineUpgrades.length === 0) return false;
+
+      // Must not have already claimed this round
+      if (state.coffeeMachineBonusClaimed?.[action.playerId]) return false;
+
+      // Must specify a supply type
+      const { supplyType } = action.payload || {};
+      if (!supplyType) return false;
+
       return true;
     }
 
