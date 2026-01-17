@@ -395,17 +395,21 @@ export interface CometRushAction extends BaseAction {
 
 const STARTING_CUBES = 20;
 const BASE_INCOME = 5;
-const BASE_DISTANCE_TO_IMPACT = 18;
+const BASE_DISTANCE_TO_IMPACT = 15;
 const BASE_MAX_ROCKETS = 3;
 
 // Strength card scaling by player count:
-// - 2 players: 6 strength cards
-// - 3 players: 7 strength cards
-// - 4 players: 8 strength cards
+// - 2 players: 6 strength cards (values 2-7, total health 27)
+// - 3 players: 7 strength cards (values 2-8, total health 35)
+// - 4 players: 8 strength cards (values 2-9, total health 44)
+// - 5 players: 9 strength cards (values 2-10, total health 54)
+// - 6 players: 10 strength cards (values 2-11, total health 65)
 function getStrengthCardCount(playerCount: number): number {
   if (playerCount <= 2) return 6;
-  if (playerCount >= 4) return 8;
-  return 7; // 3 players
+  if (playerCount === 3) return 7;
+  if (playerCount === 4) return 8;
+  if (playerCount === 5) return 9;
+  return 10; // 6+ players
 }
 
 // ============================================================================
@@ -863,9 +867,9 @@ function reducer(
         if (!state.turnMeta || state.turnMeta.playerId !== action.playerId) return state;
 
         // Check if player can still draw cards this turn
-        // Late game (comet ≤9 from Earth): can draw 2 cards per turn
+        // Late game (comet ≤8 from Earth): can draw 2 cards per turn
         // Normal game: can draw 1 card per turn
-        const maxDrawsAllowed = state.distanceToImpact <= 9 ? 2 : 1;
+        const maxDrawsAllowed = state.distanceToImpact <= 8 ? 2 : 1;
         if (state.turnMeta.cardsDrawnThisTurn >= maxDrawsAllowed) return state;
       }
 
@@ -1449,10 +1453,11 @@ function reducer(
 
           case "FUNDING_PRESSURE": {
             // Gain resources based on comet distance (4/8/12)
+            // Thresholds scaled proportionally for 15-step comet distance
             let amount: number;
-            if (state.distanceToImpact >= 13) {
+            if (state.distanceToImpact >= 11) {
               amount = 4;
-            } else if (state.distanceToImpact >= 7) {
+            } else if (state.distanceToImpact >= 6) {
               amount = 8;
             } else {
               amount = 12;
@@ -2841,7 +2846,7 @@ export const cometRushGame = defineGame<CometRushState, CometRushAction>({
   name: "Comet Rush",
   description: "Build rockets and destroy the comet before it hits Earth!",
   minPlayers: 2,
-  maxPlayers: 4,
+  maxPlayers: 6,
   initialState,
   reducer,
   getPhase,

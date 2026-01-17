@@ -10,7 +10,7 @@
 
 | Element | Details |
 |---------|---------|
-| **Players** | 2-4 players |
+| **Players** | 2-6 players |
 | **Goal** | Destroy the comet before it reaches Earth |
 | **Win Condition** | Player with the most trophy points wins |
 | **Starting Resources** | 20 cubes per player |
@@ -27,12 +27,14 @@ When the game begins:
    - 20 resource cubes
    - **Draft 4 cards** from any of the 3 decks (Engineering, Espionage, or Economic - your choice!)
 
-2. **The comet starts at distance 18** from Earth
+2. **The comet starts at distance 15** from Earth
 
 3. **Strength cards are dealt** (based on player count):
-   - 2 players: 6 cards (strength 4-9)
-   - 3 players: 7 cards (strength 4-10)
-   - 4 players: 8 cards (strength 4-11)
+   - 2 players: 6 cards (strength 2-7)
+   - 3 players: 7 cards (strength 2-8)
+   - 4 players: 8 cards (strength 2-9)
+   - 5 players: 9 cards (strength 2-10)
+   - 6 players: 10 cards (strength 2-11)
 
 ---
 
@@ -50,7 +52,7 @@ Each player's turn follows these steps:
   - **Espionage Deck** (player interaction and sabotage)
   - **Economic Deck** (resource and funding cards)
 - **Normal game:** Draw **1 card** per turn
-- **Late game (comet ≤9 from Earth):** Draw **2 cards** per turn!
+- **Late game (comet ≤8 from Earth):** Draw **2 cards** per turn!
 
 ### 3. Main Actions (Any Order)
 During your turn, you may:
@@ -132,7 +134,7 @@ When you launch a ready rocket:
 ## The Comet
 
 ### Comet Distance
-- The comet starts at **distance 18** from Earth
+- The comet starts at **distance 15** from Earth
 - Each round, a **Movement card (1-3)** is drawn
 - The comet moves that many spaces closer to Earth
 - **If the comet reaches distance 0: EARTH IS DESTROYED!**
@@ -140,9 +142,11 @@ When you launch a ready rocket:
 ### Comet Segments (Strength Cards)
 - The comet has multiple segments, each with a **strength value** based on player count
 - Number of segments scales with player count:
-  - **2 players:** 6 segments (strength 4-9)
-  - **3 players:** 7 segments (strength 4-10)
-  - **4 players:** 8 segments (strength 4-11)
+  - **2 players:** 6 segments (strength 2-7)
+  - **3 players:** 7 segments (strength 2-8)
+  - **4 players:** 8 segments (strength 2-9)
+  - **5 players:** 9 segments (strength 2-10)
+  - **6 players:** 10 segments (strength 2-11)
 - Players must destroy segments in order (first to last)
 - Each segment has health equal to its strength value
 - When a segment is destroyed, the player who dealt the final blow **claims it as a trophy**
@@ -248,9 +252,9 @@ When targeted by "Embargo":
 ### Funding Pressure (Distance-Based Reward)
 When you play "Funding Pressure":
 - Gain resources based on how close the comet is:
-  - Distance 13+: Gain 4 cubes
-  - Distance 7-12: Gain 8 cubes
-  - Distance 6 or less: Gain 12 cubes
+  - Distance 11+: Gain 4 cubes
+  - Distance 6-10: Gain 8 cubes
+  - Distance 5 or less: Gain 12 cubes
 - More dangerous = more funding!
 
 ### Program Prestige (Stacking Bonus)
@@ -366,8 +370,8 @@ The game ends in **defeat** if:
 | Starting Cubes | 20 |
 | Starting Cards | 4 (drafted from any deck) |
 | Base Income | 5 per turn |
-| Starting Distance | 18 spaces |
-| Comet Segments | 6 (2p: 4-9), 7 (3p: 4-10), 8 (4p: 4-11) |
+| Starting Distance | 15 spaces |
+| Comet Segments | 6-10 segments based on player count (2-6 players) |
 | Max Concurrent Rockets | 3 |
 | Initial Power Cap | 3 |
 | Initial Accuracy Cap | 3 |
@@ -376,8 +380,8 @@ The game ends in **defeat** if:
 | Maximum Income Bonus | +3 |
 | Maximum Salvage Bonus | +3 |
 | Maximum Card Play Bonus | +3 |
-| Movement Card Values | 1, 2, or 3 |
-| Late Game Threshold | ≤9 distance (draw 2 cards) |
+| Movement Card Values | 2 or 3 |
+| Late Game Threshold | ≤8 distance (draw 2 cards) |
 | Final Destroyer Bonus | +5 points |
 
 ---
@@ -400,7 +404,7 @@ The game ends in **defeat** if:
 | **Diplomatic Pressure** | Status effect that blocks your next card play (can be countered) |
 | **Counter** | Using your own Diplomatic Pressure card to nullify an incoming attack |
 | **Card Trade** | Free action to discard 2 cards and draw 1 from any deck |
-| **Late Game** | When comet is ≤9 distance from Earth (draw 2 cards per turn) |
+| **Late Game** | When comet is ≤8 distance from Earth (draw 2 cards per turn) |
 | **Free Action** | An action that doesn't count toward your normal turn limits |
 
 ---
