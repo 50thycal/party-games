@@ -226,11 +226,11 @@ function OverviewSection() {
 
       <SectionHeader>Quick Reference</SectionHeader>
       <InfoBox>
-        <StatRow label="Players" value="2-4 players" />
+        <StatRow label="Players" value="2-6 players" />
         <StatRow label="Starting Resources" value="20 cubes" />
         <StatRow label="Starting Cards" value="4 cards (your choice)" />
         <StatRow label="Income Per Turn" value="5 cubes (upgradeable)" />
-        <StatRow label="Comet Start Distance" value="18 spaces from Earth" />
+        <StatRow label="Comet Start Distance" value="15 spaces from Earth" />
       </InfoBox>
 
       <InfoBox variant="warning">
