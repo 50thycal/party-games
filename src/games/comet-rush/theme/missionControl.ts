@@ -85,10 +85,10 @@ export const rocketStatusConfig = {
   },
 } as const;
 
-// Danger level thresholds for comet distance
+// Danger level thresholds for comet distance (scaled for 15-step track)
 export const dangerLevels = {
-  safe: { min: 13, color: statusColors.success },
-  warning: { min: 7, color: statusColors.warning },
+  safe: { min: 11, color: statusColors.success },
+  warning: { min: 6, color: statusColors.warning },
   critical: { min: 0, color: statusColors.danger },
 } as const;
 

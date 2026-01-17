@@ -523,8 +523,8 @@ function TurnWizard({
     ? player.hand.find((c) => c.id === turnMeta.lastDrawnCardId)
     : player.hand.length > 0 ? player.hand[player.hand.length - 1] : null;
 
-  // Late game: can draw 2 cards when comet ≤9 from Earth
-  const maxDraws = distanceToImpact <= 9 ? 2 : 1;
+  // Late game: can draw 2 cards when comet ≤8 from Earth
+  const maxDraws = distanceToImpact <= 8 ? 2 : 1;
   const cardsDrawn = turnMeta?.cardsDrawnThisTurn ?? 0;
 
   return (
@@ -1535,9 +1535,9 @@ export function CometRushGameView({
       return;
     }
 
-    // Check if player can draw another card (late game: 2 draws when comet ≤9 from Earth)
+    // Check if player can draw another card (late game: 2 draws when comet ≤8 from Earth)
     if (gameState && turnMeta) {
-      const maxDraws = gameState.distanceToImpact <= 9 ? 2 : 1;
+      const maxDraws = gameState.distanceToImpact <= 8 ? 2 : 1;
       const cardsDrawn = turnMeta.cardsDrawnThisTurn ?? 0;
       if (cardsDrawn < maxDraws) {
         // Can draw another card - go back to deck selection
