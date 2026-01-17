@@ -1720,7 +1720,6 @@ export function CometRushGameView({
         case "DIPLOMATIC_PRESSURE":
           return { ...defaults, needsTargetPlayer: true };
         case "REGULATORY_REVIEW":
-          return { ...defaults, needsTargetPlayer: true, needsTargetRocket: true };
         case "COVERT_ROCKET_STRIKE":
           return { ...defaults, needsTargetPlayer: true, needsTargetRocket: true, canTargetReadyRockets: true };
         default:
@@ -2622,13 +2621,25 @@ export function CometRushGameView({
             {isMyTurn ? (
               <MissionButton
                 onClick={handleEndTurn}
-                disabled={isEndingTurn}
+                disabled={
+                  isEndingTurn ||
+                  !!gameState?.pendingDiplomaticPressure ||
+                  !!gameState?.pendingLaunch ||
+                  !!gameState?.lastLaunchResult?.canReroll ||
+                  !!gameState?.lastLaunchResult?.mustReroll
+                }
                 variant="success"
                 size="lg"
                 className="flex-1"
                 isLoading={isEndingTurn}
               >
-                {isEndingTurn ? "Ending..." : "End Turn"}
+                {isEndingTurn
+                  ? "Ending..."
+                  : gameState?.pendingLaunch
+                    ? "Roll First"
+                    : (gameState?.lastLaunchResult?.canReroll || gameState?.lastLaunchResult?.mustReroll)
+                      ? "Decide Reroll"
+                      : "End Turn"}
               </MissionButton>
             ) : (
               <div className="flex-1 text-center py-3 text-mission-steel text-sm">

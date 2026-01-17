@@ -413,7 +413,16 @@ function PlanningView({
         {gameState.round > 1 && " You drew a new upgrade card this round!"}
       </p>
 
-      <div className="space-y-4">
+      <ReadyButton
+        gameState={gameState}
+        playerId={playerId}
+        dispatch={dispatch}
+        isLoading={isLoading}
+        disabled={needsDiscard}
+        disabledMessage={needsDiscard ? "You must discard cards before continuing" : undefined}
+      />
+
+      <div className="space-y-4 mt-4">
         {/* Supplies */}
         <div className="bg-gray-900 rounded-lg p-4">
           <h3 className="font-semibold mb-2">Supplies</h3>
@@ -471,15 +480,6 @@ function PlanningView({
           />
         )}
       </div>
-
-      <ReadyButton
-        gameState={gameState}
-        playerId={playerId}
-        dispatch={dispatch}
-        isLoading={isLoading}
-        disabled={needsDiscard}
-        disabledMessage={needsDiscard ? "You must discard cards before continuing" : undefined}
-      />
     </section>
   );
 }
@@ -980,7 +980,14 @@ function InvestmentView({
         Spend money to prepare for customers. Money: <span className="text-yellow-400 font-bold">${player.money}</span>
       </p>
 
-      <div className="space-y-4">
+      <ReadyButton
+        gameState={gameState}
+        playerId={playerId}
+        dispatch={dispatch}
+        isLoading={isLoading}
+      />
+
+      <div className="space-y-4 mt-4">
         {/* Supplies */}
         <div className="bg-gray-900 rounded-lg p-4">
           <h3 className="font-semibold mb-3">Buy Supplies</h3>
@@ -988,20 +995,38 @@ function InvestmentView({
           <div className="space-y-2">
             {supplyTypes.map((type) => {
               const info = SUPPLY_INFO[type];
-              const canBuy = player.money >= SUPPLY_COST;
+              const canBuy1 = player.money >= SUPPLY_COST;
+              const canBuy2 = player.money >= SUPPLY_COST * 2;
+              const canBuy5 = player.money >= SUPPLY_COST * 5;
               return (
                 <div key={type} className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
                     <span className={`${info.color} font-medium`}>{player.supplies[type]}</span>
                     <span className="text-sm text-gray-300">{info.label}</span>
                   </div>
-                  <button
-                    onClick={() => dispatch("PURCHASE_SUPPLY", { supplyType: type })}
-                    disabled={isLoading || !canBuy}
-                    className="text-xs bg-green-600 hover:bg-green-700 disabled:bg-gray-700 px-3 py-1 rounded transition-colors"
-                  >
-                    +1
-                  </button>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => dispatch("PURCHASE_SUPPLY", { supplyType: type, quantity: 1 })}
+                      disabled={isLoading || !canBuy1}
+                      className="text-xs bg-green-600 hover:bg-green-700 disabled:bg-gray-700 px-2 py-1 rounded transition-colors"
+                    >
+                      +1
+                    </button>
+                    <button
+                      onClick={() => dispatch("PURCHASE_SUPPLY", { supplyType: type, quantity: 2 })}
+                      disabled={isLoading || !canBuy2}
+                      className="text-xs bg-green-600 hover:bg-green-700 disabled:bg-gray-700 px-2 py-1 rounded transition-colors"
+                    >
+                      +2
+                    </button>
+                    <button
+                      onClick={() => dispatch("PURCHASE_SUPPLY", { supplyType: type, quantity: 5 })}
+                      disabled={isLoading || !canBuy5}
+                      className="text-xs bg-green-600 hover:bg-green-700 disabled:bg-gray-700 px-2 py-1 rounded transition-colors"
+                    >
+                      +5
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -1051,13 +1076,6 @@ function InvestmentView({
           showInstall={true}
         />
       </div>
-
-      <ReadyButton
-        gameState={gameState}
-        playerId={playerId}
-        dispatch={dispatch}
-        isLoading={isLoading}
-      />
     </section>
   );
 }
@@ -1757,6 +1775,55 @@ function ShopClosedView({
         <p className="text-gray-400 mt-2">End of Round {gameState.round}</p>
       </div>
 
+      <ReadyButton
+        gameState={gameState}
+        playerId={playerId}
+        dispatch={dispatch}
+        isLoading={isLoading}
+      />
+
+      {/* Customer Outcome Summary */}
+      {Object.keys(gameState.lastRoundOutcomes).length > 0 && (
+        <div className="bg-gray-900 rounded-lg p-4 mb-4 mt-4">
+          <h3 className="font-semibold mb-3">Customer Outcomes This Round</h3>
+          <div className="space-y-2">
+            {gameState.playerOrder
+              .filter(id => !gameState.eliminatedPlayers.includes(id))
+              .map(id => {
+                const outcomes = gameState.lastRoundOutcomes[id];
+                if (!outcomes) return null;
+                const playerName = gameState.players[id]?.name || "Unknown";
+                const total = outcomes.delighted + outcomes.satisfied + outcomes.stormedOut;
+                return (
+                  <div key={id} className="flex justify-between items-center text-sm">
+                    <span className="text-gray-300">{playerName}</span>
+                    <div className="flex gap-3">
+                      {outcomes.delighted > 0 && (
+                        <span className="text-yellow-400" title="Delighted">
+                          {outcomes.delighted} delighted
+                        </span>
+                      )}
+                      {outcomes.satisfied > 0 && (
+                        <span className="text-green-400" title="Satisfied">
+                          {outcomes.satisfied} satisfied
+                        </span>
+                      )}
+                      {outcomes.stormedOut > 0 && (
+                        <span className="text-red-400" title="Stormed Out">
+                          {outcomes.stormedOut} stormed out
+                        </span>
+                      )}
+                      {total === 0 && (
+                        <span className="text-gray-500">No customers</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
       <div className="bg-gray-900 rounded-lg p-4 mb-4">
         <h3 className="font-semibold mb-3">Round Summary</h3>
         <div className="space-y-2">
@@ -1799,13 +1866,6 @@ function ShopClosedView({
           </p>
         )}
       </div>
-
-      <ReadyButton
-        gameState={gameState}
-        playerId={playerId}
-        dispatch={dispatch}
-        isLoading={isLoading}
-      />
     </section>
   );
 }
@@ -1846,8 +1906,15 @@ function CleanupView({
     <section className="bg-gray-800 border border-gray-700 rounded-lg p-6">
       <h2 className="text-lg font-bold mb-4">Rent Payment - Round {gameState.round}</h2>
 
+      <ReadyButton
+        gameState={gameState}
+        playerId={playerId}
+        dispatch={dispatch}
+        isLoading={isLoading}
+      />
+
       {/* Your rent status */}
-      <div className={`rounded-lg p-4 mb-4 border ${
+      <div className={`rounded-lg p-4 mb-4 mt-4 border ${
         amBailedOut
           ? "bg-green-900/20 border-green-700"
           : canAffordRent
@@ -1930,13 +1997,6 @@ function CleanupView({
             : "Players who can't pay rent will go bankrupt and be eliminated!"}
         </p>
       </div>
-
-      <ReadyButton
-        gameState={gameState}
-        playerId={playerId}
-        dispatch={dispatch}
-        isLoading={isLoading}
-      />
     </section>
   );
 }
