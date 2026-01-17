@@ -14,20 +14,20 @@ interface CometTrackProps {
 
 /**
  * Top-down comet approach tracking display
- * Shows the comet's position on an 18-space track toward Earth
+ * Shows the comet's position on a 15-space track toward Earth
  * Comet starts on the RIGHT and moves LEFT toward Earth
  * Styled like a radar or mission tracking display
  */
 export function CometTrack({
   distanceToImpact,
-  maxDistance = 18,
+  maxDistance = 15,
   lastMovement,
   isAnimating = false,
   className,
 }: CometTrackProps) {
   const dangerLevel = getDangerLevel(distanceToImpact);
 
-  // Comet position: at distance 18, comet is at index 17 (right side)
+  // Comet position: at distance 15, comet is at index 14 (right side)
   // At distance 1, comet is at index 0 (left side, near Earth)
   const cometPosition = distanceToImpact - 1;
 
@@ -108,8 +108,8 @@ export function CometTrack({
               const isPassed = index > cometPosition;
 
               // Danger zones: low indices are near Earth (dangerous)
-              const isInCriticalZone = index < 6;
-              const isInWarningZone = index >= 6 && index < 12;
+              const isInCriticalZone = index < 5;
+              const isInWarningZone = index >= 5 && index < 10;
 
               return (
                 <div
@@ -209,11 +209,11 @@ export function CometTrack({
 
           <div className={cn(
             "px-2 py-0.5 rounded text-[10px] font-bold uppercase",
-            distanceToImpact <= 6 && "bg-mission-red/30 text-mission-red animate-pulse",
-            distanceToImpact > 6 && distanceToImpact <= 12 && "bg-mission-amber/30 text-mission-amber",
-            distanceToImpact > 12 && "bg-mission-green/30 text-mission-green"
+            distanceToImpact <= 5 && "bg-mission-red/30 text-mission-red animate-pulse",
+            distanceToImpact > 5 && distanceToImpact <= 10 && "bg-mission-amber/30 text-mission-amber",
+            distanceToImpact > 10 && "bg-mission-green/30 text-mission-green"
           )}>
-            {distanceToImpact <= 6 ? "CRITICAL" : distanceToImpact <= 12 ? "WARNING" : "NOMINAL"}
+            {distanceToImpact <= 5 ? "CRITICAL" : distanceToImpact <= 10 ? "WARNING" : "NOMINAL"}
           </div>
         </div>
       </div>

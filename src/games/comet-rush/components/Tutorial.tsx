@@ -801,7 +801,7 @@ function UISection() {
           <div>
             <p className="text-sm font-bold text-mission-red">Comet Track</p>
             <p className="text-xs text-mission-steel mt-1">
-              Shows how far the comet is from Earth (0-18). The number changes color as danger
+              Shows how far the comet is from Earth (0-15). The number changes color as danger
               increases. Watch this closely - if it reaches 0, game over!
             </p>
           </div>
