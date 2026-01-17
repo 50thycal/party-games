@@ -519,7 +519,7 @@ function createEspionageDeck(): EspionageCard[] {
   // Common cards (8 each)
   add("RESOURCE_SEIZURE", 8, "Resource Seizure", "Steal 3 resources from target player", "common");
   add("SABOTAGE_CONSTRUCTION", 8, "Sabotage Construction", "Force target player to re-roll a launch", "common");
-  add("REGULATORY_REVIEW", 8, "Regulatory Review", "+1 build time to opponent's rocket", "common");
+  add("REGULATORY_REVIEW", 8, "Regulatory Review", "Delay opponent's rocket: +1 turn if building, or force ready rocket back to construction", "common");
 
   return cards;
 }
@@ -1375,22 +1375,36 @@ function reducer(
           }
 
           case "REGULATORY_REVIEW": {
-            // +1 build time to another player's rocket
+            // Target another player's rocket - if ready, force back to building (1 turn)
+            // If already building, add +1 build time
             if (!payload.targetPlayerId || !payload.targetRocketId) return state;
             const targetPlayer = state.players[payload.targetPlayerId];
             if (!targetPlayer || payload.targetPlayerId === action.playerId) return state;
 
             const rocketIndex = targetPlayer.rockets.findIndex(
-              (r) => r.id === payload.targetRocketId && r.status === "building"
+              (r) => r.id === payload.targetRocketId && (r.status === "building" || r.status === "ready")
             );
             if (rocketIndex === -1) return state;
 
             const updatedRockets = [...targetPlayer.rockets];
             const rocket = updatedRockets[rocketIndex];
-            updatedRockets[rocketIndex] = {
-              ...rocket,
-              buildTimeRemaining: rocket.buildTimeRemaining + 1,
-            };
+
+            if (rocket.status === "ready") {
+              // Force ready rocket back to building with 1 turn delay
+              updatedRockets[rocketIndex] = {
+                ...rocket,
+                status: "building",
+                buildTimeRemaining: 1,
+              };
+              resultDescription = `Regulatory Review! Forced ${targetPlayer.name}'s ready rocket back to construction!`;
+            } else {
+              // Add +1 build time to building rocket
+              updatedRockets[rocketIndex] = {
+                ...rocket,
+                buildTimeRemaining: rocket.buildTimeRemaining + 1,
+              };
+              resultDescription = `Regulatory Review! Delayed ${targetPlayer.name}'s rocket by 1 turn!`;
+            }
 
             updatedPlayers = {
               ...updatedPlayers,
@@ -1399,7 +1413,6 @@ function reducer(
                 rockets: updatedRockets,
               },
             };
-            resultDescription = `Regulatory Review! Delayed ${targetPlayer.name}'s rocket by 1 turn!`;
             break;
           }
 

@@ -1720,7 +1720,6 @@ export function CometRushGameView({
         case "DIPLOMATIC_PRESSURE":
           return { ...defaults, needsTargetPlayer: true };
         case "REGULATORY_REVIEW":
-          return { ...defaults, needsTargetPlayer: true, needsTargetRocket: true };
         case "COVERT_ROCKET_STRIKE":
           return { ...defaults, needsTargetPlayer: true, needsTargetRocket: true, canTargetReadyRockets: true };
         default:
