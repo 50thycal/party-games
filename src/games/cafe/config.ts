@@ -459,6 +459,14 @@ export interface CafeState {
   selectedForFulfillment: Record<string, number[]>; // Indices of customers each player selected to fulfill
   playersConfirmedResolution: string[]; // Players who confirmed their selections
 
+  // Last round customer outcomes (for display in shopClosed/cleanup)
+  lastRoundOutcomes: Record<string, {
+    outcomes: CustomerOutcome[];
+    delighted: number;
+    satisfied: number;
+    stormedOut: number;
+  }>;
+
   // Cleanup phase - rent tracking
   rentOwed: Record<string, number>; // How much each player owes in rent
   rentPaidBy: Record<string, string | null>; // Who paid each player's rent (null = self, oderId = bailed out)
@@ -509,6 +517,7 @@ export interface CafeAction {
   playerId: string;
   payload?: {
     supplyType?: SupplyType;
+    quantity?: number; // For bulk supply purchases
     upgradeType?: CafeUpgradeType;
     targetPlayerId?: string; // For bailout - who to pay rent for
     customerIndex?: number; // For toggling customer fulfillment
@@ -765,6 +774,7 @@ function initialState(players: Player[]): CafeState {
     firstDrawerIndex: 0,
     selectedForFulfillment: {},
     playersConfirmedResolution: [],
+    lastRoundOutcomes: {},
     rentOwed: {},
     rentPaidBy: {},
     playersReady: [],
@@ -864,11 +874,13 @@ function reducer(
     // INVESTMENT PHASE
     // =========================================================================
     case "PURCHASE_SUPPLY": {
-      const { supplyType } = action.payload || {};
+      const { supplyType, quantity = 1 } = action.payload || {};
       if (!supplyType) return state;
+      const purchaseQty = Math.max(1, Math.floor(quantity));
+      const totalCost = SUPPLY_COST * purchaseQty;
 
       const player = state.players[action.playerId];
-      if (player.money < SUPPLY_COST) return state;
+      if (player.money < totalCost) return state;
 
       return {
         ...state,
@@ -876,10 +888,10 @@ function reducer(
           ...state.players,
           [action.playerId]: {
             ...player,
-            money: player.money - SUPPLY_COST,
+            money: player.money - totalCost,
             supplies: {
               ...player.supplies,
-              [supplyType]: player.supplies[supplyType] + 1,
+              [supplyType]: player.supplies[supplyType] + purchaseQty,
             },
           },
         },
@@ -1293,6 +1305,14 @@ function reducer(
       let totalStormedOut = 0;
       let totalInfluencerStormedOut = 0; // Track separately for extra reputation loss
 
+      // Track outcomes per player for summary display
+      const lastRoundOutcomes: Record<string, {
+        outcomes: CustomerOutcome[];
+        delighted: number;
+        satisfied: number;
+        stormedOut: number;
+      }> = {};
+
       for (const playerId of state.playerOrder) {
         // Skip eliminated players
         if (state.eliminatedPlayers.includes(playerId)) continue;
@@ -1466,6 +1486,17 @@ function reducer(
           }
         }
 
+        // Store outcomes for this player
+        const playerDelighted = customerOutcomes.filter(o => o === "delighted").length;
+        const playerSatisfied = customerOutcomes.filter(o => o === "satisfied").length;
+        const playerStormedOut = customerOutcomes.filter(o => o === "stormed_out").length;
+        lastRoundOutcomes[playerId] = {
+          outcomes: customerOutcomes,
+          delighted: playerDelighted,
+          satisfied: playerSatisfied,
+          stormedOut: playerStormedOut,
+        };
+
         // Apply supply penalties (floor at 0)
         const finalSupplies: Record<SupplyType, number> = {
           coffeeBeans: Math.max(0, player.supplies.coffeeBeans - supplyCosts.coffeeBeans - supplyPenalty.coffeeBeans),
@@ -1503,6 +1534,7 @@ function reducer(
         phase: "shopClosed",
         selectedForFulfillment: {},
         playersConfirmedResolution: [],
+        lastRoundOutcomes,
         playersReady: [], // Reset ready queue for next phase
       };
     }
