@@ -8,6 +8,7 @@ import {
   getCardArchetype,
   getReputationCustomerModifier,
   UPGRADE_CONFIG,
+  COFFEE_MACHINE_CONFIG,
   type CafeState,
   type CafePlayerState,
   type CustomerCard,
@@ -457,6 +458,18 @@ function PlanningView({
             allowRemove={true}
           />
         </div>
+
+        {/* Coffee Machine Section - view only in planning */}
+        {player.coffeeMachineUpgrades.length > 0 && (
+          <CoffeeMachinePanel
+            player={player}
+            gameState={gameState}
+            playerId={playerId}
+            dispatch={dispatch}
+            isLoading={isLoading}
+            showInstall={false}
+          />
+        )}
       </div>
 
       <ReadyButton
@@ -484,6 +497,7 @@ const UPGRADE_CATEGORY_INFO: Record<UpgradeCardCategory, { label: string; color:
   capacity: { label: "Capacity", color: "text-green-400", bgColor: "bg-green-900/30" },
   reputation: { label: "Reputation", color: "text-purple-400", bgColor: "bg-purple-900/30" },
   specialty: { label: "Specialty", color: "text-yellow-400", bgColor: "bg-yellow-900/30" },
+  coffeeMachine: { label: "Coffee Machine", color: "text-amber-400", bgColor: "bg-amber-900/30" },
 };
 
 // ============================================================================
@@ -526,14 +540,21 @@ function UpgradeCardDisplay({
   }
   const costString = costParts.length > 0 ? costParts.join(", ") : "Free";
 
+  const isCoffeeMachineCard = card.isCoffeeMachineCard;
+
   return (
-    <div className={`${categoryInfo.bgColor} border border-gray-600 rounded-lg p-3 ${isActive ? "ring-2 ring-yellow-500" : ""}`}>
+    <div className={`${categoryInfo.bgColor} border ${isCoffeeMachineCard ? "border-amber-600" : "border-gray-600"} rounded-lg p-3 ${isActive ? "ring-2 ring-yellow-500" : ""}`}>
       <div className="flex justify-between items-start mb-2">
         <div>
           <span className={`text-xs ${categoryInfo.color} uppercase tracking-wide`}>
             {categoryInfo.label}
           </span>
           <h4 className="font-semibold text-white text-sm">{card.name}</h4>
+          {isCoffeeMachineCard && (
+            <span className="text-xs text-amber-400 flex items-center gap-1">
+              &#9749; Install in Coffee Machine
+            </span>
+          )}
         </div>
       </div>
 
@@ -778,6 +799,151 @@ function ActiveUpgradesPanel({
   );
 }
 
+function CoffeeMachinePanel({
+  player,
+  gameState,
+  playerId,
+  dispatch,
+  isLoading,
+  showInstall,
+}: {
+  player: CafePlayerState;
+  gameState: CafeState;
+  playerId: string;
+  dispatch: (action: string, payload?: Record<string, unknown>) => Promise<void>;
+  isLoading: boolean;
+  showInstall?: boolean;
+}) {
+  const coffeeMachineCards = player.coffeeMachineUpgrades;
+  const bonusAmount = coffeeMachineCards.length * COFFEE_MACHINE_CONFIG.FREE_RESOURCES_PER_CARD;
+  const hasClaimed = gameState.coffeeMachineBonusClaimed?.[playerId] ?? false;
+
+  // Get coffee machine cards from hand
+  const coffeeMachineCardsInHand = player.upgradeHand
+    .map((card, index) => ({ card, index }))
+    .filter(({ card }) => card.isCoffeeMachineCard);
+
+  // Check if player can afford each card
+  const canAffordCard = (card: UpgradeCard) => {
+    if ((card.cost.money || 0) > player.money) return false;
+    if (card.cost.supplies) {
+      for (const [supply, qty] of Object.entries(card.cost.supplies)) {
+        if ((qty || 0) > player.supplies[supply as SupplyType]) return false;
+      }
+    }
+    return true;
+  };
+
+  const supplyTypes: SupplyType[] = ["coffeeBeans", "tea", "milk", "syrup"];
+
+  return (
+    <div className="bg-amber-900/20 border border-amber-700 rounded-lg p-4">
+      <div className="flex justify-between items-center mb-3">
+        <h3 className="font-semibold text-amber-400 flex items-center gap-2">
+          <span>&#9749;</span> Coffee Machine
+        </h3>
+        <span className="text-xs text-amber-300">
+          {coffeeMachineCards.length} upgrade{coffeeMachineCards.length !== 1 ? "s" : ""} installed
+        </span>
+      </div>
+
+      {/* Bonus Info */}
+      {coffeeMachineCards.length > 0 && (
+        <div className={`rounded p-3 mb-3 ${hasClaimed ? "bg-green-900/30 border border-green-700" : "bg-amber-800/30 border border-amber-600"}`}>
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm font-semibold text-amber-300">
+              Free Resource Bonus: +{bonusAmount}
+            </span>
+            {hasClaimed ? (
+              <span className="text-green-400 text-xs font-semibold">Claimed!</span>
+            ) : (
+              <span className="text-amber-400 text-xs">Select a supply to claim</span>
+            )}
+          </div>
+
+          {!hasClaimed && (
+            <div className="flex flex-wrap gap-2">
+              {supplyTypes.map((type) => {
+                const info = SUPPLY_INFO[type];
+                return (
+                  <button
+                    key={type}
+                    onClick={() => dispatch("CLAIM_COFFEE_MACHINE_BONUS", { supplyType: type })}
+                    disabled={isLoading}
+                    className={`text-xs px-3 py-1.5 rounded transition-colors ${info.color} bg-gray-800 hover:bg-gray-700 disabled:opacity-50`}
+                  >
+                    +{bonusAmount} {info.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Installed Upgrades */}
+      {coffeeMachineCards.length > 0 ? (
+        <div className="space-y-2 mb-3">
+          <p className="text-xs text-gray-400">Installed upgrades:</p>
+          <div className="flex flex-wrap gap-2">
+            {coffeeMachineCards.map((card, index) => (
+              <div
+                key={card.id}
+                className="bg-amber-900/40 border border-amber-600 rounded px-2 py-1 text-xs"
+                title={card.description}
+              >
+                {card.name}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <p className="text-gray-500 text-sm mb-3">
+          No upgrades installed. Install coffee machine cards for free resources each round!
+        </p>
+      )}
+
+      {/* Install Cards Section */}
+      {showInstall && coffeeMachineCardsInHand.length > 0 && (
+        <div className="border-t border-amber-700/50 pt-3">
+          <p className="text-xs text-gray-400 mb-2">Install from hand:</p>
+          <div className="grid gap-2">
+            {coffeeMachineCardsInHand.map(({ card, index }) => {
+              const affordable = canAffordCard(card);
+              const costParts: string[] = [];
+              if (card.cost.money) costParts.push(`$${card.cost.money}`);
+
+              return (
+                <div
+                  key={card.id}
+                  className="bg-amber-900/30 border border-amber-600 rounded p-2"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-semibold text-amber-300 text-sm">{card.name}</h4>
+                      <p className="text-xs text-gray-400">{card.description}</p>
+                      <span className={`text-xs ${affordable ? "text-gray-300" : "text-red-400"}`}>
+                        Cost: {costParts.join(", ") || "Free"}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => dispatch("ACTIVATE_COFFEE_MACHINE_UPGRADE", { upgradeCardIndex: index })}
+                      disabled={isLoading || !affordable}
+                      className="text-xs bg-amber-600 hover:bg-amber-700 disabled:bg-gray-700 disabled:text-gray-500 px-2 py-1 rounded transition-colors"
+                    >
+                      Install
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function InvestmentView({
   gameState,
   player,
@@ -874,6 +1040,16 @@ function InvestmentView({
             }}
           />
         </div>
+
+        {/* Coffee Machine Section */}
+        <CoffeeMachinePanel
+          player={player}
+          gameState={gameState}
+          playerId={playerId}
+          dispatch={dispatch}
+          isLoading={isLoading}
+          showInstall={true}
+        />
       </div>
 
       <ReadyButton
@@ -1052,6 +1228,20 @@ function CustomerDraftView({
           allowRemove={true}
         />
       </div>
+
+      {/* Coffee Machine Section - view only during draft */}
+      {player.coffeeMachineUpgrades.length > 0 && (
+        <div className="mt-4">
+          <CoffeeMachinePanel
+            player={player}
+            gameState={gameState}
+            playerId={playerId}
+            dispatch={dispatch}
+            isLoading={isLoading}
+            showInstall={false}
+          />
+        </div>
+      )}
     </section>
   );
 }

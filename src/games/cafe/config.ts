@@ -204,7 +204,8 @@ export type UpgradeCardCategory =
   | "efficiency"    // Reduces costs or increases output
   | "capacity"      // Increases limits or storage
   | "reputation"    // Affects reputation gains/losses
-  | "specialty";    // Unique effects
+  | "specialty"     // Unique effects
+  | "coffeeMachine"; // Special cards that can only go in the coffee machine slot
 
 export interface UpgradeCost {
   money?: number;
@@ -230,7 +231,15 @@ export interface UpgradeCard {
   prerequisite?: UpgradePrerequisite;
   // Effect is placeholder for now - will be implemented later
   effectId: string;
+  // Coffee machine cards can only be played in the special coffee machine slot
+  isCoffeeMachineCard?: boolean;
 }
+
+// Configuration for coffee machine bonuses
+export const COFFEE_MACHINE_CONFIG = {
+  // Free resources granted per stacked coffee machine card during investment phase
+  FREE_RESOURCES_PER_CARD: 1,
+};
 
 // Placeholder upgrade cards - effects to be implemented later
 const UPGRADE_CARD_TEMPLATES: Omit<UpgradeCard, "id">[] = [
@@ -392,6 +401,58 @@ const UPGRADE_CARD_TEMPLATES: Omit<UpgradeCard, "id">[] = [
     prerequisite: { requiresCafeUpgrade: { type: "equipment", minLevel: 1 } },
     effectId: "catering_license",
   },
+
+  // ==========================================================================
+  // COFFEE MACHINE UPGRADES (6 cards) - Stack on coffee machine for free resources
+  // ==========================================================================
+  {
+    name: "Premium Grinder",
+    category: "coffeeMachine",
+    description: "A high-quality grinder that improves coffee extraction. +1 free resource during investment.",
+    cost: { money: 3 },
+    effectId: "premium_grinder",
+    isCoffeeMachineCard: true,
+  },
+  {
+    name: "Steam Wand Upgrade",
+    category: "coffeeMachine",
+    description: "Better milk frothing capabilities. +1 free resource during investment.",
+    cost: { money: 4 },
+    effectId: "steam_wand",
+    isCoffeeMachineCard: true,
+  },
+  {
+    name: "Temperature Control",
+    category: "coffeeMachine",
+    description: "Precise brewing temperature. +1 free resource during investment.",
+    cost: { money: 3 },
+    effectId: "temp_control",
+    isCoffeeMachineCard: true,
+  },
+  {
+    name: "Dual Boiler System",
+    category: "coffeeMachine",
+    description: "Brew and steam simultaneously. +1 free resource during investment.",
+    cost: { money: 5 },
+    effectId: "dual_boiler",
+    isCoffeeMachineCard: true,
+  },
+  {
+    name: "Auto-Dosing Module",
+    category: "coffeeMachine",
+    description: "Consistent coffee dosing every time. +1 free resource during investment.",
+    cost: { money: 4 },
+    effectId: "auto_dosing",
+    isCoffeeMachineCard: true,
+  },
+  {
+    name: "Water Filtration System",
+    category: "coffeeMachine",
+    description: "Pure water for perfect coffee. +1 free resource during investment.",
+    cost: { money: 3 },
+    effectId: "water_filtration",
+    isCoffeeMachineCard: true,
+  },
 ];
 
 // =============================================================================
@@ -411,6 +472,10 @@ export interface CafePlayerState {
   // Upgrade card system
   upgradeHand: UpgradeCard[]; // Cards in hand (max 3)
   activeUpgrades: UpgradeCard[]; // Activated upgrades (max 3)
+
+  // Coffee machine slot - can stack unlimited coffee machine upgrade cards
+  // More cards = more free resources during investment phase
+  coffeeMachineUpgrades: UpgradeCard[];
 
   // Current round state
   customerLine: CustomerCard[]; // Customers taken this round
@@ -443,6 +508,9 @@ export interface CafeState {
   upgradeDiscardPile: UpgradeCard[];
   // Players who must discard from hand before continuing (exceeded hand limit after draw)
   playersNeedingHandDiscard: string[];
+
+  // Coffee machine bonus tracking (reset each round)
+  coffeeMachineBonusClaimed: Record<string, boolean>;
 
   // Draft state
   currentRoundCustomers: CustomerCard[]; // Customers for this round
@@ -487,6 +555,8 @@ export type CafeActionType =
   | "ACTIVATE_UPGRADE" // Activate an upgrade card from hand (pay cost)
   | "DISCARD_UPGRADE_FROM_HAND" // Forced discard when hand exceeds limit
   | "DISCARD_ACTIVE_UPGRADE" // Remove an active upgrade (when activating new one at limit)
+  | "ACTIVATE_COFFEE_MACHINE_UPGRADE" // Install a coffee machine card (stacks on the machine)
+  | "CLAIM_COFFEE_MACHINE_BONUS" // Claim free resources from coffee machine at start of investment
   | "END_INVESTMENT"
   // Customer draft phase
   | "DRAW_CUSTOMER"
@@ -542,6 +612,7 @@ function createInitialPlayerState(player: Player): CafePlayerState {
     },
     upgradeHand: [],
     activeUpgrades: [],
+    coffeeMachineUpgrades: [],
     customerLine: [],
     customersServed: 0,
   };
@@ -756,6 +827,7 @@ function initialState(players: Player[]): CafeState {
     upgradeDeck: [],
     upgradeDiscardPile: [],
     playersNeedingHandDiscard: [],
+    coffeeMachineBonusClaimed: {},
     currentRoundCustomers: [],
     customersDealtThisRound: 0,
     currentCustomer: null,
@@ -857,6 +929,7 @@ function reducer(
         ...state,
         phase: "investment",
         playersReady: [], // Reset ready queue for next phase
+        coffeeMachineBonusClaimed: {}, // Reset bonus claims for new investment phase
       };
     }
 
@@ -922,6 +995,12 @@ function reducer(
       }
 
       const upgradeCard = player.upgradeHand[upgradeCardIndex];
+
+      // Coffee machine cards cannot be activated through this action
+      // They must use ACTIVATE_COFFEE_MACHINE_UPGRADE instead
+      if (upgradeCard.isCoffeeMachineCard) {
+        return state;
+      }
 
       // Check if player can pay the cost
       const moneyCost = upgradeCard.cost.money || 0;
@@ -1069,6 +1148,95 @@ function reducer(
           },
         },
         upgradeDiscardPile: [...state.upgradeDiscardPile, discardedUpgrade],
+      };
+    }
+
+    case "ACTIVATE_COFFEE_MACHINE_UPGRADE": {
+      // Install a coffee machine upgrade card (stacks on the machine, no limit)
+      const { upgradeCardIndex } = action.payload || {};
+      if (upgradeCardIndex === undefined) return state;
+
+      const player = state.players[action.playerId];
+      if (upgradeCardIndex < 0 || upgradeCardIndex >= player.upgradeHand.length) {
+        return state;
+      }
+
+      const upgradeCard = player.upgradeHand[upgradeCardIndex];
+
+      // Verify this is a coffee machine card
+      if (!upgradeCard.isCoffeeMachineCard) {
+        return state;
+      }
+
+      // Check if player can pay the cost
+      const moneyCost = upgradeCard.cost.money || 0;
+      if (player.money < moneyCost) return state;
+
+      // Check supply costs
+      const supplyCosts = upgradeCard.cost.supplies || {};
+      for (const [supply, amount] of Object.entries(supplyCosts)) {
+        if (player.supplies[supply as SupplyType] < (amount || 0)) {
+          return state;
+        }
+      }
+
+      // Pay the cost
+      const newMoney = player.money - moneyCost;
+      const newSupplies = { ...player.supplies };
+      for (const [supply, amount] of Object.entries(supplyCosts)) {
+        newSupplies[supply as SupplyType] -= amount || 0;
+      }
+
+      // Remove card from hand and add to coffee machine stack
+      const newHand = player.upgradeHand.filter((_, i) => i !== upgradeCardIndex);
+      const newCoffeeMachineUpgrades = [...player.coffeeMachineUpgrades, upgradeCard];
+
+      return {
+        ...state,
+        players: {
+          ...state.players,
+          [action.playerId]: {
+            ...player,
+            money: newMoney,
+            supplies: newSupplies,
+            upgradeHand: newHand,
+            coffeeMachineUpgrades: newCoffeeMachineUpgrades,
+          },
+        },
+      };
+    }
+
+    case "CLAIM_COFFEE_MACHINE_BONUS": {
+      // Claim free resources based on stacked coffee machine cards
+      const { supplyType } = action.payload || {};
+      if (!supplyType) return state;
+
+      const player = state.players[action.playerId];
+      const bonusAmount = player.coffeeMachineUpgrades.length * COFFEE_MACHINE_CONFIG.FREE_RESOURCES_PER_CARD;
+
+      if (bonusAmount <= 0) return state;
+
+      // Check if bonus already claimed this round (tracked in state)
+      if (state.coffeeMachineBonusClaimed?.[action.playerId]) {
+        return state;
+      }
+
+      return {
+        ...state,
+        players: {
+          ...state.players,
+          [action.playerId]: {
+            ...player,
+            supplies: {
+              ...player.supplies,
+              [supplyType]: player.supplies[supplyType] + bonusAmount,
+            },
+          },
+        },
+        coffeeMachineBonusClaimed: {
+          ...state.coffeeMachineBonusClaimed,
+          [action.playerId]: true,
+        },
       };
     }
 
@@ -1881,6 +2049,9 @@ function isActionAllowed(
 
       const upgradeCard = player.upgradeHand[upgradeCardIndex];
 
+      // Coffee machine cards cannot be activated through this action
+      if (upgradeCard.isCoffeeMachineCard) return false;
+
       // Check if player can pay the money cost
       const moneyCost = upgradeCard.cost.money || 0;
       if (player.money < moneyCost) return false;
@@ -1950,6 +2121,55 @@ function isActionAllowed(
       if (!validPhases.includes(state.phase)) return false;
       const player = state.players[action.playerId];
       if (!player || player.activeUpgrades.length === 0) return false;
+      return true;
+    }
+
+    case "ACTIVATE_COFFEE_MACHINE_UPGRADE": {
+      // Can activate coffee machine upgrades during investment phase
+      if (state.phase !== "investment") return false;
+      if (!player) return false;
+
+      const { upgradeCardIndex } = action.payload || {};
+      if (upgradeCardIndex === undefined) return false;
+      if (upgradeCardIndex < 0 || upgradeCardIndex >= player.upgradeHand.length) {
+        return false;
+      }
+
+      const upgradeCard = player.upgradeHand[upgradeCardIndex];
+
+      // Must be a coffee machine card
+      if (!upgradeCard.isCoffeeMachineCard) return false;
+
+      // Check if player can pay the money cost
+      const moneyCost = upgradeCard.cost.money || 0;
+      if (player.money < moneyCost) return false;
+
+      // Check supply costs
+      const supplyCosts = upgradeCard.cost.supplies || {};
+      for (const [supply, amount] of Object.entries(supplyCosts)) {
+        if (player.supplies[supply as SupplyType] < (amount || 0)) {
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    case "CLAIM_COFFEE_MACHINE_BONUS": {
+      // Can claim coffee machine bonus during investment phase
+      if (state.phase !== "investment") return false;
+      if (!player) return false;
+
+      // Must have at least one coffee machine upgrade
+      if (player.coffeeMachineUpgrades.length === 0) return false;
+
+      // Must not have already claimed this round
+      if (state.coffeeMachineBonusClaimed?.[action.playerId]) return false;
+
+      // Must specify a supply type
+      const { supplyType } = action.payload || {};
+      if (!supplyType) return false;
+
       return true;
     }
 
