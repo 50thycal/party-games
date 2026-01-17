@@ -2622,13 +2622,25 @@ export function CometRushGameView({
             {isMyTurn ? (
               <MissionButton
                 onClick={handleEndTurn}
-                disabled={isEndingTurn}
+                disabled={
+                  isEndingTurn ||
+                  !!gameState?.pendingDiplomaticPressure ||
+                  !!gameState?.pendingLaunch ||
+                  !!gameState?.lastLaunchResult?.canReroll ||
+                  !!gameState?.lastLaunchResult?.mustReroll
+                }
                 variant="success"
                 size="lg"
                 className="flex-1"
                 isLoading={isEndingTurn}
               >
-                {isEndingTurn ? "Ending..." : "End Turn"}
+                {isEndingTurn
+                  ? "Ending..."
+                  : gameState?.pendingLaunch
+                    ? "Roll First"
+                    : (gameState?.lastLaunchResult?.canReroll || gameState?.lastLaunchResult?.mustReroll)
+                      ? "Decide Reroll"
+                      : "End Turn"}
               </MissionButton>
             ) : (
               <div className="flex-1 text-center py-3 text-mission-steel text-sm">

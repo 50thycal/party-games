@@ -2105,9 +2105,12 @@ function reducer(
 
       const rocket = player.rockets[rocketIndex];
 
-      // Re-roll the dice
+      // Re-roll the dice - use calibrated accuracy from the original launch result
+      // The lastResult.accuracyNeeded and lastResult.power contain the calibrated values
+      const calibratedAccuracy = lastResult.accuracyNeeded;
+      const calibratedPower = lastResult.power;
       const diceRoll = roll1d6(ctx.random);
-      const hit = diceRoll <= rocket.accuracy;
+      const hit = diceRoll <= calibratedAccuracy;
 
       // Calculate salvage bonus (applies after final result)
       const salvageBonus = player.upgrades.salvageBonus;
@@ -2118,9 +2121,9 @@ function reducer(
           playerId: action.playerId,
           rocketId: rocket.id,
           diceRoll,
-          accuracyNeeded: rocket.accuracy,
+          accuracyNeeded: calibratedAccuracy,
           hit: false,
-          power: rocket.power,
+          power: calibratedPower,
           strengthBefore: state.activeStrengthCard?.currentStrength ?? 0,
           strengthAfter: state.activeStrengthCard?.currentStrength ?? 0,
           destroyed: false,
@@ -2170,7 +2173,7 @@ function reducer(
       let trophyCard: StrengthCard | null = null;
       let finalDestroyerId = state.finalDestroyerId;
 
-      if (rocket.power >= activeStrengthCard.currentStrength) {
+      if (calibratedPower >= activeStrengthCard.currentStrength) {
         destroyed = true;
         trophyCard = activeStrengthCard;
         updatedStrengthCard = null;
@@ -2181,7 +2184,7 @@ function reducer(
       } else {
         updatedStrengthCard = {
           ...activeStrengthCard,
-          currentStrength: activeStrengthCard.currentStrength - rocket.power,
+          currentStrength: activeStrengthCard.currentStrength - calibratedPower,
         };
       }
 
@@ -2193,9 +2196,9 @@ function reducer(
         playerId: action.playerId,
         rocketId: rocket.id,
         diceRoll,
-        accuracyNeeded: rocket.accuracy,
+        accuracyNeeded: calibratedAccuracy,
         hit: true,
-        power: rocket.power,
+        power: calibratedPower,
         strengthBefore: activeStrengthCard.currentStrength,
         strengthAfter: destroyed ? 0 : (updatedStrengthCard?.currentStrength ?? 0),
         destroyed,
@@ -2338,9 +2341,12 @@ function reducer(
 
       const rocket = player.rockets[rocketIndex];
 
-      // Re-roll the dice (this is the actual launch roll)
+      // Re-roll the dice - use calibrated values from the original launch result
+      // The lastResult.accuracyNeeded and lastResult.power contain the calibrated values
+      const calibratedAccuracy = lastResult.accuracyNeeded;
+      const calibratedPower = lastResult.power;
       const diceRoll = roll1d6(ctx.random);
-      const hit = diceRoll <= rocket.accuracy;
+      const hit = diceRoll <= calibratedAccuracy;
 
       // Check if player CAN use optional reroll token after forced reroll
       const canReroll = !hit && player.hasRerollToken;
@@ -2359,9 +2365,9 @@ function reducer(
           playerId: action.playerId,
           rocketId: rocket.id,
           diceRoll,
-          accuracyNeeded: rocket.accuracy,
+          accuracyNeeded: calibratedAccuracy,
           hit: false,
-          power: rocket.power,
+          power: calibratedPower,
           strengthBefore: state.activeStrengthCard?.currentStrength ?? 0,
           strengthAfter: state.activeStrengthCard?.currentStrength ?? 0,
           destroyed: false,
@@ -2378,6 +2384,7 @@ function reducer(
           resourceCubes: player.resourceCubes + (canReroll ? 0 : salvageBonus),
           hasRerollToken: player.hasRerollToken,
           mustRerollNextLaunch: false, // Consumed
+          pendingCalibration: { accuracyBonus: 0, powerBonus: 0 }, // Clear calibration after forced reroll
         };
 
         const forcedRerollMissState = {
@@ -2412,7 +2419,7 @@ function reducer(
       let trophyCard: StrengthCard | null = null;
       let finalDestroyerId = state.finalDestroyerId;
 
-      if (rocket.power >= activeStrengthCard.currentStrength) {
+      if (calibratedPower >= activeStrengthCard.currentStrength) {
         destroyed = true;
         trophyCard = activeStrengthCard;
         updatedStrengthCard = null;
@@ -2423,7 +2430,7 @@ function reducer(
       } else {
         updatedStrengthCard = {
           ...activeStrengthCard,
-          currentStrength: activeStrengthCard.currentStrength - rocket.power,
+          currentStrength: activeStrengthCard.currentStrength - calibratedPower,
         };
       }
 
@@ -2441,9 +2448,9 @@ function reducer(
         playerId: action.playerId,
         rocketId: rocket.id,
         diceRoll,
-        accuracyNeeded: rocket.accuracy,
+        accuracyNeeded: calibratedAccuracy,
         hit: true,
-        power: rocket.power,
+        power: calibratedPower,
         strengthBefore: activeStrengthCard.currentStrength,
         strengthAfter: destroyed ? 0 : (updatedStrengthCard?.currentStrength ?? 0),
         destroyed,
@@ -2461,6 +2468,7 @@ function reducer(
         resourceCubes: player.resourceCubes + salvageBonus,
         hasRerollToken: player.hasRerollToken,
         mustRerollNextLaunch: false,
+        pendingCalibration: { accuracyBonus: 0, powerBonus: 0 }, // Clear calibration after forced reroll
       };
 
       const totalDestroyed = Object.values(state.players).reduce(
@@ -2635,6 +2643,16 @@ function reducer(
       const player = state.players[action.playerId];
       if (!player) return state;
 
+      // Block ending turn while there are pending actions that need resolution
+      // 1. Pending Diplomatic Pressure attack awaiting response
+      if (state.pendingDiplomaticPressure) return state;
+
+      // 2. Pending launch awaiting dice roll confirmation
+      if (state.pendingLaunch) return state;
+
+      // 3. Launch result awaiting reroll decision (canReroll or mustReroll)
+      if (state.lastLaunchResult?.canReroll || state.lastLaunchResult?.mustReroll) return state;
+
       let nextIndex = state.activePlayerIndex + 1;
       let round = state.round;
       let distanceToImpact = state.distanceToImpact;
@@ -2763,8 +2781,20 @@ function isActionAllowed(
     case "BUILD_ROCKET":
     case "LAUNCH_ROCKET":
     case "USE_REROLL":
-    case "END_TURN":
+    case "DECLINE_REROLL":
+    case "FORCED_REROLL":
       return state.phase === "playing" && ctx.playerId === activePlayerId;
+
+    case "END_TURN":
+      // Active player can end turn, but not while there are pending actions
+      if (state.phase !== "playing" || ctx.playerId !== activePlayerId) return false;
+      // Block if waiting for Diplomatic Pressure response
+      if (state.pendingDiplomaticPressure) return false;
+      // Block if waiting for dice roll confirmation
+      if (state.pendingLaunch) return false;
+      // Block if waiting for reroll decision
+      if (state.lastLaunchResult?.canReroll || state.lastLaunchResult?.mustReroll) return false;
+      return true;
 
     case "CONFIRM_ROLL":
       // Only the player who initiated the launch can confirm the roll
