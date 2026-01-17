@@ -1256,21 +1256,16 @@ function CustomerCardHidden({ customer }: { customer: CustomerCard }) {
       <h3 className="text-xl font-bold text-white mb-2">{archetype.name}</h3>
       <p className="text-gray-400 text-sm mb-4">{archetype.description}</p>
 
-      {/* Delight & Storm hints */}
-      <div className="grid grid-cols-2 gap-2 mb-4 text-xs">
-        <div className="bg-yellow-900/30 border border-yellow-700/50 rounded p-2">
-          <p className="text-yellow-500 font-semibold mb-1">Delight</p>
-          <p className="text-yellow-300/80">{archetype.delightDescription}</p>
-        </div>
-        <div className="bg-red-900/30 border border-red-700/50 rounded p-2">
-          <p className="text-red-500 font-semibold mb-1">Storm Out</p>
-          <p className="text-red-300/80">{archetype.stormOutDescription}</p>
-        </div>
+      {/* Archetype hint - card-specific outcomes are revealed at resolution */}
+      <div className="bg-gray-700/50 rounded-lg p-3 mb-3">
+        <p className="text-gray-400 text-xs">
+          Each {archetype.name} has unique outcomes when delighted or turned away.
+        </p>
       </div>
 
       <div className="bg-gray-700/50 rounded-lg p-3">
         <p className="text-gray-500 text-xs uppercase tracking-wide">Order Hidden</p>
-        <p className="text-gray-400 text-sm mt-1">Will be revealed at resolution</p>
+        <p className="text-gray-400 text-sm mt-1">Delight/storm conditions revealed at resolution</p>
       </div>
     </div>
   );
@@ -1301,8 +1296,6 @@ function CustomerCardFullDisplay({ customer }: { customer: CustomerCard }) {
         </div>
       </div>
 
-      <p className="text-gray-300 text-sm mb-3">{archetype.description}</p>
-
       {/* Required Supplies */}
       <div className="bg-gray-900/50 rounded p-3 mb-3">
         <p className="text-xs text-gray-400 mb-2">Requires:</p>
@@ -1319,15 +1312,16 @@ function CustomerCardFullDisplay({ customer }: { customer: CustomerCard }) {
         </div>
       </div>
 
-      {/* Delight & Storm Out conditions */}
+      {/* Card-level Delight & Storm Out outcomes */}
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div className="bg-yellow-900/30 border border-yellow-700/50 rounded p-2">
-          <p className="text-yellow-500 font-semibold mb-1">Delight (Rep +1)</p>
-          <p className="text-yellow-300/80">{archetype.delightDescription}</p>
+          <p className="text-yellow-500 font-semibold mb-1">Delight</p>
+          <p className="text-yellow-300/80 mb-1">{back.delightDescription}</p>
+          <p className="text-green-400">{back.delightOutcomeDescription}</p>
         </div>
         <div className="bg-red-900/30 border border-red-700/50 rounded p-2">
           <p className="text-red-500 font-semibold mb-1">Storm Out</p>
-          <p className="text-red-300/80">{archetype.stormOutDescription}</p>
+          <p className="text-red-300/80">{back.stormOutDescription}</p>
         </div>
       </div>
     </div>
@@ -1411,7 +1405,6 @@ function CustomerResolutionView({
 
   const predictOutcome = (index: number): { canFulfill: boolean; outcome: PredictedOutcome; remainingAfter: Record<SupplyType, number> } => {
     const customer = player.customerLine[index];
-    const archetype = getCardArchetype(customer);
     const isSelected = selectedIndices.includes(index);
 
     if (!isSelected) {
@@ -1451,11 +1444,14 @@ function CustomerResolutionView({
       }
     }
 
-    // Check delight condition
-    const condition = archetype.delightCondition;
+    // Check card-level delight condition
+    const condition = customer.back.delightCondition;
     let isDelighted = false;
 
-    if (condition.type === "surplus_supply") {
+    if (condition.type === "always") {
+      // Always delighted when fulfilled
+      isDelighted = true;
+    } else if (condition.type === "surplus_supply") {
       isDelighted = remainingAfter[condition.supply] >= condition.amount;
     } else if (condition.type === "all_supplies_stocked") {
       // Check supplies BEFORE consuming this order
@@ -1647,22 +1643,27 @@ function CustomerResolutionView({
                         <p className="text-xs text-gray-500 mt-1">
                           Requires: {requiredList.join(", ") || "Nothing"}
                         </p>
-                        {/* Delight condition hint */}
+                        {/* Card-level delight condition hint */}
                         <p className="text-xs text-yellow-500/70 mt-1">
-                          Delight: {archetype.delightDescription}
+                          Delight: {customer.back.delightDescription}
                         </p>
+                        {prediction.outcome === "delighted" && (
+                          <p className="text-xs text-green-400 mt-1">
+                            {customer.back.delightOutcomeDescription}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="text-right">
                       <span className="text-yellow-400 font-bold">${customer.back.reward.money}</span>
                       {isSelected && prediction.outcome === "stormed_out" && (
                         <p className="text-xs text-red-400 mt-1">
-                          {archetype.stormOutDescription}
+                          {customer.back.stormOutDescription}
                         </p>
                       )}
                       {!isSelected && (
                         <p className="text-xs text-red-400 mt-1">
-                          {archetype.stormOutDescription}
+                          {customer.back.stormOutDescription}
                         </p>
                       )}
                     </div>
