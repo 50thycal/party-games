@@ -11,6 +11,7 @@ export const REAL_ESTATE_CONFIG = {
   MARKET_SIZE: 4,
   DECK_SIZE: 16,
   MIN_CASH_TO_CONTINUE: 20, // below this, the round ends automatically
+  TURN_TIMEOUT_MS: 15000,
 };
 
 // =============================================================================
@@ -73,6 +74,7 @@ export type RealEstateLogEntry =
   | {
       type: "pass";
       playerId: string;
+      auto?: boolean;
       at: number;
     }
   | {
@@ -95,6 +97,7 @@ export interface RealEstateState {
   // Turn order
   playerOrder: string[];
   currentTurnIndex: number;
+  turnStartedAt: number; // ms epoch, used to drive the turn timer
 
   // Players
   players: Record<string, RealEstatePlayer>;
@@ -115,6 +118,7 @@ export type RealEstateActionType =
   | "START_GAME"
   | "BUY_HOUSE"
   | "PASS"
+  | "TURN_TIMEOUT"
   | "PLAY_AGAIN";
 
 export interface RealEstateAction extends BaseAction {
@@ -206,6 +210,46 @@ function shouldEndRound(state: RealEstateState, nowMs: number): {
   return { end: false, reason: null };
 }
 
+function advanceTurnWithPass(
+  state: RealEstateState,
+  ctx: GameContext,
+  activePlayerId: string,
+  auto: boolean
+): RealEstateState {
+  const now = ctx.now();
+  const nextTurnIndex =
+    (state.currentTurnIndex + 1) % state.playerOrder.length;
+
+  const interim: RealEstateState = {
+    ...state,
+    currentTurnIndex: nextTurnIndex,
+    turnStartedAt: now,
+    log: appendLog(state.log, {
+      type: "pass",
+      playerId: activePlayerId,
+      auto,
+      at: now,
+    }),
+  };
+
+  const endCheck = shouldEndRound(interim, now);
+  if (endCheck.end) {
+    const { scores, winnerId } = computeScores(interim.players);
+    return {
+      ...interim,
+      phase: "results",
+      scores,
+      winnerId,
+      log: appendLog(interim.log, {
+        type: "round_ended",
+        reason: endCheck.reason!,
+        at: now,
+      }),
+    };
+  }
+  return interim;
+}
+
 function computeScores(
   players: Record<string, RealEstatePlayer>
 ): { scores: Record<string, number>; winnerId: string | null } {
@@ -243,6 +287,7 @@ function initialState(players: Player[]): RealEstateState {
     deck: [],
     playerOrder: players.map((p) => p.id),
     currentTurnIndex: 0,
+    turnStartedAt: 0,
     players: playerState,
     log: [],
     scores: null,
@@ -296,6 +341,7 @@ function reducer(
         deck,
         playerOrder: ctx.room.players.map((p) => p.id),
         currentTurnIndex: 0,
+        turnStartedAt: ctx.now(),
         players,
         log: [],
         scores: null,
@@ -369,6 +415,7 @@ function reducer(
         players: nextPlayers,
         log: nextLog,
         currentTurnIndex: nextTurnIndex,
+        turnStartedAt: now,
       };
 
       // Check end-of-round conditions.
@@ -395,38 +442,15 @@ function reducer(
       if (state.phase !== "playing") return state;
       const activePlayerId = state.playerOrder[state.currentTurnIndex];
       if (action.playerId !== activePlayerId) return state;
+      return advanceTurnWithPass(state, ctx, activePlayerId, false);
+    }
 
-      const now = ctx.now();
-      const nextTurnIndex =
-        (state.currentTurnIndex + 1) % state.playerOrder.length;
-
-      const interim: RealEstateState = {
-        ...state,
-        currentTurnIndex: nextTurnIndex,
-        log: appendLog(state.log, {
-          type: "pass",
-          playerId: action.playerId,
-          at: now,
-        }),
-      };
-
-      const endCheck = shouldEndRound(interim, now);
-      if (endCheck.end) {
-        const { scores, winnerId } = computeScores(interim.players);
-        return {
-          ...interim,
-          phase: "results",
-          scores,
-          winnerId,
-          log: appendLog(interim.log, {
-            type: "round_ended",
-            reason: endCheck.reason!,
-            at: now,
-          }),
-        };
-      }
-
-      return interim;
+    case "TURN_TIMEOUT": {
+      if (state.phase !== "playing") return state;
+      const elapsed = ctx.now() - state.turnStartedAt;
+      if (elapsed < REAL_ESTATE_CONFIG.TURN_TIMEOUT_MS) return state;
+      const activePlayerId = state.playerOrder[state.currentTurnIndex];
+      return advanceTurnWithPass(state, ctx, activePlayerId, true);
     }
 
     case "PLAY_AGAIN": {
@@ -463,6 +487,13 @@ export const realEstateGame = defineGame<RealEstateState, RealEstateAction>({
         if (state.phase !== "playing") return false;
         return (
           state.playerOrder[state.currentTurnIndex] === action.playerId
+        );
+      case "TURN_TIMEOUT":
+        // Any client can fire this — server validates the deadline in the reducer.
+        // We still gate on phase + elapsed here so stale timeouts don't churn version.
+        return (
+          state.phase === "playing" &&
+          ctx.now() - state.turnStartedAt >= REAL_ESTATE_CONFIG.TURN_TIMEOUT_MS
         );
       case "PLAY_AGAIN":
         return (

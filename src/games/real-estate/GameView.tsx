@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { GameViewProps } from "@/games/views";
 import {
   HOUSE_CATEGORIES,
+  REAL_ESTATE_CONFIG,
   type HouseCategory,
   type Listing,
   type RealEstateLogEntry,
   type RealEstateState,
 } from "./config";
-import { getCurrentPrice } from "./pricing";
+import { getCurrentPrice, PRICE_TICK_MS } from "./pricing";
 
 const CATEGORY_LABEL: Record<HouseCategory, string> = {
   condo: "Condo",
@@ -32,13 +33,14 @@ const CATEGORY_ACCENT: Record<HouseCategory, string> = {
   waterfront: "border-blue-700 bg-blue-950/40",
 };
 
-// Tick the local clock so prices animate. The server is authoritative when a
-// buy action lands.
+// Tick the local clock for the turn countdown and the next-price-tick indicator.
+// 250ms is enough — prices only step every PRICE_TICK_MS, and the countdown is
+// in whole seconds.
 function useLiveClock(active: boolean) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!active) return;
-    const id = setInterval(() => setNow(Date.now()), 120);
+    const id = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(id);
   }, [active]);
   return now;
@@ -214,6 +216,23 @@ export function RealEstateGameView({
     : 0;
   const myHouses = game.players[playerId]?.houses ?? [];
 
+  // Turn timer
+  const turnDeadline = game.turnStartedAt + REAL_ESTATE_CONFIG.TURN_TIMEOUT_MS;
+  const msLeft = Math.max(0, turnDeadline - now);
+  const secondsLeft = Math.ceil(msLeft / 1000);
+  const timeoutFiredFor = useRef<number>(0);
+  useEffect(() => {
+    // Only the active player's client auto-fires the timeout so the room doesn't
+    // get spammed. Server validates the deadline regardless.
+    if (!isMyTurn) return;
+    if (msLeft > 0) return;
+    if (timeoutFiredFor.current === game.turnStartedAt) return;
+    timeoutFiredFor.current = game.turnStartedAt;
+    dispatchAction("TURN_TIMEOUT").catch(() => {
+      // If it fails (turn already advanced), let the next poll resync state.
+    });
+  }, [isMyTurn, msLeft, game.turnStartedAt, dispatchAction]);
+
   return (
     <>
       {/* Shared bank */}
@@ -247,26 +266,60 @@ export function RealEstateGameView({
 
       {/* Turn indicator */}
       <section
-        className={`border rounded-lg p-3 mb-4 text-center ${
+        className={`border rounded-lg p-3 mb-4 ${
           isMyTurn
             ? "bg-blue-900/40 border-blue-600"
             : "bg-gray-800 border-gray-700"
         }`}
       >
-        <p className="text-xs text-gray-400 uppercase tracking-wide">
-          Current Turn
-        </p>
-        <p
-          className={`text-lg font-bold ${
-            isMyTurn ? "text-blue-300" : "text-gray-200"
-          }`}
-        >
-          {isMyTurn
-            ? "Your Turn"
-            : activePlayer
-              ? `${activePlayer.name}'s turn`
-              : "—"}
-        </p>
+        <div className="flex justify-between items-center">
+          <div>
+            <p className="text-xs text-gray-400 uppercase tracking-wide">
+              Current Turn
+            </p>
+            <p
+              className={`text-lg font-bold ${
+                isMyTurn ? "text-blue-300" : "text-gray-200"
+              }`}
+            >
+              {isMyTurn
+                ? "Your Turn"
+                : activePlayer
+                  ? `${activePlayer.name}'s turn`
+                  : "—"}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-gray-400 uppercase tracking-wide">
+              Time
+            </p>
+            <p
+              className={`text-2xl font-bold tabular-nums ${
+                secondsLeft <= 5
+                  ? "text-red-400"
+                  : secondsLeft <= 10
+                    ? "text-yellow-300"
+                    : "text-gray-200"
+              }`}
+            >
+              {secondsLeft}s
+            </p>
+          </div>
+        </div>
+        <div className="mt-2 w-full bg-gray-900 h-1 rounded overflow-hidden">
+          <div
+            className={`h-full ${
+              secondsLeft <= 5
+                ? "bg-red-500"
+                : secondsLeft <= 10
+                  ? "bg-yellow-500"
+                  : "bg-blue-500"
+            }`}
+            style={{
+              width: `${(msLeft / REAL_ESTATE_CONFIG.TURN_TIMEOUT_MS) * 100}%`,
+            }}
+          />
+        </div>
       </section>
 
       {/* Market */}
@@ -423,6 +476,12 @@ function MarketListing({
   const price = getCurrentPrice(listing, now);
   const canAfford = price <= cashPool;
   const buying = pendingActionId === `buy-${listing.id}`;
+  const elapsed = Math.max(0, now - listing.listedAt);
+  const intoTick = elapsed % PRICE_TICK_MS;
+  const secondsToNextTick = Math.max(
+    1,
+    Math.ceil((PRICE_TICK_MS - intoTick) / 1000)
+  );
   return (
     <li
       className={`border rounded-lg p-3 ${
@@ -435,7 +494,7 @@ function MarketListing({
             {CATEGORY_EMOJI[listing.category]} {CATEGORY_LABEL[listing.category]}
           </p>
           <p className="text-xs text-gray-400">
-            Listed at ${listing.basePrice}
+            Listed at ${listing.basePrice} · next price in {secondsToNextTick}s
           </p>
         </div>
         <div className="text-right">
@@ -463,11 +522,12 @@ function MarketListing({
 }
 
 function PriceDelta({ listing, now }: { listing: Listing; now: number }) {
-  // Show short-window momentum (~1.5s) so wobble has a direction.
+  // Show change from the previous tick. With quantized pricing this is the
+  // last step direction and stays stable across the whole current tick window.
   const current = getCurrentPrice(listing, now);
-  const previous = getCurrentPrice(listing, now - 1500);
+  const previous = getCurrentPrice(listing, now - PRICE_TICK_MS);
   const delta = current - previous;
-  if (Math.abs(delta) < 1) {
+  if (delta === 0) {
     return <p className="text-xs text-gray-500">→ steady</p>;
   }
   return (
@@ -491,7 +551,7 @@ function formatLogEntry(
   }
   if (entry.type === "pass") {
     const name = game.players[entry.playerId]?.name ?? "Someone";
-    return `${name} passed`;
+    return entry.auto ? `${name} ran out of time` : `${name} passed`;
   }
   if (entry.type === "round_ended") {
     return entry.reason === "cash_depleted"
