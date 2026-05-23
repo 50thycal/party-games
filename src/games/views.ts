@@ -4,6 +4,7 @@ import type { Room } from "@/engine/types";
 import { NumberGuessGameView } from "./number-guess/GameView";
 import { CometRushGameView } from "./comet-rush/GameView";
 import { CafeGameView } from "./cafe/GameView";
+import { RealEstateGameView } from "./real-estate/GameView";
 
 // Props passed to game views
 export type GameViewProps<S = unknown> = {
@@ -49,6 +50,13 @@ export const gameOptions: GameOption[] = [
     minPlayers: 2,
     maxPlayers: 4,
   },
+  {
+    id: "real-estate",
+    name: "Open House",
+    description: "Buy houses in a drifting market with a shared bank.",
+    minPlayers: 2,
+    maxPlayers: 6,
+  },
 ];
 
 // Registry of game view components
@@ -56,6 +64,7 @@ const gameViews: Record<string, GameViewComponent> = {
   "number-guess": NumberGuessGameView as GameViewComponent,
   "comet-rush": CometRushGameView as GameViewComponent,
   "cafe": CafeGameView as GameViewComponent,
+  "real-estate": RealEstateGameView as GameViewComponent,
 };
 
 /**
