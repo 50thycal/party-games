@@ -3,11 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import type { GameViewProps } from "@/games/views";
 import {
+  DEFAULT_SETTINGS,
   HOUSE_CATEGORIES,
-  REAL_ESTATE_CONFIG,
+  SETTINGS_BOUNDS,
   type HouseCategory,
   type Listing,
   type RealEstateLogEntry,
+  type RealEstateSettings,
   type RealEstateState,
 } from "./config";
 import { getCurrentPrice, PRICE_TICK_MS } from "./pricing";
@@ -68,13 +70,12 @@ export function RealEstateGameView({
   const isMyTurnForTimer =
     activePlayerIdForTimer !== null && activePlayerIdForTimer === playerId;
   const turnStartedAt = game?.turnStartedAt ?? 0;
+  const turnTimeoutMs =
+    game?.settings?.turnTimeoutMs ?? DEFAULT_SETTINGS.turnTimeoutMs;
   const msLeft =
     phase === "playing"
-      ? Math.max(
-          0,
-          turnStartedAt + REAL_ESTATE_CONFIG.TURN_TIMEOUT_MS - now
-        )
-      : REAL_ESTATE_CONFIG.TURN_TIMEOUT_MS;
+      ? Math.max(0, turnStartedAt + turnTimeoutMs - now)
+      : turnTimeoutMs;
 
   useEffect(() => {
     // Only the active player's client auto-fires the timeout so the room doesn't
@@ -91,45 +92,56 @@ export function RealEstateGameView({
 
   // ---- LOBBY ----
   if (!game || phase === "lobby") {
+    const settings = game?.settings ?? DEFAULT_SETTINGS;
+    const turnSeconds = Math.round(settings.turnTimeoutMs / 1000);
     return (
-      <section className="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-6">
-        <h2 className="font-semibold mb-2">Open House</h2>
-        <p className="text-sm text-gray-400 mb-4">
-          The market is live. Prices drift across {" "}
-          {HOUSE_CATEGORIES.length} categories — every 5 seconds they step to a
-          new value. On your turn (15s), pick one action: <strong>buy</strong> a
-          listing at the current price, <strong>inspect</strong> one to privately
-          reveal its true value, or <strong>pass</strong>. The table shares one
-          bank and one pool of inspectors, so every move makes things tighter for
-          everyone. Game ends when the listings run out or the bank can&apos;t
-          afford the cheapest house. Highest profit (true value − price paid)
-          wins.
-        </p>
-        {isHost ? (
-          <button
-            onClick={async () => {
-              setPendingActionId("start");
-              try {
-                await dispatchAction("START_GAME");
-              } finally {
-                setPendingActionId(null);
-              }
-            }}
-            disabled={pendingActionId !== null || room.players.length < 2}
-            className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-          >
-            {pendingActionId === "start"
-              ? "Starting…"
-              : room.players.length < 2
-                ? "Need at least 2 players"
-                : "Start Game"}
-          </button>
-        ) : (
-          <p className="text-sm text-gray-500">
-            Waiting for the host to start the game…
+      <>
+        <section className="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-4">
+          <h2 className="font-semibold mb-2">Open House</h2>
+          <p className="text-sm text-gray-400 mb-4">
+            The market is live. Prices drift across {" "}
+            {HOUSE_CATEGORIES.length} categories — every 5 seconds they step to a
+            new value. On your turn ({turnSeconds}s), pick one action:{" "}
+            <strong>buy</strong> a listing at the current price,{" "}
+            <strong>inspect</strong> one to privately reveal its true value, or{" "}
+            <strong>pass</strong>. The table shares one bank and one pool of
+            inspectors, so every move makes things tighter for everyone. Game
+            ends when the listings run out or the bank can&apos;t afford the
+            cheapest house. Highest profit (true value − price paid) wins.
           </p>
-        )}
-      </section>
+          {isHost ? (
+            <button
+              onClick={async () => {
+                setPendingActionId("start");
+                try {
+                  await dispatchAction("START_GAME");
+                } finally {
+                  setPendingActionId(null);
+                }
+              }}
+              disabled={pendingActionId !== null || room.players.length < 2}
+              className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+            >
+              {pendingActionId === "start"
+                ? "Starting…"
+                : room.players.length < 2
+                  ? "Need at least 2 players"
+                  : "Start Game"}
+            </button>
+          ) : (
+            <p className="text-sm text-gray-500">
+              Waiting for the host to start the game…
+            </p>
+          )}
+        </section>
+
+        <SettingsPanel
+          settings={settings}
+          isHost={isHost}
+          disabled={pendingActionId !== null}
+          dispatchAction={dispatchAction}
+        />
+      </>
     );
   }
 
@@ -367,7 +379,7 @@ export function RealEstateGameView({
                   : "bg-blue-500"
             }`}
             style={{
-              width: `${(msLeft / REAL_ESTATE_CONFIG.TURN_TIMEOUT_MS) * 100}%`,
+              width: `${(msLeft / turnTimeoutMs) * 100}%`,
             }}
           />
         </div>
@@ -528,6 +540,211 @@ export function RealEstateGameView({
 // =============================================================================
 // SUB-COMPONENTS
 // =============================================================================
+
+type SettingFieldKey = keyof RealEstateSettings;
+
+const SETTING_FIELDS: ReadonlyArray<{
+  key: SettingFieldKey;
+  label: string;
+  // For display + edit only. Internal storage may differ (e.g. turnTimeoutMs).
+  toDisplay: (v: number) => number;
+  fromDisplay: (v: number) => number;
+  displayMin: number;
+  displayMax: number;
+  suffix?: string;
+  step?: number;
+  help?: string;
+}> = [
+  {
+    key: "startingCashPerPlayer",
+    label: "Starting cash per player",
+    toDisplay: (v) => v,
+    fromDisplay: (v) => v,
+    displayMin: SETTINGS_BOUNDS.startingCashPerPlayer.min,
+    displayMax: SETTINGS_BOUNDS.startingCashPerPlayer.max,
+    suffix: "$",
+    step: 10,
+  },
+  {
+    key: "startingInspectors",
+    label: "Inspectors",
+    toDisplay: (v) => v,
+    fromDisplay: (v) => v,
+    displayMin: SETTINGS_BOUNDS.startingInspectors.min,
+    displayMax: SETTINGS_BOUNDS.startingInspectors.max,
+    step: 1,
+    help: "0 disables inspection",
+  },
+  {
+    key: "turnTimeoutMs",
+    label: "Turn time",
+    toDisplay: (v) => Math.round(v / 1000),
+    fromDisplay: (v) => v * 1000,
+    displayMin: Math.round(SETTINGS_BOUNDS.turnTimeoutMs.min / 1000),
+    displayMax: Math.round(SETTINGS_BOUNDS.turnTimeoutMs.max / 1000),
+    suffix: "s",
+    step: 1,
+  },
+  {
+    key: "marketSize",
+    label: "Listings visible",
+    toDisplay: (v) => v,
+    fromDisplay: (v) => v,
+    displayMin: SETTINGS_BOUNDS.marketSize.min,
+    displayMax: SETTINGS_BOUNDS.marketSize.max,
+    step: 1,
+  },
+  {
+    key: "deckSize",
+    label: "Houses in deck",
+    toDisplay: (v) => v,
+    fromDisplay: (v) => v,
+    displayMin: SETTINGS_BOUNDS.deckSize.min,
+    displayMax: SETTINGS_BOUNDS.deckSize.max,
+    step: 1,
+  },
+];
+
+function SettingsPanel({
+  settings,
+  isHost,
+  disabled,
+  dispatchAction,
+}: {
+  settings: RealEstateSettings;
+  isHost: boolean;
+  disabled: boolean;
+  dispatchAction: (
+    type: string,
+    payload?: Record<string, unknown>
+  ) => Promise<void>;
+}) {
+  // Local input state. Server is the source of truth — we mirror it and only
+  // dispatch on commit (Enter / blur).
+  const [draft, setDraft] = useState<Record<SettingFieldKey, string>>(() =>
+    Object.fromEntries(
+      SETTING_FIELDS.map((f) => [
+        f.key,
+        String(f.toDisplay(settings[f.key])),
+      ])
+    ) as Record<SettingFieldKey, string>
+  );
+
+  // If the server settings change (e.g. host edited from another device, or
+  // PLAY_AGAIN restored), re-sync the draft.
+  useEffect(() => {
+    setDraft(
+      Object.fromEntries(
+        SETTING_FIELDS.map((f) => [
+          f.key,
+          String(f.toDisplay(settings[f.key])),
+        ])
+      ) as Record<SettingFieldKey, string>
+    );
+  }, [settings]);
+
+  async function commit(field: (typeof SETTING_FIELDS)[number], raw: string) {
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) {
+      setDraft((d) => ({
+        ...d,
+        [field.key]: String(field.toDisplay(settings[field.key])),
+      }));
+      return;
+    }
+    const clamped = Math.max(
+      field.displayMin,
+      Math.min(field.displayMax, Math.round(parsed))
+    );
+    const stored = field.fromDisplay(clamped);
+    if (stored === settings[field.key]) {
+      setDraft((d) => ({ ...d, [field.key]: String(clamped) }));
+      return;
+    }
+    await dispatchAction("UPDATE_SETTINGS", {
+      settings: { [field.key]: stored },
+    });
+  }
+
+  async function resetDefaults() {
+    await dispatchAction("UPDATE_SETTINGS", { settings: DEFAULT_SETTINGS });
+  }
+
+  return (
+    <section className="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-6">
+      <div className="flex justify-between items-baseline mb-3">
+        <h2 className="text-sm font-semibold text-gray-300">Game Settings</h2>
+        {isHost && (
+          <button
+            onClick={resetDefaults}
+            disabled={disabled}
+            className="text-xs text-gray-400 hover:text-white disabled:text-gray-600 disabled:cursor-not-allowed"
+          >
+            Reset defaults
+          </button>
+        )}
+      </div>
+      {!isHost && (
+        <p className="text-xs text-gray-500 mb-3">
+          Only the host can change these.
+        </p>
+      )}
+      <ul className="space-y-2">
+        {SETTING_FIELDS.map((field) => {
+          const displayed = field.toDisplay(settings[field.key]);
+          return (
+            <li
+              key={field.key}
+              className="flex items-center justify-between gap-3"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-gray-200">{field.label}</p>
+                {field.help && (
+                  <p className="text-[10px] text-gray-500">{field.help}</p>
+                )}
+              </div>
+              {isHost ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={field.displayMin}
+                    max={field.displayMax}
+                    step={field.step ?? 1}
+                    value={draft[field.key]}
+                    disabled={disabled}
+                    onChange={(e) =>
+                      setDraft((d) => ({ ...d, [field.key]: e.target.value }))
+                    }
+                    onBlur={(e) => {
+                      void commit(field, e.target.value);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        (e.target as HTMLInputElement).blur();
+                      }
+                    }}
+                    className="w-20 bg-gray-900 border border-gray-700 rounded px-2 py-1 text-right text-sm tabular-nums focus:outline-none focus:border-blue-500"
+                  />
+                  {field.suffix && (
+                    <span className="text-sm text-gray-400">
+                      {field.suffix}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <span className="text-sm font-semibold text-gray-200 tabular-nums">
+                  {displayed}
+                  {field.suffix ?? ""}
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
 
 function MarketListing({
   listing,
