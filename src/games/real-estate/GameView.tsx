@@ -57,6 +57,37 @@ export function RealEstateGameView({
   const phase = game?.phase ?? "lobby";
   const now = useLiveClock(phase === "playing");
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
+  const timeoutFiredFor = useRef<number>(0);
+
+  // Turn-timer values are derived here so the auto-timeout effect below can
+  // sit above the early returns (Rules of Hooks).
+  const activePlayerIdForTimer =
+    game && phase === "playing"
+      ? game.playerOrder[game.currentTurnIndex]
+      : null;
+  const isMyTurnForTimer =
+    activePlayerIdForTimer !== null && activePlayerIdForTimer === playerId;
+  const turnStartedAt = game?.turnStartedAt ?? 0;
+  const msLeft =
+    phase === "playing"
+      ? Math.max(
+          0,
+          turnStartedAt + REAL_ESTATE_CONFIG.TURN_TIMEOUT_MS - now
+        )
+      : REAL_ESTATE_CONFIG.TURN_TIMEOUT_MS;
+
+  useEffect(() => {
+    // Only the active player's client auto-fires the timeout so the room doesn't
+    // get spammed. Server validates the deadline regardless.
+    if (phase !== "playing") return;
+    if (!isMyTurnForTimer) return;
+    if (msLeft > 0) return;
+    if (timeoutFiredFor.current === turnStartedAt) return;
+    timeoutFiredFor.current = turnStartedAt;
+    dispatchAction("TURN_TIMEOUT").catch(() => {
+      // If it fails (turn already advanced), let the next poll resync state.
+    });
+  }, [phase, isMyTurnForTimer, msLeft, turnStartedAt, dispatchAction]);
 
   // ---- LOBBY ----
   if (!game || phase === "lobby") {
@@ -219,23 +250,7 @@ export function RealEstateGameView({
     : 0;
   const myHouses = game.players[playerId]?.houses ?? [];
   const myInspections = new Set(game.inspections[playerId] ?? []);
-
-  // Turn timer
-  const turnDeadline = game.turnStartedAt + REAL_ESTATE_CONFIG.TURN_TIMEOUT_MS;
-  const msLeft = Math.max(0, turnDeadline - now);
   const secondsLeft = Math.ceil(msLeft / 1000);
-  const timeoutFiredFor = useRef<number>(0);
-  useEffect(() => {
-    // Only the active player's client auto-fires the timeout so the room doesn't
-    // get spammed. Server validates the deadline regardless.
-    if (!isMyTurn) return;
-    if (msLeft > 0) return;
-    if (timeoutFiredFor.current === game.turnStartedAt) return;
-    timeoutFiredFor.current = game.turnStartedAt;
-    dispatchAction("TURN_TIMEOUT").catch(() => {
-      // If it fails (turn already advanced), let the next poll resync state.
-    });
-  }, [isMyTurn, msLeft, game.turnStartedAt, dispatchAction]);
 
   return (
     <>
