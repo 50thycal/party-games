@@ -12,6 +12,7 @@ export const REAL_ESTATE_CONFIG = {
   DECK_SIZE: 16,
   MIN_CASH_TO_CONTINUE: 20, // below this, the round ends automatically
   TURN_TIMEOUT_MS: 15000,
+  STARTING_INSPECTORS: 8, // shared pool across the table
 };
 
 // =============================================================================
@@ -78,6 +79,13 @@ export type RealEstateLogEntry =
       at: number;
     }
   | {
+      type: "inspect";
+      playerId: string;
+      listingId: string;
+      category: HouseCategory;
+      at: number;
+    }
+  | {
       type: "round_ended";
       reason: "deck_empty" | "cash_depleted";
       at: number;
@@ -89,6 +97,8 @@ export interface RealEstateState {
   // Shared resources
   cashPool: number;
   initialCashPool: number;
+  inspectorPool: number;
+  initialInspectorPool: number;
 
   // Market
   market: Listing[];
@@ -101,6 +111,12 @@ export interface RealEstateState {
 
   // Players
   players: Record<string, RealEstatePlayer>;
+
+  // Inspections: which listings each player has privately inspected.
+  // The values revealed (true value) are NOT stored separately — each
+  // player's client looks at the listing's trueValue when its id appears
+  // in their inspections[playerId] list.
+  inspections: Record<string, string[]>;
 
   // History (capped to last N for UI)
   log: RealEstateLogEntry[];
@@ -117,6 +133,7 @@ export interface RealEstateState {
 export type RealEstateActionType =
   | "START_GAME"
   | "BUY_HOUSE"
+  | "INSPECT"
   | "PASS"
   | "TURN_TIMEOUT"
   | "PLAY_AGAIN";
@@ -283,12 +300,15 @@ function initialState(players: Player[]): RealEstateState {
     phase: "lobby",
     cashPool: 0,
     initialCashPool: 0,
+    inspectorPool: 0,
+    initialInspectorPool: 0,
     market: [],
     deck: [],
     playerOrder: players.map((p) => p.id),
     currentTurnIndex: 0,
     turnStartedAt: 0,
     players: playerState,
+    inspections: {},
     log: [],
     scores: null,
     winnerId: null,
@@ -337,12 +357,15 @@ function reducer(
         phase: "playing",
         cashPool: initialCash,
         initialCashPool: initialCash,
+        inspectorPool: REAL_ESTATE_CONFIG.STARTING_INSPECTORS,
+        initialInspectorPool: REAL_ESTATE_CONFIG.STARTING_INSPECTORS,
         market,
         deck,
         playerOrder: ctx.room.players.map((p) => p.id),
         currentTurnIndex: 0,
         turnStartedAt: ctx.now(),
         players,
+        inspections: {},
         log: [],
         scores: null,
         winnerId: null,
@@ -438,6 +461,60 @@ function reducer(
       return interim;
     }
 
+    case "INSPECT": {
+      if (state.phase !== "playing") return state;
+      const activePlayerId = state.playerOrder[state.currentTurnIndex];
+      if (action.playerId !== activePlayerId) return state;
+      if (state.inspectorPool <= 0) return state;
+
+      const listingId = action.payload?.listingId;
+      if (!listingId) return state;
+      const listing = state.market.find((l) => l.id === listingId);
+      if (!listing) return state;
+
+      const playerInspections = state.inspections[action.playerId] ?? [];
+      if (playerInspections.includes(listingId)) return state;
+
+      const now = ctx.now();
+      const nextTurnIndex =
+        (state.currentTurnIndex + 1) % state.playerOrder.length;
+
+      const interim: RealEstateState = {
+        ...state,
+        inspectorPool: state.inspectorPool - 1,
+        inspections: {
+          ...state.inspections,
+          [action.playerId]: [...playerInspections, listingId],
+        },
+        currentTurnIndex: nextTurnIndex,
+        turnStartedAt: now,
+        log: appendLog(state.log, {
+          type: "inspect",
+          playerId: action.playerId,
+          listingId,
+          category: listing.category,
+          at: now,
+        }),
+      };
+
+      const endCheck = shouldEndRound(interim, now);
+      if (endCheck.end) {
+        const { scores, winnerId } = computeScores(interim.players);
+        return {
+          ...interim,
+          phase: "results",
+          scores,
+          winnerId,
+          log: appendLog(interim.log, {
+            type: "round_ended",
+            reason: endCheck.reason!,
+            at: now,
+          }),
+        };
+      }
+      return interim;
+    }
+
     case "PASS": {
       if (state.phase !== "playing") return state;
       const activePlayerId = state.playerOrder[state.currentTurnIndex];
@@ -485,6 +562,12 @@ export const realEstateGame = defineGame<RealEstateState, RealEstateAction>({
       case "BUY_HOUSE":
       case "PASS":
         if (state.phase !== "playing") return false;
+        return (
+          state.playerOrder[state.currentTurnIndex] === action.playerId
+        );
+      case "INSPECT":
+        if (state.phase !== "playing") return false;
+        if (state.inspectorPool <= 0) return false;
         return (
           state.playerOrder[state.currentTurnIndex] === action.playerId
         );
