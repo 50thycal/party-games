@@ -64,12 +64,15 @@ export function RealEstateGameView({
       <section className="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-6">
         <h2 className="font-semibold mb-2">Open House</h2>
         <p className="text-sm text-gray-400 mb-4">
-          The market is live. Prices drift in real time across {" "}
-          {HOUSE_CATEGORIES.length} categories. On your turn, buy a listing at the
-          current price, or pass. Everyone draws from one shared bank — every
-          purchase makes the next round harder for the whole table. Game ends
-          when the listings run out or the bank can&apos;t afford the cheapest
-          house. Highest profit (true value − price paid) wins.
+          The market is live. Prices drift across {" "}
+          {HOUSE_CATEGORIES.length} categories — every 5 seconds they step to a
+          new value. On your turn (15s), pick one action: <strong>buy</strong> a
+          listing at the current price, <strong>inspect</strong> one to privately
+          reveal its true value, or <strong>pass</strong>. The table shares one
+          bank and one pool of inspectors, so every move makes things tighter for
+          everyone. Game ends when the listings run out or the bank can&apos;t
+          afford the cheapest house. Highest profit (true value − price paid)
+          wins.
         </p>
         {isHost ? (
           <button
@@ -215,6 +218,7 @@ export function RealEstateGameView({
     ? Math.max(0, game.cashPool / game.initialCashPool)
     : 0;
   const myHouses = game.players[playerId]?.houses ?? [];
+  const myInspections = new Set(game.inspections[playerId] ?? []);
 
   // Turn timer
   const turnDeadline = game.turnStartedAt + REAL_ESTATE_CONFIG.TURN_TIMEOUT_MS;
@@ -235,33 +239,65 @@ export function RealEstateGameView({
 
   return (
     <>
-      {/* Shared bank */}
-      <section className="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-4">
-        <div className="flex justify-between items-baseline mb-2">
-          <h2 className="text-sm font-semibold text-gray-300">Shared Bank</h2>
-          <span className="text-xl font-bold text-green-400">
-            ${game.cashPool}
-            <span className="text-xs text-gray-500 font-normal">
-              {" "}
-              / ${game.initialCashPool}
+      {/* Shared resources: bank + inspectors */}
+      <section className="grid grid-cols-2 gap-3 mb-4">
+        <div className="bg-gray-800 border border-gray-700 rounded-lg p-3">
+          <div className="flex justify-between items-baseline mb-2">
+            <h2 className="text-xs font-semibold text-gray-300 uppercase tracking-wide">
+              Bank
+            </h2>
+            <span className="text-lg font-bold text-green-400 tabular-nums">
+              ${game.cashPool}
+              <span className="text-xs text-gray-500 font-normal">
+                {" "}/ ${game.initialCashPool}
+              </span>
             </span>
-          </span>
+          </div>
+          <div className="w-full bg-gray-900 h-1.5 rounded overflow-hidden">
+            <div
+              className={`h-full transition-all ${
+                cashFrac > 0.5
+                  ? "bg-green-500"
+                  : cashFrac > 0.25
+                    ? "bg-yellow-500"
+                    : "bg-red-500"
+              }`}
+              style={{ width: `${cashFrac * 100}%` }}
+            />
+          </div>
+          {cashFrac <= 0.25 && (
+            <p className="text-[10px] text-red-400 mt-1">⚠ Closing soon</p>
+          )}
         </div>
-        <div className="w-full bg-gray-900 h-2 rounded overflow-hidden">
-          <div
-            className={`h-full transition-all ${
-              cashFrac > 0.5
-                ? "bg-green-500"
-                : cashFrac > 0.25
-                  ? "bg-yellow-500"
-                  : "bg-red-500"
-            }`}
-            style={{ width: `${cashFrac * 100}%` }}
-          />
+
+        <div className="bg-gray-800 border border-gray-700 rounded-lg p-3">
+          <div className="flex justify-between items-baseline mb-2">
+            <h2 className="text-xs font-semibold text-gray-300 uppercase tracking-wide">
+              Inspectors
+            </h2>
+            <span className="text-lg font-bold text-purple-300 tabular-nums">
+              👁 {game.inspectorPool}
+              <span className="text-xs text-gray-500 font-normal">
+                {" "}/ {game.initialInspectorPool}
+              </span>
+            </span>
+          </div>
+          <div className="w-full bg-gray-900 h-1.5 rounded overflow-hidden">
+            <div
+              className="h-full bg-purple-500 transition-all"
+              style={{
+                width: `${
+                  game.initialInspectorPool > 0
+                    ? (game.inspectorPool / game.initialInspectorPool) * 100
+                    : 0
+                }%`,
+              }}
+            />
+          </div>
+          {game.inspectorPool === 0 && (
+            <p className="text-[10px] text-red-400 mt-1">⚠ Pool empty</p>
+          )}
         </div>
-        {cashFrac <= 0.25 && (
-          <p className="text-xs text-red-400 mt-2">⚠ Market closing soon</p>
-        )}
       </section>
 
       {/* Turn indicator */}
@@ -337,26 +373,46 @@ export function RealEstateGameView({
           </p>
         ) : (
           <ul className="space-y-3">
-            {game.market.map((listing) => (
-              <MarketListing
-                key={listing.id}
-                listing={listing}
-                now={now}
-                cashPool={game.cashPool}
-                isMyTurn={isMyTurn}
-                pendingActionId={pendingActionId}
-                onBuy={async () => {
-                  setPendingActionId(`buy-${listing.id}`);
-                  try {
-                    await dispatchAction("BUY_HOUSE", {
-                      listingId: listing.id,
-                    });
-                  } finally {
-                    setPendingActionId(null);
-                  }
-                }}
-              />
-            ))}
+            {game.market.map((listing) => {
+              const inspectorsOnThis = Object.entries(game.inspections)
+                .filter(([, ids]) => ids.includes(listing.id))
+                .map(([pid]) => game.players[pid]?.name ?? "?");
+              const iInspected = myInspections.has(listing.id);
+              const canInspect = game.inspectorPool > 0 && !iInspected;
+              return (
+                <MarketListing
+                  key={listing.id}
+                  listing={listing}
+                  now={now}
+                  cashPool={game.cashPool}
+                  isMyTurn={isMyTurn}
+                  pendingActionId={pendingActionId}
+                  iInspected={iInspected}
+                  inspectorsOnThis={inspectorsOnThis}
+                  canInspect={canInspect}
+                  onBuy={async () => {
+                    setPendingActionId(`buy-${listing.id}`);
+                    try {
+                      await dispatchAction("BUY_HOUSE", {
+                        listingId: listing.id,
+                      });
+                    } finally {
+                      setPendingActionId(null);
+                    }
+                  }}
+                  onInspect={async () => {
+                    setPendingActionId(`inspect-${listing.id}`);
+                    try {
+                      await dispatchAction("INSPECT", {
+                        listingId: listing.id,
+                      });
+                    } finally {
+                      setPendingActionId(null);
+                    }
+                  }}
+                />
+              );
+            })}
           </ul>
         )}
       </section>
@@ -464,18 +520,27 @@ function MarketListing({
   cashPool,
   isMyTurn,
   pendingActionId,
+  iInspected,
+  inspectorsOnThis,
+  canInspect,
   onBuy,
+  onInspect,
 }: {
   listing: Listing;
   now: number;
   cashPool: number;
   isMyTurn: boolean;
   pendingActionId: string | null;
+  iInspected: boolean;
+  inspectorsOnThis: string[];
+  canInspect: boolean;
   onBuy: () => void;
+  onInspect: () => void;
 }) {
   const price = getCurrentPrice(listing, now);
   const canAfford = price <= cashPool;
   const buying = pendingActionId === `buy-${listing.id}`;
+  const inspecting = pendingActionId === `inspect-${listing.id}`;
   const elapsed = Math.max(0, now - listing.listedAt);
   const intoTick = elapsed % PRICE_TICK_MS;
   const secondsToNextTick = Math.max(
@@ -504,18 +569,49 @@ function MarketListing({
           <PriceDelta listing={listing} now={now} />
         </div>
       </div>
+
+      {/* Inspection: private value (only if you inspected) */}
+      {iInspected && (
+        <p className="mt-2 text-xs text-purple-300 bg-purple-950/40 border border-purple-800 rounded px-2 py-1">
+          💎 True value: ${listing.trueValue}
+        </p>
+      )}
+
+      {/* Inspection: public knowledge of WHO has inspected */}
+      {inspectorsOnThis.length > 0 && (
+        <p className="mt-1 text-[11px] text-gray-400">
+          👁 Inspected by {inspectorsOnThis.join(", ")}
+        </p>
+      )}
+
       {isMyTurn && (
-        <button
-          onClick={onBuy}
-          disabled={pendingActionId !== null || !canAfford}
-          className="mt-3 w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-sm font-semibold py-2 px-3 rounded transition-colors"
-        >
-          {buying
-            ? "Buying…"
-            : !canAfford
-              ? "Bank too low"
-              : `Buy for $${price}`}
-        </button>
+        <div className="mt-3 flex gap-2">
+          <button
+            onClick={onBuy}
+            disabled={pendingActionId !== null || !canAfford}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-sm font-semibold py-2 px-3 rounded transition-colors"
+          >
+            {buying
+              ? "Buying…"
+              : !canAfford
+                ? "Bank too low"
+                : `Buy $${price}`}
+          </button>
+          <button
+            onClick={onInspect}
+            disabled={pendingActionId !== null || !canInspect}
+            className="bg-purple-700 hover:bg-purple-800 disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-sm font-semibold py-2 px-3 rounded transition-colors"
+            title={
+              iInspected
+                ? "Already inspected"
+                : !canInspect
+                  ? "No inspectors left"
+                  : "Reveal true value (uses 1 inspector + ends your turn)"
+            }
+          >
+            {inspecting ? "…" : iInspected ? "👁 ✓" : "👁 Inspect"}
+          </button>
+        </div>
       )}
     </li>
   );
@@ -552,6 +648,10 @@ function formatLogEntry(
   if (entry.type === "pass") {
     const name = game.players[entry.playerId]?.name ?? "Someone";
     return entry.auto ? `${name} ran out of time` : `${name} passed`;
+  }
+  if (entry.type === "inspect") {
+    const name = game.players[entry.playerId]?.name ?? "Someone";
+    return `${name} inspected a ${CATEGORY_LABEL[entry.category]}`;
   }
   if (entry.type === "round_ended") {
     return entry.reason === "cash_depleted"
