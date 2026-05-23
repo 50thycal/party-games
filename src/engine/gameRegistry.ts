@@ -2,6 +2,7 @@ import type { GameTemplate, BaseAction } from "./types";
 import { numberGuessGame } from "@/games/number-guess/config";
 import { cometRushGame } from "@/games/comet-rush/config";
 import { cafeGame } from "@/games/cafe/config";
+import { realEstateGame } from "@/games/real-estate/config";
 
 // Registry of all available games
 // Games are registered here after being defined
@@ -12,6 +13,7 @@ const games = new Map<string, GameTemplate<any, any>>();
 games.set(numberGuessGame.id, numberGuessGame);
 games.set(cometRushGame.id, cometRushGame);
 games.set(cafeGame.id, cafeGame);
+games.set(realEstateGame.id, realEstateGame);
 
 /**
  * Register a game template with the engine
