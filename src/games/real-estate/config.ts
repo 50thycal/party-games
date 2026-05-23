@@ -3,17 +3,40 @@ import type { BaseAction, GameContext, GamePhase, Player } from "@/engine/types"
 import { getCurrentPrice } from "./pricing";
 
 // =============================================================================
-// CONFIG
+// CONFIG / SETTINGS
 // =============================================================================
 
-export const REAL_ESTATE_CONFIG = {
-  STARTING_CASH_PER_PLAYER: 120,
-  MARKET_SIZE: 4,
-  DECK_SIZE: 16,
-  MIN_CASH_TO_CONTINUE: 20, // below this, the round ends automatically
-  TURN_TIMEOUT_MS: 15000,
-  STARTING_INSPECTORS: 8, // shared pool across the table
+// Default values for new rooms. Host can override via UPDATE_SETTINGS in lobby.
+export const DEFAULT_SETTINGS = {
+  startingCashPerPlayer: 120,
+  startingInspectors: 8,
+  turnTimeoutMs: 15000,
+  marketSize: 4,
+  deckSize: 16,
 };
+
+export interface RealEstateSettings {
+  startingCashPerPlayer: number;
+  startingInspectors: number;
+  turnTimeoutMs: number;
+  marketSize: number;
+  deckSize: number;
+}
+
+// Allowed ranges enforced server-side. Anything outside is clamped.
+export const SETTINGS_BOUNDS: Record<
+  keyof RealEstateSettings,
+  { min: number; max: number }
+> = {
+  startingCashPerPlayer: { min: 40, max: 400 },
+  startingInspectors: { min: 0, max: 20 },
+  turnTimeoutMs: { min: 5000, max: 60000 },
+  marketSize: { min: 2, max: 8 },
+  deckSize: { min: 6, max: 40 },
+};
+
+// Non-tunable constants used inside the game loop.
+export const MIN_CASH_TO_CONTINUE = 20;
 
 // =============================================================================
 // TYPES
@@ -94,6 +117,9 @@ export type RealEstateLogEntry =
 export interface RealEstateState {
   phase: RealEstatePhase;
 
+  // Host-tuned settings (editable in lobby only).
+  settings: RealEstateSettings;
+
   // Shared resources
   cashPool: number;
   initialCashPool: number;
@@ -136,12 +162,14 @@ export type RealEstateActionType =
   | "INSPECT"
   | "PASS"
   | "TURN_TIMEOUT"
+  | "UPDATE_SETTINGS"
   | "PLAY_AGAIN";
 
 export interface RealEstateAction extends BaseAction {
   type: RealEstateActionType;
   payload?: {
     listingId?: string;
+    settings?: Partial<RealEstateSettings>;
   };
 }
 
@@ -209,7 +237,7 @@ function shouldEndRound(state: RealEstateState, nowMs: number): {
   reason: "deck_empty" | "cash_depleted" | null;
 } {
   // Cash depleted (can't afford the cheapest current listing).
-  if (state.cashPool < REAL_ESTATE_CONFIG.MIN_CASH_TO_CONTINUE) {
+  if (state.cashPool < MIN_CASH_TO_CONTINUE) {
     return { end: true, reason: "cash_depleted" };
   }
   if (state.market.length > 0) {
@@ -298,6 +326,7 @@ function initialState(players: Player[]): RealEstateState {
   }
   return {
     phase: "lobby",
+    settings: { ...DEFAULT_SETTINGS },
     cashPool: 0,
     initialCashPool: 0,
     inspectorPool: 0,
@@ -334,9 +363,10 @@ function reducer(
       if (state.phase !== "lobby") return state;
       if (ctx.room.players.length === 0) return state;
 
-      const deck = buildDeck(ctx, REAL_ESTATE_CONFIG.DECK_SIZE);
+      const settings = state.settings;
+      const deck = buildDeck(ctx, settings.deckSize);
       const market: Listing[] = [];
-      const marketSize = Math.min(REAL_ESTATE_CONFIG.MARKET_SIZE, deck.length);
+      const marketSize = Math.min(settings.marketSize, deck.length);
       for (let i = 0; i < marketSize; i++) {
         const tmpl = deck.shift()!;
         market.push(makeListingFromTemplate(tmpl, ctx, `m${i}`));
@@ -349,16 +379,15 @@ function reducer(
       }
 
       const initialCash =
-        REAL_ESTATE_CONFIG.STARTING_CASH_PER_PLAYER *
-        ctx.room.players.length;
+        settings.startingCashPerPlayer * ctx.room.players.length;
 
       return {
         ...state,
         phase: "playing",
         cashPool: initialCash,
         initialCashPool: initialCash,
-        inspectorPool: REAL_ESTATE_CONFIG.STARTING_INSPECTORS,
-        initialInspectorPool: REAL_ESTATE_CONFIG.STARTING_INSPECTORS,
+        inspectorPool: settings.startingInspectors,
+        initialInspectorPool: settings.startingInspectors,
         market,
         deck,
         playerOrder: ctx.room.players.map((p) => p.id),
@@ -392,7 +421,7 @@ function reducer(
 
       // Refill market from deck if available.
       let nextDeck = state.deck;
-      if (nextDeck.length > 0 && nextMarket.length < REAL_ESTATE_CONFIG.MARKET_SIZE) {
+      if (nextDeck.length > 0 && nextMarket.length < state.settings.marketSize) {
         const [tmpl, ...rest] = nextDeck;
         nextDeck = rest;
         nextMarket.push(makeListingFromTemplate(tmpl, ctx, "refill"));
@@ -525,15 +554,39 @@ function reducer(
     case "TURN_TIMEOUT": {
       if (state.phase !== "playing") return state;
       const elapsed = ctx.now() - state.turnStartedAt;
-      if (elapsed < REAL_ESTATE_CONFIG.TURN_TIMEOUT_MS) return state;
+      if (elapsed < state.settings.turnTimeoutMs) return state;
       const activePlayerId = state.playerOrder[state.currentTurnIndex];
       return advanceTurnWithPass(state, ctx, activePlayerId, true);
+    }
+
+    case "UPDATE_SETTINGS": {
+      if (ctx.room.hostId !== ctx.playerId) return state;
+      if (state.phase !== "lobby") return state;
+      const patch = action.payload?.settings;
+      if (!patch || typeof patch !== "object") return state;
+
+      const next: RealEstateSettings = { ...state.settings };
+      let changed = false;
+      for (const key of Object.keys(SETTINGS_BOUNDS) as (keyof RealEstateSettings)[]) {
+        const raw = (patch as Record<string, unknown>)[key];
+        if (typeof raw !== "number" || !Number.isFinite(raw)) continue;
+        const { min, max } = SETTINGS_BOUNDS[key];
+        const clamped = Math.max(min, Math.min(max, Math.round(raw)));
+        if (clamped !== next[key]) {
+          next[key] = clamped;
+          changed = true;
+        }
+      }
+      if (!changed) return state;
+      return { ...state, settings: next };
     }
 
     case "PLAY_AGAIN": {
       if (ctx.room.hostId !== ctx.playerId) return state;
       if (state.phase !== "results") return state;
-      return initialState(ctx.room.players);
+      // Preserve host-tuned settings across rounds.
+      const fresh = initialState(ctx.room.players);
+      return { ...fresh, settings: state.settings };
     }
 
     default:
@@ -576,8 +629,10 @@ export const realEstateGame = defineGame<RealEstateState, RealEstateAction>({
         // We still gate on phase + elapsed here so stale timeouts don't churn version.
         return (
           state.phase === "playing" &&
-          ctx.now() - state.turnStartedAt >= REAL_ESTATE_CONFIG.TURN_TIMEOUT_MS
+          ctx.now() - state.turnStartedAt >= state.settings.turnTimeoutMs
         );
+      case "UPDATE_SETTINGS":
+        return ctx.room.hostId === ctx.playerId && state.phase === "lobby";
       case "PLAY_AGAIN":
         return (
           ctx.room.hostId === ctx.playerId && state.phase === "results"
