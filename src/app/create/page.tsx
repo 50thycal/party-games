@@ -195,15 +195,26 @@ export default function CreatePage() {
             <label htmlFor="player-count" className="block text-sm text-gray-400 mb-2">
               3. Number of Players
             </label>
-            <input
+            <select
               id="player-count"
-              type="number"
-              min={selectedGame?.minPlayers ?? 2}
-              max={selectedGame?.maxPlayers ?? 8}
               value={playerCount}
-              onChange={(e) => setPlayerCount(parseInt(e.target.value) || 2)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg py-3 px-4 focus:outline-none focus:border-blue-500"
-            />
+              onChange={(e) => setPlayerCount(parseInt(e.target.value, 10))}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg py-3 px-4 focus:outline-none focus:border-blue-500 appearance-none"
+            >
+              {Array.from(
+                {
+                  length:
+                    (selectedGame?.maxPlayers ?? 8) -
+                    (selectedGame?.minPlayers ?? 2) +
+                    1,
+                },
+                (_, i) => (selectedGame?.minPlayers ?? 2) + i
+              ).map((n) => (
+                <option key={n} value={n}>
+                  {n} players
+                </option>
+              ))}
+            </select>
           </div>
         )}
 

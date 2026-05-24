@@ -3,14 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 import type { GameViewProps } from "@/games/views";
 import {
+  cumulativeScores,
   DEFAULT_SETTINGS,
   HOUSE_CATEGORIES,
   SETTINGS_BOUNDS,
   type HouseCategory,
   type Listing,
+  type OwnedHouse,
   type RealEstateLogEntry,
   type RealEstateSettings,
   type RealEstateState,
+  type RoundSnapshot,
 } from "./config";
 import { getCurrentPrice, PRICE_TICK_MS } from "./pricing";
 
@@ -146,90 +149,148 @@ export function RealEstateGameView({
   }
 
   // ---- RESULTS ----
+  // ---- ROUND RESULTS (between rounds) ----
+  if (phase === "round_results") {
+    const snapshot = game.roundHistory[game.roundHistory.length - 1];
+    if (!snapshot) return null;
+    const totals = cumulativeScores(game.roundHistory);
+    const sortedRound = [...room.players].sort(
+      (a, b) =>
+        (snapshot.players[b.id]?.score ?? 0) -
+        (snapshot.players[a.id]?.score ?? 0)
+    );
+    const reasonText =
+      snapshot.endedBecause === "deck_empty"
+        ? "All houses sold."
+        : "Bank ran dry.";
+    return (
+      <>
+        <section className="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+            Round {snapshot.round} of {game.totalRounds}
+          </p>
+          <h2 className="text-xl font-bold mb-1">Round Complete</h2>
+          <p className="text-sm text-gray-400">{reasonText}</p>
+        </section>
+
+        <section className="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-4">
+          <h3 className="text-sm font-semibold text-gray-300 mb-3">
+            This round
+          </h3>
+          <ul className="space-y-3">
+            {sortedRound.map((p, idx) => {
+              const ps = snapshot.players[p.id];
+              if (!ps) return null;
+              return (
+                <PlayerRoundRow
+                  key={p.id}
+                  rank={idx + 1}
+                  name={p.name}
+                  isMe={p.id === playerId}
+                  score={ps.score}
+                  houses={ps.houses}
+                />
+              );
+            })}
+          </ul>
+        </section>
+
+        <RunningTotalsCard
+          players={room.players}
+          totals={totals}
+          throughRound={snapshot.round}
+          totalRounds={game.totalRounds}
+          playerId={playerId}
+        />
+
+        {isHost ? (
+          <section className="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-6">
+            <button
+              onClick={async () => {
+                setPendingActionId("next-round");
+                try {
+                  await dispatchAction("NEXT_ROUND");
+                } finally {
+                  setPendingActionId(null);
+                }
+              }}
+              disabled={pendingActionId !== null}
+              className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+            >
+              {pendingActionId === "next-round"
+                ? "Starting…"
+                : `Start Round ${snapshot.round + 1}`}
+            </button>
+          </section>
+        ) : (
+          <p className="text-sm text-gray-500 text-center mb-6">
+            Waiting for the host to start round {snapshot.round + 1}…
+          </p>
+        )}
+      </>
+    );
+  }
+
   if (phase === "results") {
-    const scores = game.scores ?? {};
+    const totals = game.scores ?? cumulativeScores(game.roundHistory);
     const winnerId = game.winnerId;
     const sorted = [...room.players].sort(
-      (a, b) => (scores[b.id] ?? 0) - (scores[a.id] ?? 0)
+      (a, b) => (totals[b.id] ?? 0) - (totals[a.id] ?? 0)
     );
     return (
       <>
-        <section className="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-6">
+        <section className="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-4">
           <h2 className="font-semibold mb-4">Final Results</h2>
           {winnerId && (
             <div className="text-center py-4 bg-green-900/30 border border-green-700 rounded-lg mb-4">
               <p className="text-gray-400 text-sm mb-1">Winner</p>
               <p className="text-2xl font-bold text-green-400">
-                {game.players[winnerId]?.name ?? "—"}
+                {room.players.find((p) => p.id === winnerId)?.name ?? "—"}
                 {winnerId === playerId && " (You!)"}
               </p>
               <p className="text-gray-300 text-sm mt-1">
-                Profit: ${scores[winnerId] ?? 0}
+                Total profit: ${totals[winnerId] ?? 0}
               </p>
             </div>
           )}
-          <ul className="space-y-3">
-            {sorted.map((p) => {
-              const ps = game.players[p.id];
-              if (!ps) return null;
-              return (
-                <li
-                  key={p.id}
-                  className="bg-gray-900 border border-gray-800 rounded-lg p-3"
+          <ul className="space-y-2">
+            {sorted.map((p, idx) => (
+              <li
+                key={p.id}
+                className={`flex items-baseline justify-between bg-gray-900 border rounded-lg px-3 py-2 ${
+                  p.id === winnerId
+                    ? "border-green-700"
+                    : "border-gray-800"
+                }`}
+              >
+                <span className="font-semibold">
+                  <span className="text-gray-500 text-sm mr-2">
+                    {idx + 1}.
+                  </span>
+                  {p.name}
+                  {p.id === playerId && " (You)"}
+                </span>
+                <span
+                  className={`text-lg font-bold ${
+                    (totals[p.id] ?? 0) >= 0
+                      ? "text-green-400"
+                      : "text-red-400"
+                  }`}
                 >
-                  <div className="flex justify-between items-baseline mb-2">
-                    <span className="font-semibold">
-                      {p.name}
-                      {p.id === playerId && " (You)"}
-                    </span>
-                    <span
-                      className={`text-lg font-bold ${
-                        (scores[p.id] ?? 0) >= 0
-                          ? "text-green-400"
-                          : "text-red-400"
-                      }`}
-                    >
-                      ${scores[p.id] ?? 0}
-                    </span>
-                  </div>
-                  {ps.houses.length === 0 ? (
-                    <p className="text-xs text-gray-500">
-                      No houses purchased
-                    </p>
-                  ) : (
-                    <ul className="text-xs space-y-1">
-                      {ps.houses.map((h) => (
-                        <li
-                          key={h.id}
-                          className="flex justify-between text-gray-300"
-                        >
-                          <span>
-                            {CATEGORY_EMOJI[h.category]}{" "}
-                            {CATEGORY_LABEL[h.category]}
-                          </span>
-                          <span className="text-gray-400">
-                            Paid ${h.pricePaid} · Worth ${h.trueValue} ·
-                            <span
-                              className={
-                                h.trueValue - h.pricePaid >= 0
-                                  ? " text-green-400"
-                                  : " text-red-400"
-                              }
-                            >
-                              {" "}
-                              {h.trueValue - h.pricePaid >= 0 ? "+" : ""}
-                              {h.trueValue - h.pricePaid}
-                            </span>
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </li>
-              );
-            })}
+                  ${totals[p.id] ?? 0}
+                </span>
+              </li>
+            ))}
           </ul>
         </section>
+
+        {game.roundHistory.length > 1 && (
+          <RoundBreakdownTable
+            players={room.players}
+            history={game.roundHistory}
+            playerId={playerId}
+          />
+        )}
 
         {isHost && (
           <section className="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-6">
@@ -266,6 +327,21 @@ export function RealEstateGameView({
 
   return (
     <>
+      {/* Round indicator */}
+      {game.totalRounds > 1 && (
+        <div className="flex justify-between items-baseline mb-3 px-1">
+          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+            Round {game.currentRound} of {game.totalRounds}
+          </span>
+          {game.roundHistory.length > 0 && (
+            <span className="text-xs text-gray-500">
+              You so far: $
+              {cumulativeScores(game.roundHistory)[playerId] ?? 0}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Shared resources: bank + inspectors */}
       <section className="grid grid-cols-2 gap-3 mb-4">
         <div className="bg-gray-800 border border-gray-700 rounded-lg p-3">
@@ -602,6 +678,16 @@ const SETTING_FIELDS: ReadonlyArray<{
     displayMin: SETTINGS_BOUNDS.deckSize.min,
     displayMax: SETTINGS_BOUNDS.deckSize.max,
     step: 1,
+    help: "Per round",
+  },
+  {
+    key: "roundsTotal",
+    label: "Rounds",
+    toDisplay: (v) => v,
+    fromDisplay: (v) => v,
+    displayMin: SETTINGS_BOUNDS.roundsTotal.min,
+    displayMax: SETTINGS_BOUNDS.roundsTotal.max,
+    step: 1,
   },
 ];
 
@@ -742,6 +828,235 @@ function SettingsPanel({
           );
         })}
       </ul>
+    </section>
+  );
+}
+
+function PlayerRoundRow({
+  rank,
+  name,
+  isMe,
+  score,
+  houses,
+}: {
+  rank: number;
+  name: string;
+  isMe: boolean;
+  score: number;
+  houses: OwnedHouse[];
+}) {
+  const bestBuy = houses.reduce<OwnedHouse | null>(
+    (best, h) =>
+      !best || h.trueValue - h.pricePaid > best.trueValue - best.pricePaid
+        ? h
+        : best,
+    null
+  );
+  const worstBuy = houses.reduce<OwnedHouse | null>(
+    (worst, h) =>
+      !worst || h.trueValue - h.pricePaid < worst.trueValue - worst.pricePaid
+        ? h
+        : worst,
+    null
+  );
+  return (
+    <li className="bg-gray-900 border border-gray-800 rounded-lg p-3">
+      <div className="flex justify-between items-baseline mb-2">
+        <span className="font-semibold">
+          <span className="text-gray-500 text-sm mr-2">{rank}.</span>
+          {name}
+          {isMe && " (You)"}
+        </span>
+        <span
+          className={`text-lg font-bold tabular-nums ${
+            score >= 0 ? "text-green-400" : "text-red-400"
+          }`}
+        >
+          {score >= 0 ? "+" : ""}${score}
+        </span>
+      </div>
+      {houses.length === 0 ? (
+        <p className="text-xs text-gray-500">No houses bought this round</p>
+      ) : (
+        <>
+          <p className="text-xs text-gray-500 mb-2">
+            {houses.length} {houses.length === 1 ? "house" : "houses"}
+            {bestBuy && bestBuy.trueValue - bestBuy.pricePaid > 0 && (
+              <>
+                {" · best steal: "}
+                <span className="text-green-400">
+                  {CATEGORY_EMOJI[bestBuy.category]} +$
+                  {bestBuy.trueValue - bestBuy.pricePaid}
+                </span>
+              </>
+            )}
+            {worstBuy && worstBuy.trueValue - worstBuy.pricePaid < 0 && (
+              <>
+                {" · worst dud: "}
+                <span className="text-red-400">
+                  {CATEGORY_EMOJI[worstBuy.category]} $
+                  {worstBuy.trueValue - worstBuy.pricePaid}
+                </span>
+              </>
+            )}
+          </p>
+          <ul className="text-xs space-y-1">
+            {houses.map((h) => {
+              const margin = h.trueValue - h.pricePaid;
+              return (
+                <li
+                  key={h.id}
+                  className="flex justify-between text-gray-300"
+                >
+                  <span>
+                    {CATEGORY_EMOJI[h.category]} {CATEGORY_LABEL[h.category]}
+                  </span>
+                  <span className="text-gray-400 tabular-nums">
+                    ${h.pricePaid} → ${h.trueValue}
+                    <span
+                      className={
+                        margin >= 0 ? " text-green-400" : " text-red-400"
+                      }
+                    >
+                      {" "}
+                      ({margin >= 0 ? "+" : ""}
+                      {margin})
+                    </span>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
+    </li>
+  );
+}
+
+function RunningTotalsCard({
+  players,
+  totals,
+  throughRound,
+  totalRounds,
+  playerId,
+}: {
+  players: { id: string; name: string }[];
+  totals: Record<string, number>;
+  throughRound: number;
+  totalRounds: number;
+  playerId: string;
+}) {
+  const sorted = [...players].sort(
+    (a, b) => (totals[b.id] ?? 0) - (totals[a.id] ?? 0)
+  );
+  const leaderScore = totals[sorted[0]?.id ?? ""] ?? 0;
+  return (
+    <section className="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-4">
+      <h3 className="text-sm font-semibold text-gray-300 mb-3">
+        After round {throughRound} of {totalRounds}
+      </h3>
+      <ul className="space-y-1">
+        {sorted.map((p, idx) => {
+          const total = totals[p.id] ?? 0;
+          const isLeader = idx === 0 && total === leaderScore;
+          return (
+            <li
+              key={p.id}
+              className={`flex justify-between items-baseline px-2 py-1.5 rounded ${
+                isLeader ? "bg-green-900/20" : ""
+              }`}
+            >
+              <span className="text-sm">
+                <span className="text-gray-500 mr-2">{idx + 1}.</span>
+                {p.name}
+                {p.id === playerId && " (You)"}
+              </span>
+              <span
+                className={`font-bold tabular-nums ${
+                  total >= 0 ? "text-green-400" : "text-red-400"
+                }`}
+              >
+                ${total}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+function RoundBreakdownTable({
+  players,
+  history,
+  playerId,
+}: {
+  players: { id: string; name: string }[];
+  history: RoundSnapshot[];
+  playerId: string;
+}) {
+  return (
+    <section className="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-4">
+      <h3 className="text-sm font-semibold text-gray-300 mb-3">
+        Round-by-round
+      </h3>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-xs text-gray-500 border-b border-gray-700">
+              <th className="text-left py-2 pr-2 font-normal">Player</th>
+              {history.map((h) => (
+                <th
+                  key={h.round}
+                  className="text-right py-2 px-2 font-normal tabular-nums"
+                >
+                  R{h.round}
+                </th>
+              ))}
+              <th className="text-right py-2 pl-2 font-semibold">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {players.map((p) => {
+              const total = history.reduce(
+                (acc, h) => acc + (h.players[p.id]?.score ?? 0),
+                0
+              );
+              return (
+                <tr key={p.id} className="border-b border-gray-800 last:border-0">
+                  <td className="py-2 pr-2">
+                    {p.name}
+                    {p.id === playerId && (
+                      <span className="text-gray-500"> (You)</span>
+                    )}
+                  </td>
+                  {history.map((h) => {
+                    const s = h.players[p.id]?.score ?? 0;
+                    return (
+                      <td
+                        key={h.round}
+                        className={`text-right py-2 px-2 tabular-nums ${
+                          s >= 0 ? "text-gray-300" : "text-red-400"
+                        }`}
+                      >
+                        {s >= 0 ? "+" : ""}
+                        {s}
+                      </td>
+                    );
+                  })}
+                  <td
+                    className={`text-right py-2 pl-2 font-bold tabular-nums ${
+                      total >= 0 ? "text-green-400" : "text-red-400"
+                    }`}
+                  >
+                    ${total}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }
