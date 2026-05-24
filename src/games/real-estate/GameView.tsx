@@ -16,6 +16,7 @@ import {
   type RoundSnapshot,
 } from "./config";
 import { getCurrentPrice, PRICE_TICK_MS } from "./pricing";
+import { HouseArt } from "./HouseArt";
 
 const CATEGORY_LABEL: Record<HouseCategory, string> = {
   condo: "Condo",
@@ -136,6 +137,38 @@ export function RealEstateGameView({
               Waiting for the host to start the game…
             </p>
           )}
+        </section>
+
+        {/* Gallery preview — show what each category looks like */}
+        <section className="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-4">
+          <h3 className="text-sm font-semibold text-gray-300 mb-3">
+            The neighborhood
+          </h3>
+          <ul className="grid grid-cols-4 gap-2">
+            {HOUSE_CATEGORIES.map((cat, i) => (
+              <li
+                key={cat}
+                className={`rounded overflow-hidden border ${
+                  CATEGORY_ACCENT[cat]
+                }`}
+              >
+                <div className="aspect-[10/7] bg-slate-950 relative">
+                  <HouseArt
+                    category={cat}
+                    seed={`preview-${cat}-${i}`}
+                    className="absolute inset-0 w-full h-full"
+                  />
+                </div>
+                <p className="px-1.5 py-1 text-[10px] text-center text-gray-300">
+                  {CATEGORY_EMOJI[cat]} {CATEGORY_LABEL[cat]}
+                </p>
+              </li>
+            ))}
+          </ul>
+          <p className="text-[11px] text-gray-500 mt-2">
+            Every listing is unique. Same category, different paint, roof,
+            windows, and accessories.
+          </p>
         </section>
 
         <SettingsPanel
@@ -548,16 +581,25 @@ export function RealEstateGameView({
         {myHouses.length === 0 ? (
           <p className="text-xs text-gray-500">No houses yet.</p>
         ) : (
-          <ul className="space-y-1 text-xs">
+          <ul className="grid grid-cols-3 gap-2">
             {myHouses.map((h) => (
               <li
                 key={h.id}
-                className="flex justify-between py-1 px-2 bg-gray-900 rounded"
+                className={`rounded overflow-hidden border ${
+                  CATEGORY_ACCENT[h.category]
+                }`}
               >
-                <span>
-                  {CATEGORY_EMOJI[h.category]} {CATEGORY_LABEL[h.category]}
-                </span>
-                <span className="text-gray-400">Paid ${h.pricePaid}</span>
+                <div className="aspect-[10/7] bg-slate-950 relative">
+                  <HouseArt
+                    category={h.category}
+                    seed={h.id}
+                    className="absolute inset-0 w-full h-full"
+                  />
+                </div>
+                <div className="px-2 py-1 text-[10px] text-gray-300 flex justify-between">
+                  <span>{CATEGORY_EMOJI[h.category]}</span>
+                  <span className="tabular-nums">${h.pricePaid}</span>
+                </div>
               </li>
             ))}
           </ul>
@@ -900,29 +942,38 @@ function PlayerRoundRow({
               </>
             )}
           </p>
-          <ul className="text-xs space-y-1">
+          <ul className="grid grid-cols-2 gap-2">
             {houses.map((h) => {
               const margin = h.trueValue - h.pricePaid;
               return (
                 <li
                   key={h.id}
-                  className="flex justify-between text-gray-300"
+                  className={`rounded overflow-hidden border ${
+                    CATEGORY_ACCENT[h.category]
+                  }`}
                 >
-                  <span>
-                    {CATEGORY_EMOJI[h.category]} {CATEGORY_LABEL[h.category]}
-                  </span>
-                  <span className="text-gray-400 tabular-nums">
-                    ${h.pricePaid} → ${h.trueValue}
-                    <span
-                      className={
-                        margin >= 0 ? " text-green-400" : " text-red-400"
-                      }
+                  <div className="aspect-[10/7] bg-slate-950 relative">
+                    <HouseArt
+                      category={h.category}
+                      seed={h.id}
+                      className="absolute inset-0 w-full h-full"
+                    />
+                    <div className="absolute top-1 left-1 bg-black/60 rounded px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                      {CATEGORY_EMOJI[h.category]} {CATEGORY_LABEL[h.category]}
+                    </div>
+                    <div
+                      className={`absolute bottom-1 right-1 rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                        margin >= 0
+                          ? "bg-green-600/90 text-white"
+                          : "bg-red-600/90 text-white"
+                      }`}
                     >
-                      {" "}
-                      ({margin >= 0 ? "+" : ""}
-                      {margin})
-                    </span>
-                  </span>
+                      {margin >= 0 ? "+" : ""}${margin}
+                    </div>
+                  </div>
+                  <div className="px-2 py-1 text-[10px] text-gray-400 tabular-nums">
+                    Paid ${h.pricePaid} · Worth ${h.trueValue}
+                  </div>
                 </li>
               );
             })}
@@ -1096,70 +1147,79 @@ function MarketListing({
   );
   return (
     <li
-      className={`border rounded-lg p-3 ${
+      className={`border rounded-lg overflow-hidden shadow-lg ${
         CATEGORY_ACCENT[listing.category]
       }`}
     >
-      <div className="flex justify-between items-center">
-        <div>
-          <p className="font-semibold text-sm">
-            {CATEGORY_EMOJI[listing.category]} {CATEGORY_LABEL[listing.category]}
-          </p>
-          <p className="text-xs text-gray-400">
-            Listed at ${listing.basePrice} · next price in {secondsToNextTick}s
-          </p>
+      {/* Artwork */}
+      <div className="relative aspect-[10/7] w-full bg-slate-950">
+        <HouseArt
+          category={listing.category}
+          seed={listing.id}
+          className="absolute inset-0 w-full h-full"
+        />
+        {/* Category badge */}
+        <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm border border-white/20 rounded-full px-2.5 py-1 text-[11px] font-semibold text-white flex items-center gap-1">
+          <span>{CATEGORY_EMOJI[listing.category]}</span>
+          <span>{CATEGORY_LABEL[listing.category]}</span>
         </div>
-        <div className="text-right">
-          <p className="text-2xl font-bold tabular-nums">
+        {/* Price tag */}
+        <div className="absolute top-2 right-2 bg-black/70 backdrop-blur-sm border border-white/20 rounded-lg px-2.5 py-1 text-right">
+          <p className="text-lg font-bold tabular-nums text-white leading-none">
             ${price}
           </p>
           <PriceDelta listing={listing} now={now} />
         </div>
+        {/* Inspected indicator on art */}
+        {iInspected && (
+          <div className="absolute bottom-2 right-2 bg-purple-900/80 border border-purple-400 rounded-md px-2 py-0.5 text-[11px] font-semibold text-purple-100">
+            💎 Worth ${listing.trueValue}
+          </div>
+        )}
       </div>
 
-      {/* Inspection: private value (only if you inspected) */}
-      {iInspected && (
-        <p className="mt-2 text-xs text-purple-300 bg-purple-950/40 border border-purple-800 rounded px-2 py-1">
-          💎 True value: ${listing.trueValue}
+      {/* Card body */}
+      <div className="p-3">
+        <p className="text-[11px] text-gray-400">
+          Listed at ${listing.basePrice} · next tick in {secondsToNextTick}s
         </p>
-      )}
 
-      {/* Inspection: public knowledge of WHO has inspected */}
-      {inspectorsOnThis.length > 0 && (
-        <p className="mt-1 text-[11px] text-gray-400">
-          👁 Inspected by {inspectorsOnThis.join(", ")}
-        </p>
-      )}
+        {inspectorsOnThis.length > 0 && (
+          <p className="mt-1 text-[11px] text-gray-400">
+            👁 Inspected by {inspectorsOnThis.join(", ")}
+          </p>
+        )}
 
-      {isMyTurn && (
-        <div className="mt-3 flex gap-2">
-          <button
-            onClick={onBuy}
-            disabled={pendingActionId !== null || !canAfford}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-sm font-semibold py-2 px-3 rounded transition-colors"
-          >
-            {buying
-              ? "Buying…"
-              : !canAfford
-                ? "Bank too low"
-                : `Buy $${price}`}
-          </button>
-          <button
-            onClick={onInspect}
-            disabled={pendingActionId !== null || !canInspect}
-            className="bg-purple-700 hover:bg-purple-800 disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-sm font-semibold py-2 px-3 rounded transition-colors"
-            title={
-              iInspected
-                ? "Already inspected"
-                : !canInspect
-                  ? "No inspectors left"
-                  : "Reveal true value (uses 1 inspector + ends your turn)"
-            }
-          >
-            {inspecting ? "…" : iInspected ? "👁 ✓" : "👁 Inspect"}
-          </button>
-        </div>
-      )}
+        {isMyTurn && (
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={onBuy}
+              disabled={pendingActionId !== null || !canAfford}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-sm font-semibold py-2 px-3 rounded transition-colors"
+            >
+              {buying
+                ? "Buying…"
+                : !canAfford
+                  ? "Bank too low"
+                  : `Buy $${price}`}
+            </button>
+            <button
+              onClick={onInspect}
+              disabled={pendingActionId !== null || !canInspect}
+              className="bg-purple-700 hover:bg-purple-800 disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-sm font-semibold py-2 px-3 rounded transition-colors"
+              title={
+                iInspected
+                  ? "Already inspected"
+                  : !canInspect
+                    ? "No inspectors left"
+                    : "Reveal true value (uses 1 inspector + ends your turn)"
+              }
+            >
+              {inspecting ? "…" : iInspected ? "👁 ✓" : "👁 Inspect"}
+            </button>
+          </div>
+        )}
+      </div>
     </li>
   );
 }
