@@ -13,6 +13,7 @@ export const DEFAULT_SETTINGS = {
   turnTimeoutMs: 15000,
   marketSize: 4,
   deckSize: 16,
+  roundsTotal: 3,
 };
 
 export interface RealEstateSettings {
@@ -21,6 +22,7 @@ export interface RealEstateSettings {
   turnTimeoutMs: number;
   marketSize: number;
   deckSize: number;
+  roundsTotal: number;
 }
 
 // Allowed ranges enforced server-side. Anything outside is clamped.
@@ -33,6 +35,7 @@ export const SETTINGS_BOUNDS: Record<
   turnTimeoutMs: { min: 5000, max: 60000 },
   marketSize: { min: 2, max: 8 },
   deckSize: { min: 6, max: 40 },
+  roundsTotal: { min: 1, max: 5 },
 };
 
 // Non-tunable constants used inside the game loop.
@@ -42,7 +45,11 @@ export const MIN_CASH_TO_CONTINUE = 20;
 // TYPES
 // =============================================================================
 
-export type RealEstatePhase = "lobby" | "playing" | "results";
+export type RealEstatePhase =
+  | "lobby"
+  | "playing"
+  | "round_results"
+  | "results";
 
 export type HouseCategory =
   | "condo"
@@ -147,9 +154,29 @@ export interface RealEstateState {
   // History (capped to last N for UI)
   log: RealEstateLogEntry[];
 
-  // Endgame
+  // Multi-round
+  currentRound: number; // 1-indexed. 0 in lobby.
+  totalRounds: number; // copied from settings.roundsTotal at START_GAME
+  roundHistory: RoundSnapshot[]; // one entry per completed round
+
+  // Endgame (cumulative across all rounds; only set in "results" phase)
   scores: Record<string, number> | null;
   winnerId: string | null;
+}
+
+// Frozen snapshot of a round's outcome. Used to render the post-round
+// screen and the final cumulative leaderboard.
+export interface RoundSnapshot {
+  round: number;
+  endedBecause: "deck_empty" | "cash_depleted";
+  players: Record<
+    string,
+    {
+      name: string;
+      score: number; // sum of (trueValue - pricePaid) for houses bought this round
+      houses: OwnedHouse[];
+    }
+  >;
 }
 
 // =============================================================================
@@ -163,6 +190,7 @@ export type RealEstateActionType =
   | "PASS"
   | "TURN_TIMEOUT"
   | "UPDATE_SETTINGS"
+  | "NEXT_ROUND"
   | "PLAY_AGAIN";
 
 export interface RealEstateAction extends BaseAction {
@@ -279,40 +307,83 @@ function advanceTurnWithPass(
 
   const endCheck = shouldEndRound(interim, now);
   if (endCheck.end) {
-    const { scores, winnerId } = computeScores(interim.players);
-    return {
-      ...interim,
-      phase: "results",
-      scores,
-      winnerId,
-      log: appendLog(interim.log, {
-        type: "round_ended",
-        reason: endCheck.reason!,
-        at: now,
-      }),
-    };
+    return finalizeRound(interim, ctx, endCheck.reason!);
   }
   return interim;
 }
 
-function computeScores(
-  players: Record<string, RealEstatePlayer>
-): { scores: Record<string, number>; winnerId: string | null } {
-  const scores: Record<string, number> = {};
-  let winnerId: string | null = null;
-  let bestScore = -Infinity;
-  for (const [pid, p] of Object.entries(players)) {
+function snapshotRound(
+  state: RealEstateState,
+  round: number,
+  endedBecause: "deck_empty" | "cash_depleted"
+): RoundSnapshot {
+  const players: RoundSnapshot["players"] = {};
+  for (const [pid, p] of Object.entries(state.players)) {
     const score = p.houses.reduce(
       (acc, h) => acc + (h.trueValue - h.pricePaid),
       0
     );
-    scores[pid] = score;
-    if (score > bestScore) {
-      bestScore = score;
+    players[pid] = { name: p.name, score, houses: p.houses };
+  }
+  return { round, endedBecause, players };
+}
+
+// Tally cumulative score per player across every completed round.
+export function cumulativeScores(
+  history: RoundSnapshot[]
+): Record<string, number> {
+  const totals: Record<string, number> = {};
+  for (const snap of history) {
+    for (const [pid, p] of Object.entries(snap.players)) {
+      totals[pid] = (totals[pid] ?? 0) + p.score;
+    }
+  }
+  return totals;
+}
+
+function finalizeRound(
+  state: RealEstateState,
+  ctx: GameContext,
+  reason: "deck_empty" | "cash_depleted"
+): RealEstateState {
+  const now = ctx.now();
+  const snapshot = snapshotRound(state, state.currentRound, reason);
+  const history = [...state.roundHistory, snapshot];
+  const isLastRound = state.currentRound >= state.totalRounds;
+  const log = appendLog(state.log, {
+    type: "round_ended",
+    reason,
+    at: now,
+  });
+
+  if (!isLastRound) {
+    // Pause for the post-round screen; host clicks NEXT_ROUND to advance.
+    return {
+      ...state,
+      phase: "round_results",
+      roundHistory: history,
+      log,
+    };
+  }
+
+  // Final round: compute cumulative leaderboard.
+  const totals = cumulativeScores(history);
+  let winnerId: string | null = null;
+  let best = -Infinity;
+  for (const [pid, total] of Object.entries(totals)) {
+    if (total > best) {
+      best = total;
       winnerId = pid;
     }
   }
-  return { scores, winnerId };
+  return {
+    ...state,
+    phase: "results",
+    roundHistory: history,
+    scores: totals,
+    winnerId,
+    log,
+  };
 }
 
 // =============================================================================
@@ -339,8 +410,54 @@ function initialState(players: Player[]): RealEstateState {
     players: playerState,
     inspections: {},
     log: [],
+    currentRound: 0,
+    totalRounds: DEFAULT_SETTINGS.roundsTotal,
+    roundHistory: [],
     scores: null,
     winnerId: null,
+  };
+}
+
+// Build a fresh round on top of an existing state — reseeds deck/market,
+// refills cash + inspector pools, wipes per-round player houses and
+// inspections. Used by START_GAME (round 1) and NEXT_ROUND (rounds 2+).
+function seedRound(
+  state: RealEstateState,
+  ctx: GameContext,
+  players: Player[],
+  round: number
+): RealEstateState {
+  const settings = state.settings;
+  const deck = buildDeck(ctx, settings.deckSize);
+  const market: Listing[] = [];
+  const marketSize = Math.min(settings.marketSize, deck.length);
+  for (let i = 0; i < marketSize; i++) {
+    const tmpl = deck.shift()!;
+    market.push(makeListingFromTemplate(tmpl, ctx, `r${round}m${i}`));
+  }
+
+  const playerState: Record<string, RealEstatePlayer> = {};
+  for (const p of players) {
+    playerState[p.id] = { id: p.id, name: p.name, houses: [] };
+  }
+
+  const initialCash = settings.startingCashPerPlayer * players.length;
+
+  return {
+    ...state,
+    phase: "playing",
+    cashPool: initialCash,
+    initialCashPool: initialCash,
+    inspectorPool: settings.startingInspectors,
+    initialInspectorPool: settings.startingInspectors,
+    market,
+    deck,
+    playerOrder: players.map((p) => p.id),
+    currentTurnIndex: 0,
+    turnStartedAt: ctx.now(),
+    players: playerState,
+    inspections: {},
+    currentRound: round,
   };
 }
 
@@ -363,42 +480,22 @@ function reducer(
       if (state.phase !== "lobby") return state;
       if (ctx.room.players.length === 0) return state;
 
-      const settings = state.settings;
-      const deck = buildDeck(ctx, settings.deckSize);
-      const market: Listing[] = [];
-      const marketSize = Math.min(settings.marketSize, deck.length);
-      for (let i = 0; i < marketSize; i++) {
-        const tmpl = deck.shift()!;
-        market.push(makeListingFromTemplate(tmpl, ctx, `m${i}`));
-      }
-
-      // Re-seed player records from current room roster (handles late joiners).
-      const players: Record<string, RealEstatePlayer> = {};
-      for (const p of ctx.room.players) {
-        players[p.id] = { id: p.id, name: p.name, houses: [] };
-      }
-
-      const initialCash =
-        settings.startingCashPerPlayer * ctx.room.players.length;
-
+      const seeded = seedRound(state, ctx, ctx.room.players, 1);
       return {
-        ...state,
-        phase: "playing",
-        cashPool: initialCash,
-        initialCashPool: initialCash,
-        inspectorPool: settings.startingInspectors,
-        initialInspectorPool: settings.startingInspectors,
-        market,
-        deck,
-        playerOrder: ctx.room.players.map((p) => p.id),
-        currentTurnIndex: 0,
-        turnStartedAt: ctx.now(),
-        players,
-        inspections: {},
+        ...seeded,
         log: [],
+        totalRounds: state.settings.roundsTotal,
+        roundHistory: [],
         scores: null,
         winnerId: null,
       };
+    }
+
+    case "NEXT_ROUND": {
+      if (ctx.room.hostId !== ctx.playerId) return state;
+      if (state.phase !== "round_results") return state;
+      if (state.currentRound >= state.totalRounds) return state;
+      return seedRound(state, ctx, ctx.room.players, state.currentRound + 1);
     }
 
     case "BUY_HOUSE": {
@@ -473,18 +570,7 @@ function reducer(
       // Check end-of-round conditions.
       const endCheck = shouldEndRound(interim, now);
       if (endCheck.end) {
-        const { scores, winnerId } = computeScores(interim.players);
-        return {
-          ...interim,
-          phase: "results",
-          scores,
-          winnerId,
-          log: appendLog(interim.log, {
-            type: "round_ended",
-            reason: endCheck.reason!,
-            at: now,
-          }),
-        };
+        return finalizeRound(interim, ctx, endCheck.reason!);
       }
 
       return interim;
@@ -528,18 +614,7 @@ function reducer(
 
       const endCheck = shouldEndRound(interim, now);
       if (endCheck.end) {
-        const { scores, winnerId } = computeScores(interim.players);
-        return {
-          ...interim,
-          phase: "results",
-          scores,
-          winnerId,
-          log: appendLog(interim.log, {
-            type: "round_ended",
-            reason: endCheck.reason!,
-            at: now,
-          }),
-        };
+        return finalizeRound(interim, ctx, endCheck.reason!);
       }
       return interim;
     }
@@ -584,7 +659,7 @@ function reducer(
     case "PLAY_AGAIN": {
       if (ctx.room.hostId !== ctx.playerId) return state;
       if (state.phase !== "results") return state;
-      // Preserve host-tuned settings across rounds.
+      // Preserve host-tuned settings across games.
       const fresh = initialState(ctx.room.players);
       return { ...fresh, settings: state.settings };
     }
@@ -633,6 +708,12 @@ export const realEstateGame = defineGame<RealEstateState, RealEstateAction>({
         );
       case "UPDATE_SETTINGS":
         return ctx.room.hostId === ctx.playerId && state.phase === "lobby";
+      case "NEXT_ROUND":
+        return (
+          ctx.room.hostId === ctx.playerId &&
+          state.phase === "round_results" &&
+          state.currentRound < state.totalRounds
+        );
       case "PLAY_AGAIN":
         return (
           ctx.room.hostId === ctx.playerId && state.phase === "results"
