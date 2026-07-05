@@ -18,9 +18,13 @@ const BAND_WARM_PTS = 1;
 // Top of the band scale; a Spin pays (BAND_MAX_PTS - band) per colleague.
 const BAND_MAX_PTS = BAND_BULLSEYE_PTS;
 
-const FLAG_CORRECT_BONUS = 2; // correctly flagged a Spin
-const FLAG_WRONG_PENALTY = -2; // flagged an Honest statement
-const CAUGHT_SPIN_PENALTY = 3; // psychic penalty per colleague who catches a Spin
+const FLAG_CORRECT_BONUS = 3; // correctly flagged a Dishonest clue
+const FLAG_WRONG_PENALTY = -2; // flagged a True clue
+const CAUGHT_SPIN_PENALTY = 4; // psychic penalty per colleague who catches a lie
+// A landed lie must out-earn a safe true clue to justify the flag risk, so
+// Dishonest winnings are multiplied. Fooling a colleague pays up to
+// SPIN_REWARD_MULT * BAND_MAX_PTS (10), vs a true clue's max of BAND_MAX_PTS (5).
+const SPIN_REWARD_MULT = 2;
 
 const MAX_STEER_PROMPTS = 2;
 const MAX_STEER_PROMPT_LENGTH = 200;
@@ -240,7 +244,8 @@ function scoreRound(state: PRState, ctx: GameContext): PRState {
     if (alignment === "honest") {
       psychicScore += base; // shares the table's accuracy
     } else {
-      psychicScore += BAND_MAX_PTS - base; // rewarded for colleagues landing far
+      // rewarded (at a premium) for every colleague sent far from the truth
+      psychicScore += SPIN_REWARD_MULT * (BAND_MAX_PTS - base);
     }
 
     results.push({

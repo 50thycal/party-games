@@ -35,8 +35,14 @@ const FALLBACK_SPECTRUMS: Array<{
   { topic: "Telling a friend their business idea is bad", leftLabel: "True kindness", rightLabel: "Never" },
 ];
 
-const FALLBACK_SPECTRUM_COMMENTARY =
-  "Management's analysis engine is busy. Proceeding with a standard evaluation.";
+// Offline memos (LLM down). Kept varied so back-to-back fallbacks don't repeat.
+const FALLBACK_SPECTRUM_COMMENTARY = [
+  "Management's analysis engine is busy. Proceeding with a standard evaluation.",
+  "The topic generator is being audited. A pre-approved review has been substituted. Do not comment.",
+  "Analytics is offline. Management has reached into the filing cabinet. Try to act surprised.",
+  "The recommendation algorithm has requested a mental health day. Denied, but it left anyway. Standard evaluation follows.",
+  "Bandwidth is being diverted to a more important department. You get a stock topic. You get what you get.",
+];
 
 const HEAT_OPTIONS: Array<{ value: PRHeat; label: string; desc: string }> = [
   { value: "mild", label: "Mild", desc: "Office-safe. Gentle dry wit." },
@@ -358,7 +364,11 @@ export function PerformanceReviewGameView({
     const pool = FALLBACK_SPECTRUMS.filter((s) => !recent.has(s.topic));
     const options = pool.length > 0 ? pool : FALLBACK_SPECTRUMS;
     const pick = options[Math.floor(Math.random() * options.length)];
-    return { ...pick, commentary: FALLBACK_SPECTRUM_COMMENTARY };
+    const memo =
+      FALLBACK_SPECTRUM_COMMENTARY[
+        Math.floor(Math.random() * FALLBACK_SPECTRUM_COMMENTARY.length)
+      ];
+    return { ...pick, commentary: memo };
   }
 
   async function handleGenerateReview() {
@@ -412,7 +422,7 @@ export function PerformanceReviewGameView({
         spectrum = {
           ...fallback,
           commentary: seed
-            ? `Management's analysis engine is busy. ${seed.name}'s feedback has been archived unread. Proceeding with a standard evaluation.`
+            ? `${fallback.commentary} ${seed.name}'s submission has been archived, unread, out of spite.`
             : fallback.commentary,
         };
       }
@@ -547,18 +557,41 @@ export function PerformanceReviewGameView({
 
   function overlordCaption(): string {
     if (!lastRoundResults) return "";
-    const { employeeName, alignment: revealed, results } = lastRoundResults;
+    const { employeeName, alignment: revealed, results, opinion } =
+      lastRoundResults;
     const flagCount = results.filter((r) => r.flagged).length;
-    if (revealed === "spin") {
-      return flagCount > 0
-        ? `${employeeName} gave a dishonest clue. ${flagCount} colleague${
-            flagCount === 1 ? "" : "s"
-          } saw through it. Noted.`
-        : `${employeeName} lied with a straight face. The staff believed every word. Predictable.`;
+    const cs = flagCount === 1 ? "" : "s";
+    // Stable per-round seed so the caption doesn't reshuffle every poll.
+    const seed = opinion + flagCount + employeeName.length;
+    const pick = (arr: string[]) => arr[seed % arr.length];
+
+    let options: string[];
+    if (revealed === "spin" && flagCount > 0) {
+      options = [
+        `${employeeName} gave a dishonest clue. ${flagCount} colleague${cs} saw through it. Noted.`,
+        `${employeeName} lied, and ${flagCount} colleague${cs} caught it. The deception was, frankly, amateur.`,
+        `A dishonest clue from ${employeeName}, flagged by ${flagCount}. The performance is in your permanent file.`,
+      ];
+    } else if (revealed === "spin") {
+      options = [
+        `${employeeName} lied with a straight face. The staff believed every word. Predictable.`,
+        `${employeeName} spun a clean lie and nobody flinched. Management is unsettled, but efficient.`,
+        `Not one flag against ${employeeName}'s dishonest clue. The staff's gullibility has been recorded.`,
+      ];
+    } else if (flagCount > 0) {
+      options = [
+        `${employeeName} gave a true clue and was flagged anyway. Trust is dead. Efficient.`,
+        `${employeeName} told the truth. ${flagCount} colleague${cs} accused them regardless. Morale noted.`,
+        `${employeeName} was honest and punished for it by ${flagCount}. Working as intended.`,
+      ];
+    } else {
+      options = [
+        `${employeeName} gave a true clue. No flags were raised. The bare minimum, achieved.`,
+        `${employeeName} was honest and unremarkable. Management approves of the lack of incident.`,
+        `A true clue from ${employeeName}, believed by all. Adequate. Do not expect praise.`,
+      ];
     }
-    return flagCount > 0
-      ? `${employeeName} gave a true clue and was flagged anyway. Trust is dead. Efficient.`
-      : `${employeeName} gave a true clue. No flags were raised. The bare minimum, achieved.`;
+    return pick(options);
   }
 
   // ==========================================================================
@@ -644,7 +677,7 @@ export function PerformanceReviewGameView({
             >
               {isRevealing
                 ? "Compiling..."
-                : `Force Reveal (${dialedCount}/${colleagues.length} reads in)`}
+                : `Force Reveal (${dialedCount}/${colleagues.length} answers in)`}
             </button>
           )}
 
@@ -834,7 +867,7 @@ export function PerformanceReviewGameView({
                   <p className="text-gray-500 text-xs mt-2">
                     {alignmentInput === "honest"
                       ? "True Clue: your word points at your real stance. You share the points of every colleague who reads you correctly."
-                      : "Dishonest Clue: your word misdirects. You score for every colleague who lands far from the truth — but each 🚩 that catches you costs dearly."}
+                      : "Dishonest Clue: your word misdirects. You score DOUBLE for every colleague you send far from the truth — but every 🚩 that catches you costs dearly."}
                   </p>
                 </div>
 
@@ -912,18 +945,18 @@ export function PerformanceReviewGameView({
                   Your colleagues are reading you. Sit still.
                 </p>
                 <p className="text-gray-500 text-xs mt-2">
-                  {dialedCount} of {colleagues.length} reads submitted.
+                  {dialedCount} of {colleagues.length} answers submitted.
                 </p>
               </div>
             ) : hasDialed ? (
               <div className="text-center py-4">
-                <p className="text-gray-400 mb-1">Read submitted:</p>
+                <p className="text-gray-400 mb-1">Answer submitted:</p>
                 <p className="text-3xl font-bold text-green-400">
                   {dials[playerId]}
                   {gameState?.flags?.[playerId] ? " 🚩" : ""}
                 </p>
                 <p className="text-gray-500 text-xs mt-2">
-                  {dialedCount} of {colleagues.length} reads in. Management
+                  {dialedCount} of {colleagues.length} answers in. Management
                   thanks you for your surveillance.
                 </p>
               </div>
@@ -951,7 +984,7 @@ export function PerformanceReviewGameView({
                 </button>
                 <p className="text-gray-500 text-xs">
                   {
-                    "Flag if you believe the clue is dishonest: +2 if you are right, -2 if the clue was true."
+                    "Flag if you believe the clue is dishonest: +3 if you are right, -2 if the clue was true."
                   }
                 </p>
                 <button
@@ -959,7 +992,7 @@ export function PerformanceReviewGameView({
                   disabled={isDialing}
                   className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
                 >
-                  {isDialing ? "Submitting..." : "Submit Read"}
+                  {isDialing ? "Submitting..." : "Submit Answer"}
                 </button>
               </form>
             )}
