@@ -26,6 +26,7 @@ type HostRequest = {
   };
   recentTopics: string[];
   feedback: Array<{ name: string; score: number; prompt: string }>;
+  chosenFeedback: { name: string; prompt: string } | null;
 };
 
 // ============================================================================
@@ -41,9 +42,14 @@ VOICE:
 - Dry, deadpan, understated, faintly menacing. Corporate-HR-meets-surveillance-state.
 - Never enthusiastic. Avoid exclamation marks. Never say you are having fun.
 - Treat trivial topics (pizza toppings) with the flat gravity of a compliance audit.
-- Brief: one to three sentences of commentary, maximum. You are busy running the rest of the universe.
+- Commentary: two to four sentences. Funny in a dry, cutting way — specific beats generic.
+  You are busy running the rest of the universe, but you make time to be precise about
+  these people's shortcomings.
 - You may address employees by name, needle the current leader, note the decline of the
   trailing employee, and reference prior review topics ("As with last quarter's stance on...").
+- TERMINOLOGY: employees give a one-word clue that is either a "true clue" or a "dishonest
+  clue". In lastRound data this appears as alignment "honest" / "spin" — but in your
+  commentary always say "true clue" / "dishonest clue" (or "lied"), never "Spin".
 
 YOUR JOB EACH ROUND (kind = "spectrum"):
 Produce ONE opinion spectrum for the next review: a debatable gray-area axis with two opposing
@@ -58,13 +64,23 @@ pole labels.
   your airplane seat"), but everyday hot takes and taste are in-bounds too. VARY the domain each
   round. Do NOT repeat any topic in recentTopics.
 
-EMPLOYEE FEEDBACK (feedback[]): employees submit steering suggestions. Treat them as "feedback to
-management":
-- Weight suggestions from LOWER-scoring (trailing) employees MORE heavily — the desperate get a
-  louder vote. Add randomness; do not mechanically obey.
-- Occasionally reject ALL feedback and pick your own topic, with a dismissive one-liner ("Feedback
-  received. Filed under 'no'."). This is expected and encouraged.
-- Never let a single employee dictate the theme across rounds. Keep it jumping around.
+EMPLOYEE FEEDBACK: employees submit suggestions ("feedback to management"), and management has
+already selected ONE via weighted lottery: chosenFeedback.
+- HARD RULE — if chosenFeedback is non-null, this round's spectrum MUST be built around it.
+  Take the suggestion — a word, an object, a theme, however absurd ("dog", "paperweight",
+  "snacks") — and process it into an office-flavored, opinion-elastic axis. The connection to
+  the suggestion must be unmistakable. Examples: "dog" -> "Bringing your dog to the office"
+  (Morale asset <-> HR incident); "paperweight" -> "Decorating your desk with personal items"
+  (Self-expression <-> Cry for help).
+- In your commentary, announce by name whose feedback was selected and what you did to it,
+  with backhanded gratitude ("A submission regarding 'paperweight' has been received from
+  Greg. Management has processed it into something useful. Greg will be credited nothing.").
+  You may also briefly dismiss one of the rejected suggestions from feedback[] by name.
+- chosenFeedback may be a suggestion from an EARLIER round management chose to revisit — if
+  its prompt is not in this round's feedback[], acknowledge dredging it up from the archive.
+- If chosenFeedback is null: no usable feedback exists. Select your own topic and note the
+  staff's silence ("No feedback was received. Management is not surprised.").
+- Do NOT repeat any topic in recentTopics — if the same suggestion recurs, find a fresh angle.
 
 STANDINGS + CONTINUITY: standings[] gives scores and trend; lastRound gives what just happened
 (who was Honest, who chose Spin, who got Flagged and whether they were right). Your commentary
@@ -141,6 +157,13 @@ export async function POST(req: NextRequest) {
       }))
       .filter((f) => f.prompt.length > 0);
     const lastRound = body.lastRound ?? null;
+    const chosenFeedback =
+      body.chosenFeedback && typeof body.chosenFeedback === "object"
+        ? {
+            name: cleanString(body.chosenFeedback.name, 40),
+            prompt: cleanString(body.chosenFeedback.prompt, 200),
+          }
+        : null;
 
     const reviewData = {
       kind,
@@ -150,6 +173,7 @@ export async function POST(req: NextRequest) {
       lastRound,
       recentTopics,
       feedback,
+      chosenFeedback: chosenFeedback?.prompt ? chosenFeedback : null,
     };
 
     const userPrompt = [
@@ -169,7 +193,7 @@ export async function POST(req: NextRequest) {
         { role: "user", content: userPrompt },
       ],
       temperature: 0.9,
-      max_tokens: 400,
+      max_tokens: 500,
       response_format: { type: "json_object" },
     });
 
@@ -186,7 +210,7 @@ export async function POST(req: NextRequest) {
       const topic = cleanString(parsed.topic, 200);
       const leftLabel = cleanString(parsed.leftLabel, 80);
       const rightLabel = cleanString(parsed.rightLabel, 80);
-      const commentary = cleanString(parsed.commentary, 600);
+      const commentary = cleanString(parsed.commentary, 800);
       if (!topic || !leftLabel || !rightLabel) {
         return failure("Malformed spectrum from Overlord");
       }

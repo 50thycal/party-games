@@ -211,6 +211,7 @@ export function PerformanceReviewGameView({
   const scores = gameState?.scores ?? {};
   const roundScores = gameState?.roundScores ?? {};
   const steerPrompts = gameState?.steerPrompts ?? {};
+  const feedbackLog = gameState?.feedbackLog ?? [];
   const history = gameState?.history ?? [];
   const lastRoundResults = gameState?.lastRoundResults ?? null;
   const finalCommentary = gameState?.finalCommentary ?? null;
@@ -257,7 +258,8 @@ export function PerformanceReviewGameView({
   const [isAdvancing, setIsAdvancing] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
 
-  // Fresh inputs every review
+  // Fresh inputs every review — and whenever the controlled player changes
+  // (hotseat pass-and-play must not leak one player's typing to the next).
   useEffect(() => {
     setSteer1("");
     setSteer2("");
@@ -266,14 +268,17 @@ export function PerformanceReviewGameView({
     setClueInput("");
     setDialInput(50);
     setFlagInput(false);
-  }, [roundNumber]);
+  }, [roundNumber, playerId]);
 
   // ==========================================================================
   // /api/host integration (host client only) — LLM calls happen here, never in
   // the reducer; results are stored in state via SET_SPECTRUM / SET_FINAL.
   // ==========================================================================
 
-  function buildHostRequest(kind: "spectrum" | "final") {
+  function buildHostRequest(
+    kind: "spectrum" | "final",
+    chosenFeedback: { name: string; prompt: string } | null = null
+  ) {
     return {
       kind,
       heat,
@@ -295,7 +300,57 @@ export function PerformanceReviewGameView({
           prompt,
         }));
       }),
+      chosenFeedback,
     };
+  }
+
+  // Pick ONE suggestion to seed the next review: weighted random across this
+  // round's feedback (heaviest), with trailing employees getting a small extra
+  // voice, plus unused suggestions from earlier rounds as long shots.
+  function pickSeedFeedback(): {
+    playerId: string;
+    name: string;
+    prompt: string;
+  } | null {
+    const bottomHalf = new Set(
+      standings.slice(Math.ceil(standings.length / 2)).map((s) => s.id)
+    );
+    const candidates: Array<{
+      playerId: string;
+      name: string;
+      prompt: string;
+      weight: number;
+    }> = [];
+
+    for (const p of room.players) {
+      for (const prompt of steerPrompts[p.id] ?? []) {
+        candidates.push({
+          playerId: p.id,
+          name: p.name,
+          prompt,
+          weight: 3 + (bottomHalf.has(p.id) ? 1 : 0),
+        });
+      }
+    }
+    for (const e of feedbackLog) {
+      if (e.used) continue;
+      if ((steerPrompts[e.playerId] ?? []).includes(e.prompt)) continue;
+      candidates.push({
+        playerId: e.playerId,
+        name: e.name,
+        prompt: e.prompt,
+        weight: 1,
+      });
+    }
+
+    if (candidates.length === 0) return null;
+    const total = candidates.reduce((sum, c) => sum + c.weight, 0);
+    let roll = Math.random() * total;
+    for (const c of candidates) {
+      roll -= c.weight;
+      if (roll <= 0) return c;
+    }
+    return candidates[candidates.length - 1];
   }
 
   function pickFallbackSpectrum() {
@@ -309,18 +364,19 @@ export function PerformanceReviewGameView({
   async function handleGenerateReview() {
     setIsGenerating(true);
     try {
-      let spectrum: {
-        topic: string;
-        leftLabel: string;
-        rightLabel: string;
-        commentary: string;
-      } | null = null;
+      const seed = pickSeedFeedback();
+      let spectrum: Record<string, unknown> | null = null;
 
       try {
         const res = await fetch("/api/host", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(buildHostRequest("spectrum")),
+          body: JSON.stringify(
+            buildHostRequest(
+              "spectrum",
+              seed ? { name: seed.name, prompt: seed.prompt } : null
+            )
+          ),
         });
         const json = await res.json();
         if (
@@ -338,6 +394,11 @@ export function PerformanceReviewGameView({
             rightLabel: json.rightLabel,
             commentary:
               typeof json.commentary === "string" ? json.commentary : "",
+            // Record which suggestion the Overlord built this review from, so
+            // it is retired from the pool of pending feedback.
+            ...(seed
+              ? { seedPlayerId: seed.playerId, seedPrompt: seed.prompt }
+              : {}),
           };
         }
       } catch {
@@ -345,7 +406,15 @@ export function PerformanceReviewGameView({
       }
 
       if (!spectrum) {
-        spectrum = pickFallbackSpectrum();
+        // Canned spectrum: the seed was NOT used, so leave it eligible for a
+        // future round (no seedPlayerId/seedPrompt in the payload).
+        const fallback = pickFallbackSpectrum();
+        spectrum = {
+          ...fallback,
+          commentary: seed
+            ? `Management's analysis engine is busy. ${seed.name}'s feedback has been archived unread. Proceeding with a standard evaluation.`
+            : fallback.commentary,
+        };
       }
 
       await dispatchAction("SET_SPECTRUM", spectrum);
@@ -482,14 +551,14 @@ export function PerformanceReviewGameView({
     const flagCount = results.filter((r) => r.flagged).length;
     if (revealed === "spin") {
       return flagCount > 0
-        ? `${employeeName} chose Spin. ${flagCount} colleague${
+        ? `${employeeName} gave a dishonest clue. ${flagCount} colleague${
             flagCount === 1 ? "" : "s"
           } saw through it. Noted.`
-        : `${employeeName} spun freely. The staff believed every word. Predictable.`;
+        : `${employeeName} lied with a straight face. The staff believed every word. Predictable.`;
     }
     return flagCount > 0
-      ? `${employeeName} told the truth and was flagged anyway. Trust is dead. Efficient.`
-      : `${employeeName} was Honest. No flags were raised. The bare minimum, achieved.`;
+      ? `${employeeName} gave a true clue and was flagged anyway. Trust is dead. Efficient.`
+      : `${employeeName} gave a true clue. No flags were raised. The bare minimum, achieved.`;
   }
 
   // ==========================================================================
@@ -559,7 +628,7 @@ export function PerformanceReviewGameView({
 
           {phase === "statement" && (
             <p className="text-gray-400 text-sm">
-              Awaiting the official statement from{" "}
+              Awaiting the one-word clue from{" "}
               <span className="text-white font-semibold">
                 {psychic?.name ?? "the employee under review"}
               </span>
@@ -617,7 +686,7 @@ export function PerformanceReviewGameView({
         <h2 className="font-semibold mb-4">
           {phase === "lobby" && "Mandatory Performance Review"}
           {phase === "steering" && "Feedback Window"}
-          {phase === "statement" && "Official Statement"}
+          {phase === "statement" && "One-Word Clue"}
           {phase === "guessing" && "Colleague Assessment"}
           {phase === "reveal" && "Review Results"}
           {phase === "game_over" && "Final Performance Review"}
@@ -631,7 +700,7 @@ export function PerformanceReviewGameView({
             </p>
             <p className="text-gray-500 text-xs">
               {
-                "Each review, one employee states their position on a topic — Honestly, or with Spin. Colleagues place their read of where the employee actually stands, and may flag the statement as Spin. Performance Points follow. Management sees everything."
+                "Each review, one employee gives a one-word clue about where they stand on a topic — a true clue, or a dishonest one. Colleagues place their read of where the employee actually stands, and may flag the clue as dishonest. Performance Points follow. Management sees everything."
               }
             </p>
           </div>
@@ -642,7 +711,7 @@ export function PerformanceReviewGameView({
           <div className="space-y-4">
             <p className="text-gray-400 text-sm">
               {
-                "Submit feedback to management: suggest what the next review should cover. Management may weigh, ignore, or mock your input. The next employee under review has not been announced."
+                "Submit feedback to management: a word, a theme, a grievance — anything. Management will select one submission by a lottery it does not explain, and build the next review around it. Unused submissions are archived, not forgotten. The next employee under review has not been announced."
               }
             </p>
 
@@ -717,7 +786,7 @@ export function PerformanceReviewGameView({
                   </p>
                   <p className="text-xs text-amber-200/70 mt-1">
                     {
-                      "Set your actual stance, choose your strategy, and issue a one-word official statement."
+                      "Set your actual stance, then issue a one-word clue — true, or dishonest."
                     }
                   </p>
                 </div>
@@ -737,7 +806,7 @@ export function PerformanceReviewGameView({
                 </div>
 
                 <div>
-                  <p className="text-gray-400 text-sm mb-2">Strategy:</p>
+                  <p className="text-gray-400 text-sm mb-2">Clue type:</p>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
@@ -748,7 +817,7 @@ export function PerformanceReviewGameView({
                           : "bg-gray-900 border-gray-700 text-gray-300 hover:border-gray-500"
                       }`}
                     >
-                      Honest
+                      True Clue
                     </button>
                     <button
                       type="button"
@@ -759,19 +828,20 @@ export function PerformanceReviewGameView({
                           : "bg-gray-900 border-gray-700 text-gray-300 hover:border-gray-500"
                       }`}
                     >
-                      Spin
+                      Dishonest Clue
                     </button>
                   </div>
                   <p className="text-gray-500 text-xs mt-2">
                     {alignmentInput === "honest"
-                      ? "Honest: your statement points at the truth. You share the points of every colleague who reads you correctly."
-                      : "Spin: misdirect them. You score for every colleague who lands far from the truth — but each 🚩 that catches you costs dearly."}
+                      ? "True Clue: your word points at your real stance. You share the points of every colleague who reads you correctly."
+                      : "Dishonest Clue: your word misdirects. You score for every colleague who lands far from the truth — but each 🚩 that catches you costs dearly."}
                   </p>
                 </div>
 
                 <div>
                   <p className="text-gray-400 text-sm mb-2">
-                    Official Statement — exactly one word:
+                    Your {alignmentInput === "honest" ? "true" : "dishonest"}{" "}
+                    clue — exactly one word:
                   </p>
                   <input
                     type="text"
@@ -790,7 +860,11 @@ export function PerformanceReviewGameView({
                   disabled={isStating || !clueInput.trim()}
                   className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
                 >
-                  {isStating ? "Submitting..." : "Submit Official Statement"}
+                  {isStating
+                    ? "Submitting..."
+                    : `Submit ${
+                        alignmentInput === "honest" ? "True" : "Dishonest"
+                      } Clue`}
                 </button>
               </form>
             ) : (
@@ -799,7 +873,7 @@ export function PerformanceReviewGameView({
                   <span className="font-semibold text-white">
                     {psychic?.name ?? "An employee"}
                   </span>{" "}
-                  is preparing their official statement.
+                  is preparing their one-word clue.
                 </p>
                 <p className="text-gray-500 text-xs mt-2">
                   Remain at your desk.
@@ -823,7 +897,7 @@ export function PerformanceReviewGameView({
 
             <div className="text-center py-3 bg-gray-900 rounded-lg mb-4">
               <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">
-                Official statement from {psychic?.name ?? "the employee"}
+                One-word clue from {psychic?.name ?? "the employee"}
               </p>
               <p className="text-3xl font-bold text-white">
                 {"“"}
@@ -873,11 +947,11 @@ export function PerformanceReviewGameView({
                       : "bg-gray-900 border-gray-700 text-gray-300 hover:border-gray-500"
                   }`}
                 >
-                  🚩 Flag as Spin{flagInput ? " — filed" : ""}
+                  🚩 Flag as Dishonest{flagInput ? " — filed" : ""}
                 </button>
                 <p className="text-gray-500 text-xs">
                   {
-                    "Flag if you believe the statement is a misdirect: +2 if correct, -2 if the employee was honest."
+                    "Flag if you believe the clue is dishonest: +2 if you are right, -2 if the clue was true."
                   }
                 </p>
                 <button
@@ -906,11 +980,12 @@ export function PerformanceReviewGameView({
                     : "bg-red-700 text-red-100"
                 }`}
               >
-                {lastRoundResults.alignment === "honest" ? "Honest" : "Spin"}
+                {lastRoundResults.alignment === "honest"
+                  ? "True Clue"
+                  : "Dishonest Clue"}
               </span>
               <p className="text-gray-500 text-xs mt-2">
-                {lastRoundResults.employeeName} was under review. Statement:{" "}
-                {"“"}
+                {lastRoundResults.employeeName} was under review. Clue: {"“"}
                 {clue ?? "..."}
                 {"”"}
               </p>
