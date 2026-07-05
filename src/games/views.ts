@@ -5,6 +5,7 @@ import { NumberGuessGameView } from "./number-guess/GameView";
 import { CometRushGameView } from "./comet-rush/GameView";
 import { CafeGameView } from "./cafe/GameView";
 import { RealEstateGameView } from "./real-estate/GameView";
+import { PerformanceReviewGameView } from "./performance-review/GameView";
 
 // Props passed to game views
 export type GameViewProps<S = unknown> = {
@@ -57,6 +58,14 @@ export const gameOptions: GameOption[] = [
     minPlayers: 2,
     maxPlayers: 6,
   },
+  {
+    id: "performance-review",
+    name: "Performance Review",
+    description:
+      "Read your coworkers. Trust the statement, or flag the spin. Management is watching.",
+    minPlayers: 3,
+    maxPlayers: 8,
+  },
 ];
 
 // Registry of game view components
@@ -65,6 +74,7 @@ const gameViews: Record<string, GameViewComponent> = {
   "comet-rush": CometRushGameView as GameViewComponent,
   "cafe": CafeGameView as GameViewComponent,
   "real-estate": RealEstateGameView as GameViewComponent,
+  "performance-review": PerformanceReviewGameView as GameViewComponent,
 };
 
 /**
