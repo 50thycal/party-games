@@ -19,7 +19,6 @@ const BAND_WARM_PTS = 1;
 
 const MAX_STEER_PROMPTS = 2;
 const MAX_STEER_PROMPT_LENGTH = 200;
-const MAX_CLUE_LENGTH = 40;
 const MAX_FEEDBACK_LOG = 40;
 
 // ============================================================================
@@ -65,7 +64,9 @@ export type PRState = {
   heat: PRHeat;
   roundNumber: number; // 1-based
   totalRounds: number;
-  psychicIdx: number; // index into room.players; -1 before round 1
+  // Whose turn it is under review. Stored by identity (not array index) so the
+  // rotation stays a strict round-robin even if the roster changes mid-game.
+  psychicId: string | null; // null before round 1
 
   // --- current round (cleared each SET_SPECTRUM) ---
   topic: string | null;
@@ -73,7 +74,6 @@ export type PRState = {
   rightLabel: string | null; // the 100-pole label
   commentary: string | null; // Overlord memo shown at the top of this round
   opinion: number | null; // 0..100 - where the employee actually stands (secret until reveal)
-  clue: string | null; // ONE word
   dials: Record<string, number>; // colleagueId -> 0..100
 
   // --- scoring ---
@@ -119,7 +119,6 @@ export interface PRAction extends BaseAction {
     seedPlayerId?: string; // whose feedback seeded this round's topic
     seedPrompt?: string;
     opinion?: number;
-    clue?: string;
     dial?: number;
   };
 }
@@ -134,13 +133,12 @@ function initialState(_players: Player[]): PRState {
     heat: "spicy",
     roundNumber: 1,
     totalRounds: 0,
-    psychicIdx: -1,
+    psychicId: null,
     topic: null,
     leftLabel: null,
     rightLabel: null,
     commentary: null,
     opinion: null,
-    clue: null,
     dials: {},
     scores: {},
     roundScores: {},
@@ -161,7 +159,8 @@ function isHost(ctx: GameContext): boolean {
 }
 
 function psychicOf(state: PRState, ctx: GameContext): Player | undefined {
-  return ctx.room.players[state.psychicIdx];
+  if (!state.psychicId) return undefined;
+  return ctx.room.players.find((p) => p.id === state.psychicId);
 }
 
 function clampInt0100(value: unknown): number | null {
@@ -180,7 +179,7 @@ function band(d: number): number {
  * Score the current round with whatever dials exist and advance to reveal.
  * Each colleague earns points for how close their guess lands to where the
  * employee actually stands; the employee under review shares the table's
- * accuracy (the sum of those points) as a reward for a readable clue.
+ * accuracy (the sum of those points) as a reward for being well understood.
  * Colleagues who never dialed score 0 and are excluded from the employee's
  * sum, so an AFK colleague neither helps nor hurts them.
  */
@@ -269,7 +268,7 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
         heat: validHeat,
         roundNumber: 1,
         totalRounds: ctx.room.players.length * ROUNDS_PER_PLAYER,
-        psychicIdx: -1,
+        psychicId: null,
         scores,
       };
     }
@@ -360,16 +359,23 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
       }
       feedbackLog = [...feedbackLog, ...newEntries].slice(-MAX_FEEDBACK_LOG);
 
+      // Advance the review to the NEXT player in seating order, anchored to the
+      // current employee's identity (not a raw index) so a mid-game join/leave
+      // can never scramble the rotation. Round 1 (psychicId null) starts at [0].
+      const curIdx = state.psychicId
+        ? ctx.room.players.findIndex((p) => p.id === state.psychicId)
+        : -1;
+      const nextPsychicId = ctx.room.players[(curIdx + 1) % n].id;
+
       return {
         ...state,
-        psychicIdx: (state.psychicIdx + 1) % n,
+        psychicId: nextPsychicId,
         topic: topic.trim(),
         leftLabel: leftLabel.trim(),
         rightLabel: rightLabel.trim(),
         commentary,
         feedbackLog,
         opinion: null,
-        clue: null,
         dials: {},
         roundScores: {},
         phase: "statement",
@@ -384,17 +390,9 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
       const opinion = clampInt0100(action.payload?.opinion);
       if (opinion === null) return state;
 
-      // The clue is exactly one word: coerce to the first token.
-      const clue =
-        typeof action.payload?.clue === "string"
-          ? (action.payload.clue.trim().split(/\s+/)[0] ?? "").slice(
-              0,
-              MAX_CLUE_LENGTH
-            )
-          : "";
-      if (!clue) return state;
-
-      return { ...state, opinion, clue, phase: "guessing" };
+      // The employee privately commits where they actually stand; colleagues
+      // guess it from what they know about this person (no clue is given).
+      return { ...state, opinion, phase: "guessing" };
     }
 
     case "SUBMIT_DIAL": {
@@ -470,14 +468,14 @@ export const performanceReviewGame = defineGame<PRState, PRAction>({
   id: "performance-review",
   name: "Performance Review",
   description:
-    "One coworker, one word, one opinion. Guess where they stand. Management is watching.",
+    "One coworker, one hot take. Guess where they really stand. Management is watching.",
   minPlayers: 3,
   maxPlayers: 8,
   initialState,
   reducer,
   getPhase,
   isActionAllowed(state, action, ctx) {
-    const psychicId = ctx.room.players[state.psychicIdx]?.id;
+    const psychicId = state.psychicId;
     switch (action.type) {
       case "START_GAME":
         return isHost(ctx) && state.phase === "lobby";
