@@ -2,12 +2,7 @@
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import type { GameViewProps } from "@/games/views";
-import type {
-  PRAlignment,
-  PRColleagueResult,
-  PRHeat,
-  PRState,
-} from "./config";
+import type { PRColleagueResult, PRHeat, PRState } from "./config";
 
 // ============================================================================
 // Canned content — the game must stay fully playable with zero LLM availability
@@ -124,7 +119,7 @@ function StanceSlider({
   );
 }
 
-// The signature reveal visual: truth marker + every colleague's dial on one bar.
+// The signature reveal visual: truth marker + every colleague's guess on one bar.
 function SpectrumBar({
   leftLabel,
   rightLabel,
@@ -145,10 +140,9 @@ function SpectrumBar({
             key={`label-${r.name}-${i}`}
             className={`absolute -translate-x-1/2 text-[10px] leading-tight whitespace-nowrap ${
               i % 2 === 0 ? "top-6" : "top-0"
-            } ${r.flagged ? "text-red-300" : "text-blue-300"}`}
+            } ${r.points >= 5 ? "text-green-300" : "text-blue-300"}`}
             style={{ left: `${Math.min(95, Math.max(5, clampPct(r.dial)))}%` }}
           >
-            {r.flagged ? "🚩" : ""}
             {r.name} · {r.dial}
           </div>
         ))}
@@ -161,7 +155,7 @@ function SpectrumBar({
           <div
             key={`tick-${r.name}-${i}`}
             className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-5 rounded ${
-              r.flagged ? "bg-red-400" : "bg-blue-400"
+              r.points >= 5 ? "bg-green-400" : "bg-blue-400"
             }`}
             style={{ left: `${clampPct(r.dial)}%` }}
           />
@@ -252,12 +246,10 @@ export function PerformanceReviewGameView({
   const [isGenerating, setIsGenerating] = useState(false);
 
   const [stanceInput, setStanceInput] = useState(50);
-  const [alignmentInput, setAlignmentInput] = useState<PRAlignment>("honest");
   const [clueInput, setClueInput] = useState("");
   const [isStating, setIsStating] = useState(false);
 
   const [dialInput, setDialInput] = useState(50);
-  const [flagInput, setFlagInput] = useState(false);
   const [isDialing, setIsDialing] = useState(false);
 
   const [isRevealing, setIsRevealing] = useState(false);
@@ -270,10 +262,8 @@ export function PerformanceReviewGameView({
     setSteer1("");
     setSteer2("");
     setStanceInput(50);
-    setAlignmentInput("honest");
     setClueInput("");
     setDialInput(50);
-    setFlagInput(false);
   }, [roundNumber, playerId]);
 
   // ==========================================================================
@@ -506,7 +496,6 @@ export function PerformanceReviewGameView({
     try {
       await dispatchAction("SET_STATEMENT", {
         opinion: stanceInput,
-        alignment: alignmentInput,
         clue: word,
       });
     } finally {
@@ -518,7 +507,7 @@ export function PerformanceReviewGameView({
     e.preventDefault();
     setIsDialing(true);
     try {
-      await dispatchAction("SUBMIT_DIAL", { dial: dialInput, flag: flagInput });
+      await dispatchAction("SUBMIT_DIAL", { dial: dialInput });
     } finally {
       setIsDialing(false);
     }
@@ -557,38 +546,35 @@ export function PerformanceReviewGameView({
 
   function overlordCaption(): string {
     if (!lastRoundResults) return "";
-    const { employeeName, alignment: revealed, results, opinion } =
-      lastRoundResults;
-    const flagCount = results.filter((r) => r.flagged).length;
-    const cs = flagCount === 1 ? "" : "s";
+    const { employeeName, results, opinion } = lastRoundResults;
+    const dialed = results.filter((r) => r.dial !== undefined);
+    const avgDist =
+      dialed.length > 0
+        ? dialed.reduce((sum, r) => sum + Math.abs(r.dial - opinion), 0) /
+          dialed.length
+        : 100;
     // Stable per-round seed so the caption doesn't reshuffle every poll.
-    const seed = opinion + flagCount + employeeName.length;
+    const seed = opinion + dialed.length + employeeName.length;
     const pick = (arr: string[]) => arr[seed % arr.length];
 
     let options: string[];
-    if (revealed === "spin" && flagCount > 0) {
+    if (avgDist <= 10) {
       options = [
-        `${employeeName} gave a dishonest clue. ${flagCount} colleague${cs} saw through it. Noted.`,
-        `${employeeName} lied, and ${flagCount} colleague${cs} caught it. The deception was, frankly, amateur.`,
-        `A dishonest clue from ${employeeName}, flagged by ${flagCount}. The performance is in your permanent file.`,
+        `The staff read ${employeeName} with unsettling precision. Suspiciously well-adjusted.`,
+        `${employeeName} was understood almost perfectly. Management finds this level of transparency concerning.`,
+        `A near-flawless reading of ${employeeName}. Either the clue was excellent or you all conspire on breaks.`,
       ];
-    } else if (revealed === "spin") {
+    } else if (avgDist <= 25) {
       options = [
-        `${employeeName} lied with a straight face. The staff believed every word. Predictable.`,
-        `${employeeName} spun a clean lie and nobody flinched. Management is unsettled, but efficient.`,
-        `Not one flag against ${employeeName}'s dishonest clue. The staff's gullibility has been recorded.`,
-      ];
-    } else if (flagCount > 0) {
-      options = [
-        `${employeeName} gave a true clue and was flagged anyway. Trust is dead. Efficient.`,
-        `${employeeName} told the truth. ${flagCount} colleague${cs} accused them regardless. Morale noted.`,
-        `${employeeName} was honest and punished for it by ${flagCount}. Working as intended.`,
+        `${employeeName} was read passably. Management notes no distinction, as usual.`,
+        `The staff located ${employeeName} approximately. Approximately is what we pay for.`,
+        `A serviceable reading of ${employeeName}. Nobody excelled. Nobody was fired. Yet.`,
       ];
     } else {
       options = [
-        `${employeeName} gave a true clue. No flags were raised. The bare minimum, achieved.`,
-        `${employeeName} was honest and unremarkable. Management approves of the lack of incident.`,
-        `A true clue from ${employeeName}, believed by all. Adequate. Do not expect praise.`,
+        `Nobody could locate ${employeeName}. The clue failed, or ${employeeName} is a mystery. Neither is praised.`,
+        `The staff missed ${employeeName} entirely. Communication has broken down, precisely as forecast.`,
+        `${employeeName} remains unreadable. Management has flagged this for a follow-up nobody will attend.`,
       ];
     }
     return pick(options);
@@ -733,7 +719,7 @@ export function PerformanceReviewGameView({
             </p>
             <p className="text-gray-500 text-xs">
               {
-                "Each review, one employee gives a one-word clue about where they stand on a topic — a true clue, or a dishonest one. Colleagues place their read of where the employee actually stands, and may flag the clue as dishonest. Performance Points follow. Management sees everything."
+                "Each review, one employee gives a one-word clue about where they stand on a debatable topic. Everyone else guesses where they really landed — the closer you read them, the more Performance Points you earn, and the employee shares in every accurate read. Management sees everything."
               }
             </p>
           </div>
@@ -819,7 +805,7 @@ export function PerformanceReviewGameView({
                   </p>
                   <p className="text-xs text-amber-200/70 mt-1">
                     {
-                      "Set your actual stance, then issue a one-word clue — true, or dishonest."
+                      "Set where you actually stand, then issue a one-word clue that helps your colleagues find you."
                     }
                   </p>
                 </div>
@@ -839,42 +825,8 @@ export function PerformanceReviewGameView({
                 </div>
 
                 <div>
-                  <p className="text-gray-400 text-sm mb-2">Clue type:</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setAlignmentInput("honest")}
-                      className={`rounded-lg py-3 px-3 font-semibold border transition-colors ${
-                        alignmentInput === "honest"
-                          ? "bg-green-700 border-green-500 text-white"
-                          : "bg-gray-900 border-gray-700 text-gray-300 hover:border-gray-500"
-                      }`}
-                    >
-                      True Clue
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAlignmentInput("spin")}
-                      className={`rounded-lg py-3 px-3 font-semibold border transition-colors ${
-                        alignmentInput === "spin"
-                          ? "bg-red-700 border-red-500 text-white"
-                          : "bg-gray-900 border-gray-700 text-gray-300 hover:border-gray-500"
-                      }`}
-                    >
-                      Dishonest Clue
-                    </button>
-                  </div>
-                  <p className="text-gray-500 text-xs mt-2">
-                    {alignmentInput === "honest"
-                      ? "True Clue: your word points at your real stance. You share the points of every colleague who reads you correctly."
-                      : "Dishonest Clue: your word misdirects. You score DOUBLE for every colleague you send far from the truth — but every 🚩 that catches you costs dearly."}
-                  </p>
-                </div>
-
-                <div>
                   <p className="text-gray-400 text-sm mb-2">
-                    Your {alignmentInput === "honest" ? "true" : "dishonest"}{" "}
-                    clue — exactly one word:
+                    Your one-word clue:
                   </p>
                   <input
                     type="text"
@@ -886,6 +838,11 @@ export function PerformanceReviewGameView({
                     placeholder="One word"
                     className="w-full bg-gray-900 border border-gray-700 rounded-lg py-3 px-4 text-center text-xl focus:outline-none focus:border-blue-500"
                   />
+                  <p className="text-gray-500 text-xs mt-2">
+                    {
+                      "You score for every colleague who reads you accurately — the clearer your clue, the more points for you and for them."
+                    }
+                  </p>
                 </div>
 
                 <button
@@ -893,11 +850,7 @@ export function PerformanceReviewGameView({
                   disabled={isStating || !clueInput.trim()}
                   className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
                 >
-                  {isStating
-                    ? "Submitting..."
-                    : `Submit ${
-                        alignmentInput === "honest" ? "True" : "Dishonest"
-                      } Clue`}
+                  {isStating ? "Submitting..." : "Submit Clue"}
                 </button>
               </form>
             ) : (
@@ -953,7 +906,6 @@ export function PerformanceReviewGameView({
                 <p className="text-gray-400 mb-1">Answer submitted:</p>
                 <p className="text-3xl font-bold text-green-400">
                   {dials[playerId]}
-                  {gameState?.flags?.[playerId] ? " 🚩" : ""}
                 </p>
                 <p className="text-gray-500 text-xs mt-2">
                   {dialedCount} of {colleagues.length} answers in. Management
@@ -971,20 +923,9 @@ export function PerformanceReviewGameView({
                   leftLabel={leftLabel}
                   rightLabel={rightLabel}
                 />
-                <button
-                  type="button"
-                  onClick={() => setFlagInput(!flagInput)}
-                  className={`w-full rounded-lg py-2 px-4 text-sm font-semibold border transition-colors ${
-                    flagInput
-                      ? "bg-red-900 border-red-600 text-red-100"
-                      : "bg-gray-900 border-gray-700 text-gray-300 hover:border-gray-500"
-                  }`}
-                >
-                  🚩 Flag as Dishonest{flagInput ? " — filed" : ""}
-                </button>
                 <p className="text-gray-500 text-xs">
                   {
-                    "Flag if you believe the clue is dishonest: +3 if you are right, -2 if the clue was true."
+                    "The closer your guess lands to where they really stand, the more Performance Points you earn."
                   }
                 </p>
                 <button
@@ -1006,21 +947,14 @@ export function PerformanceReviewGameView({
               <p className="text-gray-400 text-sm mb-2">
                 {lastRoundResults.topic}
               </p>
-              <span
-                className={`inline-block px-4 py-1 rounded-full text-sm font-bold uppercase tracking-widest ${
-                  lastRoundResults.alignment === "honest"
-                    ? "bg-green-700 text-green-100"
-                    : "bg-red-700 text-red-100"
-                }`}
-              >
-                {lastRoundResults.alignment === "honest"
-                  ? "True Clue"
-                  : "Dishonest Clue"}
-              </span>
-              <p className="text-gray-500 text-xs mt-2">
-                {lastRoundResults.employeeName} was under review. Clue: {"“"}
+              <span className="inline-block px-4 py-1 rounded-full text-sm font-bold bg-gray-700 text-white">
+                {"“"}
                 {clue ?? "..."}
                 {"”"}
+              </span>
+              <p className="text-gray-500 text-xs mt-2">
+                {lastRoundResults.employeeName} was under review, and truly stood
+                at {lastRoundResults.opinion}.
               </p>
             </div>
 
