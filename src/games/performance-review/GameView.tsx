@@ -201,12 +201,11 @@ export function PerformanceReviewGameView({
   const heat = gameState?.heat ?? "spicy";
   const roundNumber = gameState?.roundNumber ?? 1;
   const totalRounds = gameState?.totalRounds ?? 0;
-  const psychicIdx = gameState?.psychicIdx ?? -1;
+  const psychicId = gameState?.psychicId ?? null;
   const topic = gameState?.topic ?? null;
   const leftLabel = gameState?.leftLabel ?? "";
   const rightLabel = gameState?.rightLabel ?? "";
   const commentary = gameState?.commentary ?? null;
-  const clue = gameState?.clue ?? null;
   const dials = gameState?.dials ?? {};
   const scores = gameState?.scores ?? {};
   const roundScores = gameState?.roundScores ?? {};
@@ -216,7 +215,9 @@ export function PerformanceReviewGameView({
   const lastRoundResults = gameState?.lastRoundResults ?? null;
   const finalCommentary = gameState?.finalCommentary ?? null;
 
-  const psychic = psychicIdx >= 0 ? room.players[psychicIdx] ?? null : null;
+  const psychic = psychicId
+    ? room.players.find((p) => p.id === psychicId) ?? null
+    : null;
   const isPsychic = psychic !== null && psychic.id === playerId;
   const colleagues = room.players.filter((p) => p.id !== psychic?.id);
   const dialedCount = colleagues.filter((c) => dials[c.id] !== undefined).length;
@@ -246,7 +247,6 @@ export function PerformanceReviewGameView({
   const [isGenerating, setIsGenerating] = useState(false);
 
   const [stanceInput, setStanceInput] = useState(50);
-  const [clueInput, setClueInput] = useState("");
   const [isStating, setIsStating] = useState(false);
 
   const [dialInput, setDialInput] = useState(50);
@@ -262,7 +262,6 @@ export function PerformanceReviewGameView({
     setSteer1("");
     setSteer2("");
     setStanceInput(50);
-    setClueInput("");
     setDialInput(50);
   }, [roundNumber, playerId]);
 
@@ -490,14 +489,9 @@ export function PerformanceReviewGameView({
 
   async function handleSubmitStatement(e: FormEvent) {
     e.preventDefault();
-    const word = clueInput.trim();
-    if (!word || /\s/.test(word)) return;
     setIsStating(true);
     try {
-      await dispatchAction("SET_STATEMENT", {
-        opinion: stanceInput,
-        clue: word,
-      });
+      await dispatchAction("SET_STATEMENT", { opinion: stanceInput });
     } finally {
       setIsStating(false);
     }
@@ -562,7 +556,7 @@ export function PerformanceReviewGameView({
       options = [
         `The staff read ${employeeName} with unsettling precision. Suspiciously well-adjusted.`,
         `${employeeName} was understood almost perfectly. Management finds this level of transparency concerning.`,
-        `A near-flawless reading of ${employeeName}. Either the clue was excellent or you all conspire on breaks.`,
+        `A near-flawless reading of ${employeeName}. Either they are an open book or you all conspire on breaks.`,
       ];
     } else if (avgDist <= 25) {
       options = [
@@ -572,7 +566,7 @@ export function PerformanceReviewGameView({
       ];
     } else {
       options = [
-        `Nobody could locate ${employeeName}. The clue failed, or ${employeeName} is a mystery. Neither is praised.`,
+        `Nobody could locate ${employeeName}. Either the staff is oblivious, or ${employeeName} is a mystery. Neither is praised.`,
         `The staff missed ${employeeName} entirely. Communication has broken down, precisely as forecast.`,
         `${employeeName} remains unreadable. Management has flagged this for a follow-up nobody will attend.`,
       ];
@@ -647,7 +641,7 @@ export function PerformanceReviewGameView({
 
           {phase === "statement" && (
             <p className="text-gray-400 text-sm">
-              Awaiting the one-word clue from{" "}
+              Awaiting a position from{" "}
               <span className="text-white font-semibold">
                 {psychic?.name ?? "the employee under review"}
               </span>
@@ -705,7 +699,7 @@ export function PerformanceReviewGameView({
         <h2 className="font-semibold mb-4">
           {phase === "lobby" && "Mandatory Performance Review"}
           {phase === "steering" && "Feedback Window"}
-          {phase === "statement" && "One-Word Clue"}
+          {phase === "statement" && "Take Your Position"}
           {phase === "guessing" && "Colleague Assessment"}
           {phase === "reveal" && "Review Results"}
           {phase === "game_over" && "Final Performance Review"}
@@ -719,7 +713,7 @@ export function PerformanceReviewGameView({
             </p>
             <p className="text-gray-500 text-xs">
               {
-                "Each review, one employee gives a one-word clue about where they stand on a debatable topic. Everyone else guesses where they really landed — the closer you read them, the more Performance Points you earn, and the employee shares in every accurate read. Management sees everything."
+                "Each review, one employee secretly marks where they stand on a debatable topic. Everyone else guesses that position from what they know about the person — no clue is given. The closer you read them, the more Performance Points you earn, and the employee shares in every accurate read. Management sees everything."
               }
             </p>
           </div>
@@ -805,7 +799,7 @@ export function PerformanceReviewGameView({
                   </p>
                   <p className="text-xs text-amber-200/70 mt-1">
                     {
-                      "Set where you actually stand, then issue a one-word clue that helps your colleagues find you."
+                      "Mark where you honestly stand and lock it in. Your colleagues will try to guess it — no clue, just how well they know you."
                     }
                   </p>
                 </div>
@@ -813,7 +807,7 @@ export function PerformanceReviewGameView({
                 <div>
                   <p className="text-gray-400 text-sm mb-2">
                     {
-                      "Your actual stance. Colleagues will not see this number — only your word."
+                      "Where do you actually stand? Colleagues will not see this until the reveal."
                     }
                   </p>
                   <StanceSlider
@@ -822,35 +816,19 @@ export function PerformanceReviewGameView({
                     leftLabel={leftLabel}
                     rightLabel={rightLabel}
                   />
-                </div>
-
-                <div>
-                  <p className="text-gray-400 text-sm mb-2">
-                    Your one-word clue:
-                  </p>
-                  <input
-                    type="text"
-                    value={clueInput}
-                    onChange={(e) =>
-                      setClueInput(e.target.value.replace(/\s/g, ""))
-                    }
-                    maxLength={40}
-                    placeholder="One word"
-                    className="w-full bg-gray-900 border border-gray-700 rounded-lg py-3 px-4 text-center text-xl focus:outline-none focus:border-blue-500"
-                  />
                   <p className="text-gray-500 text-xs mt-2">
                     {
-                      "You score for every colleague who reads you accurately — the clearer your clue, the more points for you and for them."
+                      "You score for every colleague who reads you accurately — the better your team knows you, the more points for everyone."
                     }
                   </p>
                 </div>
 
                 <button
                   type="submit"
-                  disabled={isStating || !clueInput.trim()}
+                  disabled={isStating}
                   className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
                 >
-                  {isStating ? "Submitting..." : "Submit Clue"}
+                  {isStating ? "Locking in..." : "Lock In My Position"}
                 </button>
               </form>
             ) : (
@@ -859,7 +837,7 @@ export function PerformanceReviewGameView({
                   <span className="font-semibold text-white">
                     {psychic?.name ?? "An employee"}
                   </span>{" "}
-                  is preparing their one-word clue.
+                  is deciding where they stand.
                 </p>
                 <p className="text-gray-500 text-xs mt-2">
                   Remain at your desk.
@@ -883,12 +861,13 @@ export function PerformanceReviewGameView({
 
             <div className="text-center py-3 bg-gray-900 rounded-lg mb-4">
               <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">
-                One-word clue from {psychic?.name ?? "the employee"}
+                Under review
               </p>
-              <p className="text-3xl font-bold text-white">
-                {"“"}
-                {clue ?? "..."}
-                {"”"}
+              <p className="text-2xl font-bold text-white">
+                {psychic?.name ?? "The employee"}
+              </p>
+              <p className="text-gray-500 text-xs mt-1">
+                No clue is given. Guess from what you know about them.
               </p>
             </div>
 
@@ -947,14 +926,11 @@ export function PerformanceReviewGameView({
               <p className="text-gray-400 text-sm mb-2">
                 {lastRoundResults.topic}
               </p>
-              <span className="inline-block px-4 py-1 rounded-full text-sm font-bold bg-gray-700 text-white">
-                {"“"}
-                {clue ?? "..."}
-                {"”"}
+              <span className="inline-block px-4 py-1 rounded-full text-sm font-bold bg-yellow-500 text-gray-900">
+                {lastRoundResults.employeeName} · {lastRoundResults.opinion}
               </span>
               <p className="text-gray-500 text-xs mt-2">
-                {lastRoundResults.employeeName} was under review, and truly stood
-                at {lastRoundResults.opinion}.
+                Where {lastRoundResults.employeeName} truly stood.
               </p>
             </div>
 
