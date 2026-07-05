@@ -4,6 +4,7 @@ import { cometRushGame } from "@/games/comet-rush/config";
 import { cafeGame } from "@/games/cafe/config";
 import { realEstateGame } from "@/games/real-estate/config";
 import { performanceReviewGame } from "@/games/performance-review/config";
+import { theDeskGame } from "@/games/the-desk/config";
 
 // Registry of all available games
 // Games are registered here after being defined
@@ -16,6 +17,7 @@ games.set(cometRushGame.id, cometRushGame);
 games.set(cafeGame.id, cafeGame);
 games.set(realEstateGame.id, realEstateGame);
 games.set(performanceReviewGame.id, performanceReviewGame);
+games.set(theDeskGame.id, theDeskGame);
 
 /**
  * Register a game template with the engine
