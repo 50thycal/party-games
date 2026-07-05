@@ -25,6 +25,7 @@ const CAUGHT_SPIN_PENALTY = 3; // psychic penalty per colleague who catches a Sp
 const MAX_STEER_PROMPTS = 2;
 const MAX_STEER_PROMPT_LENGTH = 200;
 const MAX_CLUE_LENGTH = 40;
+const MAX_FEEDBACK_LOG = 40;
 
 // ============================================================================
 // Types
@@ -57,6 +58,16 @@ export type PRLastRoundResults = {
   results: PRColleagueResult[];
 };
 
+// A feedback suggestion kept across rounds so the Overlord can revisit old
+// ideas. `used` marks suggestions that already seeded a review topic.
+export type PRFeedbackEntry = {
+  playerId: string;
+  name: string;
+  prompt: string;
+  round: number;
+  used: boolean;
+};
+
 export type PRState = {
   phase: PRPhase;
   heat: PRHeat;
@@ -81,6 +92,7 @@ export type PRState = {
 
   // --- steering ---
   steerPrompts: Record<string, string[]>; // playerId -> up to 2 feedback prompts
+  feedbackLog: PRFeedbackEntry[]; // all feedback across rounds; unused ones stay eligible
 
   // --- history / callbacks (fed to /api/host) ---
   history: Array<{
@@ -115,6 +127,8 @@ export interface PRAction extends BaseAction {
     leftLabel?: string;
     rightLabel?: string;
     commentary?: string;
+    seedPlayerId?: string; // whose feedback seeded this round's topic
+    seedPrompt?: string;
     opinion?: number;
     alignment?: PRAlignment;
     clue?: string;
@@ -146,6 +160,7 @@ function initialState(_players: Player[]): PRState {
     scores: {},
     roundScores: {},
     steerPrompts: {},
+    feedbackLog: [],
     history: [],
     lastRoundResults: null,
     finalCommentary: null,
@@ -347,6 +362,47 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
       const n = ctx.room.players.length;
       if (n === 0) return state;
 
+      // Archive this round's feedback so unused suggestions stay eligible for
+      // later reviews; flag whichever suggestion seeded this topic as used.
+      const seedPlayerId =
+        typeof action.payload?.seedPlayerId === "string"
+          ? action.payload.seedPlayerId
+          : null;
+      const seedPrompt =
+        typeof action.payload?.seedPrompt === "string"
+          ? action.payload.seedPrompt
+          : null;
+
+      const seedIsFromThisRound =
+        seedPlayerId !== null &&
+        seedPrompt !== null &&
+        (state.steerPrompts[seedPlayerId] ?? []).includes(seedPrompt);
+
+      let feedbackLog = state.feedbackLog;
+      if (seedPlayerId !== null && seedPrompt !== null && !seedIsFromThisRound) {
+        const idx = feedbackLog.findIndex(
+          (e) => !e.used && e.playerId === seedPlayerId && e.prompt === seedPrompt
+        );
+        if (idx >= 0) {
+          feedbackLog = feedbackLog.map((e, i) =>
+            i === idx ? { ...e, used: true } : e
+          );
+        }
+      }
+      const newEntries: PRFeedbackEntry[] = [];
+      for (const p of ctx.room.players) {
+        for (const prompt of state.steerPrompts[p.id] ?? []) {
+          newEntries.push({
+            playerId: p.id,
+            name: p.name,
+            prompt,
+            round: state.roundNumber,
+            used: p.id === seedPlayerId && prompt === seedPrompt,
+          });
+        }
+      }
+      feedbackLog = [...feedbackLog, ...newEntries].slice(-MAX_FEEDBACK_LOG);
+
       return {
         ...state,
         psychicIdx: (state.psychicIdx + 1) % n,
@@ -354,6 +410,7 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
         leftLabel: leftLabel.trim(),
         rightLabel: rightLabel.trim(),
         commentary,
+        feedbackLog,
         opinion: null,
         alignment: null,
         clue: null,
