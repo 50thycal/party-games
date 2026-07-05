@@ -77,17 +77,25 @@ function FundTicker({
 }) {
   const gap = fundScore - benchmark;
   return (
-    <div className="flex items-center justify-between bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 mb-4 font-mono text-sm">
-      <span className="text-gray-300">
-        FUND <span className="font-bold text-white">{fundScore}</span>
-        <span className="text-gray-600 mx-2">/</span>
-        BMK <span className="font-bold text-white">{benchmark}</span>
-      </span>
-      <span
-        className={`font-bold ${gap >= 0 ? "text-emerald-400" : "text-red-400"}`}
-      >
-        {gap >= 0 ? `AHEAD +${gap}` : `BEHIND ${gap}`}
-      </span>
+    <div className="bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 mb-4">
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-gray-300">
+          <span className="text-gray-500">Fund</span>{" "}
+          <span className="font-bold text-white">{fundScore}</span>
+          <span className="text-gray-600 mx-2">vs</span>
+          <span className="text-gray-500">Benchmark</span>{" "}
+          <span className="font-bold text-white">{benchmark}</span>
+        </span>
+        <span
+          className={`font-bold ${gap >= 0 ? "text-emerald-400" : "text-red-400"}`}
+        >
+          {gap >= 0 ? `Ahead by ${gap}` : `Behind by ${-gap}`}
+        </span>
+      </div>
+      <p className="text-[10px] text-gray-500 mt-1">
+        The group&apos;s fund must finish at or above the benchmark, or it is
+        liquidated and every personal bonus is void.
+      </p>
     </div>
   );
 }
@@ -335,7 +343,10 @@ export function TheDeskGameView({
   // the reducer; results are stored in state via SET_ROUND / SET_FINAL.
   // ==========================================================================
 
-  function buildDeskRequest(kind: "round" | "final") {
+  function buildDeskRequest(
+    kind: "round" | "final",
+    chosenFeedback: { name: string; prompt: string } | null = null
+  ) {
     const n = Math.max(1, room.players.length);
     const upcoming = room.players[(mmIdx + 1) % n];
     const scoreValues = room.players.map((p) => individual[p.id] ?? 0);
@@ -371,8 +382,40 @@ export function TheDeskGameView({
           prompt: request,
         }));
       }),
+      chosenFeedback,
       ...(kind === "final" ? { outcome: outcome ?? "win" } : {}),
     };
+  }
+
+  // Pick ONE piece of order flow to build the next market around: a weighted
+  // lottery across this round's requests (trailing traders weighted a little
+  // heavier). Honored ~80% of the time so the desk usually gets what it asked
+  // for; the rest of the time the Oracle chooses its own topic for variety.
+  function pickSeedFeedback(): { name: string; prompt: string } | null {
+    const bottomHalf = new Set(
+      standings.slice(Math.ceil(standings.length / 2)).map((s) => s.id)
+    );
+    const candidates: Array<{ name: string; prompt: string; weight: number }> = [];
+    for (const p of room.players) {
+      for (const request of steerPrompts[p.id] ?? []) {
+        candidates.push({
+          name: p.name,
+          prompt: request,
+          weight: 3 + (bottomHalf.has(p.id) ? 1 : 0),
+        });
+      }
+    }
+    if (candidates.length === 0) return null;
+    if (Math.random() >= 0.8) return null; // ~20%: let the Oracle free-wheel
+
+    const total = candidates.reduce((sum, c) => sum + c.weight, 0);
+    let roll = Math.random() * total;
+    for (const c of candidates) {
+      roll -= c.weight;
+      if (roll <= 0) return { name: c.name, prompt: c.prompt };
+    }
+    const last = candidates[candidates.length - 1];
+    return { name: last.name, prompt: last.prompt };
   }
 
   // Offline dealer: pick an unseen question and place the MM's book by RNG —
@@ -420,12 +463,13 @@ export function TheDeskGameView({
     setIsGenerating(true);
     try {
       let round: Record<string, unknown> | null = null;
+      const seed = pickSeedFeedback();
 
       try {
         const res = await fetch("/api/desk", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(buildDeskRequest("round")),
+          body: JSON.stringify(buildDeskRequest("round", seed)),
         });
         const json = await res.json();
         if (
@@ -852,15 +896,22 @@ export function TheDeskGameView({
 
                 <div className="bg-gray-900 rounded-lg p-4">
                   <p className="text-[10px] uppercase tracking-widest text-rose-400 mb-2">
-                    Your book — insider information
+                    Your position — insider information
                   </p>
                   <p className="text-gray-300 text-sm mb-3">
-                    Your book pays you{" "}
+                    You earn{" "}
                     <span className="font-semibold text-rose-300">
-                      per order landing in {payLow ?? 0}–{payHigh ?? 0}
+                      personal bonus points for every trader whose order lands
+                      in {payLow ?? 0}–{payHigh ?? 0}
                     </span>
-                    . Every point of trader accuracy feeds the fund. Choose
-                    what to starve.
+                    , so a quote that lures them into that band pads your
+                    personal score. But the{" "}
+                    <span className="font-semibold text-emerald-300">
+                      group&apos;s fund only grows when traders guess the real
+                      answer ({trueValue ?? "?"}%)
+                    </span>
+                    — and if the fund misses the benchmark, your bonus is wiped.
+                    Quote it straight, or talk your book.
                   </p>
                   <MarketBar
                     payBand={
@@ -1077,7 +1128,10 @@ export function TheDeskGameView({
                     <span className="text-gray-300">
                       {s.name}
                       {s.id === mm?.id && (
-                        <span className="text-gray-500 text-xs"> (MM)</span>
+                        <span className="text-gray-500 text-xs">
+                          {" "}
+                          (Market Maker)
+                        </span>
                       )}
                       {s.id === playerId && (
                         <span className="text-gray-500 text-xs"> (you)</span>

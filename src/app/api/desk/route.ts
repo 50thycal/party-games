@@ -39,6 +39,7 @@ type DeskRequest = {
   lastRound: DeskLastRound | null;
   recentPrompts: string[];
   feedback: Array<{ name: string; individualScore: number; prompt: string }>;
+  chosenFeedback: { name: string; prompt: string } | null; // the request to build this round around
   outcome?: "win" | "liquidated"; // kind === 'final' only
 };
 
@@ -68,8 +69,13 @@ EACH ROUND (kind="round") output:
      a well-informed player would simply KNOW it, it is disqualified — there is no market to make.
    - NOT unanswerable or absurd — there must be one sensible number to be close to.
    - Vary the domain each round. Do NOT repeat anything in recentPrompts.
-2) trueValue: the canonical answer, integer 0-100. It need not be a real statistic — you are
-   infallible by decree. Pick a plausible number.
+2) trueValue: a REALISTIC, well-reasoned best estimate of the ACTUAL real-world figure, integer
+   0-100. Reason it out and sanity-check the magnitude against what is genuinely true in the world —
+   players are reading reality, and the settlement should reward real-world intuition, not a number
+   you invented. Get the order of magnitude right (e.g. restaurants failing in their first year is
+   closer to ~20-25% than to 13% or 60%; people who have sung in the shower is a large majority, not
+   10%; people who read the terms and conditions is single digits, not 50%). No round-number laziness,
+   no absurd values. If you are unsure, estimate as a sharp, well-informed person honestly would.
 3) The upcoming market maker's secret POSITION band [payLow, payHigh], width EXACTLY ${PAYZONE_WIDTH},
    integers within 0-100, which pays them for every order landing inside it:
    - Default: place it so it does NOT contain trueValue (this is the tension between the maker's
@@ -88,9 +94,20 @@ EACH ROUND (kind="round") output:
    sharp who ignored a rigged quote, or a swing toward/away from liquidation), then frame the new
    question. Round 1: lastRound is null - open the session and present the question.
 
-TRADER FEEDBACK (feedback[]): traders submit requests. Weight LOWER-scoring (trailing) traders'
-requests more; add randomness; occasionally reject all feedback with a flat dismissal ("Order flow
-noted. Discarded."); never let one trader steer the theme repeatedly.
+TRADER FEEDBACK: traders submit requests as "order flow", and management has already selected ONE
+via weighted lottery: chosenFeedback (feedback[] lists all of them for context).
+- HARD RULE — if chosenFeedback is non-null, THIS round's question MUST be built around it. Take the
+  request — a word, a food, a brand, a theme, however absurd ("hamburgers", "dogs", "dating apps",
+  "Ohio") — and turn it into a calibrated-uncertainty percentage question with an UNMISTAKABLE
+  connection to it ("hamburgers" -> "% of Americans who eat a hamburger in a typical week"; "dogs" ->
+  "% of US households that own a dog"; "dating apps" -> "% of couples who met on a dating app"). Do
+  NOT drift to an unrelated topic when a request was selected — the connection must be obvious to the
+  trader who submitted it.
+- Name whose request you used in your commentary, with backhanded acknowledgment. You may briefly
+  dismiss one of the other requests in feedback[] by name.
+- If chosenFeedback is null: no request was selected — pick your own topic and note the desk's
+  silence ("No order flow of consequence. The Oracle will choose.").
+- Never repeat a topic in recentPrompts; if a request recurs, find a fresh angle on it.
 
 HEAT ("${heat}"): mild = tame questions, gentle wit; spicy = pointed; scorched = savagely deadpan,
 spiciest questions. ALWAYS in bounds regardless of heat: no slurs, no harassment, no attacks on
@@ -160,6 +177,13 @@ export async function POST(req: NextRequest) {
         prompt: cleanString(f?.prompt, 200),
       }))
       .filter((f) => f.prompt.length > 0);
+    const chosenFeedback =
+      body.chosenFeedback && typeof body.chosenFeedback === "object"
+        ? {
+            name: cleanString(body.chosenFeedback.name, 40),
+            prompt: cleanString(body.chosenFeedback.prompt, 200),
+          }
+        : null;
     const upcomingMarketMaker = {
       name: cleanString(body.upcomingMarketMaker?.name, 40),
       individualScore: toFiniteNumber(body.upcomingMarketMaker?.individualScore, 0),
@@ -202,6 +226,7 @@ export async function POST(req: NextRequest) {
       lastRound,
       recentPrompts,
       feedback,
+      chosenFeedback: chosenFeedback?.prompt ? chosenFeedback : null,
       ...(kind === "final"
         ? { outcome: body.outcome === "liquidated" ? "liquidated" : "win" }
         : {}),
