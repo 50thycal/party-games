@@ -75,7 +75,11 @@ export type DeskState = {
   heat: DeskHeat;
   roundNumber: number; // 1-based
   totalRounds: number;
-  mmIdx: number; // market maker index into room.players; -1 pre-round-1
+  // Roster snapshotted at START_GAME so the Market Maker rotation is fixed for
+  // the whole game — everyone makes markets exactly ROUNDS_PER_PLAYER times,
+  // regardless of anyone joining mid-game.
+  rosterIds: string[];
+  mmIdx: number; // market maker index into rosterIds; -1 pre-round-1
 
   // --- fund (group ledger) ---
   fundScore: number; // cumulative group points
@@ -152,6 +156,7 @@ function initialState(_players: Player[]): DeskState {
     heat: "spicy",
     roundNumber: 1,
     totalRounds: 0,
+    rosterIds: [],
     mmIdx: -1,
     fundScore: 0,
     benchmark: 0,
@@ -185,7 +190,9 @@ function isHost(ctx: GameContext): boolean {
 }
 
 function marketMakerOf(state: DeskState, ctx: GameContext): Player | undefined {
-  return ctx.room.players[state.mmIdx];
+  const mmId = state.rosterIds[state.mmIdx];
+  if (mmId === undefined) return undefined;
+  return ctx.room.players.find((p) => p.id === mmId);
 }
 
 function clampInt0100(value: unknown): number | null {
@@ -314,12 +321,18 @@ function reducer(state: DeskState, action: DeskAction, ctx: GameContext): DeskSt
       const individual: Record<string, number> = {};
       for (const p of ctx.room.players) individual[p.id] = 0;
 
+      // Freeze the roster now: everyone here makes markets exactly
+      // ROUNDS_PER_PLAYER times, and the total round count is a whole number of
+      // full rotations so no one gets an extra turn.
+      const rosterIds = ctx.room.players.map((p) => p.id);
+
       return {
         ...initialState(ctx.room.players),
         phase: "briefing",
         heat: validHeat,
         roundNumber: 1,
-        totalRounds: ctx.room.players.length * ROUNDS_PER_PLAYER,
+        totalRounds: rosterIds.length * ROUNDS_PER_PLAYER,
+        rosterIds,
         mmIdx: -1,
         individual,
       };
@@ -389,10 +402,13 @@ function reducer(state: DeskState, action: DeskAction, ctx: GameContext): DeskSt
           : PAR_K * guessers;
       const par = Math.min(parHi, Math.max(parLo, rawPar));
 
+      // Advance the Market Maker over the frozen roster so turns stay even.
+      const rotationLen = state.rosterIds.length > 0 ? state.rosterIds.length : n;
+
       return {
         ...state,
         phase: "quote",
-        mmIdx: (state.mmIdx + 1) % n,
+        mmIdx: (state.mmIdx + 1) % rotationLen,
         benchmark: state.benchmark + par,
         prompt,
         unit,
@@ -510,7 +526,7 @@ export const theDeskGame = defineGame<DeskState, DeskAction>({
   reducer,
   getPhase,
   isActionAllowed(state, action, ctx) {
-    const mmId = ctx.room.players[state.mmIdx]?.id;
+    const mmId = state.rosterIds[state.mmIdx];
     switch (action.type) {
       case "START_GAME":
         return isHost(ctx) && state.phase === "lobby";

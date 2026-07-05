@@ -100,6 +100,130 @@ function FundTicker({
   );
 }
 
+// Collapsible rules panel: how to play, how to score, and how the group wins
+// or loses. Open by default in the lobby, collapsible any time during play.
+function HowToPlay({ defaultOpen }: { defaultOpen: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="mb-4 border border-gray-700 rounded-lg overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between px-4 py-2 bg-gray-900 hover:bg-gray-800 transition-colors text-left"
+      >
+        <span className="text-sm font-semibold text-gray-200">
+          📖 How to Play &amp; How to Win
+        </span>
+        <span className="text-gray-500 text-xs">{open ? "Hide ▲" : "Show ▼"}</span>
+      </button>
+
+      {open && (
+        <div className="px-4 py-3 space-y-3 text-sm text-gray-300 bg-gray-900/40">
+          <p>
+            You are all operators on one prediction-market trading desk, run by{" "}
+            <span className="text-emerald-400 font-semibold">THE ORACLE</span> —
+            an omniscient, bored settlement engine that already knows every
+            answer and finds you tedious.
+          </p>
+
+          <div>
+            <p className="text-gray-100 font-semibold mb-1">
+              Your goal (as a group)
+            </p>
+            <p className="text-gray-400">
+              The whole desk shares one{" "}
+              <span className="text-emerald-400 font-semibold">Fund</span>. It
+              earns points every round when traders guess accurately. By the
+              final round the Fund must reach the{" "}
+              <span className="text-white font-semibold">Benchmark</span> the
+              Oracle keeps raising — or the desk is{" "}
+              <span className="text-red-400 font-semibold">liquidated</span> and{" "}
+              <span className="font-semibold">everyone loses together</span>, no
+              matter how many personal points anyone banked.
+            </p>
+          </div>
+
+          <div>
+            <p className="text-gray-100 font-semibold mb-1">Each round</p>
+            <ol className="list-decimal list-inside space-y-1 text-gray-400">
+              <li>
+                <span className="text-gray-200">Order flow</span> — anyone can
+                send the Oracle a topic. It builds the market around one of them.
+              </li>
+              <li>
+                <span className="text-gray-200">The Market Maker</span> — one
+                player each round, and the role rotates so{" "}
+                <span className="text-gray-200">
+                  everyone is Market Maker the same number of times
+                </span>
+                . The Oracle privately tells them the true answer{" "}
+                <span className="text-gray-200">and</span> deals them a secret{" "}
+                <span className="text-rose-300">position</span>: a payout band
+                that pays them personally for every order landing inside it.
+              </li>
+              <li>
+                <span className="text-gray-200">The quote</span> — the Market
+                Maker posts a public price range. Only they know the true answer
+                and their own position.
+              </li>
+              <li>
+                <span className="text-gray-200">Orders</span> — every other
+                player places one order: their read of the true percentage.
+              </li>
+              <li>
+                <span className="text-gray-200">Settlement</span> — the Oracle
+                reveals the truth and pays everyone out.
+              </li>
+            </ol>
+          </div>
+
+          <div>
+            <p className="text-gray-100 font-semibold mb-1">How points work</p>
+            <ul className="list-disc list-inside space-y-1 text-gray-400">
+              <li>
+                <span className="text-emerald-400 font-semibold">
+                  The Fund (group)
+                </span>{" "}
+                — each trader&apos;s order earns the desk points for closeness
+                to the truth: 5 (within 5), 3 (within 15), 1 (within 30), 0
+                beyond. This is the <span className="text-gray-200">only</span>{" "}
+                thing that keeps the desk alive.
+              </li>
+              <li>
+                <span className="text-yellow-300 font-semibold">
+                  Personal bonuses
+                </span>{" "}
+                — the Market Maker banks points for every order that lands in
+                their secret position 💰, and the trader(s) closest to the truth
+                earn a 🎯 <span className="text-gray-200">sharp</span> bonus. The
+                top personal ledger is crowned{" "}
+                <span className="text-yellow-300">PM of the Cycle</span> — but
+                only if the Fund survives. If the desk is liquidated, all
+                bonuses are void.
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <p className="text-gray-100 font-semibold mb-1">
+              The catch (and the fun)
+            </p>
+            <p className="text-gray-400">
+              As Market Maker you can skew your quote to lure orders into your
+              secret position for personal points — but that{" "}
+              <span className="text-red-300">starves the Fund</span> on the one
+              round you control. Quote honestly and the Fund thrives while you
+              skim nothing. So each round the table has to decide together:
+              we&apos;re behind, quote it straight — or we&apos;ve got a buffer,
+              go pad your book. That argument is the game.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 type Band = { low: number; high: number };
 
 // The market on a 0–100 bar: optional quote band, position band, truth marker,
@@ -268,6 +392,7 @@ export function TheDeskGameView({
   const heat = gameState?.heat ?? "spicy";
   const roundNumber = gameState?.roundNumber ?? 1;
   const totalRounds = gameState?.totalRounds ?? 0;
+  const rosterIds = gameState?.rosterIds ?? [];
   const mmIdx = gameState?.mmIdx ?? -1;
   const fundScore = gameState?.fundScore ?? 0;
   const benchmark = gameState?.benchmark ?? 0;
@@ -288,7 +413,8 @@ export function TheDeskGameView({
   const outcome = gameState?.outcome ?? null;
   const finalCommentary = gameState?.finalCommentary ?? null;
 
-  const mm = mmIdx >= 0 ? room.players[mmIdx] ?? null : null;
+  const mmId = mmIdx >= 0 ? rosterIds[mmIdx] ?? null : null;
+  const mm = mmId ? room.players.find((p) => p.id === mmId) ?? null : null;
   const isMM = mm !== null && mm.id === playerId;
   const traders = room.players.filter((p) => p.id !== mm?.id);
   const orderedCount = traders.filter((t) => orders[t.id] !== undefined).length;
@@ -348,7 +474,11 @@ export function TheDeskGameView({
     chosenFeedback: { name: string; prompt: string } | null = null
   ) {
     const n = Math.max(1, room.players.length);
-    const upcoming = room.players[(mmIdx + 1) % n];
+    const rosterLen = Math.max(1, rosterIds.length);
+    const upcomingId = rosterIds[(mmIdx + 1) % rosterLen];
+    const upcoming = upcomingId
+      ? room.players.find((p) => p.id === upcomingId)
+      : undefined;
     const scoreValues = room.players.map((p) => individual[p.id] ?? 0);
     const meanScore =
       scoreValues.reduce((sum, s) => sum + s, 0) / Math.max(1, scoreValues.length);
@@ -777,6 +907,14 @@ export function TheDeskGameView({
 
       {/* Game Area */}
       <section className="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-6">
+        {/* Rules/guide: open by default in the lobby, collapsible during play.
+            Keyed on lobby-vs-playing so it auto-collapses when the game starts
+            but keeps the player's toggle state across in-round phase changes. */}
+        <HowToPlay
+          key={phase === "lobby" ? "htp-lobby" : "htp-playing"}
+          defaultOpen={phase === "lobby"}
+        />
+
         {phase !== "lobby" && (
           <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">
             Round {Math.min(roundNumber, totalRounds || roundNumber)} of{" "}
