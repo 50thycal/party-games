@@ -6,6 +6,7 @@ import { CometRushGameView } from "./comet-rush/GameView";
 import { CafeGameView } from "./cafe/GameView";
 import { RealEstateGameView } from "./real-estate/GameView";
 import { PerformanceReviewGameView } from "./performance-review/GameView";
+import { TheDeskGameView } from "./the-desk/GameView";
 
 // Props passed to game views
 export type GameViewProps<S = unknown> = {
@@ -66,6 +67,14 @@ export const gameOptions: GameOption[] = [
     minPlayers: 3,
     maxPlayers: 8,
   },
+  {
+    id: "the-desk",
+    name: "The Desk",
+    description:
+      "Make markets, read the room. Beat the benchmark or the fund gets liquidated.",
+    minPlayers: 3,
+    maxPlayers: 8,
+  },
 ];
 
 // Registry of game view components
@@ -75,6 +84,7 @@ const gameViews: Record<string, GameViewComponent> = {
   "cafe": CafeGameView as GameViewComponent,
   "real-estate": RealEstateGameView as GameViewComponent,
   "performance-review": PerformanceReviewGameView as GameViewComponent,
+  "the-desk": TheDeskGameView as GameViewComponent,
 };
 
 /**
