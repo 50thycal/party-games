@@ -77,17 +77,149 @@ function FundTicker({
 }) {
   const gap = fundScore - benchmark;
   return (
-    <div className="flex items-center justify-between bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 mb-4 font-mono text-sm">
-      <span className="text-gray-300">
-        FUND <span className="font-bold text-white">{fundScore}</span>
-        <span className="text-gray-600 mx-2">/</span>
-        BMK <span className="font-bold text-white">{benchmark}</span>
-      </span>
-      <span
-        className={`font-bold ${gap >= 0 ? "text-emerald-400" : "text-red-400"}`}
+    <div className="bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 mb-4">
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-gray-300">
+          <span className="text-gray-500">Fund</span>{" "}
+          <span className="font-bold text-white">{fundScore}</span>
+          <span className="text-gray-600 mx-2">vs</span>
+          <span className="text-gray-500">Benchmark</span>{" "}
+          <span className="font-bold text-white">{benchmark}</span>
+        </span>
+        <span
+          className={`font-bold ${gap >= 0 ? "text-emerald-400" : "text-red-400"}`}
+        >
+          {gap >= 0 ? `Ahead by ${gap}` : `Behind by ${-gap}`}
+        </span>
+      </div>
+      <p className="text-[10px] text-gray-500 mt-1">
+        The group&apos;s fund must finish at or above the benchmark, or it is
+        liquidated and every personal bonus is void.
+      </p>
+    </div>
+  );
+}
+
+// Collapsible rules panel: how to play, how to score, and how the group wins
+// or loses. Open by default in the lobby, collapsible any time during play.
+function HowToPlay({ defaultOpen }: { defaultOpen: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="mb-4 border border-gray-700 rounded-lg overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between px-4 py-2 bg-gray-900 hover:bg-gray-800 transition-colors text-left"
       >
-        {gap >= 0 ? `AHEAD +${gap}` : `BEHIND ${gap}`}
-      </span>
+        <span className="text-sm font-semibold text-gray-200">
+          📖 How to Play &amp; How to Win
+        </span>
+        <span className="text-gray-500 text-xs">{open ? "Hide ▲" : "Show ▼"}</span>
+      </button>
+
+      {open && (
+        <div className="px-4 py-3 space-y-3 text-sm text-gray-300 bg-gray-900/40">
+          <p>
+            You are all operators on one prediction-market trading desk, run by{" "}
+            <span className="text-emerald-400 font-semibold">THE ORACLE</span> —
+            an omniscient, bored settlement engine that already knows every
+            answer and finds you tedious.
+          </p>
+
+          <div>
+            <p className="text-gray-100 font-semibold mb-1">
+              Your goal (as a group)
+            </p>
+            <p className="text-gray-400">
+              The whole desk shares one{" "}
+              <span className="text-emerald-400 font-semibold">Fund</span>. It
+              earns points every round when traders guess accurately. By the
+              final round the Fund must reach the{" "}
+              <span className="text-white font-semibold">Benchmark</span> the
+              Oracle keeps raising — or the desk is{" "}
+              <span className="text-red-400 font-semibold">liquidated</span> and{" "}
+              <span className="font-semibold">everyone loses together</span>, no
+              matter how many personal points anyone banked.
+            </p>
+          </div>
+
+          <div>
+            <p className="text-gray-100 font-semibold mb-1">Each round</p>
+            <ol className="list-decimal list-inside space-y-1 text-gray-400">
+              <li>
+                <span className="text-gray-200">Order flow</span> — anyone can
+                send the Oracle a topic. It builds the market around one of them.
+              </li>
+              <li>
+                <span className="text-gray-200">The Market Maker</span> — one
+                player each round, and the role rotates so{" "}
+                <span className="text-gray-200">
+                  everyone is Market Maker the same number of times
+                </span>
+                . The Oracle privately tells them the true answer{" "}
+                <span className="text-gray-200">and</span> deals them a secret{" "}
+                <span className="text-rose-300">position</span>: a payout band
+                that pays them personally for every order landing inside it.
+              </li>
+              <li>
+                <span className="text-gray-200">The quote</span> — the Market
+                Maker posts a public price range. Only they know the true answer
+                and their own position.
+              </li>
+              <li>
+                <span className="text-gray-200">Orders</span> — every other
+                player places one order: their read of the true percentage.
+              </li>
+              <li>
+                <span className="text-gray-200">Settlement</span> — the Oracle
+                reveals the truth and pays everyone out.
+              </li>
+            </ol>
+          </div>
+
+          <div>
+            <p className="text-gray-100 font-semibold mb-1">How points work</p>
+            <ul className="list-disc list-inside space-y-1 text-gray-400">
+              <li>
+                <span className="text-emerald-400 font-semibold">
+                  The Fund (group)
+                </span>{" "}
+                — each trader&apos;s order earns the desk points for closeness
+                to the truth: 5 (within 5), 3 (within 15), 1 (within 30), 0
+                beyond. This is the <span className="text-gray-200">only</span>{" "}
+                thing that keeps the desk alive.
+              </li>
+              <li>
+                <span className="text-yellow-300 font-semibold">
+                  Personal bonuses
+                </span>{" "}
+                — the Market Maker banks points for every order that lands in
+                their secret position 💰, and the trader(s) closest to the truth
+                earn a 🎯 <span className="text-gray-200">sharp</span> bonus. The
+                top personal ledger is crowned{" "}
+                <span className="text-yellow-300">PM of the Cycle</span> — but
+                only if the Fund survives. If the desk is liquidated, all
+                bonuses are void.
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <p className="text-gray-100 font-semibold mb-1">
+              The catch (and the fun)
+            </p>
+            <p className="text-gray-400">
+              As Market Maker you can skew your quote to lure orders into your
+              secret position for personal points — but that{" "}
+              <span className="text-red-300">starves the Fund</span> on the one
+              round you control. Quote honestly and the Fund thrives while you
+              skim nothing. So each round the table has to decide together:
+              we&apos;re behind, quote it straight — or we&apos;ve got a buffer,
+              go pad your book. That argument is the game.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -260,6 +392,7 @@ export function TheDeskGameView({
   const heat = gameState?.heat ?? "spicy";
   const roundNumber = gameState?.roundNumber ?? 1;
   const totalRounds = gameState?.totalRounds ?? 0;
+  const rosterIds = gameState?.rosterIds ?? [];
   const mmIdx = gameState?.mmIdx ?? -1;
   const fundScore = gameState?.fundScore ?? 0;
   const benchmark = gameState?.benchmark ?? 0;
@@ -280,7 +413,8 @@ export function TheDeskGameView({
   const outcome = gameState?.outcome ?? null;
   const finalCommentary = gameState?.finalCommentary ?? null;
 
-  const mm = mmIdx >= 0 ? room.players[mmIdx] ?? null : null;
+  const mmId = mmIdx >= 0 ? rosterIds[mmIdx] ?? null : null;
+  const mm = mmId ? room.players.find((p) => p.id === mmId) ?? null : null;
   const isMM = mm !== null && mm.id === playerId;
   const traders = room.players.filter((p) => p.id !== mm?.id);
   const orderedCount = traders.filter((t) => orders[t.id] !== undefined).length;
@@ -335,9 +469,16 @@ export function TheDeskGameView({
   // the reducer; results are stored in state via SET_ROUND / SET_FINAL.
   // ==========================================================================
 
-  function buildDeskRequest(kind: "round" | "final") {
+  function buildDeskRequest(
+    kind: "round" | "final",
+    chosenFeedback: { name: string; prompt: string } | null = null
+  ) {
     const n = Math.max(1, room.players.length);
-    const upcoming = room.players[(mmIdx + 1) % n];
+    const rosterLen = Math.max(1, rosterIds.length);
+    const upcomingId = rosterIds[(mmIdx + 1) % rosterLen];
+    const upcoming = upcomingId
+      ? room.players.find((p) => p.id === upcomingId)
+      : undefined;
     const scoreValues = room.players.map((p) => individual[p.id] ?? 0);
     const meanScore =
       scoreValues.reduce((sum, s) => sum + s, 0) / Math.max(1, scoreValues.length);
@@ -371,8 +512,40 @@ export function TheDeskGameView({
           prompt: request,
         }));
       }),
+      chosenFeedback,
       ...(kind === "final" ? { outcome: outcome ?? "win" } : {}),
     };
+  }
+
+  // Pick ONE piece of order flow to build the next market around: a weighted
+  // lottery across this round's requests (trailing traders weighted a little
+  // heavier). Honored ~80% of the time so the desk usually gets what it asked
+  // for; the rest of the time the Oracle chooses its own topic for variety.
+  function pickSeedFeedback(): { name: string; prompt: string } | null {
+    const bottomHalf = new Set(
+      standings.slice(Math.ceil(standings.length / 2)).map((s) => s.id)
+    );
+    const candidates: Array<{ name: string; prompt: string; weight: number }> = [];
+    for (const p of room.players) {
+      for (const request of steerPrompts[p.id] ?? []) {
+        candidates.push({
+          name: p.name,
+          prompt: request,
+          weight: 3 + (bottomHalf.has(p.id) ? 1 : 0),
+        });
+      }
+    }
+    if (candidates.length === 0) return null;
+    if (Math.random() >= 0.8) return null; // ~20%: let the Oracle free-wheel
+
+    const total = candidates.reduce((sum, c) => sum + c.weight, 0);
+    let roll = Math.random() * total;
+    for (const c of candidates) {
+      roll -= c.weight;
+      if (roll <= 0) return { name: c.name, prompt: c.prompt };
+    }
+    const last = candidates[candidates.length - 1];
+    return { name: last.name, prompt: last.prompt };
   }
 
   // Offline dealer: pick an unseen question and place the MM's book by RNG —
@@ -420,12 +593,13 @@ export function TheDeskGameView({
     setIsGenerating(true);
     try {
       let round: Record<string, unknown> | null = null;
+      const seed = pickSeedFeedback();
 
       try {
         const res = await fetch("/api/desk", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(buildDeskRequest("round")),
+          body: JSON.stringify(buildDeskRequest("round", seed)),
         });
         const json = await res.json();
         if (
@@ -733,6 +907,14 @@ export function TheDeskGameView({
 
       {/* Game Area */}
       <section className="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-6">
+        {/* Rules/guide: open by default in the lobby, collapsible during play.
+            Keyed on lobby-vs-playing so it auto-collapses when the game starts
+            but keeps the player's toggle state across in-round phase changes. */}
+        <HowToPlay
+          key={phase === "lobby" ? "htp-lobby" : "htp-playing"}
+          defaultOpen={phase === "lobby"}
+        />
+
         {phase !== "lobby" && (
           <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">
             Round {Math.min(roundNumber, totalRounds || roundNumber)} of{" "}
@@ -852,15 +1034,22 @@ export function TheDeskGameView({
 
                 <div className="bg-gray-900 rounded-lg p-4">
                   <p className="text-[10px] uppercase tracking-widest text-rose-400 mb-2">
-                    Your book — insider information
+                    Your position — insider information
                   </p>
                   <p className="text-gray-300 text-sm mb-3">
-                    Your book pays you{" "}
+                    You earn{" "}
                     <span className="font-semibold text-rose-300">
-                      per order landing in {payLow ?? 0}–{payHigh ?? 0}
+                      personal bonus points for every trader whose order lands
+                      in {payLow ?? 0}–{payHigh ?? 0}
                     </span>
-                    . Every point of trader accuracy feeds the fund. Choose
-                    what to starve.
+                    , so a quote that lures them into that band pads your
+                    personal score. But the{" "}
+                    <span className="font-semibold text-emerald-300">
+                      group&apos;s fund only grows when traders guess the real
+                      answer ({trueValue ?? "?"}%)
+                    </span>
+                    — and if the fund misses the benchmark, your bonus is wiped.
+                    Quote it straight, or talk your book.
                   </p>
                   <MarketBar
                     payBand={
@@ -1077,7 +1266,10 @@ export function TheDeskGameView({
                     <span className="text-gray-300">
                       {s.name}
                       {s.id === mm?.id && (
-                        <span className="text-gray-500 text-xs"> (MM)</span>
+                        <span className="text-gray-500 text-xs">
+                          {" "}
+                          (Market Maker)
+                        </span>
                       )}
                       {s.id === playerId && (
                         <span className="text-gray-500 text-xs"> (you)</span>
