@@ -62,7 +62,7 @@ export const gameOptions: GameOption[] = [
     id: "performance-review",
     name: "Performance Review",
     description:
-      "Read your coworkers. Trust the statement, or flag the spin. Management is watching.",
+      "One coworker, one word, one opinion. Guess where they stand. Management is watching.",
     minPlayers: 3,
     maxPlayers: 8,
   },

@@ -8,23 +8,14 @@ import type { BaseAction, GamePhase, GameContext, Player } from "@/engine/types"
 // Everyone sits under review roughly this many times per cycle.
 export const ROUNDS_PER_PLAYER = 2;
 
-// Distance bands: d = |dial - opinion| -> base Performance Points
+// Distance bands: how close a colleague's guess is to where the employee
+// actually stands (d = |dial - opinion|) -> Performance Points.
 const BAND_BULLSEYE_DIST = 5; // d <= 5  -> bullseye
 const BAND_CLOSE_DIST = 15; // d <= 15 -> close
 const BAND_WARM_DIST = 30; // d <= 30 -> warm
 const BAND_BULLSEYE_PTS = 5;
 const BAND_CLOSE_PTS = 3;
 const BAND_WARM_PTS = 1;
-// Top of the band scale; a Spin pays (BAND_MAX_PTS - band) per colleague.
-const BAND_MAX_PTS = BAND_BULLSEYE_PTS;
-
-const FLAG_CORRECT_BONUS = 3; // correctly flagged a Dishonest clue
-const FLAG_WRONG_PENALTY = -2; // flagged a True clue
-const CAUGHT_SPIN_PENALTY = 4; // psychic penalty per colleague who catches a lie
-// A landed lie must out-earn a safe true clue to justify the flag risk, so
-// Dishonest winnings are multiplied. Fooling a colleague pays up to
-// SPIN_REWARD_MULT * BAND_MAX_PTS (10), vs a true clue's max of BAND_MAX_PTS (5).
-const SPIN_REWARD_MULT = 2;
 
 const MAX_STEER_PROMPTS = 2;
 const MAX_STEER_PROMPT_LENGTH = 200;
@@ -42,14 +33,12 @@ export type PRPhase =
   | "guessing"
   | "reveal"
   | "game_over";
-export type PRAlignment = "honest" | "spin";
 export type PRHeat = "mild" | "spicy" | "scorched";
 
 export type PRColleagueResult = {
   name: string;
   dial: number;
-  flagged: boolean;
-  correct: boolean; // correctly judged Honest vs Spin
+  points: number; // Performance Points this colleague earned for their read
 };
 
 export type PRLastRoundResults = {
@@ -57,7 +46,6 @@ export type PRLastRoundResults = {
   leftLabel: string;
   rightLabel: string;
   employeeName: string;
-  alignment: PRAlignment;
   opinion: number;
   results: PRColleagueResult[];
 };
@@ -84,11 +72,9 @@ export type PRState = {
   leftLabel: string | null; // the 0-pole label
   rightLabel: string | null; // the 100-pole label
   commentary: string | null; // Overlord memo shown at the top of this round
-  opinion: number | null; // 0..100 - psychic's true stance (secret until reveal)
-  alignment: PRAlignment | null; // secret until reveal
+  opinion: number | null; // 0..100 - where the employee actually stands (secret until reveal)
   clue: string | null; // ONE word
   dials: Record<string, number>; // colleagueId -> 0..100
-  flags: Record<string, boolean>; // colleagueId -> flagged as Spin
 
   // --- scoring ---
   scores: Record<string, number>; // cumulative Performance Points
@@ -104,7 +90,6 @@ export type PRState = {
     leftLabel: string;
     rightLabel: string;
     psychicName: string;
-    alignment: PRAlignment;
     opinion: number;
   }>;
   lastRoundResults: PRLastRoundResults | null;
@@ -134,10 +119,8 @@ export interface PRAction extends BaseAction {
     seedPlayerId?: string; // whose feedback seeded this round's topic
     seedPrompt?: string;
     opinion?: number;
-    alignment?: PRAlignment;
     clue?: string;
     dial?: number;
-    flag?: boolean;
   };
 }
 
@@ -157,10 +140,8 @@ function initialState(_players: Player[]): PRState {
     rightLabel: null,
     commentary: null,
     opinion: null,
-    alignment: null,
     clue: null,
     dials: {},
-    flags: {},
     scores: {},
     roundScores: {},
     steerPrompts: {},
@@ -197,15 +178,17 @@ function band(d: number): number {
 
 /**
  * Score the current round with whatever dials exist and advance to reveal.
- * Colleagues who never dialed score 0 and cast no flag; they are excluded
- * from the psychic's sums so an AFK colleague neither helps nor hurts them.
+ * Each colleague earns points for how close their guess lands to where the
+ * employee actually stands; the employee under review shares the table's
+ * accuracy (the sum of those points) as a reward for a readable clue.
+ * Colleagues who never dialed score 0 and are excluded from the employee's
+ * sum, so an AFK colleague neither helps nor hurts them.
  */
 function scoreRound(state: PRState, ctx: GameContext): PRState {
   const psychic = psychicOf(state, ctx);
   if (!psychic) return state;
 
   const opinion = state.opinion ?? 50;
-  const alignment: PRAlignment = state.alignment ?? "honest";
   const colleagues = ctx.room.players.filter((p) => p.id !== psychic.id);
 
   const scores = { ...state.scores };
@@ -213,7 +196,6 @@ function scoreRound(state: PRState, ctx: GameContext): PRState {
   const results: PRColleagueResult[] = [];
 
   let psychicScore = 0;
-  let caught = 0;
 
   for (const colleague of colleagues) {
     const dial = state.dials[colleague.id];
@@ -222,42 +204,14 @@ function scoreRound(state: PRState, ctx: GameContext): PRState {
       continue;
     }
 
-    const flagged = state.flags[colleague.id] === true;
-    const base = band(Math.abs(dial - opinion));
-    const flagCorrect = flagged && alignment === "spin";
-    const flagWrong = flagged && alignment === "honest";
-    const flagBonus = flagCorrect
-      ? FLAG_CORRECT_BONUS
-      : flagWrong
-      ? FLAG_WRONG_PENALTY
-      : 0;
-    const colleagueRoundScore = base + flagBonus;
+    const points = band(Math.abs(dial - opinion));
 
-    roundScores[colleague.id] = colleagueRoundScore;
-    scores[colleague.id] = Math.max(
-      0,
-      (scores[colleague.id] ?? 0) + colleagueRoundScore
-    );
+    roundScores[colleague.id] = points;
+    scores[colleague.id] = Math.max(0, (scores[colleague.id] ?? 0) + points);
 
-    if (flagCorrect) caught += 1;
+    psychicScore += points; // employee shares the table's accuracy
 
-    if (alignment === "honest") {
-      psychicScore += base; // shares the table's accuracy
-    } else {
-      // rewarded (at a premium) for every colleague sent far from the truth
-      psychicScore += SPIN_REWARD_MULT * (BAND_MAX_PTS - base);
-    }
-
-    results.push({
-      name: colleague.name,
-      dial,
-      flagged,
-      correct: flagCorrect || (!flagged && alignment === "honest"),
-    });
-  }
-
-  if (alignment === "spin") {
-    psychicScore -= CAUGHT_SPIN_PENALTY * caught; // punished for getting caught
+    results.push({ name: colleague.name, dial, points });
   }
 
   roundScores[psychic.id] = psychicScore;
@@ -275,7 +229,6 @@ function scoreRound(state: PRState, ctx: GameContext): PRState {
         leftLabel: state.leftLabel ?? "",
         rightLabel: state.rightLabel ?? "",
         psychicName: psychic.name,
-        alignment,
         opinion,
       },
     ],
@@ -284,7 +237,6 @@ function scoreRound(state: PRState, ctx: GameContext): PRState {
       leftLabel: state.leftLabel ?? "",
       rightLabel: state.rightLabel ?? "",
       employeeName: psychic.name,
-      alignment,
       opinion,
       results,
     },
@@ -417,10 +369,8 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
         commentary,
         feedbackLog,
         opinion: null,
-        alignment: null,
         clue: null,
         dials: {},
-        flags: {},
         roundScores: {},
         phase: "statement",
       };
@@ -434,10 +384,7 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
       const opinion = clampInt0100(action.payload?.opinion);
       if (opinion === null) return state;
 
-      const alignment = action.payload?.alignment;
-      if (alignment !== "honest" && alignment !== "spin") return state;
-
-      // The official statement is exactly one word: coerce to the first token.
+      // The clue is exactly one word: coerce to the first token.
       const clue =
         typeof action.payload?.clue === "string"
           ? (action.payload.clue.trim().split(/\s+/)[0] ?? "").slice(
@@ -447,7 +394,7 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
           : "";
       if (!clue) return state;
 
-      return { ...state, opinion, alignment, clue, phase: "guessing" };
+      return { ...state, opinion, clue, phase: "guessing" };
     }
 
     case "SUBMIT_DIAL": {
@@ -462,7 +409,6 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
       const next: PRState = {
         ...state,
         dials: { ...state.dials, [ctx.playerId]: dial },
-        flags: { ...state.flags, [ctx.playerId]: action.payload?.flag === true },
       };
 
       const colleagues = ctx.room.players.filter((p) => p.id !== psychic.id);
@@ -524,7 +470,7 @@ export const performanceReviewGame = defineGame<PRState, PRAction>({
   id: "performance-review",
   name: "Performance Review",
   description:
-    "Read your coworkers. Trust the statement, or flag the spin. Management is watching.",
+    "One coworker, one word, one opinion. Guess where they stand. Management is watching.",
   minPlayers: 3,
   maxPlayers: 8,
   initialState,

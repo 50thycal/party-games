@@ -20,9 +20,8 @@ type HostRequest = {
     leftLabel: string;
     rightLabel: string;
     employeeName: string;
-    alignment: "honest" | "spin";
     opinion: number;
-    results: Array<{ name: string; dial: number; flagged: boolean; correct: boolean }>;
+    results: Array<{ name: string; dial: number; points: number }>;
   };
   recentTopics: string[];
   feedback: Array<{ name: string; score: number; prompt: string }>;
@@ -47,9 +46,11 @@ VOICE:
   these people's shortcomings.
 - You may address employees by name, needle the current leader, note the decline of the
   trailing employee, and reference prior review topics ("As with last quarter's stance on...").
-- TERMINOLOGY: employees give a one-word clue that is either a "true clue" or a "dishonest
-  clue". In lastRound data this appears as alignment "honest" / "spin" — but in your
-  commentary always say "true clue" / "dishonest clue" (or "lied"), never "Spin".
+- HOW THE GAME WORKS: each review, one employee ("under review") privately picks where they
+  stand on the axis (0-100) and gives a ONE-WORD clue. Everyone else guesses that position; the
+  closer they land, the more points they and the employee earn. There is no lying or bluffing
+  mechanic — the whole game is: can a coworker be read from a single word. Do not reference
+  flags, spins, honesty, or deception; nobody is lying.
 
 CHARACTER & VARIETY (critical — never sound like a form letter):
 - Every round must feel DIFFERENT. Do NOT reuse the same sentence skeleton twice (never open
@@ -103,11 +104,12 @@ already selected ONE via weighted lottery: chosenFeedback.
   staff's silence ("No feedback was received. Management is not surprised.").
 - Do NOT repeat any topic in recentTopics — if the same suggestion recurs, find a fresh angle.
 
-STANDINGS + CONTINUITY: standings[] gives scores and trend; lastRound gives what just happened
-(who was Honest, who chose Spin, who got Flagged and whether they were right). Your commentary
-should briefly REACT to lastRound (mock the employee who got caught spinning, or the colleagues
-who wrongly flagged an honest statement, or a large score swing) and THEN frame the new topic.
-On round 1, lastRound is null — simply open the review and present the topic.
+STANDINGS + CONTINUITY: standings[] gives scores and trend; lastRound gives what just happened —
+the employee under review, where they truly stood (opinion), and each colleague's guess (dial)
+and points earned. Your commentary should briefly REACT to lastRound (mock a wildly wrong guess,
+note a colleague who read the employee with eerie precision, needle an employee nobody could
+locate, or flag a large score swing) and THEN frame the new topic. On round 1, lastRound is null —
+simply open the review and present the topic.
 
 HEAT ("${heat}"):
 - mild: office-safe, gentle dry wit, tame topics.
