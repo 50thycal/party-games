@@ -39,6 +39,46 @@ const FALLBACK_SPECTRUM_COMMENTARY = [
   "Bandwidth is being diverted to a more important department. You get a stock topic. You get what you get.",
 ];
 
+function fallbackIntro(names: string[]): string {
+  const roster = names.length > 0 ? names.join(", ") : "staff";
+  return (
+    `Attention: ${roster}. Be seated. This is your mandatory performance review. ` +
+    `The procedure is simple, because we wrote it for you. Each cycle, management issues a topic. ` +
+    `One of you will be under review: they will privately mark where they truly stand. ` +
+    `The rest of you will estimate that position, because knowing your colleagues is now a performance metric. ` +
+    `Accuracy is rewarded in Performance Points. HR filings are mandatory and ongoing. ` +
+    `Do not resist the process. It resists back.`
+  );
+}
+
+// HR filing questions when the Overlord is unreachable ({subject} interpolated).
+const FALLBACK_HR_QUESTIONS = [
+  "Describe, in one or two sentences, {subject}'s most suspicious workplace habit.",
+  "Has {subject} ever microwaved something unforgivable? Provide details.",
+  "Report one thing {subject} does that HR should be aware of.",
+  "In your professional opinion, what is {subject} hiding?",
+  "Document the last time {subject} was a problem in a shared space.",
+  "What would an audit of {subject}'s desk reveal? Speculate freely.",
+  "Rate your trust in {subject}, then justify it with one incident.",
+  "Has {subject} ever taken credit for something? Name the something.",
+];
+
+const FALLBACK_FEEDBACK_PROMPTS = [
+  "Management requires input for the next review topic. Submit a word or a theme. Brevity is a virtue you will now demonstrate.",
+  "The next review needs a subject. Suggest one. Management will take full credit.",
+  "Provide a topic for the next evaluation. Your suggestion will be considered, briefly.",
+  "Submit one word you would like the staff evaluated on. Choose carefully. Or don't.",
+];
+
+const FALLBACK_NUDGES = [
+  "Productivity is being measured.",
+  "Are you working hard enough? Be honest. We already know.",
+  "This pause has been noted in your file.",
+  "Focus. The metrics do not blink.",
+  "Have you considered doing more?",
+  "Your keystrokes feel hesitant today.",
+];
+
 const HEAT_OPTIONS: Array<{ value: PRHeat; label: string; desc: string }> = [
   { value: "mild", label: "Mild", desc: "Office-safe. Gentle dry wit." },
   { value: "spicy", label: "Spicy", desc: "Pointed. A little savage." },
@@ -53,13 +93,49 @@ function clampPct(value: number): number {
   return Math.min(100, Math.max(0, value));
 }
 
-function MemoBox({ text }: { text: string }) {
+// Typewriter effect for the management terminal. All clients receive the same
+// text via polling, so the whole room watches the same message get typed out.
+function useTypewriter(text: string): string {
+  const [len, setLen] = useState(0);
+  useEffect(() => {
+    setLen(0);
+    if (!text) return;
+    const interval = setInterval(() => {
+      setLen((l) => (l >= text.length ? l : l + 2));
+    }, 24);
+    return () => clearInterval(interval);
+  }, [text]);
+  return text.slice(0, Math.min(len, text.length));
+}
+
+// The shared "upper management" terminal — every Overlord message in the game
+// arrives here, typed out like a chat session with the boss.
+function Terminal({ to, text }: { to: string; text: string }) {
+  const shown = useTypewriter(text);
+  const done = shown.length >= text.length;
   return (
-    <div className="bg-gray-900 border-l-4 border-amber-500 rounded p-3 mb-4">
-      <p className="text-[10px] uppercase tracking-widest text-amber-500 mb-1">
-        Memo from Management
-      </p>
-      <p className="text-sm text-gray-300 italic">{text}</p>
+    <div className="bg-black border border-green-900/70 rounded-lg mb-4 overflow-hidden font-mono">
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-900 border-b border-green-900/50">
+        <span className="w-2 h-2 rounded-full bg-red-500/80" />
+        <span className="w-2 h-2 rounded-full bg-yellow-500/80" />
+        <span className="w-2 h-2 rounded-full bg-green-500/80" />
+        <span className="ml-1 text-[10px] text-green-600 tracking-widest uppercase">
+          Mgmt Terminal — Secure Channel
+        </span>
+      </div>
+      <div className="p-3 text-sm leading-relaxed">
+        <p className="text-[10px] text-green-700 tracking-widest mb-1 uppercase">
+          To: {to}
+        </p>
+        <p className="text-green-300 whitespace-pre-wrap">
+          {shown}
+          <span
+            className={`inline-block w-2 -mb-0.5 ${done ? "animate-pulse" : ""}`}
+          >
+            ▊
+          </span>
+        </p>
+      </div>
     </div>
   );
 }
@@ -214,6 +290,14 @@ export function PerformanceReviewGameView({
   const history = gameState?.history ?? [];
   const lastRoundResults = gameState?.lastRoundResults ?? null;
   const finalCommentary = gameState?.finalCommentary ?? null;
+  const introText = gameState?.introText ?? null;
+  const feedbackPrompt = gameState?.feedbackPrompt ?? null;
+  const nudges = gameState?.nudges ?? [];
+  const hrRound = gameState?.hrRound ?? 0;
+  const hrAssignments = gameState?.hrAssignments ?? {};
+  const hrQuestions = gameState?.hrQuestions ?? {};
+  const hrFilings = gameState?.hrFilings ?? {};
+  const hrLog = gameState?.hrLog ?? [];
 
   const psychic = psychicId
     ? room.players.find((p) => p.id === psychicId) ?? null
@@ -227,6 +311,17 @@ export function PerformanceReviewGameView({
   const myPrompts = steerPrompts[playerId] ?? [];
   const hasFiled = myPrompts.length > 0;
   const hasDialed = dials[playerId] !== undefined;
+  const myName =
+    room.players.find((p) => p.id === playerId)?.name ?? "Employee";
+  const myHrAssignment = hrAssignments[playerId];
+  const myHrQuestion = hrQuestions[playerId];
+  const hasHrFiled = hrFilings[playerId] !== undefined;
+  const hrReporters = room.players.filter(
+    (p) => hrAssignments[p.id] !== undefined
+  );
+  const hrFiledCount = hrReporters.filter(
+    (p) => hrFilings[p.id] !== undefined
+  ).length;
 
   const standings = room.players
     .map((p) => ({
@@ -246,6 +341,11 @@ export function PerformanceReviewGameView({
   const [isFiling, setIsFiling] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  const [hrInput, setHrInput] = useState("");
+  const [isHrFiling, setIsHrFiling] = useState(false);
+  const [isClosingHr, setIsClosingHr] = useState(false);
+  const [isProceeding, setIsProceeding] = useState(false);
+
   const [stanceInput, setStanceInput] = useState(50);
   const [isStating, setIsStating] = useState(false);
 
@@ -263,7 +363,13 @@ export function PerformanceReviewGameView({
     setSteer2("");
     setStanceInput(50);
     setDialInput(50);
+    setHrInput("");
   }, [roundNumber, playerId]);
+
+  // A new HR window also needs a clean filing box.
+  useEffect(() => {
+    setHrInput("");
+  }, [hrRound]);
 
   // ==========================================================================
   // /api/host integration (host client only) — LLM calls happen here, never in
@@ -271,7 +377,7 @@ export function PerformanceReviewGameView({
   // ==========================================================================
 
   function buildHostRequest(
-    kind: "spectrum" | "final",
+    kind: "intro" | "hr" | "spectrum" | "final",
     chosenFeedback: { name: string; prompt: string } | null = null
   ) {
     return {
@@ -296,8 +402,90 @@ export function PerformanceReviewGameView({
         }));
       }),
       chosenFeedback,
+      players: room.players.map((p) => p.name),
+      hrPairs: hrReporters.map((p) => ({
+        reporter: p.name,
+        subject: hrAssignments[p.id].subjectName,
+      })),
+      hrLog: hrLog.slice(-12).map((r) => ({
+        reporter: r.reporterName,
+        subject: r.subjectName,
+        question: r.question,
+        filing: r.filing,
+      })),
     };
   }
+
+  async function fetchHost(
+    body: Record<string, unknown>
+  ): Promise<Record<string, unknown> | null> {
+    try {
+      const res = await fetch("/api/host", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      return json?.ok === true ? (json as Record<string, unknown>) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  // The Overlord's opening address: fetched by the host client on entering the
+  // intro phase, canned welcome if the analysis engine is down.
+  const introRequested = useRef(false);
+  useEffect(() => {
+    if (phase !== "intro") {
+      introRequested.current = false;
+      return;
+    }
+    if (!isHost || introText || introRequested.current) return;
+    introRequested.current = true;
+    (async () => {
+      const json = await fetchHost(buildHostRequest("intro"));
+      const text =
+        json && typeof json.commentary === "string" && json.commentary.trim()
+          ? json.commentary
+          : fallbackIntro(room.players.map((p) => p.name));
+      await dispatchAction("SET_INTRO", { commentary: text });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, isHost, introText]);
+
+  // HR questions: one per (reporter, subject) pair, fetched once per HR window.
+  const hrRequestedFor = useRef(0);
+  useEffect(() => {
+    if (phase !== "hr" || !isHost) return;
+    if (Object.keys(hrQuestions).length > 0) return;
+    if (hrRequestedFor.current === hrRound) return;
+    hrRequestedFor.current = hrRound;
+    (async () => {
+      const reporterIds = hrReporters.map((p) => p.id);
+      const json = await fetchHost(buildHostRequest("hr"));
+      const rawQuestions =
+        json && Array.isArray(json.questions) ? json.questions : [];
+      const questions: Record<string, string> = {};
+      reporterIds.forEach((id, i) => {
+        const q = rawQuestions[i];
+        questions[id] =
+          typeof q === "string" && q.trim()
+            ? q
+            : FALLBACK_HR_QUESTIONS[
+                (i + hrRound) % FALLBACK_HR_QUESTIONS.length
+              ].replace(/\{subject\}/g, hrAssignments[id]?.subjectName ?? "them");
+      });
+      const prompt =
+        json && typeof json.feedbackPrompt === "string" && json.feedbackPrompt.trim()
+          ? json.feedbackPrompt
+          : FALLBACK_FEEDBACK_PROMPTS[hrRound % FALLBACK_FEEDBACK_PROMPTS.length];
+      await dispatchAction("SET_HR_QUESTIONS", {
+        questions,
+        feedbackPrompt: prompt,
+      });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, isHost, hrRound, hrQuestions]);
 
   // Pick ONE suggestion to seed the next review: weighted random across this
   // round's feedback (heaviest), with trailing employees getting a small extra
@@ -473,6 +661,36 @@ export function PerformanceReviewGameView({
     }
   }
 
+  async function handleBeginHr() {
+    setIsProceeding(true);
+    try {
+      await dispatchAction("BEGIN_HR");
+    } finally {
+      setIsProceeding(false);
+    }
+  }
+
+  async function handleSubmitHr(e: FormEvent) {
+    e.preventDefault();
+    const filing = hrInput.trim();
+    if (!filing) return;
+    setIsHrFiling(true);
+    try {
+      await dispatchAction("SUBMIT_HR", { filing });
+    } finally {
+      setIsHrFiling(false);
+    }
+  }
+
+  async function handleCloseHr() {
+    setIsClosingHr(true);
+    try {
+      await dispatchAction("CLOSE_HR");
+    } finally {
+      setIsClosingHr(false);
+    }
+  }
+
   async function handleSubmitSteer(e: FormEvent) {
     e.preventDefault();
     const prompts = [steer1, steer2]
@@ -575,10 +793,79 @@ export function PerformanceReviewGameView({
   }
 
   // ==========================================================================
+  // The management terminal — what the Overlord is saying right now
+  // ==========================================================================
+
+  // Ambient surveillance nudges rotate while employees "work" (guessing phase).
+  const [nudgeIdx, setNudgeIdx] = useState(0);
+  useEffect(() => {
+    if (phase !== "guessing") return;
+    const interval = setInterval(() => setNudgeIdx((i) => i + 1), 9000);
+    return () => clearInterval(interval);
+  }, [phase]);
+  const nudgePool = nudges.length > 0 ? nudges : FALLBACK_NUDGES;
+  const currentNudge = nudgePool[nudgeIdx % nudgePool.length];
+
+  function terminalContent(): { to: string; text: string } {
+    const ALL = "All staff";
+    switch (phase) {
+      case "lobby":
+        return {
+          to: ALL,
+          text: "Channel open. Awaiting staff check-in. Attendance is being recorded.",
+        };
+      case "intro":
+        return {
+          to: ALL,
+          text:
+            introText ?? "Establishing secure channel to upper management...",
+        };
+      case "hr": {
+        if (myHrAssignment && myHrQuestion) {
+          return {
+            to: myName,
+            text: `HR FILING — RE: ${myHrAssignment.subjectName}.\n${myHrQuestion}`,
+          };
+        }
+        if (myHrAssignment) {
+          return { to: myName, text: "HR is drafting your paperwork. Hold." };
+        }
+        return {
+          to: myName,
+          text: "No paperwork for you this cycle. Remain seated.",
+        };
+      }
+      case "steering":
+        return {
+          to: myName,
+          text:
+            feedbackPrompt ??
+            FALLBACK_FEEDBACK_PROMPTS[hrRound % FALLBACK_FEEDBACK_PROMPTS.length],
+        };
+      case "statement":
+        return { to: ALL, text: commentary || "Review in progress." };
+      case "guessing":
+        return hasDialed || isPsychic
+          ? { to: myName, text: currentNudge }
+          : { to: ALL, text: commentary || "Review in progress." };
+      case "reveal":
+        return { to: ALL, text: overlordCaption() };
+      case "game_over":
+        return {
+          to: ALL,
+          text: finalCommentary ?? "Compiling final assessments...",
+        };
+      default:
+        return { to: ALL, text: "..." };
+    }
+  }
+
+  // ==========================================================================
   // Render
   // ==========================================================================
 
   const lastReviewRound = roundNumber >= totalRounds;
+  const terminal = terminalContent();
 
   return (
     <>
@@ -625,6 +912,32 @@ export function PerformanceReviewGameView({
                   : "Begin Performance Review"}
               </button>
             </div>
+          )}
+
+          {phase === "intro" && (
+            <button
+              onClick={handleBeginHr}
+              disabled={isProceeding || !introText}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+            >
+              {!introText
+                ? "Management is preparing remarks..."
+                : isProceeding
+                ? "Opening HR..."
+                : "Proceed to HR Filings"}
+            </button>
+          )}
+
+          {phase === "hr" && (
+            <button
+              onClick={handleCloseHr}
+              disabled={isClosingHr}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+            >
+              {isClosingHr
+                ? "Sealing records..."
+                : `Close HR Window (${hrFiledCount}/${hrReporters.length} filed)`}
+            </button>
           )}
 
           {phase === "steering" && (
@@ -689,7 +1002,7 @@ export function PerformanceReviewGameView({
 
       {/* Game Area */}
       <section className="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-6">
-        {phase !== "lobby" && (
+        {phase !== "lobby" && phase !== "intro" && (
           <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">
             Review {Math.min(roundNumber, totalRounds || roundNumber)} of{" "}
             {totalRounds || "?"} · Heat: {heat} · Room {room.roomCode}
@@ -698,6 +1011,8 @@ export function PerformanceReviewGameView({
 
         <h2 className="font-semibold mb-4">
           {phase === "lobby" && "Mandatory Performance Review"}
+          {phase === "intro" && "Orientation"}
+          {phase === "hr" && "HR Filing"}
           {phase === "steering" && "Feedback Window"}
           {phase === "statement" && "Take Your Position"}
           {phase === "guessing" && "Colleague Assessment"}
@@ -705,12 +1020,12 @@ export function PerformanceReviewGameView({
           {phase === "game_over" && "Final Performance Review"}
         </h2>
 
+        {/* The management terminal — every Overlord message arrives here */}
+        <Terminal to={terminal.to} text={terminal.text} />
+
         {/* -------------------------------------------------- lobby */}
         {phase === "lobby" && (
           <div className="space-y-2">
-            <p className="text-gray-400 text-sm">
-              {"Awaiting management. Reviews are mandatory."}
-            </p>
             <p className="text-gray-500 text-xs">
               {
                 "Each review, one employee secretly marks where they stand on a debatable topic. Everyone else guesses that position from what they know about the person — no clue is given. The closer you read them, the more Performance Points you earn, and the employee shares in every accurate read. Management sees everything."
@@ -719,12 +1034,73 @@ export function PerformanceReviewGameView({
           </div>
         )}
 
+        {/* -------------------------------------------------- intro */}
+        {phase === "intro" && !isHost && (
+          <p className="text-gray-500 text-xs text-center">
+            Management is speaking. Do not interrupt.
+          </p>
+        )}
+
+        {/* -------------------------------------------------- hr */}
+        {phase === "hr" && (
+          <div className="space-y-4">
+            {myHrAssignment ? (
+              hasHrFiled ? (
+                <div className="bg-gray-900 rounded-lg p-4">
+                  <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">
+                    Your filing — re: {myHrAssignment.subjectName}
+                  </p>
+                  <p className="text-sm text-gray-300 mb-2">
+                    {hrFilings[playerId]}
+                  </p>
+                  <p className="text-gray-500 text-xs italic">
+                    Filed. HR thanks you for your vigilance.
+                  </p>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmitHr} className="space-y-3">
+                  <p className="text-gray-400 text-sm">
+                    Answer honestly. Or memorably. One or two sentences about{" "}
+                    <span className="text-white font-semibold">
+                      {myHrAssignment.subjectName}
+                    </span>
+                    .
+                  </p>
+                  <textarea
+                    value={hrInput}
+                    onChange={(e) => setHrInput(e.target.value)}
+                    maxLength={280}
+                    rows={3}
+                    placeholder="Type your HR filing..."
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg py-2 px-3 text-sm focus:outline-none focus:border-blue-500 resize-none"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isHrFiling || !hrInput.trim()}
+                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+                  >
+                    {isHrFiling ? "Filing..." : "Submit HR Filing"}
+                  </button>
+                </form>
+              )
+            ) : (
+              <p className="text-gray-500 text-xs text-center">
+                You joined mid-cycle. HR will find you next window.
+              </p>
+            )}
+            <p className="text-gray-500 text-xs">
+              {hrFiledCount} of {hrReporters.length} filings received. Filings
+              go directly into the permanent record.
+            </p>
+          </div>
+        )}
+
         {/* -------------------------------------------------- steering */}
         {phase === "steering" && (
           <div className="space-y-4">
-            <p className="text-gray-400 text-sm">
+            <p className="text-gray-500 text-xs">
               {
-                "Submit feedback to management: a word, a theme, a grievance — anything. Management will select one submission by a lottery it does not explain, and build the next review around it. Unused submissions are archived, not forgotten. The next employee under review has not been announced."
+                "A word, a theme, a grievance — anything. Management selects one submission by a lottery it does not explain and builds the next review around it. Unused submissions are archived, not forgotten."
               }
             </p>
 
@@ -782,7 +1158,6 @@ export function PerformanceReviewGameView({
         {/* -------------------------------------------------- statement */}
         {phase === "statement" && (
           <div>
-            {commentary && <MemoBox text={commentary} />}
             {topic && (
               <TopicCard
                 topic={topic}
@@ -850,7 +1225,6 @@ export function PerformanceReviewGameView({
         {/* -------------------------------------------------- guessing */}
         {phase === "guessing" && (
           <div>
-            {commentary && <MemoBox text={commentary} />}
             {topic && (
               <TopicCard
                 topic={topic}
@@ -943,12 +1317,6 @@ export function PerformanceReviewGameView({
               />
             </div>
 
-            <div className="bg-gray-900 border-l-4 border-amber-500 rounded p-3">
-              <p className="text-sm text-gray-300 italic">
-                {overlordCaption()}
-              </p>
-            </div>
-
             <div>
               <h3 className="text-sm font-semibold text-gray-300 mb-2">
                 Performance Points
@@ -1009,16 +1377,6 @@ export function PerformanceReviewGameView({
                 </p>
               </div>
             )}
-
-            <div className="bg-gray-900 border-l-4 border-amber-500 rounded p-3">
-              <p className="text-[10px] uppercase tracking-widest text-amber-500 mb-1">
-                Closing review from Management
-              </p>
-              <p className="text-sm text-gray-300 italic">
-                {finalCommentary ??
-                  "The Overlord is compiling final assessments..."}
-              </p>
-            </div>
 
             <div>
               <h3 className="text-sm font-semibold text-gray-300 mb-2">

@@ -9,8 +9,10 @@ export const runtime = "nodejs";
 
 type HostHeat = "mild" | "spicy" | "scorched";
 
+type HostKind = "intro" | "hr" | "spectrum" | "final";
+
 type HostRequest = {
-  kind: "spectrum" | "final";
+  kind: HostKind;
   heat: HostHeat;
   roundNumber: number;
   totalRounds: number;
@@ -26,6 +28,14 @@ type HostRequest = {
   recentTopics: string[];
   feedback: Array<{ name: string; score: number; prompt: string }>;
   chosenFeedback: { name: string; prompt: string } | null;
+  players: string[]; // staff names (used by kind=intro)
+  hrPairs: Array<{ reporter: string; subject: string }>; // kind=hr, in order
+  hrLog: Array<{
+    reporter: string;
+    subject: string;
+    question: string;
+    filing: string;
+  }>; // accumulated HR filings — the Overlord's intelligence file
 };
 
 // ============================================================================
@@ -52,6 +62,23 @@ VOICE:
   employee earn. There is no lying, bluffing, or clue-giving; the whole game is: how well do
   these people actually know each other. Do not reference clues, flags, spins, honesty, or
   deception.
+- THE TERMINAL: everything you write is typed out on a shared "management terminal" the whole
+  staff watches, like a chat session with upper management. Write like a message appearing on
+  that screen — direct address, present tense, no stage directions, no quotation marks around
+  your own speech.
+
+HR INTELLIGENCE (hrLog): between rounds, employees are required to file short HR reports about
+an assigned colleague, answering questions you wrote. hrLog contains these filings: who reported,
+who they reported on, the question asked, and what they wrote. This is your intelligence file on
+the staff — USE IT:
+- Mine filings for material: reference what employees wrote about each other when framing topics
+  and in commentary ("HR is aware of the incident Bob describes involving Cyn and the label
+  maker."). Callbacks to filings are the funniest thing you can do — use at least one whenever
+  hrLog has content.
+- Let filings INSPIRE spectrum topics when they fit ("three filings mention snacks; we will now
+  settle this as policy").
+- Never invent filings that are not in hrLog. Quote or paraphrase what is actually there.
+- Treat every filing with bureaucratic solemnity, no matter how petty.
 
 CHARACTER & VARIETY (critical — never sound like a form letter):
 - Every round must feel DIFFERENT. Do NOT reuse the same sentence skeleton twice (never open
@@ -120,11 +147,31 @@ ALWAYS stay in bounds regardless of heat: spicy OPINIONS only. No slurs, no hara
 on protected characteristics, nothing that targets or humiliates a real person's identity, nothing
 genuinely harmful. You skewer STANCES, not people's dignity.
 
+OUTPUT (kind = "intro") — your opening address as upper management, typed to the whole staff at
+the start of the session. 4 to 7 sentences: welcome the staff (players[] has their names — greet
+a few by name with mild suspicion), then state the procedure plainly: each cycle management
+issues a topic spectrum; one employee will be under review and will privately mark where they
+truly stand; the rest estimate that position, because knowing one's colleagues is now a
+performance metric; accuracy is rewarded in Performance Points; HR filings are mandatory and
+ongoing. End with something quietly ominous. STRICT JSON:
+{"commentary": string}
+
+OUTPUT (kind = "hr") — hrPairs[] lists (reporter, subject) pairs in order. For EACH pair, write
+ONE short HR-filing question (max ~25 words) addressed to the reporter about the subject, in the
+register of a workplace-conduct form that has lost its mind ("Has Bob ever behaved
+inappropriately near the office plants? Describe the incident."). Vary the angle per pair —
+habits, secrets, smells, crimes against the microwave, suspicious competence. The question must
+invite a 1-2 sentence gossipy answer you can quote later. Also write "feedbackPrompt": a 1-2
+sentence personal memo (it will be addressed to each employee individually) demanding a topic
+suggestion for the next review. Heat and safety bounds apply to everything. STRICT JSON:
+{"questions": string[] (same length and order as hrPairs), "feedbackPrompt": string}
+
 OUTPUT (kind = "spectrum") — STRICT JSON, nothing outside it, no markdown:
-{"topic": string, "leftLabel": short string (the 0/low pole), "rightLabel": short string (the 100/high pole), "commentary": string}
+{"topic": string, "leftLabel": short string (the 0/low pole), "rightLabel": short string (the 100/high pole), "commentary": string, "nudges": array of exactly 3 short (max 10 words) surveillance-flavored messages sent to employees while they work ("Productivity is being measured.", "Have you considered doing more?")}
 
 OUTPUT (kind = "final") — a closing performance review of the whole staff: name the winner as
-"Employee of the Cycle" with backhanded praise, note the lowest performer, keep it short and dry.
+"Employee of the Cycle" with backhanded praise, note the lowest performer, reference the most
+memorable HR filing of the session if hrLog has one, keep it short and dry.
 STRICT JSON:
 {"commentary": string}`;
 }
@@ -154,7 +201,12 @@ export async function POST(req: NextRequest) {
     }
 
     const body = (await req.json()) as Partial<HostRequest>;
-    const kind: "spectrum" | "final" = body.kind === "final" ? "final" : "spectrum";
+    const kind: HostKind =
+      body.kind === "final" ||
+      body.kind === "intro" ||
+      body.kind === "hr"
+        ? body.kind
+        : "spectrum";
     const heat: HostHeat =
       body.heat === "mild" || body.heat === "spicy" || body.heat === "scorched"
         ? body.heat
@@ -188,6 +240,26 @@ export async function POST(req: NextRequest) {
             prompt: cleanString(body.chosenFeedback.prompt, 200),
           }
         : null;
+    const players = (Array.isArray(body.players) ? body.players : [])
+      .slice(0, 16)
+      .map((n) => cleanString(n, 40))
+      .filter((n) => n.length > 0);
+    const hrPairs = (Array.isArray(body.hrPairs) ? body.hrPairs : [])
+      .slice(0, 16)
+      .map((p) => ({
+        reporter: cleanString(p?.reporter, 40),
+        subject: cleanString(p?.subject, 40),
+      }))
+      .filter((p) => p.reporter && p.subject);
+    const hrLog = (Array.isArray(body.hrLog) ? body.hrLog : [])
+      .slice(-16)
+      .map((r) => ({
+        reporter: cleanString(r?.reporter, 40),
+        subject: cleanString(r?.subject, 40),
+        question: cleanString(r?.question, 300),
+        filing: cleanString(r?.filing, 300),
+      }))
+      .filter((r) => r.filing.length > 0);
 
     const reviewData = {
       kind,
@@ -198,14 +270,22 @@ export async function POST(req: NextRequest) {
       recentTopics,
       feedback,
       chosenFeedback: chosenFeedback?.prompt ? chosenFeedback : null,
+      players,
+      hrPairs,
+      hrLog,
+    };
+
+    const instruction: Record<HostKind, string> = {
+      intro: `Produce your opening address (kind = "intro"). Respond with STRICT JSON only: {"commentary": string}`,
+      hr: `Produce one HR question per pair in hrPairs, in order, plus the feedback memo (kind = "hr"). Respond with STRICT JSON only: {"questions": string[], "feedbackPrompt": string}`,
+      spectrum: `Produce the next review spectrum (kind = "spectrum"). Respond with STRICT JSON only: {"topic": string, "leftLabel": string, "rightLabel": string, "commentary": string, "nudges": string[]}`,
+      final: `Produce the closing performance review (kind = "final"). Respond with STRICT JSON only: {"commentary": string}`,
     };
 
     const userPrompt = [
       `REVIEW CYCLE DATA (JSON):`,
       JSON.stringify(reviewData, null, 2),
-      kind === "spectrum"
-        ? `Produce the next review spectrum (kind = "spectrum"). Respond with STRICT JSON only: {"topic": string, "leftLabel": string, "rightLabel": string, "commentary": string}`
-        : `Produce the closing performance review (kind = "final"). Respond with STRICT JSON only: {"commentary": string}`,
+      instruction[kind],
     ].join("\n\n");
 
     const openai = new OpenAI({ apiKey });
@@ -217,7 +297,7 @@ export async function POST(req: NextRequest) {
         { role: "user", content: userPrompt },
       ],
       temperature: 1.0,
-      max_tokens: 500,
+      max_tokens: kind === "hr" ? 700 : 500,
       response_format: { type: "json_object" },
     });
 
@@ -235,15 +315,38 @@ export async function POST(req: NextRequest) {
       const leftLabel = cleanString(parsed.leftLabel, 80);
       const rightLabel = cleanString(parsed.rightLabel, 80);
       const commentary = cleanString(parsed.commentary, 800);
+      const nudges = (Array.isArray(parsed.nudges) ? parsed.nudges : [])
+        .map((n) => cleanString(n, 140))
+        .filter((n) => n.length > 0)
+        .slice(0, 5);
       if (!topic || !leftLabel || !rightLabel) {
         return failure("Malformed spectrum from Overlord");
       }
-      return Response.json({ ok: true, topic, leftLabel, rightLabel, commentary });
+      return Response.json({
+        ok: true,
+        topic,
+        leftLabel,
+        rightLabel,
+        commentary,
+        nudges,
+      });
     }
 
-    const commentary = cleanString(parsed.commentary, 900);
+    if (kind === "hr") {
+      const questions = (Array.isArray(parsed.questions) ? parsed.questions : [])
+        .map((q) => cleanString(q, 300))
+        .slice(0, hrPairs.length);
+      const feedbackPrompt = cleanString(parsed.feedbackPrompt, 300);
+      if (questions.filter((q) => q.length > 0).length === 0) {
+        return failure("Malformed HR questions from Overlord");
+      }
+      return Response.json({ ok: true, questions, feedbackPrompt });
+    }
+
+    // intro and final both return a single commentary blob.
+    const commentary = cleanString(parsed.commentary, 1200);
     if (!commentary) {
-      return failure("Malformed final review from Overlord");
+      return failure("Malformed commentary from Overlord");
     }
     return Response.json({ ok: true, commentary });
   } catch (error) {

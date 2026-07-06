@@ -20,6 +20,11 @@ const BAND_WARM_PTS = 1;
 const MAX_STEER_PROMPTS = 2;
 const MAX_STEER_PROMPT_LENGTH = 200;
 const MAX_FEEDBACK_LOG = 40;
+const MAX_HR_FILING_LENGTH = 280;
+const MAX_HR_QUESTION_LENGTH = 300;
+const MAX_HR_LOG = 40;
+const MAX_NUDGES = 5;
+const MAX_NUDGE_LENGTH = 140;
 
 // ============================================================================
 // Types
@@ -27,12 +32,27 @@ const MAX_FEEDBACK_LOG = 40;
 
 export type PRPhase =
   | "lobby"
+  | "intro" // the Overlord's opening address in the shared terminal
+  | "hr" // mandatory HR filings about an assigned colleague
   | "steering"
   | "statement"
   | "guessing"
   | "reveal"
   | "game_over";
 export type PRHeat = "mild" | "spicy" | "scorched";
+
+// Who each player must report on this HR window (subject name snapshotted so
+// the record survives a roster change).
+export type PRHrAssignment = { subjectId: string; subjectName: string };
+
+// An archived HR filing — the Overlord's intelligence file on the staff.
+export type PRHrRecord = {
+  reporterName: string;
+  subjectName: string;
+  question: string;
+  filing: string;
+  round: number;
+};
 
 export type PRColleagueResult = {
   name: string;
@@ -80,6 +100,18 @@ export type PRState = {
   scores: Record<string, number>; // cumulative Performance Points
   roundScores: Record<string, number>; // this round's delta, for the reveal screen
 
+  // --- the Overlord's terminal ---
+  introText: string | null; // opening address, typed out for all staff
+  feedbackPrompt: string | null; // personal memo asking for steering feedback
+  nudges: string[]; // ambient "get back to work" messages during guessing
+
+  // --- HR filings ---
+  hrRound: number; // how many HR windows have opened (drives pairing rotation)
+  hrAssignments: Record<string, PRHrAssignment>; // reporterId -> subject
+  hrQuestions: Record<string, string>; // reporterId -> AI-authored question
+  hrFilings: Record<string, string>; // reporterId -> filing text (this window)
+  hrLog: PRHrRecord[]; // accumulated filings, fed to /api/host
+
   // --- steering ---
   steerPrompts: Record<string, string[]>; // playerId -> up to 2 feedback prompts
   feedbackLog: PRFeedbackEntry[]; // all feedback across rounds; unused ones stay eligible
@@ -98,6 +130,11 @@ export type PRState = {
 
 export type PRActionType =
   | "START_GAME"
+  | "SET_INTRO"
+  | "BEGIN_HR"
+  | "SET_HR_QUESTIONS"
+  | "SUBMIT_HR"
+  | "CLOSE_HR"
   | "SUBMIT_STEER"
   | "SET_SPECTRUM"
   | "SET_STATEMENT"
@@ -120,6 +157,10 @@ export interface PRAction extends BaseAction {
     seedPrompt?: string;
     opinion?: number;
     dial?: number;
+    questions?: Record<string, string>; // reporterId -> HR question
+    feedbackPrompt?: string;
+    filing?: string;
+    nudges?: string[];
   };
 }
 
@@ -142,6 +183,14 @@ function initialState(_players: Player[]): PRState {
     dials: {},
     scores: {},
     roundScores: {},
+    introText: null,
+    feedbackPrompt: null,
+    nudges: [],
+    hrRound: 0,
+    hrAssignments: {},
+    hrQuestions: {},
+    hrFilings: {},
+    hrLog: [],
     steerPrompts: {},
     feedbackLog: [],
     history: [],
@@ -173,6 +222,56 @@ function band(d: number): number {
   if (d <= BAND_CLOSE_DIST) return BAND_CLOSE_PTS;
   if (d <= BAND_WARM_DIST) return BAND_WARM_PTS;
   return 0;
+}
+
+/**
+ * Open an HR window: assign every player a colleague to report on via a
+ * cyclic shift (shift varies each window, never 0), so nobody reports on
+ * themselves and everyone has exactly one filing written about them.
+ */
+function openHrWindow(state: PRState, ctx: GameContext): PRState {
+  const players = ctx.room.players;
+  const n = players.length;
+  if (n < 2) return { ...state, phase: "steering" };
+
+  const hrRound = state.hrRound + 1;
+  const shift = 1 + ((hrRound - 1) % (n - 1));
+  const hrAssignments: Record<string, PRHrAssignment> = {};
+  players.forEach((p, i) => {
+    const subject = players[(i + shift) % n];
+    hrAssignments[p.id] = { subjectId: subject.id, subjectName: subject.name };
+  });
+
+  return {
+    ...state,
+    phase: "hr",
+    hrRound,
+    hrAssignments,
+    hrQuestions: {},
+    hrFilings: {},
+  };
+}
+
+/** Archive this window's filings into the Overlord's intelligence file. */
+function closeHrWindow(state: PRState, ctx: GameContext): PRState {
+  const records: PRHrRecord[] = [];
+  for (const [reporterId, filing] of Object.entries(state.hrFilings)) {
+    const assignment = state.hrAssignments[reporterId];
+    if (!assignment) continue;
+    const reporter = ctx.room.players.find((p) => p.id === reporterId);
+    records.push({
+      reporterName: reporter?.name ?? "Former employee",
+      subjectName: assignment.subjectName,
+      question: state.hrQuestions[reporterId] ?? "",
+      filing,
+      round: state.roundNumber,
+    });
+  }
+  return {
+    ...state,
+    hrLog: [...state.hrLog, ...records].slice(-MAX_HR_LOG),
+    phase: "steering",
+  };
 }
 
 /**
@@ -264,13 +363,83 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
 
       return {
         ...initialState(ctx.room.players),
-        phase: "steering",
+        phase: "intro",
         heat: validHeat,
         roundNumber: 1,
         totalRounds: ctx.room.players.length * ROUNDS_PER_PLAYER,
         psychicId: null,
         scores,
       };
+    }
+
+    case "SET_INTRO": {
+      if (!isHost(ctx)) return state;
+      if (state.phase !== "intro") return state;
+      const commentary = action.payload?.commentary;
+      if (typeof commentary !== "string" || !commentary.trim()) return state;
+      return { ...state, introText: commentary.trim() };
+    }
+
+    case "BEGIN_HR": {
+      if (!isHost(ctx)) return state;
+      if (state.phase !== "intro") return state;
+      return openHrWindow(state, ctx);
+    }
+
+    case "SET_HR_QUESTIONS": {
+      if (!isHost(ctx)) return state;
+      if (state.phase !== "hr") return state;
+
+      const raw = action.payload?.questions;
+      if (!raw || typeof raw !== "object") return state;
+      const hrQuestions: Record<string, string> = {};
+      for (const [reporterId, question] of Object.entries(raw)) {
+        if (!state.hrAssignments[reporterId]) continue;
+        if (typeof question !== "string" || !question.trim()) continue;
+        hrQuestions[reporterId] = question.trim().slice(0, MAX_HR_QUESTION_LENGTH);
+      }
+      if (Object.keys(hrQuestions).length === 0) return state;
+
+      const feedbackPrompt =
+        typeof action.payload?.feedbackPrompt === "string" &&
+        action.payload.feedbackPrompt.trim()
+          ? action.payload.feedbackPrompt.trim().slice(0, MAX_HR_QUESTION_LENGTH)
+          : state.feedbackPrompt;
+
+      return { ...state, hrQuestions, feedbackPrompt };
+    }
+
+    case "SUBMIT_HR": {
+      if (state.phase !== "hr") return state;
+      if (!ctx.room.players.some((p) => p.id === ctx.playerId)) return state;
+      if (!state.hrAssignments[ctx.playerId]) return state;
+
+      const filing =
+        typeof action.payload?.filing === "string"
+          ? action.payload.filing.trim().slice(0, MAX_HR_FILING_LENGTH)
+          : "";
+      if (!filing) return state;
+
+      const next: PRState = {
+        ...state,
+        hrFilings: { ...state.hrFilings, [ctx.playerId]: filing },
+      };
+
+      // Auto-close once every present player with an assignment has filed.
+      const reporters = ctx.room.players.filter(
+        (p) => next.hrAssignments[p.id] !== undefined
+      );
+      const allFiled =
+        reporters.length > 0 &&
+        reporters.every((p) => next.hrFilings[p.id] !== undefined);
+
+      return allFiled ? closeHrWindow(next, ctx) : next;
+    }
+
+    case "CLOSE_HR": {
+      if (!isHost(ctx)) return state;
+      if (state.phase !== "hr") return state;
+      return closeHrWindow(state, ctx);
     }
 
     case "SUBMIT_STEER": {
@@ -367,6 +536,15 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
         : -1;
       const nextPsychicId = ctx.room.players[(curIdx + 1) % n].id;
 
+      const nudges = (Array.isArray(action.payload?.nudges)
+        ? action.payload.nudges
+        : []
+      )
+        .filter((v): v is string => typeof v === "string")
+        .map((v) => v.trim().slice(0, MAX_NUDGE_LENGTH))
+        .filter((v) => v.length > 0)
+        .slice(0, MAX_NUDGES);
+
       return {
         ...state,
         psychicId: nextPsychicId,
@@ -374,6 +552,7 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
         leftLabel: leftLabel.trim(),
         rightLabel: rightLabel.trim(),
         commentary,
+        nudges,
         feedbackLog,
         opinion: null,
         dials: {},
@@ -428,12 +607,15 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
       if (state.phase !== "reveal") return state;
 
       if (state.roundNumber < state.totalRounds) {
-        return {
-          ...state,
-          roundNumber: state.roundNumber + 1,
-          steerPrompts: {},
-          phase: "steering",
-        };
+        // Every round begins with a fresh HR window before feedback opens.
+        return openHrWindow(
+          {
+            ...state,
+            roundNumber: state.roundNumber + 1,
+            steerPrompts: {},
+          },
+          ctx
+        );
       }
       return { ...state, phase: "game_over" };
     }
@@ -479,6 +661,19 @@ export const performanceReviewGame = defineGame<PRState, PRAction>({
     switch (action.type) {
       case "START_GAME":
         return isHost(ctx) && state.phase === "lobby";
+      case "SET_INTRO":
+        return isHost(ctx) && state.phase === "intro";
+      case "BEGIN_HR":
+        return isHost(ctx) && state.phase === "intro";
+      case "SET_HR_QUESTIONS":
+        return isHost(ctx) && state.phase === "hr";
+      case "SUBMIT_HR":
+        return (
+          state.phase === "hr" &&
+          state.hrAssignments[ctx.playerId] !== undefined
+        );
+      case "CLOSE_HR":
+        return isHost(ctx) && state.phase === "hr";
       case "SUBMIT_STEER":
         return state.phase === "steering";
       case "SET_SPECTRUM":
