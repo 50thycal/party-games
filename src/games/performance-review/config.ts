@@ -41,6 +41,19 @@ export type PRPhase =
   | "game_over";
 export type PRHeat = "mild" | "spicy" | "scorched";
 
+// Overlord voice options for text-to-speech. IDs are OpenAI TTS voices; the
+// labels/blurbs are the in-fiction flavor shown to the host.
+export const PR_VOICES: Array<{ id: string; label: string; blurb: string }> = [
+  { id: "onyx", label: "The Overlord", blurb: "Deep, ominous" },
+  { id: "ash", label: "Middle Management", blurb: "Dry, clipped" },
+  { id: "sage", label: "The Consultant", blurb: "Calm, knowing" },
+  { id: "echo", label: "Facilities", blurb: "Flat, official" },
+  { id: "shimmer", label: "The New Hire", blurb: "Bright, unsettling" },
+  { id: "alloy", label: "Reception", blurb: "Neutral" },
+];
+export const PR_VOICE_IDS = PR_VOICES.map((v) => v.id);
+const DEFAULT_VOICE_ID = "onyx";
+
 // Who each player must report on this HR window (subject name snapshotted so
 // the record survives a roster change).
 export type PRHrAssignment = { subjectId: string; subjectName: string };
@@ -126,6 +139,10 @@ export type PRState = {
   }>;
   lastRoundResults: PRLastRoundResults | null;
   finalCommentary: string | null;
+
+  // --- voice (host-controlled TTS of the Overlord) ---
+  voiceEnabled: boolean;
+  voiceId: string;
 };
 
 export type PRActionType =
@@ -142,12 +159,15 @@ export type PRActionType =
   | "REVEAL"
   | "NEXT_ROUND"
   | "SET_FINAL"
+  | "SET_VOICE"
   | "PLAY_AGAIN";
 
 export interface PRAction extends BaseAction {
   type: PRActionType;
   payload?: {
     heat?: PRHeat;
+    enabled?: boolean;
+    voiceId?: string;
     prompts?: string[];
     topic?: string;
     leftLabel?: string;
@@ -196,6 +216,8 @@ function initialState(_players: Player[]): PRState {
     history: [],
     lastRoundResults: null,
     finalCommentary: null,
+    voiceEnabled: false,
+    voiceId: DEFAULT_VOICE_ID,
   };
 }
 
@@ -369,6 +391,8 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
         totalRounds: ctx.room.players.length * ROUNDS_PER_PLAYER,
         psychicId: null,
         scores,
+        voiceEnabled: state.voiceEnabled,
+        voiceId: state.voiceId,
       };
     }
 
@@ -630,11 +654,32 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
       return { ...state, finalCommentary: commentary.trim() };
     }
 
+    case "SET_VOICE": {
+      if (!isHost(ctx)) return state;
+      let voiceEnabled = state.voiceEnabled;
+      let voiceId = state.voiceId;
+      if (typeof action.payload?.enabled === "boolean") {
+        voiceEnabled = action.payload.enabled;
+      }
+      if (
+        typeof action.payload?.voiceId === "string" &&
+        PR_VOICE_IDS.includes(action.payload.voiceId)
+      ) {
+        voiceId = action.payload.voiceId;
+      }
+      return { ...state, voiceEnabled, voiceId };
+    }
+
     case "PLAY_AGAIN": {
       if (!isHost(ctx)) return state;
       if (state.phase !== "game_over") return state;
 
-      return { ...initialState(ctx.room.players), heat: state.heat };
+      return {
+        ...initialState(ctx.room.players),
+        heat: state.heat,
+        voiceEnabled: state.voiceEnabled,
+        voiceId: state.voiceId,
+      };
     }
 
     default:
@@ -688,6 +733,8 @@ export const performanceReviewGame = defineGame<PRState, PRAction>({
         return isHost(ctx) && state.phase === "reveal";
       case "SET_FINAL":
         return isHost(ctx) && state.phase === "game_over";
+      case "SET_VOICE":
+        return isHost(ctx);
       case "PLAY_AGAIN":
         return isHost(ctx) && state.phase === "game_over";
       default:
