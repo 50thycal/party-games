@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import type { GameViewProps } from "@/games/views";
+import { PR_VOICES } from "./config";
 import type { PRColleagueResult, PRHeat, PRState } from "./config";
 
 // ============================================================================
@@ -110,7 +111,15 @@ function useTypewriter(text: string): string {
 
 // The shared "upper management" terminal — every Overlord message in the game
 // arrives here, typed out like a chat session with the boss.
-function Terminal({ to, text }: { to: string; text: string }) {
+function Terminal({
+  to,
+  text,
+  live,
+}: {
+  to: string;
+  text: string;
+  live?: boolean;
+}) {
   const shown = useTypewriter(text);
   const done = shown.length >= text.length;
   return (
@@ -122,6 +131,11 @@ function Terminal({ to, text }: { to: string; text: string }) {
         <span className="ml-1 text-[10px] text-green-600 tracking-widest uppercase">
           Mgmt Terminal — Secure Channel
         </span>
+        {live && (
+          <span className="ml-auto text-[10px] text-green-500 tracking-widest uppercase flex items-center gap-1">
+            <span className="animate-pulse">🔊</span> Voice
+          </span>
+        )}
       </div>
       <div className="p-3 text-sm leading-relaxed">
         <p className="text-[10px] text-green-700 tracking-widest mb-1 uppercase">
@@ -290,6 +304,8 @@ export function PerformanceReviewGameView({
   const history = gameState?.history ?? [];
   const lastRoundResults = gameState?.lastRoundResults ?? null;
   const finalCommentary = gameState?.finalCommentary ?? null;
+  const voiceEnabled = gameState?.voiceEnabled ?? false;
+  const voiceId = gameState?.voiceId ?? "onyx";
   const introText = gameState?.introText ?? null;
   const feedbackPrompt = gameState?.feedbackPrompt ?? null;
   const nudges = gameState?.nudges ?? [];
@@ -806,57 +822,91 @@ export function PerformanceReviewGameView({
   const nudgePool = nudges.length > 0 ? nudges : FALLBACK_NUDGES;
   const currentNudge = nudgePool[nudgeIdx % nudgePool.length];
 
-  function terminalContent(): { to: string; text: string } {
+  // Returns what the terminal shows, plus the subset that should be READ ALOUD.
+  // Only the room-wide "All staff" beats speak (intro, round memo, reveal
+  // caption, final review) — personal memos and rotating nudges stay silent.
+  // speakKey is a stable per-message id used to voice each message exactly once.
+  function terminalContent(): {
+    to: string;
+    text: string;
+    speak: string;
+    speakKey: string;
+  } {
     const ALL = "All staff";
+    const silent = (to: string, text: string) => ({
+      to,
+      text,
+      speak: "",
+      speakKey: "",
+    });
     switch (phase) {
       case "lobby":
-        return {
-          to: ALL,
-          text: "Channel open. Awaiting staff check-in. Attendance is being recorded.",
-        };
+        return silent(
+          ALL,
+          "Channel open. Awaiting staff check-in. Attendance is being recorded."
+        );
       case "intro":
-        return {
-          to: ALL,
-          text:
-            introText ?? "Establishing secure channel to upper management...",
-        };
+        return introText
+          ? {
+              to: ALL,
+              text: introText,
+              speak: introText,
+              speakKey: `intro:${introText}`,
+            }
+          : silent(ALL, "Establishing secure channel to upper management...");
       case "hr": {
         if (myHrAssignment && myHrQuestion) {
-          return {
-            to: myName,
-            text: `HR FILING — RE: ${myHrAssignment.subjectName}.\n${myHrQuestion}`,
-          };
+          return silent(
+            myName,
+            `HR FILING — RE: ${myHrAssignment.subjectName}.\n${myHrQuestion}`
+          );
         }
         if (myHrAssignment) {
-          return { to: myName, text: "HR is drafting your paperwork. Hold." };
+          return silent(myName, "HR is drafting your paperwork. Hold.");
         }
-        return {
-          to: myName,
-          text: "No paperwork for you this cycle. Remain seated.",
-        };
+        return silent(myName, "No paperwork for you this cycle. Remain seated.");
       }
       case "steering":
-        return {
-          to: myName,
-          text:
-            feedbackPrompt ??
-            FALLBACK_FEEDBACK_PROMPTS[hrRound % FALLBACK_FEEDBACK_PROMPTS.length],
-        };
+        return silent(
+          myName,
+          feedbackPrompt ??
+            FALLBACK_FEEDBACK_PROMPTS[hrRound % FALLBACK_FEEDBACK_PROMPTS.length]
+        );
       case "statement":
-        return { to: ALL, text: commentary || "Review in progress." };
+        return commentary
+          ? {
+              to: ALL,
+              text: commentary,
+              speak: commentary,
+              speakKey: `statement:${roundNumber}:${commentary}`,
+            }
+          : silent(ALL, "Review in progress.");
       case "guessing":
+        // Commentary was already voiced at statement; guessing stays silent
+        // (nudges to the waiting employee are text-only).
         return hasDialed || isPsychic
-          ? { to: myName, text: currentNudge }
-          : { to: ALL, text: commentary || "Review in progress." };
-      case "reveal":
-        return { to: ALL, text: overlordCaption() };
-      case "game_over":
+          ? silent(myName, currentNudge)
+          : silent(ALL, commentary || "Review in progress.");
+      case "reveal": {
+        const caption = overlordCaption();
         return {
           to: ALL,
-          text: finalCommentary ?? "Compiling final assessments...",
+          text: caption,
+          speak: caption,
+          speakKey: `reveal:${roundNumber}:${caption}`,
         };
+      }
+      case "game_over":
+        return finalCommentary
+          ? {
+              to: ALL,
+              text: finalCommentary,
+              speak: finalCommentary,
+              speakKey: `final:${finalCommentary}`,
+            }
+          : silent(ALL, "Compiling final assessments...");
       default:
-        return { to: ALL, text: "..." };
+        return silent(ALL, "...");
     }
   }
 
@@ -867,12 +917,182 @@ export function PerformanceReviewGameView({
   const lastReviewRound = roundNumber >= totalRounds;
   const terminal = terminalContent();
 
+  // ==========================================================================
+  // Overlord voice (host-controlled TTS). Audio plays on ONE device — the
+  // host's in multiplayer, the single device in hotseat/simulation — so the
+  // room hears one voice, not a chorus of phones.
+  // ==========================================================================
+  const isAudioDevice = room.mode !== "multiplayer" || isHost;
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const fetchAbortRef = useRef<AbortController | null>(null);
+  const spokenKeyRef = useRef<string | null>(null);
+  const voiceIdRef = useRef(voiceId);
+  voiceIdRef.current = voiceId;
+
+  // Get (lazily create) and resume the AudioContext. Safe to call anytime.
+  function getAudioCtx(): AudioContext | null {
+    try {
+      if (!audioCtxRef.current) {
+        const Ctx =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext?: typeof AudioContext })
+            .webkitAudioContext;
+        if (!Ctx) return null;
+        audioCtxRef.current = new Ctx();
+      }
+      const ctx = audioCtxRef.current;
+      if (ctx.state === "suspended") void ctx.resume();
+      return ctx;
+    } catch {
+      return null;
+    }
+  }
+
+  // Must run from a user gesture (browser autoplay policy, incl. iOS): resumes
+  // the context and plays one silent sample to fully unlock playback.
+  function ensureAudioUnlocked() {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    try {
+      const buf = ctx.createBuffer(1, 1, 22050);
+      const s = ctx.createBufferSource();
+      s.buffer = buf;
+      s.connect(ctx.destination);
+      s.start(0);
+    } catch {
+      /* audio unavailable; game stays fully playable without it */
+    }
+  }
+
+  function stopSpeaking() {
+    try {
+      sourceRef.current?.stop();
+    } catch {
+      /* already stopped */
+    }
+    sourceRef.current = null;
+    fetchAbortRef.current?.abort();
+    fetchAbortRef.current = null;
+  }
+
+  // Fetch TTS for `text`, then play it — but never before minDelayMs has passed
+  // since this was called, so the room gets a beat to read the new screen first.
+  async function speakNow(text: string, voice: string, minDelayMs: number) {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    const started = Date.now();
+    fetchAbortRef.current?.abort();
+    const controller = new AbortController();
+    fetchAbortRef.current = controller;
+    try {
+      const res = await fetch("/api/speak", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, voice }),
+        signal: controller.signal,
+      });
+      if (!res.ok || controller.signal.aborted) return;
+      const arr = await res.arrayBuffer();
+      if (controller.signal.aborted) return;
+      const audioBuf = await ctx.decodeAudioData(arr);
+      if (controller.signal.aborted) return;
+      const wait = Math.max(0, minDelayMs - (Date.now() - started));
+      if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+      if (controller.signal.aborted) return;
+      try {
+        sourceRef.current?.stop();
+      } catch {
+        /* none playing */
+      }
+      const src = ctx.createBufferSource();
+      src.buffer = audioBuf;
+      src.connect(ctx.destination);
+      sourceRef.current = src;
+      src.start(0);
+    } catch {
+      /* network/decoding failure — silently skip, no audio this message */
+    }
+  }
+
+  // Speak each new "All staff" message once, after a 1s catch-up pause.
+  useEffect(() => {
+    if (!voiceEnabled || !isAudioDevice || !terminal.speakKey || !terminal.speak) {
+      return;
+    }
+    if (spokenKeyRef.current === terminal.speakKey) return;
+    spokenKeyRef.current = terminal.speakKey;
+    void speakNow(terminal.speak, voiceIdRef.current, 1000);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [terminal.speakKey, voiceEnabled, isAudioDevice]);
+
+  // Stop immediately when voice is switched off, and on unmount.
+  useEffect(() => {
+    if (!voiceEnabled) stopSpeaking();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voiceEnabled]);
+  useEffect(() => () => stopSpeaking(), []);
+
+  async function handleToggleVoice() {
+    const next = !voiceEnabled;
+    if (next) {
+      ensureAudioUnlocked(); // this click is the gesture that unlocks audio
+      void speakNow("Management voice engaged.", voiceIdRef.current, 0);
+    } else {
+      stopSpeaking();
+    }
+    await dispatchAction("SET_VOICE", { enabled: next });
+  }
+
+  async function handleVoiceChange(nextVoiceId: string) {
+    ensureAudioUnlocked();
+    voiceIdRef.current = nextVoiceId;
+    if (voiceEnabled) void speakNow("Voice recalibrated.", nextVoiceId, 0);
+    await dispatchAction("SET_VOICE", { voiceId: nextVoiceId });
+  }
+
   return (
     <>
       {/* Host Controls */}
       {isHost && (
         <section className="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-6">
           <h2 className="font-semibold mb-4">Host Controls</h2>
+
+          {/* Management voice — reads the Overlord aloud on this device */}
+          <div className="mb-4 pb-4 border-b border-gray-700">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium">Management Voice</p>
+                <p className="text-[11px] text-gray-500">
+                  Reads the Overlord aloud on this device.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleToggleVoice}
+                className={`px-4 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${
+                  voiceEnabled
+                    ? "bg-green-700 border-green-500 text-white"
+                    : "bg-gray-900 border-gray-700 text-gray-300 hover:border-gray-500"
+                }`}
+              >
+                {voiceEnabled ? "🔊 On" : "🔇 Off"}
+              </button>
+            </div>
+            {voiceEnabled && (
+              <select
+                value={voiceId}
+                onChange={(e) => handleVoiceChange(e.target.value)}
+                className="mt-3 w-full bg-gray-900 border border-gray-700 rounded-lg py-2 px-3 text-sm focus:outline-none focus:border-blue-500"
+              >
+                {PR_VOICES.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.label} — {v.blurb}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
 
           {phase === "lobby" && (
             <div className="space-y-4">
@@ -1021,7 +1241,7 @@ export function PerformanceReviewGameView({
         </h2>
 
         {/* The management terminal — every Overlord message arrives here */}
-        <Terminal to={terminal.to} text={terminal.text} />
+        <Terminal to={terminal.to} text={terminal.text} live={voiceEnabled} />
 
         {/* -------------------------------------------------- lobby */}
         {phase === "lobby" && (
