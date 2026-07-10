@@ -976,12 +976,12 @@ export function PerformanceReviewGameView({
     fetchAbortRef.current = null;
   }
 
-  // Fetch TTS for `text`, then play it — but never before minDelayMs has passed
-  // since this was called, so the room gets a beat to read the new screen first.
-  async function speakNow(text: string, voice: string, minDelayMs: number) {
+  // Fetch TTS for `text`, then play it. The fetch itself already gives the
+  // room a beat to read the new screen before audio starts — no extra
+  // artificial delay needed on top of that.
+  async function speakNow(text: string, voice: string) {
     const ctx = getAudioCtx();
     if (!ctx) return;
-    const started = Date.now();
     fetchAbortRef.current?.abort();
     const controller = new AbortController();
     fetchAbortRef.current = controller;
@@ -996,9 +996,6 @@ export function PerformanceReviewGameView({
       const arr = await res.arrayBuffer();
       if (controller.signal.aborted) return;
       const audioBuf = await ctx.decodeAudioData(arr);
-      if (controller.signal.aborted) return;
-      const wait = Math.max(0, minDelayMs - (Date.now() - started));
-      if (wait > 0) await new Promise((r) => setTimeout(r, wait));
       if (controller.signal.aborted) return;
       try {
         sourceRef.current?.stop();
@@ -1015,14 +1012,14 @@ export function PerformanceReviewGameView({
     }
   }
 
-  // Speak each new "All staff" message once, after a 1s catch-up pause.
+  // Speak each new "All staff" message once.
   useEffect(() => {
     if (!voiceEnabled || !isAudioDevice || !terminal.speakKey || !terminal.speak) {
       return;
     }
     if (spokenKeyRef.current === terminal.speakKey) return;
     spokenKeyRef.current = terminal.speakKey;
-    void speakNow(terminal.speak, voiceIdRef.current, 1000);
+    void speakNow(terminal.speak, voiceIdRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [terminal.speakKey, voiceEnabled, isAudioDevice]);
 
@@ -1037,7 +1034,7 @@ export function PerformanceReviewGameView({
     const next = !voiceEnabled;
     if (next) {
       ensureAudioUnlocked(); // this click is the gesture that unlocks audio
-      void speakNow("Management voice engaged.", voiceIdRef.current, 0);
+      void speakNow("Management voice engaged.", voiceIdRef.current);
     } else {
       stopSpeaking();
     }
@@ -1047,7 +1044,7 @@ export function PerformanceReviewGameView({
   async function handleVoiceChange(nextVoiceId: string) {
     ensureAudioUnlocked();
     voiceIdRef.current = nextVoiceId;
-    if (voiceEnabled) void speakNow("Voice recalibrated.", nextVoiceId, 0);
+    if (voiceEnabled) void speakNow("Voice recalibrated.", nextVoiceId);
     await dispatchAction("SET_VOICE", { voiceId: nextVoiceId });
   }
 
