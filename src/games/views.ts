@@ -61,9 +61,9 @@ export const gameOptions: GameOption[] = [
   },
   {
     id: "performance-review",
-    name: "Performance Review",
+    name: "HR Investigation",
     description:
-      "One coworker, one hot take. Guess where they really stand. Management is watching.",
+      "File a complaint, get investigated, and turn one workplace incident into an absurd new company policy. HR is watching.",
     minPlayers: 3,
     maxPlayers: 8,
   },
