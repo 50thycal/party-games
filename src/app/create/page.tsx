@@ -28,6 +28,19 @@ export default function CreatePage() {
 
   const selectedGame = gameOptions.find((g) => g.id === selectedGameId);
 
+  // Keep playerCount within the selected game's supported range. Without this,
+  // switching to a game whose minPlayers is above the current count leaves the
+  // <select> value out of range: the browser renders the first option as
+  // "selected" while state still holds the old (lower) value — so it looks like
+  // 3 is chosen but 2 is submitted.
+  useEffect(() => {
+    const game = gameOptions.find((g) => g.id === selectedGameId);
+    if (!game) return;
+    setPlayerCount((c) =>
+      Math.min(game.maxPlayers, Math.max(game.minPlayers, c))
+    );
+  }, [selectedGameId]);
+
   // Update playerNames array when playerCount changes
   useEffect(() => {
     const newNames = Array(playerCount).fill("").map((_, i) =>
