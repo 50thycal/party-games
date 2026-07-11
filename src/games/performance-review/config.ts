@@ -2,28 +2,31 @@ import { defineGame } from "@/engine/defineGame";
 import type { BaseAction, GamePhase, GameContext, Player } from "@/engine/types";
 
 // ============================================================================
-// HR Investigation — round loop
+// HR Investigation — one investigation, one case per employee
 // ----------------------------------------------------------------------------
-// Each round:
-//   1. Accusation      every employee reports on an assigned colleague
-//   2. Interview       the featured accused explains themselves to HR
-//   3. Resolution      the Overlord issues an HR response + a Company Guideline
-//   4. Challenge       alternates each round:
-//        A) Spectrum Review    accused privately ranks the guideline; others guess
-//        B) Guideline Thread   everyone comments on the policy + guesses the accused
-//   5. Reveal          the whole case is unsealed and points are awarded
+// A full game:
+//   1. Accusation   every employee files an HR report on an assigned colleague
+//                   (prompts drawn from a fixed corporate-grievance bank)
+//   2. Interview    EVERY employee is shown a manager-reframed version of the
+//                   accusation about them and explains what actually happened
+//   3. Resolution   for each employee, HR issues a ruling + a new Company
+//                   Guideline born from that incident
+//   4. Challenges   one challenge PER guideline (so #challenges == #players),
+//                   alternating between the two types:
+//                     A) Spectrum Review  a rotating employee privately rates the
+//                        new policy; everyone else guesses where they landed
+//                     B) Guideline Thread everyone comments on the policy, tagging
+//                        (@) who they think it targets inside their comment
+//   5. Reveal       each challenge ends on a "case closed" screen
 // ============================================================================
 
 // ============================================================================
 // Tunable constants
 // ============================================================================
 
-// Roughly this many featured cases per employee across a full cycle.
-export const ROUNDS_PER_PLAYER = 2;
-
 // --- Spectrum Review (Challenge A) scoring ---
-// Distance bands: how close a colleague's guess is to where the accused ranked
-// the guideline (d = |guess - stance|) -> Performance Points.
+// Distance bands: how close a guess lands to where the rater put the policy
+// (d = |guess - stance|) -> Performance Points.
 const BAND_BULLSEYE_DIST = 5; // d <= 5  -> bullseye
 const BAND_CLOSE_DIST = 15; // d <= 15 -> close
 const BAND_WARM_DIST = 30; // d <= 30 -> warm
@@ -33,10 +36,9 @@ const BAND_WARM_PTS = 1;
 
 // --- Guideline Thread (Challenge B) scoring ---
 export const COMMENT_VOTE_PTS = 2; // points per vote your comment receives
-export const ATMENTION_BONUS = 3; // bonus for correctly tagging the accused
+export const ATMENTION_BONUS = 3; // bonus for correctly @-tagging the target
 
 const MAX_ACCUSATION_LENGTH = 280;
-const MAX_ACCUSATION_QUESTION_LENGTH = 300;
 const MAX_EXPLANATION_LENGTH = 400;
 const MAX_COMMENT_LENGTH = 240;
 const MAX_CASE_LOG = 40;
@@ -44,28 +46,85 @@ const MAX_NUDGES = 5;
 const MAX_NUDGE_LENGTH = 140;
 
 // ============================================================================
+// The corporate grievance bank — HR report prompts ({subject} interpolated).
+// Ridiculous, relatable, and written to tee up a silly answer about a coworker.
+// ============================================================================
+export const HR_QUESTION_BANK: string[] = [
+  "Has {subject} been taking suspiciously long bathroom breaks?",
+  "Has {subject} been showing up late to work more than usual?",
+  "Does {subject} actually participate in the monthly safety moment?",
+  "Has {subject} been microwaving fish in the shared kitchen again?",
+  "Does {subject} mute themselves to eat during video calls?",
+  "Is {subject} 'working from home' or working from the beach?",
+  "Does {subject} reply-all when they absolutely should not?",
+  "Has {subject} taken the last coffee without starting a new pot?",
+  "Does {subject} schedule meetings that could have been an email?",
+  "Has {subject} been stealing office supplies for 'home office' use?",
+  "Does {subject} keep their camera off in every single meeting?",
+  "Has {subject} ever taken credit for someone else's idea?",
+  "Does {subject} clap a little too enthusiastically at the all-hands?",
+  "Has {subject} been leaving passive-aggressive notes on the fridge?",
+  "Does {subject} wield 'per my last email' as a weapon?",
+  "Has {subject} skipped the mandatory fun team-building event?",
+  "Does {subject} say 'let's circle back' and then never circle back?",
+  "Has {subject} been double-booking meetings to dodge work?",
+  "Does {subject} refuse to update the shared spreadsheet?",
+  "Has {subject} been napping in the wellness room during work hours?",
+  "Does {subject} take credit in standup for work they didn't do?",
+  "Has {subject} left dirty dishes in the sink for a suspicious number of days?",
+  "Does {subject} conveniently go on mute the moment they're asked a question?",
+  "Has {subject} been forwarding memes in the company Slack all day?",
+  "Does {subject} park in the spot reserved for employee of the month?",
+  "Has {subject} ghosted a calendar invite they clearly saw?",
+  "Does {subject} bring up their side hustle in every meeting?",
+  "Has {subject} been reheating leftovers that violate the office scent policy?",
+  "Does {subject} log off at exactly 4:59 every single day?",
+  "Has {subject} taken another 'sick day' that landed on a Friday?",
+  "Does {subject} hoard the good pens from the supply closet?",
+  "Has {subject} been talking over people in meetings?",
+  "Does {subject} respond to urgent emails with only a thumbs-up emoji?",
+  "Has {subject} been using the office printer for clearly personal projects?",
+  "Does {subject} volunteer other people for tasks without asking them?",
+  "Has {subject} been eating someone else's labeled lunch from the fridge?",
+  "Does {subject} join the call, ask 'can everyone see my screen?', then vanish?",
+  "Has {subject} been suspiciously quiet during the budget discussion?",
+  "Does {subject} reply 'sounds good!' without reading the message?",
+  "Has {subject} been leaving the meeting room a disaster after every booking?",
+  "Does {subject} take a two-hour lunch and call it a 'working lunch'?",
+  "Has {subject} been forwarding invites to others to avoid doing the work?",
+  "Does {subject} say 'great question' to stall when they don't know the answer?",
+  "Has {subject} been dodging the mandatory cybersecurity training?",
+  "Does {subject} keep 'forgetting' to expense things until it's a crisis?",
+  "Has {subject} been overusing the phrase 'let's take this offline'?",
+  "Does {subject} show up to the potluck with store-bought and zero effort?",
+  "Has {subject} been booking the big conference room for one-person calls?",
+  "Does {subject} nod along in meetings and then do none of the follow-ups?",
+  "Has {subject} been treating 'reply by EOD' as a gentle suggestion?",
+];
+
+// ============================================================================
 // Types
 // ============================================================================
 
 export type PRPhase =
   | "lobby"
-  | "intro" // the Overlord's opening address in the shared terminal
-  | "accusation" // every employee reports on their assigned colleague
-  | "interview" // the featured accused explains what actually happened
-  | "resolving" // HR deliberates (host fetches the AI resolution)
-  | "a_stance" // Challenge A: accused privately ranks the guideline
-  | "a_guess" // Challenge A: colleagues guess where the accused landed
-  | "b_comment" // Challenge B: everyone comments on the guideline post
-  | "b_vote" // Challenge B: vote funniest comment + tag the accused
-  | "reveal"
+  | "intro" // HR's opening address
+  | "accusation" // everyone files a report on an assigned colleague
+  | "reframing" // HR reframes every accusation into managerial language
+  | "interview" // everyone explains the accusation about them
+  | "case_prep" // HR drafts the ruling + guideline for the current case
+  | "a_stance" // Challenge A: the rotating rater privately rates the policy
+  | "a_guess" // Challenge A: everyone else guesses where the rater landed
+  | "b_comment" // Challenge B: everyone comments (with an @-tag guess inside)
+  | "b_vote" // Challenge B: vote the funniest comment
+  | "reveal" // "case closed" for the current guideline
   | "game_over";
 
 export type PRHeat = "mild" | "spicy" | "scorched";
 
 export type PRChallenge = "spectrum" | "thread";
 
-// Overlord voice options for text-to-speech. IDs are OpenAI TTS voices; the
-// labels/blurbs are the in-fiction flavor shown to the host.
+// HR voice options for text-to-speech. IDs are OpenAI TTS voices.
 export const PR_VOICES: Array<{ id: string; label: string; blurb: string }> = [
   { id: "onyx", label: "The Overlord", blurb: "Deep, ominous" },
   { id: "ash", label: "Middle Management", blurb: "Dry, clipped" },
@@ -77,27 +136,39 @@ export const PR_VOICES: Array<{ id: string; label: string; blurb: string }> = [
 export const PR_VOICE_IDS = PR_VOICES.map((v) => v.id);
 const DEFAULT_VOICE_ID = "onyx";
 
-// Who each employee must report on this window (subject name snapshotted so the
-// record survives a roster change).
 export type PRAssignment = { subjectId: string; subjectName: string };
 
-// An archived accusation — the Overlord's intelligence file on the staff.
+// One case per employee — everything the investigation knows about one incident.
+export type PRCase = {
+  accusedId: string;
+  accusedName: string;
+  reporterId: string | null;
+  reporterName: string;
+  question: string; // the bank prompt the reporter answered
+  rawAccusation: string; // exactly what the reporter wrote
+  accusation: string | null; // AI manager-reframed version (shown everywhere)
+  explanation: string | null; // the accused's interview answer
+  challenge: PRChallenge; // which challenge this guideline resolves through
+  raterId: string | null; // spectrum only — the rotating rater
+  raterName: string | null;
+  // filled during case_prep
+  hrResponse: string | null;
+  guideline: string | null;
+  spectrumQuestion: string | null;
+  leftLabel: string | null;
+  rightLabel: string | null;
+};
+
+// An archived accusation for the AI's callbacks.
 export type PRCaseRecord = {
   reporterName: string;
   accusedName: string;
   question: string;
   accusation: string;
-  round: number;
 };
 
-// --- Challenge A (Spectrum Review) reveal rows ---
-export type PRSpectrumResult = {
-  name: string;
-  guess: number;
-  points: number;
-};
+export type PRSpectrumResult = { name: string; guess: number; points: number };
 
-// --- Challenge B (Guideline Thread) reveal rows ---
 export type PRThreadResult = {
   id: string;
   name: string;
@@ -105,88 +176,70 @@ export type PRThreadResult = {
   votes: number;
   commentPoints: number;
   atBonus: number;
-  guessedAccused: boolean;
+  taggedName: string | null; // who this commenter @-tagged
+  guessedTarget: boolean; // did they tag the real accused
   eligibleForBonus: boolean;
 };
 
 export type PRLastRound = {
   challenge: PRChallenge;
-  round: number;
+  caseNumber: number;
+  totalCases: number;
   accusation: string;
   reporterName: string;
   accusedName: string;
   explanation: string;
   hrResponse: string;
   guideline: string;
-  // Spectrum-only
+  // spectrum-only
   spectrumQuestion?: string;
   leftLabel?: string;
   rightLabel?: string;
+  raterName?: string;
   stance?: number;
   spectrumResults?: PRSpectrumResult[];
-  // Thread-only
+  // thread-only
   threadResults?: PRThreadResult[];
 };
 
 export type PRState = {
   phase: PRPhase;
   heat: PRHeat;
-  roundNumber: number; // 1-based
-  totalRounds: number;
-  challenge: PRChallenge; // this round's challenge type
 
   // --- accusation window ---
-  accusationRound: number; // how many windows have opened (drives pairing rotation)
   assignments: Record<string, PRAssignment>; // reporterId -> subject
-  accusationQuestions: Record<string, string>; // reporterId -> AI-authored prompt
-  accusations: Record<string, string>; // reporterId -> accusation text (this window)
+  questions: Record<string, string>; // reporterId -> bank prompt
+  accusations: Record<string, string>; // reporterId -> raw text
 
-  // --- the featured case (set when the accusation window closes) ---
-  accusedId: string | null;
-  accusedName: string | null;
-  reporterId: string | null;
-  reporterName: string | null;
-  accusation: string | null; // the featured accusation text
-  accusationQuestion: string | null; // the prompt that produced it
+  // --- reframing + interview (keyed by accused) ---
+  reframes: Record<string, string>; // accusedId -> managerial reframe
+  explanations: Record<string, string>; // accusedId -> defense
 
-  // --- interview ---
-  explanation: string | null; // the accused's account (secret until reveal)
+  // --- the built docket ---
+  cases: PRCase[];
+  totalCases: number;
+  challengeIndex: number; // which case is currently being challenged (0-based)
 
-  // --- AI resolution ---
-  hrResponse: string | null; // accusatory HR response (secret until reveal)
-  guideline: string | null; // the new Company Guideline (public once posted)
-
-  // --- Challenge A: Spectrum Review ---
-  spectrumQuestion: string | null;
-  leftLabel: string | null; // 0-pole label
-  rightLabel: string | null; // 100-pole label
-  stance: number | null; // 0..100 where the accused ranked it (secret until reveal)
+  // --- current challenge working state (reset per case) ---
+  stance: number | null; // rater's private 0..100
   guesses: Record<string, number>; // guesserId -> 0..100
-
-  // --- Challenge B: Guideline Thread ---
-  comments: Record<string, string>; // authorId -> comment
-  votes: Record<string, string>; // voterId -> authorId they voted funniest
-  atGuesses: Record<string, string>; // guesserId -> playerId they tagged as the accused
+  comments: Record<string, string>; // authorId -> comment (may contain @tag)
+  votes: Record<string, string>; // voterId -> authorId voted funniest
 
   // --- scoring ---
-  scores: Record<string, number>; // cumulative Performance Points
-  roundScores: Record<string, number>; // this round's delta, for the reveal
+  scores: Record<string, number>;
+  roundScores: Record<string, number>; // this case's delta
 
-  // --- the Overlord's terminal ---
-  introText: string | null; // opening address, typed out for all staff
-  nudges: string[]; // ambient "get back to work" messages
+  // --- HR terminal ---
+  introText: string | null;
+  nudges: string[];
 
-  // --- history / callbacks (fed to /api/host) ---
-  caseLog: PRCaseRecord[]; // accumulated accusations, the intelligence file
-  history: Array<{
-    guideline: string;
-    accusedName: string;
-    challenge: PRChallenge;
-  }>;
+  // --- context / reveal ---
+  caseLog: PRCaseRecord[];
   lastRound: PRLastRound | null;
   finalCommentary: string | null;
 
-  // --- voice (host-controlled TTS of the Overlord) ---
+  // --- voice ---
   voiceEnabled: boolean;
   voiceId: string;
 };
@@ -195,19 +248,19 @@ export type PRActionType =
   | "START_GAME"
   | "SET_INTRO"
   | "BEGIN"
-  | "SET_ACCUSATION_QUESTIONS"
   | "SUBMIT_ACCUSATION"
   | "CLOSE_ACCUSATION"
+  | "SET_REFRAMES"
   | "SUBMIT_EXPLANATION"
   | "SKIP_INTERVIEW"
-  | "SET_RESOLUTION"
+  | "SET_CASE_RESOLUTION"
   | "SET_STANCE"
   | "SUBMIT_GUESS"
   | "SUBMIT_COMMENT"
   | "CLOSE_COMMENTS"
   | "SUBMIT_VOTE"
   | "REVEAL"
-  | "NEXT_ROUND"
+  | "NEXT_CASE"
   | "SET_FINAL"
   | "SET_VOICE"
   | "PLAY_AGAIN";
@@ -219,8 +272,8 @@ export interface PRAction extends BaseAction {
     enabled?: boolean;
     voiceId?: string;
     commentary?: string;
-    questions?: Record<string, string>; // reporterId -> accusation prompt
     accusation?: string;
+    reframes?: Record<string, string>; // accusedId -> reframe
     explanation?: string;
     hrResponse?: string;
     guideline?: string;
@@ -231,8 +284,7 @@ export interface PRAction extends BaseAction {
     stance?: number;
     guess?: number;
     comment?: string;
-    voteFor?: string; // authorId
-    atGuess?: string; // playerId tagged as accused
+    voteFor?: string;
   };
 }
 
@@ -244,36 +296,23 @@ function initialState(_players: Player[]): PRState {
   return {
     phase: "lobby",
     heat: "spicy",
-    roundNumber: 1,
-    totalRounds: 0,
-    challenge: "spectrum",
-    accusationRound: 0,
     assignments: {},
-    accusationQuestions: {},
+    questions: {},
     accusations: {},
-    accusedId: null,
-    accusedName: null,
-    reporterId: null,
-    reporterName: null,
-    accusation: null,
-    accusationQuestion: null,
-    explanation: null,
-    hrResponse: null,
-    guideline: null,
-    spectrumQuestion: null,
-    leftLabel: null,
-    rightLabel: null,
+    reframes: {},
+    explanations: {},
+    cases: [],
+    totalCases: 0,
+    challengeIndex: 0,
     stance: null,
     guesses: {},
     comments: {},
     votes: {},
-    atGuesses: {},
     scores: {},
     roundScores: {},
     introText: null,
     nudges: [],
     caseLog: [],
-    history: [],
     lastRound: null,
     finalCommentary: null,
     voiceEnabled: false,
@@ -287,6 +326,15 @@ function getPhase(state: PRState): GamePhase {
 
 function isHost(ctx: GameContext): boolean {
   return ctx.room.hostId === ctx.playerId;
+}
+
+// Automatic "HR" beats (intro / reframes / rulings / final) are fetched from the
+// AI by one client and written back via an action. In multiplayer only the host
+// runs them; in hotseat/simulation the whole game lives on one device, so any
+// active player may commit them — otherwise the game stalls waiting for the host
+// seat to come back around during pass-and-play.
+function canDrive(ctx: GameContext): boolean {
+  return isHost(ctx) || ctx.room.mode !== "multiplayer";
 }
 
 function clampInt0100(value: unknown): number | null {
@@ -309,195 +357,224 @@ function sanitizeNudges(raw: unknown): string[] {
     .slice(0, MAX_NUDGES);
 }
 
-/**
- * Reset every per-round field back to empty. Called when a fresh accusation
- * window opens so a slow client can never carry a previous case forward.
- */
-function clearRound(state: PRState): PRState {
-  return {
-    ...state,
-    accusationQuestions: {},
-    accusations: {},
-    accusedId: null,
-    accusedName: null,
-    reporterId: null,
-    reporterName: null,
-    accusation: null,
-    accusationQuestion: null,
-    explanation: null,
-    hrResponse: null,
-    guideline: null,
-    spectrumQuestion: null,
-    leftLabel: null,
-    rightLabel: null,
-    stance: null,
-    guesses: {},
-    comments: {},
-    votes: {},
-    atGuesses: {},
-    nudges: [],
-    roundScores: {},
-  };
+/** The raw accusation written about `accusedId`, via their assigned reporter. */
+function accusationAbout(
+  state: PRState,
+  accusedId: string
+): { reporterId: string | null; raw: string; question: string } {
+  for (const [reporterId, a] of Object.entries(state.assignments)) {
+    if (a.subjectId === accusedId) {
+      return {
+        reporterId,
+        raw: state.accusations[reporterId] ?? "",
+        question: state.questions[reporterId] ?? "",
+      };
+    }
+  }
+  return { reporterId: null, raw: "", question: "" };
 }
 
 /**
- * Open an accusation window: assign every employee a colleague to report on via
- * a cyclic shift (varies each window, never 0), so nobody reports on themselves
- * and everyone is the subject of exactly one report. The challenge type for the
- * round alternates by round parity (odd = Spectrum Review, even = Guideline
- * Thread) so the loop never feels repetitive.
+ * Which player @-tag a comment contains: the earliest "@Name" that resolves to
+ * a real player (ties broken by the longest matching name). Returns the tagged
+ * player's id, or null.
+ */
+export function parseMention(text: string, players: Player[]): string | null {
+  const lower = text.toLowerCase();
+  let best: { index: number; id: string; len: number } | null = null;
+  for (const p of players) {
+    const needle = "@" + p.name.toLowerCase();
+    const idx = lower.indexOf(needle);
+    if (idx < 0) continue;
+    if (
+      best === null ||
+      idx < best.index ||
+      (idx === best.index && p.name.length > best.len)
+    ) {
+      best = { index: idx, id: p.id, len: p.name.length };
+    }
+  }
+  return best?.id ?? null;
+}
+
+/**
+ * Open the accusation window: assign each employee a colleague to report on
+ * (cyclic shift => a permutation, so everyone is reported on exactly once) and
+ * hand each reporter a distinct prompt from the grievance bank.
  */
 function openAccusationWindow(state: PRState, ctx: GameContext): PRState {
   const players = ctx.room.players;
   const n = players.length;
   if (n < 2) return state;
 
-  const accusationRound = state.accusationRound + 1;
-  const shift = 1 + ((accusationRound - 1) % (n - 1));
+  const shift = 1 + Math.floor(ctx.random() * (n - 1)); // 1..n-1, never 0
   const assignments: Record<string, PRAssignment> = {};
   players.forEach((p, i) => {
     const subject = players[(i + shift) % n];
     assignments[p.id] = { subjectId: subject.id, subjectName: subject.name };
   });
 
-  const challenge: PRChallenge =
-    state.roundNumber % 2 === 1 ? "spectrum" : "thread";
+  // Deal distinct prompts from a shuffled bank.
+  const pool = [...HR_QUESTION_BANK];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(ctx.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  const questions: Record<string, string> = {};
+  players.forEach((p, i) => {
+    const q = pool[i % pool.length];
+    questions[p.id] = q.replace(
+      /\{subject\}/g,
+      assignments[p.id].subjectName
+    );
+  });
 
   return {
-    ...clearRound(state),
+    ...state,
     phase: "accusation",
-    accusationRound,
     assignments,
-    challenge,
+    questions,
+    accusations: {},
+    reframes: {},
+    explanations: {},
+    cases: [],
+    challengeIndex: 0,
+  };
+}
+
+/** Everyone has filed (or the host force-closed): move on to reframing. */
+function closeAccusationWindow(state: PRState, ctx: GameContext): PRState {
+  const records: PRCaseRecord[] = [];
+  for (const [reporterId, text] of Object.entries(state.accusations)) {
+    const a = state.assignments[reporterId];
+    if (!a) continue;
+    const reporter = ctx.room.players.find((p) => p.id === reporterId);
+    records.push({
+      reporterName: reporter?.name ?? "Former employee",
+      accusedName: a.subjectName,
+      question: state.questions[reporterId] ?? "",
+      accusation: text,
+    });
+  }
+  return {
+    ...state,
+    caseLog: [...state.caseLog, ...records].slice(-MAX_CASE_LOG),
+    phase: "reframing",
   };
 }
 
 /**
- * Close the accusation window: archive every filing into the intelligence file
- * and select ONE featured case to drive this round. The featured accused rotates
- * across rounds (indexed by accusationRound over the filed reports, ordered by
- * seating) so the spotlight moves around fairly. If nobody filed — e.g. the host
- * force-closed an empty window — a canned case keeps the round playable.
+ * Build the docket once interviews close: one case per employee, in seating
+ * order, alternating challenge types. Spectrum cases get a rotating rater
+ * (never the accused) so the on-the-spot role travels around the table.
  */
-function closeAccusationWindow(state: PRState, ctx: GameContext): PRState {
+function buildCases(state: PRState, ctx: GameContext): PRState {
   const players = ctx.room.players;
+  const n = players.length;
 
-  const cases: Array<{
-    reporterId: string;
-    reporterName: string;
-    accusedId: string;
-    accusedName: string;
-    question: string;
-    accusation: string;
-  }> = [];
-  for (const [reporterId, text] of Object.entries(state.accusations)) {
-    const assignment = state.assignments[reporterId];
-    if (!assignment) continue;
-    const reporter = players.find((p) => p.id === reporterId);
-    cases.push({
-      reporterId,
-      reporterName: reporter?.name ?? "Former employee",
-      accusedId: assignment.subjectId,
-      accusedName: assignment.subjectName,
-      question: state.accusationQuestions[reporterId] ?? "",
-      accusation: text,
-    });
-  }
+  const cases: PRCase[] = [];
+  let raterPtr = Math.floor(ctx.random() * n);
 
-  const records: PRCaseRecord[] = cases.map((c) => ({
-    reporterName: c.reporterName,
-    accusedName: c.accusedName,
-    question: c.question,
-    accusation: c.accusation,
-    round: state.roundNumber,
-  }));
-
-  let featured:
-    | {
-        reporterId: string | null;
-        reporterName: string;
-        accusedId: string;
-        accusedName: string;
-        question: string;
-        accusation: string;
-      }
-    | undefined;
-
-  if (cases.length > 0) {
-    const ordered = [...cases].sort(
-      (a, b) =>
-        players.findIndex((p) => p.id === a.accusedId) -
-        players.findIndex((p) => p.id === b.accusedId)
-    );
-    featured = ordered[(state.accusationRound - 1) % ordered.length];
-  } else {
-    // Nobody filed. Fabricate a case so HR is never idle.
-    const accused = players[(state.accusationRound - 1) % players.length];
-    const reporterEntry = Object.entries(state.assignments).find(
-      ([, a]) => a.subjectId === accused.id
-    );
-    const reporterId = reporterEntry?.[0] ?? null;
-    const reporter = reporterId
-      ? players.find((p) => p.id === reporterId)
+  players.forEach((accused, i) => {
+    const src = accusationAbout(state, accused.id);
+    const reporter = src.reporterId
+      ? players.find((p) => p.id === src.reporterId)
       : undefined;
-    featured = {
-      reporterId,
-      reporterName: reporter?.name ?? "HR",
+    const challenge: PRChallenge = i % 2 === 0 ? "spectrum" : "thread";
+
+    let raterId: string | null = null;
+    let raterName: string | null = null;
+    if (challenge === "spectrum") {
+      let tries = 0;
+      let rater = players[raterPtr % n];
+      while (rater.id === accused.id && tries < n) {
+        raterPtr++;
+        rater = players[raterPtr % n];
+        tries++;
+      }
+      raterId = rater.id;
+      raterName = rater.name;
+      raterPtr++;
+    }
+
+    cases.push({
       accusedId: accused.id,
       accusedName: accused.name,
-      question: reporterId
-        ? state.accusationQuestions[reporterId] ?? ""
-        : "",
-      accusation: "",
-    };
-  }
+      reporterId: src.reporterId,
+      reporterName: reporter?.name ?? "HR",
+      question: src.question,
+      rawAccusation: src.raw,
+      accusation: state.reframes[accused.id] ?? null,
+      explanation: state.explanations[accused.id] ?? null,
+      challenge,
+      raterId,
+      raterName,
+      hrResponse: null,
+      guideline: null,
+      spectrumQuestion: null,
+      leftLabel: null,
+      rightLabel: null,
+    });
+  });
 
   return {
     ...state,
-    caseLog: [...state.caseLog, ...records].slice(-MAX_CASE_LOG),
-    accusedId: featured.accusedId,
-    accusedName: featured.accusedName,
-    reporterId: featured.reporterId,
-    reporterName: featured.reporterName,
-    accusation: featured.accusation || null,
-    accusationQuestion: featured.question || null,
-    phase: "interview",
+    cases,
+    totalCases: cases.length,
+    challengeIndex: 0,
+    phase: "case_prep",
   };
 }
 
-function buildLastRound(
-  state: PRState,
-  extra: Partial<PRLastRound>
-): PRLastRound {
+/** Reset the per-case working state and route to the right challenge start. */
+function startChallenge(state: PRState, index: number): PRState {
+  const c = state.cases[index];
   return {
-    challenge: state.challenge,
-    round: state.roundNumber,
-    accusation: state.accusation ?? "",
-    reporterName: state.reporterName ?? "",
-    accusedName: state.accusedName ?? "",
-    explanation: state.explanation ?? "",
-    hrResponse: state.hrResponse ?? "",
-    guideline: state.guideline ?? "",
+    ...state,
+    challengeIndex: index,
+    stance: null,
+    guesses: {},
+    comments: {},
+    votes: {},
+    roundScores: {},
+    phase: c.challenge === "spectrum" ? "a_stance" : "b_comment",
+  };
+}
+
+function currentCase(state: PRState): PRCase | undefined {
+  return state.cases[state.challengeIndex];
+}
+
+function buildLastRound(state: PRState, extra: Partial<PRLastRound>): PRLastRound {
+  const c = currentCase(state);
+  return {
+    challenge: c?.challenge ?? "spectrum",
+    caseNumber: state.challengeIndex + 1,
+    totalCases: state.totalCases,
+    accusation: c?.accusation ?? c?.rawAccusation ?? "",
+    reporterName: c?.reporterName ?? "",
+    accusedName: c?.accusedName ?? "",
+    explanation: c?.explanation ?? "",
+    hrResponse: c?.hrResponse ?? "",
+    guideline: c?.guideline ?? "",
     ...extra,
   };
 }
 
-/**
- * Score Challenge A (Spectrum Review): each colleague earns points for how close
- * their guess lands to where the accused ranked the guideline; the accused shares
- * the table's total accuracy as a reward for being well understood.
- */
+/** Spectrum: guessers score for reading the rater; the rater shares the total. */
 function scoreSpectrum(state: PRState, ctx: GameContext): PRState {
-  const accused = ctx.room.players.find((p) => p.id === state.accusedId);
-  if (!accused) return state;
+  const c = currentCase(state);
+  if (!c || !c.raterId) return state;
+  const rater = ctx.room.players.find((p) => p.id === c.raterId);
+  if (!rater) return state;
 
   const stance = state.stance ?? 50;
-  const guessers = ctx.room.players.filter((p) => p.id !== accused.id);
+  const guessers = ctx.room.players.filter((p) => p.id !== rater.id);
 
   const scores = { ...state.scores };
   const roundScores: Record<string, number> = {};
   const results: PRSpectrumResult[] = [];
-  let accusedScore = 0;
+  let raterScore = 0;
 
   for (const g of guessers) {
     const guess = state.guesses[g.id];
@@ -508,30 +585,23 @@ function scoreSpectrum(state: PRState, ctx: GameContext): PRState {
     const points = band(Math.abs(guess - stance));
     roundScores[g.id] = points;
     scores[g.id] = Math.max(0, (scores[g.id] ?? 0) + points);
-    accusedScore += points;
+    raterScore += points;
     results.push({ name: g.name, guess, points });
   }
 
-  roundScores[accused.id] = accusedScore;
-  scores[accused.id] = Math.max(0, (scores[accused.id] ?? 0) + accusedScore);
+  roundScores[rater.id] = (roundScores[rater.id] ?? 0) + raterScore;
+  scores[rater.id] = Math.max(0, (scores[rater.id] ?? 0) + raterScore);
 
   return {
     ...state,
     phase: "reveal",
     scores,
     roundScores,
-    history: [
-      ...state.history,
-      {
-        guideline: state.guideline ?? "",
-        accusedName: accused.name,
-        challenge: "spectrum",
-      },
-    ],
     lastRound: buildLastRound(state, {
-      spectrumQuestion: state.spectrumQuestion ?? "",
-      leftLabel: state.leftLabel ?? "",
-      rightLabel: state.rightLabel ?? "",
+      spectrumQuestion: c.spectrumQuestion ?? "",
+      leftLabel: c.leftLabel ?? "",
+      rightLabel: c.rightLabel ?? "",
+      raterName: rater.name,
       stance,
       spectrumResults: results,
     }),
@@ -539,13 +609,14 @@ function scoreSpectrum(state: PRState, ctx: GameContext): PRState {
 }
 
 /**
- * Score Challenge B (Guideline Thread): a comment earns points per vote it
- * receives; correctly tagging the accused earns a bonus — EXCEPT for the reporter
- * (who wrote the accusation) and the accused themselves, both of whom already
- * know the answer.
+ * Thread: comments score per vote; the @-tag inside a comment is that author's
+ * guess of who the guideline targets. The reporter and the accused already know
+ * the answer, so they earn no tag bonus.
  */
 function scoreThread(state: PRState, ctx: GameContext): PRState {
   const players = ctx.room.players;
+  const c = currentCase(state);
+  if (!c) return state;
 
   const voteCount: Record<string, number> = {};
   for (const authorId of Object.values(state.votes)) {
@@ -561,10 +632,15 @@ function scoreThread(state: PRState, ctx: GameContext): PRState {
     const votes = voteCount[p.id] ?? 0;
     const commentPoints = votes * COMMENT_VOTE_PTS;
 
+    const taggedId =
+      comment !== undefined ? parseMention(comment, players) : null;
+    const taggedName = taggedId
+      ? players.find((pl) => pl.id === taggedId)?.name ?? null
+      : null;
     const eligibleForBonus =
-      p.id !== state.accusedId && p.id !== state.reporterId;
-    const guessedAccused = state.atGuesses[p.id] === state.accusedId;
-    const atBonus = guessedAccused && eligibleForBonus ? ATMENTION_BONUS : 0;
+      p.id !== c.accusedId && p.id !== c.reporterId;
+    const guessedTarget = taggedId === c.accusedId;
+    const atBonus = guessedTarget && eligibleForBonus ? ATMENTION_BONUS : 0;
 
     const total = commentPoints + atBonus;
     roundScores[p.id] = total;
@@ -578,7 +654,8 @@ function scoreThread(state: PRState, ctx: GameContext): PRState {
         votes,
         commentPoints,
         atBonus,
-        guessedAccused,
+        taggedName,
+        guessedTarget,
         eligibleForBonus,
       });
     }
@@ -586,21 +663,11 @@ function scoreThread(state: PRState, ctx: GameContext): PRState {
 
   results.sort((a, b) => b.votes - a.votes);
 
-  const accused = players.find((p) => p.id === state.accusedId);
-
   return {
     ...state,
     phase: "reveal",
     scores,
     roundScores,
-    history: [
-      ...state.history,
-      {
-        guideline: state.guideline ?? "",
-        accusedName: accused?.name ?? state.accusedName ?? "",
-        challenge: "thread",
-      },
-    ],
     lastRound: buildLastRound(state, { threadResults: results }),
   };
 }
@@ -629,8 +696,7 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
         ...initialState(ctx.room.players),
         phase: "intro",
         heat: validHeat,
-        roundNumber: 1,
-        totalRounds: ctx.room.players.length * ROUNDS_PER_PLAYER,
+        totalCases: ctx.room.players.length,
         scores,
         voiceEnabled: state.voiceEnabled,
         voiceId: state.voiceId,
@@ -638,7 +704,7 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
     }
 
     case "SET_INTRO": {
-      if (!isHost(ctx)) return state;
+      if (!canDrive(ctx)) return state;
       if (state.phase !== "intro") return state;
       const commentary = action.payload?.commentary;
       if (typeof commentary !== "string" || !commentary.trim()) return state;
@@ -649,25 +715,6 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
       if (!isHost(ctx)) return state;
       if (state.phase !== "intro") return state;
       return openAccusationWindow(state, ctx);
-    }
-
-    case "SET_ACCUSATION_QUESTIONS": {
-      if (!isHost(ctx)) return state;
-      if (state.phase !== "accusation") return state;
-
-      const raw = action.payload?.questions;
-      if (!raw || typeof raw !== "object") return state;
-      const accusationQuestions: Record<string, string> = {};
-      for (const [reporterId, question] of Object.entries(raw)) {
-        if (!state.assignments[reporterId]) continue;
-        if (typeof question !== "string" || !question.trim()) continue;
-        accusationQuestions[reporterId] = question
-          .trim()
-          .slice(0, MAX_ACCUSATION_QUESTION_LENGTH);
-      }
-      if (Object.keys(accusationQuestions).length === 0) return state;
-
-      return { ...state, accusationQuestions };
     }
 
     case "SUBMIT_ACCUSATION": {
@@ -686,7 +733,6 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
         accusations: { ...state.accusations, [ctx.playerId]: text },
       };
 
-      // Auto-close once every present reporter has filed.
       const reporters = ctx.room.players.filter(
         (p) => next.assignments[p.id] !== undefined
       );
@@ -700,12 +746,31 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
     case "CLOSE_ACCUSATION": {
       if (!isHost(ctx)) return state;
       if (state.phase !== "accusation") return state;
+      // Need at least one filing to build a docket.
+      if (Object.keys(state.accusations).length === 0) return state;
       return closeAccusationWindow(state, ctx);
+    }
+
+    case "SET_REFRAMES": {
+      if (!canDrive(ctx)) return state;
+      if (state.phase !== "reframing") return state;
+      const raw = action.payload?.reframes;
+      if (!raw || typeof raw !== "object") return state;
+
+      const reframes: Record<string, string> = {};
+      for (const p of ctx.room.players) {
+        const val = raw[p.id];
+        if (typeof val === "string" && val.trim()) {
+          reframes[p.id] = val.trim().slice(0, MAX_ACCUSATION_LENGTH);
+        }
+      }
+      if (Object.keys(reframes).length === 0) return state;
+      return { ...state, reframes, phase: "interview" };
     }
 
     case "SUBMIT_EXPLANATION": {
       if (state.phase !== "interview") return state;
-      if (ctx.playerId !== state.accusedId) return state;
+      if (!ctx.room.players.some((p) => p.id === ctx.playerId)) return state;
 
       const text =
         typeof action.payload?.explanation === "string"
@@ -713,19 +778,28 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
           : "";
       if (!text) return state;
 
-      return { ...state, explanation: text, phase: "resolving" };
+      const next: PRState = {
+        ...state,
+        explanations: { ...state.explanations, [ctx.playerId]: text },
+      };
+
+      const allDone = ctx.room.players.every(
+        (p) => next.explanations[p.id] !== undefined
+      );
+      return allDone ? buildCases(next, ctx) : next;
     }
 
     case "SKIP_INTERVIEW": {
-      // Host escape hatch when the accused is slow or absent.
       if (!isHost(ctx)) return state;
       if (state.phase !== "interview") return state;
-      return { ...state, phase: "resolving" };
+      return buildCases(state, ctx);
     }
 
-    case "SET_RESOLUTION": {
-      if (!isHost(ctx)) return state;
-      if (state.phase !== "resolving") return state;
+    case "SET_CASE_RESOLUTION": {
+      if (!canDrive(ctx)) return state;
+      if (state.phase !== "case_prep") return state;
+      const c = currentCase(state);
+      if (!c) return state;
 
       const hrResponse =
         typeof action.payload?.hrResponse === "string"
@@ -737,48 +811,46 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
           : "";
       if (!hrResponse || !guideline) return state;
 
-      const base: PRState = { ...state, hrResponse, guideline };
-
-      if (state.challenge === "spectrum") {
-        const spectrumQuestion =
+      let spectrumQuestion = c.spectrumQuestion;
+      let leftLabel = c.leftLabel;
+      let rightLabel = c.rightLabel;
+      if (c.challenge === "spectrum") {
+        const q =
           typeof action.payload?.spectrumQuestion === "string"
             ? action.payload.spectrumQuestion.trim()
             : "";
-        const leftLabel =
+        const l =
           typeof action.payload?.leftLabel === "string"
             ? action.payload.leftLabel.trim()
             : "";
-        const rightLabel =
+        const r =
           typeof action.payload?.rightLabel === "string"
             ? action.payload.rightLabel.trim()
             : "";
-        if (!spectrumQuestion || !leftLabel || !rightLabel) return state;
-
-        return {
-          ...base,
-          spectrumQuestion,
-          leftLabel,
-          rightLabel,
-          nudges: sanitizeNudges(action.payload?.nudges),
-          stance: null,
-          guesses: {},
-          phase: "a_stance",
-        };
+        if (!q || !l || !r) return state;
+        spectrumQuestion = q;
+        leftLabel = l;
+        rightLabel = r;
       }
 
-      return {
-        ...base,
+      const cases = state.cases.map((x, i) =>
+        i === state.challengeIndex
+          ? { ...x, hrResponse, guideline, spectrumQuestion, leftLabel, rightLabel }
+          : x
+      );
+
+      const withResolution: PRState = {
+        ...state,
+        cases,
         nudges: sanitizeNudges(action.payload?.nudges),
-        comments: {},
-        votes: {},
-        atGuesses: {},
-        phase: "b_comment",
       };
+      return startChallenge(withResolution, state.challengeIndex);
     }
 
     case "SET_STANCE": {
       if (state.phase !== "a_stance") return state;
-      if (ctx.playerId !== state.accusedId) return state;
+      const c = currentCase(state);
+      if (!c || ctx.playerId !== c.raterId) return state;
       const stance = clampInt0100(action.payload?.stance);
       if (stance === null) return state;
       return { ...state, stance, phase: "a_guess" };
@@ -786,7 +858,9 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
 
     case "SUBMIT_GUESS": {
       if (state.phase !== "a_guess") return state;
-      if (ctx.playerId === state.accusedId) return state;
+      const c = currentCase(state);
+      if (!c) return state;
+      if (ctx.playerId === c.raterId) return state;
       if (!ctx.room.players.some((p) => p.id === ctx.playerId)) return state;
 
       const guess = clampInt0100(action.payload?.guess);
@@ -796,19 +870,16 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
         ...state,
         guesses: { ...state.guesses, [ctx.playerId]: guess },
       };
-
-      const guessers = ctx.room.players.filter((p) => p.id !== state.accusedId);
+      const guessers = ctx.room.players.filter((p) => p.id !== c.raterId);
       const allGuessed =
         guessers.length > 0 &&
         guessers.every((g) => next.guesses[g.id] !== undefined);
-
       return allGuessed ? scoreSpectrum(next, ctx) : next;
     }
 
     case "SUBMIT_COMMENT": {
       if (state.phase !== "b_comment") return state;
       if (!ctx.room.players.some((p) => p.id === ctx.playerId)) return state;
-
       const text =
         typeof action.payload?.comment === "string"
           ? action.payload.comment.trim().slice(0, MAX_COMMENT_LENGTH)
@@ -819,18 +890,15 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
         ...state,
         comments: { ...state.comments, [ctx.playerId]: text },
       };
-
       const allCommented =
         ctx.room.players.length > 0 &&
         ctx.room.players.every((p) => next.comments[p.id] !== undefined);
-
       return allCommented ? { ...next, phase: "b_vote" } : next;
     }
 
     case "CLOSE_COMMENTS": {
       if (!isHost(ctx)) return state;
       if (state.phase !== "b_comment") return state;
-      // Need at least one comment to vote on.
       if (Object.keys(state.comments).length === 0) return state;
       return { ...state, phase: "b_vote" };
     }
@@ -839,7 +907,6 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
       if (state.phase !== "b_vote") return state;
       if (!ctx.room.players.some((p) => p.id === ctx.playerId)) return state;
 
-      // A vote for the funniest comment: must be a real comment, never your own.
       const voteFor =
         typeof action.payload?.voteFor === "string"
           ? action.payload.voteFor
@@ -852,24 +919,13 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
         return state;
       }
 
-      const votes = { ...state.votes, [ctx.playerId]: voteFor };
-
-      // Tagging the accused is optional; only recorded if it's a real player.
-      const atGuesses = { ...state.atGuesses };
-      const atGuess =
-        typeof action.payload?.atGuess === "string"
-          ? action.payload.atGuess
-          : null;
-      if (atGuess && ctx.room.players.some((p) => p.id === atGuess)) {
-        atGuesses[ctx.playerId] = atGuess;
-      }
-
-      const next: PRState = { ...state, votes, atGuesses };
-
+      const next: PRState = {
+        ...state,
+        votes: { ...state.votes, [ctx.playerId]: voteFor },
+      };
       const allVoted = ctx.room.players.every(
         (p) => next.votes[p.id] !== undefined
       );
-
       return allVoted ? scoreThread(next, ctx) : next;
     }
 
@@ -880,21 +936,17 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
       return state;
     }
 
-    case "NEXT_ROUND": {
+    case "NEXT_CASE": {
       if (!isHost(ctx)) return state;
       if (state.phase !== "reveal") return state;
-
-      if (state.roundNumber < state.totalRounds) {
-        return openAccusationWindow(
-          { ...state, roundNumber: state.roundNumber + 1 },
-          ctx
-        );
+      if (state.challengeIndex < state.totalCases - 1) {
+        return { ...startChallenge(state, state.challengeIndex + 1), phase: "case_prep" };
       }
       return { ...state, phase: "game_over" };
     }
 
     case "SET_FINAL": {
-      if (!isHost(ctx)) return state;
+      if (!canDrive(ctx)) return state;
       if (state.phase !== "game_over") return state;
       const commentary = action.payload?.commentary;
       if (typeof commentary !== "string" || !commentary.trim()) return state;
@@ -941,7 +993,7 @@ export const performanceReviewGame = defineGame<PRState, PRAction>({
   id: "performance-review",
   name: "HR Investigation",
   description:
-    "File a complaint, get investigated, and turn one workplace incident into an absurd new company policy. HR is watching.",
+    "File a complaint, get investigated, and turn every workplace incident into an absurd new company policy. HR is watching.",
   minPlayers: 3,
   maxPlayers: 8,
   initialState,
@@ -952,11 +1004,9 @@ export const performanceReviewGame = defineGame<PRState, PRAction>({
       case "START_GAME":
         return isHost(ctx) && state.phase === "lobby";
       case "SET_INTRO":
-        return isHost(ctx) && state.phase === "intro";
+        return canDrive(ctx) && state.phase === "intro";
       case "BEGIN":
         return isHost(ctx) && state.phase === "intro";
-      case "SET_ACCUSATION_QUESTIONS":
-        return isHost(ctx) && state.phase === "accusation";
       case "SUBMIT_ACCUSATION":
         return (
           state.phase === "accusation" &&
@@ -964,16 +1014,24 @@ export const performanceReviewGame = defineGame<PRState, PRAction>({
         );
       case "CLOSE_ACCUSATION":
         return isHost(ctx) && state.phase === "accusation";
+      case "SET_REFRAMES":
+        return canDrive(ctx) && state.phase === "reframing";
       case "SUBMIT_EXPLANATION":
-        return state.phase === "interview" && ctx.playerId === state.accusedId;
+        return state.phase === "interview";
       case "SKIP_INTERVIEW":
         return isHost(ctx) && state.phase === "interview";
-      case "SET_RESOLUTION":
-        return isHost(ctx) && state.phase === "resolving";
+      case "SET_CASE_RESOLUTION":
+        return canDrive(ctx) && state.phase === "case_prep";
       case "SET_STANCE":
-        return state.phase === "a_stance" && ctx.playerId === state.accusedId;
+        return (
+          state.phase === "a_stance" &&
+          ctx.playerId === currentCase(state)?.raterId
+        );
       case "SUBMIT_GUESS":
-        return state.phase === "a_guess" && ctx.playerId !== state.accusedId;
+        return (
+          state.phase === "a_guess" &&
+          ctx.playerId !== currentCase(state)?.raterId
+        );
       case "SUBMIT_COMMENT":
         return state.phase === "b_comment";
       case "CLOSE_COMMENTS":
@@ -985,10 +1043,10 @@ export const performanceReviewGame = defineGame<PRState, PRAction>({
           isHost(ctx) &&
           (state.phase === "a_guess" || state.phase === "b_vote")
         );
-      case "NEXT_ROUND":
+      case "NEXT_CASE":
         return isHost(ctx) && state.phase === "reveal";
       case "SET_FINAL":
-        return isHost(ctx) && state.phase === "game_over";
+        return canDrive(ctx) && state.phase === "game_over";
       case "SET_VOICE":
         return isHost(ctx);
       case "PLAY_AGAIN":
