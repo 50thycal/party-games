@@ -2,7 +2,7 @@ import { defineGame } from "@/engine/defineGame";
 import type { BaseAction, GamePhase, GameContext, Player } from "@/engine/types";
 
 // ============================================================================
-// HR Investigation — one investigation, one case per employee
+// HR Investigation — three investigation rounds, one case per employee per round
 // ----------------------------------------------------------------------------
 // A full game:
 //   1. Accusation   every employee files an HR report on an assigned colleague
@@ -44,6 +44,7 @@ const MAX_COMMENT_LENGTH = 240;
 const MAX_CASE_LOG = 40;
 const MAX_NUDGES = 5;
 const MAX_NUDGE_LENGTH = 140;
+export const TOTAL_INVESTIGATION_ROUNDS = 3;
 
 // ============================================================================
 // The corporate grievance bank — HR report prompts ({subject} interpolated).
@@ -108,7 +109,7 @@ export const HR_QUESTION_BANK: string[] = [
 
 export type PRPhase =
   | "lobby"
-  | "intro" // HR's opening address
+  | "intro" // HR's opening address + synchronized tutorial
   | "accusation" // everyone files a report on an assigned colleague
   | "reframing" // HR reframes every accusation into managerial language
   | "interview" // everyone explains the accusation about them
@@ -185,6 +186,9 @@ export type PRLastRound = {
   challenge: PRChallenge;
   caseNumber: number;
   totalCases: number;
+  investigationRound: number;
+  totalInvestigationRounds: number;
+  rawAccusation: string;
   accusation: string;
   reporterName: string;
   accusedName: string;
@@ -205,6 +209,9 @@ export type PRLastRound = {
 export type PRState = {
   phase: PRPhase;
   heat: PRHeat;
+  investigationRound: number;
+  totalInvestigationRounds: number;
+  tutorialStep: number;
 
   // --- accusation window ---
   assignments: Record<string, PRAssignment>; // reporterId -> subject
@@ -247,6 +254,7 @@ export type PRState = {
 export type PRActionType =
   | "START_GAME"
   | "SET_INTRO"
+  | "SET_TUTORIAL_STEP"
   | "BEGIN"
   | "SUBMIT_ACCUSATION"
   | "CLOSE_ACCUSATION"
@@ -272,6 +280,7 @@ export interface PRAction extends BaseAction {
     enabled?: boolean;
     voiceId?: string;
     commentary?: string;
+    tutorialStep?: number;
     accusation?: string;
     reframes?: Record<string, string>; // accusedId -> reframe
     explanation?: string;
@@ -296,6 +305,9 @@ function initialState(_players: Player[]): PRState {
   return {
     phase: "lobby",
     heat: "spicy",
+    investigationRound: 1,
+    totalInvestigationRounds: TOTAL_INVESTIGATION_ROUNDS,
+    tutorialStep: 0,
     assignments: {},
     questions: {},
     accusations: {},
@@ -439,6 +451,11 @@ function openAccusationWindow(state: PRState, ctx: GameContext): PRState {
     explanations: {},
     cases: [],
     challengeIndex: 0,
+    stance: null,
+    guesses: {},
+    comments: {},
+    votes: {},
+    roundScores: {},
   };
 }
 
@@ -551,7 +568,10 @@ function buildLastRound(state: PRState, extra: Partial<PRLastRound>): PRLastRoun
     challenge: c?.challenge ?? "spectrum",
     caseNumber: state.challengeIndex + 1,
     totalCases: state.totalCases,
-    accusation: c?.accusation ?? c?.rawAccusation ?? "",
+    investigationRound: state.investigationRound,
+    totalInvestigationRounds: state.totalInvestigationRounds,
+    rawAccusation: c?.rawAccusation ?? "",
+    accusation: c?.accusation ?? "",
     reporterName: c?.reporterName ?? "",
     accusedName: c?.accusedName ?? "",
     explanation: c?.explanation ?? "",
@@ -697,6 +717,9 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
         phase: "intro",
         heat: validHeat,
         totalCases: ctx.room.players.length,
+        investigationRound: 1,
+        totalInvestigationRounds: TOTAL_INVESTIGATION_ROUNDS,
+        tutorialStep: 0,
         scores,
         voiceEnabled: state.voiceEnabled,
         voiceId: state.voiceId,
@@ -709,6 +732,15 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
       const commentary = action.payload?.commentary;
       if (typeof commentary !== "string" || !commentary.trim()) return state;
       return { ...state, introText: commentary.trim() };
+    }
+
+
+    case "SET_TUTORIAL_STEP": {
+      if (!isHost(ctx)) return state;
+      if (state.phase !== "intro") return state;
+      const step = action.payload?.tutorialStep;
+      if (typeof step !== "number" || !Number.isFinite(step)) return state;
+      return { ...state, tutorialStep: Math.max(0, Math.round(step)) };
     }
 
     case "BEGIN": {
@@ -942,6 +974,20 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
       if (state.challengeIndex < state.totalCases - 1) {
         return { ...startChallenge(state, state.challengeIndex + 1), phase: "case_prep" };
       }
+      if (state.investigationRound < state.totalInvestigationRounds) {
+        return openAccusationWindow(
+          {
+            ...state,
+            investigationRound: state.investigationRound + 1,
+            totalCases: ctx.room.players.length,
+            challengeIndex: 0,
+            cases: [],
+            lastRound: null,
+            nudges: [],
+          },
+          ctx
+        );
+      }
       return { ...state, phase: "game_over" };
     }
 
@@ -1005,6 +1051,8 @@ export const performanceReviewGame = defineGame<PRState, PRAction>({
         return isHost(ctx) && state.phase === "lobby";
       case "SET_INTRO":
         return canDrive(ctx) && state.phase === "intro";
+      case "SET_TUTORIAL_STEP":
+        return isHost(ctx) && state.phase === "intro";
       case "BEGIN":
         return isHost(ctx) && state.phase === "intro";
       case "SUBMIT_ACCUSATION":

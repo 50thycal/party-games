@@ -107,6 +107,37 @@ const CHALLENGE_LABEL: Record<PRChallenge, string> = {
   thread: "Guideline Thread",
 };
 
+const TUTORIAL_SLIDES = [
+  {
+    title: "1. File an HR report",
+    eyebrow: "Intake",
+    body: "HR assigns you a coworker and a ridiculous prompt. Write the actual complaint in your own words; that original text is saved for the case file.",
+    mockTitle: "HR REPORT — RE: Player 3",
+    mockBody: "Does Player 3 go on mute when asked a question?\n\nYour report: Player 3 is mysteriously silent whenever work appears.",
+  },
+  {
+    title: "2. Defend yourself",
+    eyebrow: "Interview",
+    body: "Everyone is shown the complaint about them in the terminal. Respond with your side of the story before HR turns it into policy.",
+    mockTitle: "YOU HAVE BEEN NAMED",
+    mockBody: "Complaint: Player 1 claims the mute button is your natural habitat.\n\nDefense: I was eating chips for morale.",
+  },
+  {
+    title: "3. Challenge the guideline",
+    eyebrow: "Policy",
+    body: "HR issues a new Company Guideline for each case. Some are Spectrum Reviews where people guess a private rating; others are Guideline Threads where comments and @tags score.",
+    mockTitle: "NEW COMPANY GUIDELINE",
+    mockBody: "Employees must prove their microphone is not a decorative object before joining meetings.",
+  },
+  {
+    title: "4. Case closed",
+    eyebrow: "Scoring",
+    body: "Each closed case shows the original report, HR's managerial rewrite, the accused player's response, the guideline, and points. A full game is three investigation rounds.",
+    mockTitle: "CASE CLOSED",
+    mockBody: "Original report → HR feedback → employee defense → verdict. Repeat until morale improves.",
+  },
+];
+
 // ============================================================================
 // Small presentational helpers
 // ============================================================================
@@ -473,6 +504,12 @@ export function PerformanceReviewGameView({
   const heat = gameState?.heat ?? "spicy";
   const challengeIndex = gameState?.challengeIndex ?? 0;
   const totalCases = gameState?.totalCases ?? room.players.length;
+  const investigationRound = gameState?.investigationRound ?? 1;
+  const totalInvestigationRounds = gameState?.totalInvestigationRounds ?? 3;
+  const tutorialStep = Math.min(
+    gameState?.tutorialStep ?? 0,
+    TUTORIAL_SLIDES.length - 1
+  );
 
   const assignments = gameState?.assignments ?? {};
   const questions = gameState?.questions ?? {};
@@ -792,6 +829,8 @@ export function PerformanceReviewGameView({
   const handleStartGame = () =>
     withFlag(setIsStarting, () => dispatchAction("START_GAME", { heat: heatChoice }));
   const handleBegin = () => withFlag(setIsProceeding, () => dispatchAction("BEGIN"));
+  const handleTutorialStep = (step: number) =>
+    dispatchAction("SET_TUTORIAL_STEP", { tutorialStep: step });
 
   async function handleSubmitAccusation(e: FormEvent) {
     e.preventDefault();
@@ -1141,17 +1180,32 @@ export function PerformanceReviewGameView({
           )}
 
           {phase === "intro" && (
-            <button
-              onClick={handleBegin}
-              disabled={isProceeding || !introText}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-            >
-              {!introText
-                ? "HR is preparing remarks..."
-                : isProceeding
-                ? "Opening..."
-                : "Begin — Collect Accusations"}
-            </button>
+            <div className="space-y-2">
+              <button
+                onClick={() =>
+                  tutorialStep < TUTORIAL_SLIDES.length - 1
+                    ? handleTutorialStep(tutorialStep + 1)
+                    : handleBegin()
+                }
+                disabled={isProceeding || !introText}
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+              >
+                {!introText
+                  ? "HR is preparing remarks..."
+                  : isProceeding
+                  ? "Opening..."
+                  : tutorialStep < TUTORIAL_SLIDES.length - 1
+                  ? "Next Tutorial Slide"
+                  : "Begin — Collect Accusations"}
+              </button>
+              <button
+                onClick={handleBegin}
+                disabled={isProceeding || !introText}
+                className="w-full bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors"
+              >
+                Skip Tutorial & Start
+              </button>
+            </div>
           )}
 
           {phase === "accusation" && (
@@ -1244,7 +1298,9 @@ export function PerformanceReviewGameView({
               {isAdvancing
                 ? "Filing..."
                 : challengeIndex >= totalCases - 1
-                ? "Close Investigation Cycle"
+                ? investigationRound < totalInvestigationRounds
+                  ? "Start Next Investigation Round"
+                  : "Close Investigation Cycle"
                 : "Next Case"}
             </button>
           )}
@@ -1264,7 +1320,7 @@ export function PerformanceReviewGameView({
       <section className="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-6">
         {phase !== "lobby" && phase !== "intro" && (
           <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">
-            {phase === "accusation" || phase === "reframing" || phase === "interview"
+            Round {investigationRound} of {totalInvestigationRounds} · {phase === "accusation" || phase === "reframing" || phase === "interview"
               ? "Investigation Intake"
               : `Case ${Math.min(challengeIndex + 1, totalCases)} of ${totalCases} · ${CHALLENGE_LABEL[challenge]}`}{" "}
             · Heat: {heat} · Room {room.roomCode}
@@ -1292,14 +1348,44 @@ export function PerformanceReviewGameView({
         {phase === "lobby" && (
           <p className="text-gray-500 text-xs">
             {
-              "Everyone files an HR report on an assigned colleague. Then everyone is interviewed about the report on them. HR issues a ruling and a ridiculous new Company Guideline for each incident — one guideline per player. Each guideline is then either rated by a rotating reviewer, or roasted in a fake company thread where you tag who you think it targets. Points for accuracy, wit, and vigilance."
+              "Everyone files an HR report on an assigned colleague. Then everyone is interviewed about the report on them. HR issues a ruling and a ridiculous new Company Guideline for each incident — one guideline per player. Each guideline is then either rated by a rotating reviewer, or roasted in a fake company thread where you tag who you think it targets. Three investigation rounds decide the winner."
             }
           </p>
         )}
 
         {/* intro */}
-        {phase === "intro" && !isHost && (
-          <p className="text-gray-500 text-xs text-center">HR is speaking. Do not interrupt.</p>
+        {phase === "intro" && (
+          <div className="space-y-4">
+            <div className="bg-gray-900 border border-gray-700 rounded-lg p-4">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <p className="text-[10px] uppercase tracking-widest text-blue-300">
+                  Tutorial · Slide {tutorialStep + 1} of {TUTORIAL_SLIDES.length}
+                </p>
+                <p className="text-[10px] uppercase tracking-widest text-gray-500">
+                  {TUTORIAL_SLIDES[tutorialStep].eyebrow}
+                </p>
+              </div>
+              <h3 className="text-lg font-bold text-white mb-2">
+                {TUTORIAL_SLIDES[tutorialStep].title}
+              </h3>
+              <p className="text-sm text-gray-300 mb-4">
+                {TUTORIAL_SLIDES[tutorialStep].body}
+              </p>
+              <div className="bg-black/40 border border-gray-700 rounded-lg p-3 font-mono">
+                <p className="text-[10px] uppercase tracking-widest text-green-500 mb-2">
+                  {TUTORIAL_SLIDES[tutorialStep].mockTitle}
+                </p>
+                <p className="text-xs text-green-200 whitespace-pre-wrap">
+                  {TUTORIAL_SLIDES[tutorialStep].mockBody}
+                </p>
+              </div>
+            </div>
+            {!isHost && (
+              <p className="text-gray-500 text-xs text-center">
+                The host controls the tutorial. HR insists this counts as training.
+              </p>
+            )}
+          </div>
         )}
 
         {/* accusation */}
@@ -1316,10 +1402,6 @@ export function PerformanceReviewGameView({
                 </div>
               ) : (
                 <form onSubmit={handleSubmitAccusation} className="space-y-3">
-                  <ActionBanner tone="amber">
-                    <p className="font-semibold">You must file a report.</p>
-                    <p className="text-xs opacity-80 mt-1">{myQuestion}</p>
-                  </ActionBanner>
                   <textarea
                     value={accusationInput}
                     onChange={(e) => setAccusationInput(e.target.value)}
@@ -1372,20 +1454,6 @@ export function PerformanceReviewGameView({
               </div>
             ) : (
               <form onSubmit={handleSubmitExplanation} className="space-y-3">
-                <ActionBanner tone="amber">
-                  <p className="font-semibold">🔒 You have been named in a complaint.</p>
-                  <p className="text-xs opacity-80 mt-1">
-                    This is between you and HR. Explain what actually happened.
-                  </p>
-                </ActionBanner>
-                {myReframe && (
-                  <div className="bg-red-950/40 border border-red-800 rounded-lg p-3">
-                    <p className="text-[10px] uppercase tracking-widest text-red-400 mb-1">
-                      The complaint on file
-                    </p>
-                    <p className="text-sm text-red-100">“{myReframe}”</p>
-                  </div>
-                )}
                 <textarea
                   value={explanationInput}
                   onChange={(e) => setExplanationInput(e.target.value)}
@@ -1423,7 +1491,6 @@ export function PerformanceReviewGameView({
         {/* a_stance */}
         {phase === "a_stance" && (
           <div>
-            {currentCase?.guideline && <GuidelineCard guideline={currentCase.guideline} />}
             <SpectrumHeader
               question={currentCase?.spectrumQuestion ?? ""}
               leftLabel={currentCase?.leftLabel ?? ""}
@@ -1469,7 +1536,6 @@ export function PerformanceReviewGameView({
         {/* a_guess */}
         {phase === "a_guess" && (
           <div>
-            {currentCase?.guideline && <GuidelineCard guideline={currentCase.guideline} />}
             <SpectrumHeader
               question={currentCase?.spectrumQuestion ?? ""}
               leftLabel={currentCase?.leftLabel ?? ""}
@@ -1519,7 +1585,6 @@ export function PerformanceReviewGameView({
         {/* b_comment */}
         {phase === "b_comment" && (
           <div>
-            {currentCase?.guideline && <GuidelineCard guideline={currentCase.guideline} />}
             <ActionBanner tone="blue">
               <p className="font-semibold">💬 The policy has been posted company-wide.</p>
               <p className="text-xs opacity-80 mt-1">
@@ -1701,19 +1766,29 @@ function RevealPanel({
       <div className="bg-gray-900 rounded-lg p-4 space-y-3">
         <div>
           <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">
-            The complaint · filed by {lastRound.reporterName || "HR"}
+            Player HR report · filed by {lastRound.reporterName || "HR"}
           </p>
           <p className="text-sm text-gray-200">
-            “{lastRound.accusation || "No complaint on record."}”
+            “{lastRound.rawAccusation || "No report on record."}”
           </p>
         </div>
+        {lastRound.accusation && (
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">
+              Manager / AI feedback from the HR report
+            </p>
+            <p className="text-sm text-gray-300">“{lastRound.accusation}”</p>
+          </div>
+        )}
         <div>
           <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">The accused</p>
           <p className="text-lg font-bold text-white">{lastRound.accusedName}</p>
         </div>
         {lastRound.explanation && (
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Their defense</p>
+            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">
+              Player response to the accusation
+            </p>
             <p className="text-sm text-gray-300 italic">“{lastRound.explanation}”</p>
           </div>
         )}
