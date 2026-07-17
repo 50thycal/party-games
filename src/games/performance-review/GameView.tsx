@@ -16,90 +16,43 @@ import type {
   PRSpectrumResult,
   PRState,
 } from "./config";
-
-// ============================================================================
-// Canned content — the game must stay fully playable with zero LLM availability
-// ============================================================================
-
-function fallbackIntro(names: string[]): string {
-  const roster = names.length > 0 ? names.join(", ") : "staff";
-  return (
-    `Attention: ${roster}. Be seated. This is a mandatory HR investigation, ` +
-    `which you insist on calling a game. The procedure: every one of you files a report on an ` +
-    `assigned colleague — what they did that HR should worry about. Then every one of you is ` +
-    `interviewed about the report filed on you and permitted to explain yourself, briefly. HR ` +
-    `issues a ruling on each incident and drafts a new Company Guideline because of it. You then ` +
-    `either rate each new policy or roast it in the company thread and tag who you think caused ` +
-    `it. Accuracy and wit are rewarded in Performance Points. Do not resist the process. It ` +
-    `resists back.`
-  );
-}
-
-// When HR can't reach the reframing engine, dress the raw filing up ourselves.
-const FALLBACK_REFRAME_TEMPLATES = [
-  'Concerns have been raised regarding your recent conduct. Specifically: "{raw}". HR considers this a development opportunity.',
-  'Per an anonymous filing, the following has been flagged for your review: "{raw}". Management trusts you understand the implications.',
-  'It has come to HR\'s attention that "{raw}". We are documenting this in the interest of team alignment.',
-  'A workplace observation has been logged: "{raw}". This note will remain in your file indefinitely.',
-];
-function fallbackReframe(raw: string): string {
-  if (!raw.trim()) {
-    return "HR has flagged unspecified conduct that management finds concerning. Details are on a need-to-know basis, and you do not need to know.";
-  }
-  const t =
-    FALLBACK_REFRAME_TEMPLATES[
-      Math.floor(Math.random() * FALLBACK_REFRAME_TEMPLATES.length)
-    ];
-  return t.replace(/\{raw\}/g, raw);
-}
-
-const FALLBACK_HR_RESPONSES = [
-  "{name}, your explanation has been reviewed and found wanting. HR is not satisfied, HR is never satisfied, and a note has been added to a file you will never see.",
-  "Thank you, {name}. Your defense was creative. Management has decided creativity is itself a red flag and is opening a second investigation.",
-  "{name}, we hear you, and we have chosen not to believe you. The incident stands. So does the paperwork.",
-  "Noted, {name}. Your version of events has been filed beside the version we prefer. Ours has better lighting.",
-  "{name}, after careful deliberation lasting nearly four seconds, HR finds the explanation technically true and spiritually guilty.",
-];
-
-const FALLBACK_GUIDELINES = [
-  "Effective immediately, employees may not describe a group lunch as 'technically a hostage situation' unless at least two managers are present.",
-  "Per new policy, the office microwave may only be operated by employees who have completed the mandatory Scent Accountability training.",
-  "Henceforth, 'reply all' is classified as a controlled substance and requires written pre-approval from a supervisor and a witness.",
-  "Effective this cycle, any desk plant that dies is now a shared team failure and will be discussed at length in every future meeting.",
-  "New guideline: employees claiming to be 'almost done' must provide a notarized estimate and a photograph of the progress.",
-  "Going forward, use of the phrase 'per my last email' is permitted only during declared corporate emergencies.",
-  "Effective immediately, no employee may schedule a meeting that could have been an email, an email that could have been a message, or a message that could have been silence.",
-];
-
-const FALLBACK_SPECTRUMS: Array<{
-  question: string;
-  leftLabel: string;
-  rightLabel: string;
-}> = [
-  { question: "How severe is this workplace violation?", leftLabel: "A brave breakfast choice", rightLabel: "Federal building evacuation" },
-  { question: "How much should HR care about this?", leftLabel: "Genuinely nobody's business", rightLabel: "Grounds for a task force" },
-  { question: "Where does this land on the conduct scale?", leftLabel: "Beloved office quirk", rightLabel: "Permanent record, red ink" },
-  { question: "How dangerous is this precedent?", leftLabel: "Charming misunderstanding", rightLabel: "The reason we have lawyers" },
-  { question: "How necessary is this new policy?", leftLabel: "Utterly pointless", rightLabel: "Should have existed for decades" },
-];
-
-const FALLBACK_NUDGES = [
-  "Productivity is being measured.",
-  "Are you working hard enough? Be honest. We already know.",
-  "This pause has been noted in your file.",
-  "Focus. The metrics do not blink.",
-  "Have you considered doing more?",
-  "Your keystrokes feel hesitant today.",
-];
+import {
+  B_VOTE_TERMINAL,
+  CASE_PREP_LINES,
+  FALLBACK_GUIDELINES,
+  FALLBACK_HR_RESPONSES,
+  FALLBACK_NUDGES,
+  FALLBACK_SPECTRUMS,
+  GUIDELINE_CARD_LABEL,
+  HEAT_DESCRIPTIONS,
+  INTERVIEW_WAIT_LINES,
+  LOBBY_EXPLAINER,
+  LOBBY_TERMINAL_LINES,
+  MIN_HEADCOUNT_LABEL,
+  ORIENTATION_BEGIN_LABEL,
+  ORIENTATION_NEXT_LABEL,
+  ORIENTATION_NONHOST_HINT,
+  ORIENTATION_PREPARING_LABEL,
+  ORIENTATION_WAIVE_LABEL,
+  REFRAMING_LINES,
+  REPORT_FILED_LINES,
+  ROUND_OPENINGS,
+  buildOrientationModules,
+  fallbackFinal,
+  fallbackIntro,
+  fallbackReframe,
+  pickStable,
+  rosterStatus,
+} from "./copy";
 
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
 const HEAT_OPTIONS: Array<{ value: PRHeat; label: string; desc: string }> = [
-  { value: "mild", label: "Mild", desc: "Office-safe. Gentle dry wit." },
-  { value: "spicy", label: "Spicy", desc: "Pointed. A little savage." },
-  { value: "scorched", label: "Scorched", desc: "Maximally savage. Still compliant." },
+  { value: "mild", label: "Mild", desc: HEAT_DESCRIPTIONS.mild },
+  { value: "spicy", label: "Spicy", desc: HEAT_DESCRIPTIONS.spicy },
+  { value: "scorched", label: "Scorched", desc: HEAT_DESCRIPTIONS.scorched },
 ];
 
 const CHALLENGE_LABEL: Record<PRChallenge, string> = {
@@ -107,36 +60,9 @@ const CHALLENGE_LABEL: Record<PRChallenge, string> = {
   thread: "Guideline Thread",
 };
 
-const TUTORIAL_SLIDES = [
-  {
-    title: "1. File an HR report",
-    eyebrow: "Intake",
-    body: "HR assigns you a coworker and a ridiculous prompt. Write the actual complaint in your own words; that original text is saved for the case file.",
-    mockTitle: "HR REPORT — RE: Player 3",
-    mockBody: "Does Player 3 go on mute when asked a question?\n\nYour report: Player 3 is mysteriously silent whenever work appears.",
-  },
-  {
-    title: "2. Defend yourself",
-    eyebrow: "Interview",
-    body: "Everyone is shown the complaint about them in the terminal. Respond with your side of the story before HR turns it into policy.",
-    mockTitle: "YOU HAVE BEEN NAMED",
-    mockBody: "Complaint: Player 1 claims the mute button is your natural habitat.\n\nDefense: I was eating chips for morale.",
-  },
-  {
-    title: "3. Challenge the guideline",
-    eyebrow: "Policy",
-    body: "HR issues a new Company Guideline for each case. Some are Spectrum Reviews where people guess a private rating; others are Guideline Threads where comments and @tags score.",
-    mockTitle: "NEW COMPANY GUIDELINE",
-    mockBody: "Employees must prove their microphone is not a decorative object before joining meetings.",
-  },
-  {
-    title: "4. Case closed",
-    eyebrow: "Scoring",
-    body: "Each closed case shows the original report, HR's managerial rewrite, the accused player's response, the guideline, and points. A full game is three investigation rounds.",
-    mockTitle: "CASE CLOSED",
-    mockBody: "Original report → HR feedback → employee defense → verdict. Repeat until morale improves.",
-  },
-];
+// Orientation module count is fixed; the modules themselves are built per room
+// so the briefing can address the actual roster.
+const ORIENTATION_MODULE_COUNT = 4;
 
 // ============================================================================
 // Small presentational helpers
@@ -210,7 +136,7 @@ function GuidelineCard({ guideline }: { guideline: string }) {
   return (
     <div className="bg-gradient-to-br from-indigo-950 to-gray-900 border border-indigo-700 rounded-lg p-4 mb-4">
       <p className="text-[10px] uppercase tracking-widest text-indigo-400 mb-1">
-        📌 New Company Guideline
+        {GUIDELINE_CARD_LABEL}
       </p>
       <p className="text-base font-semibold text-indigo-100">{guideline}</p>
     </div>
@@ -425,7 +351,7 @@ function MentionTextarea({
       {active && active.matches.length > 0 && (
         <div className="absolute z-10 left-2 right-2 -bottom-1 translate-y-full bg-gray-800 border border-gray-600 rounded-lg shadow-lg overflow-hidden">
           <p className="text-[10px] uppercase tracking-widest text-gray-500 px-3 pt-2">
-            Tag a coworker
+            Identify a coworker
           </p>
           <div className="max-h-40 overflow-y-auto py-1">
             {active.matches.map((m) => (
@@ -508,7 +434,7 @@ export function PerformanceReviewGameView({
   const totalInvestigationRounds = gameState?.totalInvestigationRounds ?? 3;
   const tutorialStep = Math.min(
     gameState?.tutorialStep ?? 0,
-    TUTORIAL_SLIDES.length - 1
+    ORIENTATION_MODULE_COUNT - 1
   );
 
   const assignments = gameState?.assignments ?? {};
@@ -640,6 +566,8 @@ export function PerformanceReviewGameView({
       kind,
       heat,
       challenge,
+      investigationRound,
+      totalInvestigationRounds,
       standings: standings.map((s) => ({
         name: s.name,
         score: s.score,
@@ -798,16 +726,12 @@ export function PerformanceReviewGameView({
     }
     if (!canDrive || finalCommentary || finalRequested.current) return;
     finalRequested.current = true;
-    const topName = standings[0]?.name;
-    const fallbackFinal = topName
-      ? `Investigation cycle complete. ${topName} is named Employee of the Cycle, pending audit. The rest of you have been noted. Dismissed.`
-      : "Investigation cycle complete. Records have been sealed. Dismissed.";
     (async () => {
       const json = await fetchHost(buildHostRequest("final"));
       const text =
         json && typeof json.commentary === "string" && json.commentary.trim()
           ? (json.commentary as string)
-          : fallbackFinal;
+          : fallbackFinal(standings[0]?.name);
       await dispatchAction("SET_FINAL", { commentary: text });
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -924,41 +848,58 @@ export function PerformanceReviewGameView({
   const currentNudge = nudgePool[nudgeIdx % nudgePool.length];
 
   const ALL = "All staff";
+  // Deterministic seeds so waiting copy is stable across the 1s polling loop.
+  const roomSeed = room.roomCode;
+  const phaseSeed = `${roomSeed}:${investigationRound}:${challengeIndex}`;
 
   function terminalContent(): { to: string; text: string; speak: string; speakKey: string } {
     const silent = (to: string, text: string) => ({ to, text, speak: "", speakKey: "" });
     switch (phase) {
       case "lobby":
-        return silent(ALL, "Channel open. Awaiting staff check-in. Attendance is being recorded.");
+        return silent(ALL, pickStable(LOBBY_TERMINAL_LINES, roomSeed));
       case "intro":
         return introText
           ? { to: ALL, text: introText, speak: introText, speakKey: `intro:${introText}` }
-          : silent(ALL, "Establishing secure channel to HR...");
-      case "accusation":
+          : silent(ALL, "Establishing secure channel to management...");
+      case "accusation": {
+        const opener =
+          investigationRound > 1 && ROUND_OPENINGS[investigationRound]
+            ? `${ROUND_OPENINGS[investigationRound]}\n\n`
+            : "";
         if (myAssignment && myQuestion) {
-          return silent(myName, `HR REPORT — RE: ${myAssignment.subjectName}.\n${myQuestion}`);
+          return silent(
+            myName,
+            `${opener}HR REPORT — RE: ${myAssignment.subjectName}.\n${myQuestion}`
+          );
         }
-        return silent(myName, "No report assigned this cycle. Remain seated.");
+        return silent(
+          myName,
+          `${opener}No report has been assigned to you this cycle. Remain available.`
+        );
+      }
       case "reframing":
-        return silent(ALL, "HR is translating your complaints into official language. Hold.");
+        return silent(ALL, pickStable(REFRAMING_LINES, phaseSeed));
       case "interview":
         return hasExplained
-          ? silent(myName, "Statement received. HR is interviewing the rest of the staff.")
+          ? silent(myName, pickStable(INTERVIEW_WAIT_LINES, `${phaseSeed}:${myName}`))
           : myReframe
-          ? silent(myName, `You have been named in a complaint:\n"${myReframe}"`)
-          : silent(myName, "HR is retrieving your file.");
+          ? silent(
+              myName,
+              `You have been named in a workplace observation:\n"${myReframe}"\n\nManagement is offering you space to clarify.`
+            )
+          : silent(myName, "Your record is being retrieved.");
       case "case_prep":
-        return silent(ALL, "HR is deliberating. A ruling is being prepared.");
+        return silent(ALL, pickStable(CASE_PREP_LINES, phaseSeed));
       case "a_stance":
       case "b_comment":
         return currentCase?.guideline
           ? {
               to: ALL,
               text: `NEW COMPANY GUIDELINE:\n${currentCase.guideline}`,
-              speak: `New company guideline. ${currentCase.guideline}`,
-              speakKey: `guideline:${challengeIndex}`,
+              speak: `A new company guideline is in effect. ${currentCase.guideline}`,
+              speakKey: `guideline:${investigationRound}:${challengeIndex}`,
             }
-          : silent(ALL, "Drafting policy...");
+          : silent(ALL, "A guideline is being prepared.");
       case "a_guess":
         return hasGuessed || isRater
           ? silent(myName, currentNudge)
@@ -969,20 +910,20 @@ export function PerformanceReviewGameView({
                 : "Review in progress."
             );
       case "b_vote":
-        return silent(ALL, "Cast your vote for the finest comment.");
+        return silent(ALL, B_VOTE_TERMINAL);
       case "reveal":
         return currentCase?.hrResponse
           ? {
               to: ALL,
               text: currentCase.hrResponse,
               speak: currentCase.hrResponse,
-              speakKey: `reveal:${challengeIndex}`,
+              speakKey: `reveal:${investigationRound}:${challengeIndex}`,
             }
-          : silent(ALL, "Compiling the ruling...");
+          : silent(ALL, "The ruling is being finalized.");
       case "game_over":
         return finalCommentary
           ? { to: ALL, text: finalCommentary, speak: finalCommentary, speakKey: `final:${finalCommentary}` }
-          : silent(ALL, "Compiling final assessments...");
+          : silent(ALL, "Final assessments are being compiled.");
       default:
         return silent(ALL, "...");
     }
@@ -1106,7 +1047,12 @@ export function PerformanceReviewGameView({
     <>
       {isHost && (
         <section className="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-6">
-          <h2 className="font-semibold mb-4">Host Controls</h2>
+          <div className="flex items-baseline justify-between gap-3 mb-4">
+            <h2 className="font-semibold">Management Console</h2>
+            <p className="text-[10px] uppercase tracking-widest text-gray-500">
+              Facilitator access
+            </p>
+          </div>
 
           <div className="mb-4 pb-4 border-b border-gray-700">
             <div className="flex items-center justify-between gap-3">
@@ -1144,7 +1090,7 @@ export function PerformanceReviewGameView({
           {phase === "lobby" && (
             <div className="space-y-4">
               <div>
-                <p className="text-gray-400 text-sm mb-2">Calibrate investigation intensity:</p>
+                <p className="text-gray-400 text-sm mb-2">Select review intensity:</p>
                 <div className="grid grid-cols-3 gap-2">
                   {HEAT_OPTIONS.map((opt) => (
                     <button
@@ -1171,10 +1117,10 @@ export function PerformanceReviewGameView({
                 className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
               >
                 {isStarting
-                  ? "Convening..."
+                  ? "Convening the department..."
                   : players.length < 3
-                  ? "Minimum headcount: 3"
-                  : "Open Investigation"}
+                  ? MIN_HEADCOUNT_LABEL
+                  : "Open the Investigation"}
               </button>
             </div>
           )}
@@ -1183,7 +1129,7 @@ export function PerformanceReviewGameView({
             <div className="space-y-2">
               <button
                 onClick={() =>
-                  tutorialStep < TUTORIAL_SLIDES.length - 1
+                  tutorialStep < ORIENTATION_MODULE_COUNT - 1
                     ? handleTutorialStep(tutorialStep + 1)
                     : handleBegin()
                 }
@@ -1191,19 +1137,19 @@ export function PerformanceReviewGameView({
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
               >
                 {!introText
-                  ? "HR is preparing remarks..."
+                  ? ORIENTATION_PREPARING_LABEL
                   : isProceeding
-                  ? "Opening..."
-                  : tutorialStep < TUTORIAL_SLIDES.length - 1
-                  ? "Next Tutorial Slide"
-                  : "Begin — Collect Accusations"}
+                  ? "Opening case intake..."
+                  : tutorialStep < ORIENTATION_MODULE_COUNT - 1
+                  ? ORIENTATION_NEXT_LABEL
+                  : ORIENTATION_BEGIN_LABEL}
               </button>
               <button
                 onClick={handleBegin}
                 disabled={isProceeding || !introText}
                 className="w-full bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors"
               >
-                Skip Tutorial & Start
+                {ORIENTATION_WAIVE_LABEL}
               </button>
             </div>
           )}
@@ -1214,7 +1160,9 @@ export function PerformanceReviewGameView({
               disabled={isClosingAcc || accFiledCount === 0}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
             >
-              {isClosingAcc ? "Sealing reports..." : `Close Reports (${accFiledCount}/${reporters.length} filed)`}
+              {isClosingAcc
+                ? "Sealing reports..."
+                : `Seal Reports (${accFiledCount}/${reporters.length} received)`}
             </button>
           )}
 
@@ -1224,7 +1172,9 @@ export function PerformanceReviewGameView({
               disabled={isForcingReframe}
               className="w-full bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors"
             >
-              {isForcingReframe ? "Filing..." : "HR is rewording — force plain language if stuck"}
+              {isForcingReframe
+                ? "Applying standard wording..."
+                : "Processing stalled? Apply standard wording"}
             </button>
           )}
 
@@ -1235,8 +1185,8 @@ export function PerformanceReviewGameView({
               className="w-full bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors"
             >
               {isSkipping
-                ? "Proceeding..."
-                : `Skip Remaining Interviews (${explainedCount}/${players.length} done)`}
+                ? "Closing interviews..."
+                : `Close Interviews (${explainedCount}/${players.length} statements in)`}
             </button>
           )}
 
@@ -1246,13 +1196,15 @@ export function PerformanceReviewGameView({
               disabled={isForcingResolve || !!currentCase?.guideline}
               className="w-full bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors"
             >
-              {isForcingResolve ? "Filing..." : "HR is deliberating — force a ruling if stuck"}
+              {isForcingResolve
+                ? "Issuing standing ruling..."
+                : "Deliberation stalled? Issue a standing ruling"}
             </button>
           )}
 
           {phase === "a_stance" && (
             <p className="text-gray-400 text-sm">
-              Awaiting feedback from{" "}
+              Awaiting policy feedback from{" "}
               <span className="text-white font-semibold">{rater?.name ?? "the reviewer"}</span>.
             </p>
           )}
@@ -1263,7 +1215,9 @@ export function PerformanceReviewGameView({
               disabled={isRevealing}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
             >
-              {isRevealing ? "Compiling..." : `Force Reveal (${guessedCount}/${guessers.length} guesses in)`}
+              {isRevealing
+                ? "Compiling findings..."
+                : `Close Estimates & Reveal (${guessedCount}/${guessers.length} in)`}
             </button>
           )}
 
@@ -1274,8 +1228,8 @@ export function PerformanceReviewGameView({
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
             >
               {isClosingComments
-                ? "Closing thread..."
-                : `Close Thread & Open Voting (${commentedCount}/${players.length} commented)`}
+                ? "Locking the thread..."
+                : `Close Thread & Open Voting (${commentedCount}/${players.length} posted)`}
             </button>
           )}
 
@@ -1285,7 +1239,9 @@ export function PerformanceReviewGameView({
               disabled={isRevealing}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
             >
-              {isRevealing ? "Tallying..." : `Force Tally (${votedCount}/${players.length} voted)`}
+              {isRevealing
+                ? "Tallying recognition..."
+                : `Close Voting & Tally (${votedCount}/${players.length} in)`}
             </button>
           )}
 
@@ -1299,9 +1255,9 @@ export function PerformanceReviewGameView({
                 ? "Filing..."
                 : challengeIndex >= totalCases - 1
                 ? investigationRound < totalInvestigationRounds
-                  ? "Start Next Investigation Round"
-                  : "Close Investigation Cycle"
-                : "Next Case"}
+                  ? `Authorize Reporting Cycle ${investigationRound + 1}`
+                  : "Conclude the Investigation"
+                : "Open the Next Case"}
             </button>
           )}
 
@@ -1311,7 +1267,7 @@ export function PerformanceReviewGameView({
               disabled={isResetting}
               className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
             >
-              {isResetting ? "Resetting..." : "Run It Back"}
+              {isResetting ? "Reconvening..." : "Reconvene — New Cycle"}
             </button>
           )}
         </section>
@@ -1319,25 +1275,26 @@ export function PerformanceReviewGameView({
 
       <section className="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-6">
         {phase !== "lobby" && phase !== "intro" && (
-          <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">
-            Round {investigationRound} of {totalInvestigationRounds} · {phase === "accusation" || phase === "reframing" || phase === "interview"
-              ? "Investigation Intake"
-              : `Case ${Math.min(challengeIndex + 1, totalCases)} of ${totalCases} · ${CHALLENGE_LABEL[challenge]}`}{" "}
-            · Heat: {heat} · Room {room.roomCode}
+          <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-mono">
+            CYCLE {investigationRound}/{totalInvestigationRounds}
+            {phase === "accusation" || phase === "reframing" || phase === "interview"
+              ? " · CASE INTAKE"
+              : ` · CASE ${String(Math.min(challengeIndex + 1, totalCases)).padStart(2, "0")}/${String(totalCases).padStart(2, "0")} · ${CHALLENGE_LABEL[challenge].toUpperCase()}`}
+            {" · "}INTENSITY: {heat.toUpperCase()} · ROOM {room.roomCode}
           </p>
         )}
 
         <h2 className="font-semibold mb-4">
           {phase === "lobby" && "HR Investigation"}
-          {phase === "intro" && "Orientation"}
-          {phase === "accusation" && "File Your HR Report"}
-          {phase === "reframing" && "HR is Rewording"}
-          {phase === "interview" && "HR Interview"}
-          {phase === "case_prep" && "HR Ruling Pending"}
+          {phase === "intro" && "Personnel Orientation"}
+          {phase === "accusation" && "Peer Documentation"}
+          {phase === "reframing" && "Processing Statements"}
+          {phase === "interview" && "Employee Response"}
+          {phase === "case_prep" && "Case Preparation"}
           {phase === "a_stance" && "Spectrum Review"}
           {phase === "a_guess" && "Spectrum Review"}
           {phase === "b_comment" && "Guideline Thread"}
-          {phase === "b_vote" && "Vote the Funniest"}
+          {phase === "b_vote" && "Peer Recognition Vote"}
           {phase === "reveal" && "Case Closed"}
           {phase === "game_over" && "Final Review"}
         </h2>
@@ -1346,47 +1303,71 @@ export function PerformanceReviewGameView({
 
         {/* lobby */}
         {phase === "lobby" && (
-          <p className="text-gray-500 text-xs">
-            {
-              "Everyone files an HR report on an assigned colleague. Then everyone is interviewed about the report on them. HR issues a ruling and a ridiculous new Company Guideline for each incident — one guideline per player. Each guideline is then either rated by a rotating reviewer, or roasted in a fake company thread where you tag who you think it targets. Three investigation rounds decide the winner."
-            }
-          </p>
+          <p className="text-gray-500 text-xs">{LOBBY_EXPLAINER}</p>
         )}
 
-        {/* intro */}
-        {phase === "intro" && (
-          <div className="space-y-4">
-            <div className="bg-gray-900 border border-gray-700 rounded-lg p-4">
-              <div className="flex items-center justify-between gap-3 mb-3">
-                <p className="text-[10px] uppercase tracking-widest text-blue-300">
-                  Tutorial · Slide {tutorialStep + 1} of {TUTORIAL_SLIDES.length}
-                </p>
-                <p className="text-[10px] uppercase tracking-widest text-gray-500">
-                  {TUTORIAL_SLIDES[tutorialStep].eyebrow}
-                </p>
+        {/* intro — Personnel Orientation, administered by the host */}
+        {phase === "intro" &&
+          (() => {
+            const modules = buildOrientationModules(players.map((p) => p.name));
+            const mod = modules[tutorialStep];
+            return (
+              <div className="space-y-4">
+                <div className="bg-gray-900 border border-gray-700 rounded-lg p-4">
+                  <div className="flex items-center justify-between gap-3 mb-3 font-mono">
+                    <p className="text-[10px] uppercase tracking-widest text-blue-300">
+                      {mod.procedureId}
+                    </p>
+                    <p className="text-[10px] uppercase tracking-widest text-gray-500">
+                      {mod.tag}
+                    </p>
+                  </div>
+                  <h3 className="text-lg font-bold text-white mb-2">{mod.title}</h3>
+                  <p className="text-sm text-gray-300 mb-4">{mod.body}</p>
+
+                  {mod.kind === "roster" ? (
+                    <div className="bg-black/40 border border-gray-700 rounded-lg p-3 font-mono">
+                      <p className="text-[10px] uppercase tracking-widest text-green-500 mb-2">
+                        Personnel manifest
+                      </p>
+                      <ul className="space-y-1">
+                        {players.map((p, i) => (
+                          <li
+                            key={p.id}
+                            className="flex items-baseline justify-between gap-3 text-xs"
+                          >
+                            <span className="text-green-200">
+                              {p.name}
+                              {p.id === playerId && (
+                                <span className="text-green-700"> (you)</span>
+                              )}
+                            </span>
+                            <span className="text-green-600 tracking-wider whitespace-nowrap">
+                              {rosterStatus(p.name, i, room.roomCode, players.length)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    <div className="bg-black/40 border border-gray-700 rounded-lg p-3 font-mono">
+                      <p className="text-[10px] uppercase tracking-widest text-green-500 mb-2">
+                        {mod.mockTitle}
+                      </p>
+                      <p className="text-xs text-green-200 whitespace-pre-wrap">
+                        {mod.mockBody}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                {!isHost && (
+                  <p className="text-gray-500 text-xs text-center">
+                    {ORIENTATION_NONHOST_HINT}
+                  </p>
+                )}
               </div>
-              <h3 className="text-lg font-bold text-white mb-2">
-                {TUTORIAL_SLIDES[tutorialStep].title}
-              </h3>
-              <p className="text-sm text-gray-300 mb-4">
-                {TUTORIAL_SLIDES[tutorialStep].body}
-              </p>
-              <div className="bg-black/40 border border-gray-700 rounded-lg p-3 font-mono">
-                <p className="text-[10px] uppercase tracking-widest text-green-500 mb-2">
-                  {TUTORIAL_SLIDES[tutorialStep].mockTitle}
-                </p>
-                <p className="text-xs text-green-200 whitespace-pre-wrap">
-                  {TUTORIAL_SLIDES[tutorialStep].mockBody}
-                </p>
-              </div>
-            </div>
-            {!isHost && (
-              <p className="text-gray-500 text-xs text-center">
-                The host controls the tutorial. HR insists this counts as training.
-              </p>
-            )}
-          </div>
-        )}
+            );
+          })()}
 
         {/* accusation */}
         {phase === "accusation" && (
@@ -1398,7 +1379,9 @@ export function PerformanceReviewGameView({
                     Your report — re: {myAssignment.subjectName}
                   </p>
                   <p className="text-sm text-gray-300 mb-2">{accusations[playerId]}</p>
-                  <p className="text-gray-500 text-xs italic">Filed. HR thanks you for your vigilance.</p>
+                  <p className="text-gray-500 text-xs italic">
+                    {pickStable(REPORT_FILED_LINES, `${phaseSeed}:${playerId}`)}
+                  </p>
                 </div>
               ) : (
                 <form onSubmit={handleSubmitAccusation} className="space-y-3">
@@ -1407,7 +1390,7 @@ export function PerformanceReviewGameView({
                     onChange={(e) => setAccusationInput(e.target.value)}
                     maxLength={280}
                     rows={3}
-                    placeholder={`Report an incident involving ${myAssignment.subjectName}...`}
+                    placeholder={`Document the incident involving ${myAssignment.subjectName}. Be specific.`}
                     className="w-full bg-gray-900 border border-gray-700 rounded-lg py-2 px-3 text-sm focus:outline-none focus:border-blue-500 resize-none"
                   />
                   <button
@@ -1415,17 +1398,17 @@ export function PerformanceReviewGameView({
                     disabled={isAccusing || !accusationInput.trim()}
                     className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded-lg transition-colors"
                   >
-                    {isAccusing ? "Filing..." : "Submit HR Report"}
+                    {isAccusing ? "Filing..." : "File HR Report"}
                   </button>
                 </form>
               )
             ) : (
               <p className="text-gray-500 text-xs text-center">
-                You joined mid-cycle. HR will assign you next investigation.
+                You joined mid-cycle. An assignment will be issued next cycle.
               </p>
             )}
             <p className="text-gray-500 text-xs">
-              {accFiledCount} of {reporters.length} reports received. Everyone gets investigated.
+              {accFiledCount} of {reporters.length} reports received. Everyone is investigated eventually.
             </p>
           </div>
         )}
@@ -1433,9 +1416,15 @@ export function PerformanceReviewGameView({
         {/* reframing */}
         {phase === "reframing" && (
           <div className="text-center py-6">
-            <p className="text-4xl mb-3 animate-pulse">🗂️</p>
-            <p className="text-gray-300">HR is rewording every complaint into official language.</p>
-            <p className="text-gray-500 text-xs mt-2">You&apos;ll see the version written about you next.</p>
+            <p className="font-mono text-[10px] uppercase tracking-widest text-gray-500 mb-3">
+              <span className="animate-pulse">▌</span> STATUS: PROCESSING
+            </p>
+            <p className="text-gray-300">
+              Every complaint is being converted into approved language.
+            </p>
+            <p className="text-gray-500 text-xs mt-2">
+              You will be shown the version written about you shortly.
+            </p>
           </div>
         )}
 
@@ -1445,11 +1434,11 @@ export function PerformanceReviewGameView({
             {hasExplained ? (
               <div className="bg-gray-900 rounded-lg p-4">
                 <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">
-                  Your statement to HR
+                  Your statement, as retained
                 </p>
                 <p className="text-sm text-gray-300 mb-2">{explanations[playerId]}</p>
                 <p className="text-gray-500 text-xs italic">
-                  Submitted. {explainedCount} of {players.length} interviewed.
+                  Your statement has been added to the appropriate record.
                 </p>
               </div>
             ) : (
@@ -1459,7 +1448,7 @@ export function PerformanceReviewGameView({
                   onChange={(e) => setExplanationInput(e.target.value)}
                   maxLength={400}
                   rows={4}
-                  placeholder="Explain yourself to HR..."
+                  placeholder="Provide the version of events you would prefer retained..."
                   className="w-full bg-gray-900 border border-gray-700 rounded-lg py-2 px-3 text-sm focus:outline-none focus:border-blue-500 resize-none"
                 />
                 <button
@@ -1467,12 +1456,13 @@ export function PerformanceReviewGameView({
                   disabled={isExplaining || !explanationInput.trim()}
                   className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded-lg transition-colors"
                 >
-                  {isExplaining ? "Submitting..." : "Submit My Statement"}
+                  {isExplaining ? "Submitting..." : "Submit Statement"}
                 </button>
               </form>
             )}
             <p className="text-gray-500 text-xs">
-              {explainedCount} of {players.length} employees interviewed.
+              {explainedCount} of {players.length} statements received. Silence may be
+              interpreted as confidence.
             </p>
           </div>
         )}
@@ -1480,10 +1470,14 @@ export function PerformanceReviewGameView({
         {/* case_prep */}
         {phase === "case_prep" && (
           <div className="text-center py-6">
-            <p className="text-4xl mb-3 animate-pulse">⚖️</p>
-            <p className="text-gray-300">HR is weighing the evidence and drafting policy.</p>
+            <p className="font-mono text-[10px] uppercase tracking-widest text-gray-500 mb-3">
+              <span className="animate-pulse">▌</span> STATUS: IN DELIBERATION
+            </p>
+            <p className="text-gray-300">
+              Management is reviewing both versions of events and selecting the useful one.
+            </p>
             <p className="text-gray-500 text-xs mt-2">
-              A ruling and a new Company Guideline are incoming.
+              A ruling and a new Company Guideline will follow.
             </p>
           </div>
         )}
@@ -1503,8 +1497,8 @@ export function PerformanceReviewGameView({
                     Management would like to hear your feedback on the new policy.
                   </p>
                   <p className="text-xs opacity-80 mt-1">
-                    Privately mark where you land. Your colleagues will try to guess your rating —
-                    it stays secret until the reveal.
+                    Mark your position privately. Your colleagues will estimate it. Your
+                    response may be considered.
                   </p>
                 </ActionBanner>
                 <StanceSlider
@@ -1518,16 +1512,18 @@ export function PerformanceReviewGameView({
                   disabled={isStancing}
                   className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
                 >
-                  {isStancing ? "Locking in..." : "Lock In My Rating"}
+                  {isStancing ? "Recording feedback..." : "Submit Policy Feedback"}
                 </button>
               </form>
             ) : (
               <div className="text-center py-4">
                 <p className="text-gray-300">
                   <span className="font-semibold text-white">{rater?.name ?? "A reviewer"}</span>{" "}
-                  is rating the new policy.
+                  has been selected to provide feedback on the new policy.
                 </p>
-                <p className="text-gray-500 text-xs mt-2">Get ready to guess where they land.</p>
+                <p className="text-gray-500 text-xs mt-2">
+                  You will estimate their position shortly. Remain available.
+                </p>
               </div>
             )}
           </div>
@@ -1542,28 +1538,36 @@ export function PerformanceReviewGameView({
               rightLabel={currentCase?.rightLabel ?? ""}
             />
             <div className="text-center py-3 bg-gray-900 rounded-lg mb-4">
-              <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Reviewer</p>
+              <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">
+                Feedback on file from
+              </p>
               <p className="text-2xl font-bold text-white">{rater?.name ?? "The reviewer"}</p>
-              <p className="text-gray-500 text-xs mt-1">Guess where they rated the new policy.</p>
+              <p className="text-gray-500 text-xs mt-1">
+                Estimate their position. Accuracy is a performance metric.
+              </p>
             </div>
             {isRater ? (
               <div className="text-center py-4">
-                <p className="text-gray-300">Your colleagues are reading you. Sit still.</p>
+                <p className="text-gray-300">
+                  Your colleagues are estimating your position. Remain still and recognizable.
+                </p>
                 <p className="text-gray-500 text-xs mt-2">
-                  {guessedCount} of {guessers.length} guesses submitted.
+                  {guessedCount} of {guessers.length} estimates submitted.
                 </p>
               </div>
             ) : hasGuessed ? (
               <div className="text-center py-4">
-                <p className="text-gray-400 mb-1">Your guess:</p>
+                <p className="text-gray-400 mb-1">Your estimate has been recorded:</p>
                 <p className="text-3xl font-bold text-green-400">{guesses[playerId]}</p>
                 <p className="text-gray-500 text-xs mt-2">
-                  {guessedCount} of {guessers.length} guesses in.
+                  {guessedCount} of {guessers.length} estimates in.
                 </p>
               </div>
             ) : (
               <form onSubmit={handleSubmitGuess} className="space-y-4">
-                <p className="text-gray-400 text-sm">Where did {rater?.name ?? "the reviewer"} land?</p>
+                <p className="text-gray-400 text-sm">
+                  Where did {rater?.name ?? "the reviewer"} place the policy?
+                </p>
                 <StanceSlider
                   value={guessInput}
                   onChange={setGuessInput}
@@ -1575,7 +1579,7 @@ export function PerformanceReviewGameView({
                   disabled={isGuessing}
                   className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
                 >
-                  {isGuessing ? "Submitting..." : "Submit Guess"}
+                  {isGuessing ? "Recording estimate..." : "Submit Estimate"}
                 </button>
               </form>
             )}
@@ -1586,21 +1590,25 @@ export function PerformanceReviewGameView({
         {phase === "b_comment" && (
           <div>
             <ActionBanner tone="blue">
-              <p className="font-semibold">💬 The policy has been posted company-wide.</p>
+              <p className="font-semibold">The guideline has been posted to all staff.</p>
               <p className="text-xs opacity-80 mt-1">
-                Reply with a comment — and <span className="font-semibold">@tag</span> whoever you
-                think this policy was written about. Correct tags score +{ATMENTION_BONUS}.
+                Add your comment to the thread, and use{" "}
+                <span className="font-semibold">@</span> to identify the employee you believe
+                caused this policy. Correct identification: +{ATMENTION_BONUS} Performance
+                Points.
               </p>
             </ActionBanner>
 
             {hasCommented ? (
               <div className="bg-gray-900 rounded-lg p-4">
-                <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Your comment</p>
+                <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">
+                  Your contribution
+                </p>
                 <p className="text-sm text-gray-300 mb-2">
                   <CommentText text={comments[playerId]} players={players} />
                 </p>
                 <p className="text-gray-500 text-xs italic">
-                  Posted. {commentedCount} of {players.length} have commented.
+                  Posted. Edits are unnecessary. HR understood what you meant.
                 </p>
               </div>
             ) : (
@@ -1610,19 +1618,20 @@ export function PerformanceReviewGameView({
                   onChange={setCommentInput}
                   players={players}
                   maxLength={240}
-                  placeholder="Reply to the company post... type @ to tag who it's about"
+                  placeholder="Add your comment. Type @ to identify the responsible party."
                 />
                 <button
                   type="submit"
                   disabled={isCommenting || !commentInput.trim()}
                   className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded-lg transition-colors"
                 >
-                  {isCommenting ? "Posting..." : "Post Comment"}
+                  {isCommenting ? "Posting..." : "Post to Thread"}
                 </button>
               </form>
             )}
             <p className="text-gray-500 text-xs mt-3">
-              {commentedCount} of {players.length} employees have commented.
+              {commentedCount} of {players.length} employees have contributed. Participation is
+              noticed.
             </p>
           </div>
         )}
@@ -1633,14 +1642,16 @@ export function PerformanceReviewGameView({
             {currentCase?.guideline && <GuidelineCard guideline={currentCase.guideline} />}
             {hasVoted ? (
               <div className="text-center py-4">
-                <p className="text-gray-300">Vote submitted.</p>
+                <p className="text-gray-300">Your recognition has been recorded.</p>
                 <p className="text-gray-500 text-xs mt-2">
                   {votedCount} of {players.length} votes in.
                 </p>
               </div>
             ) : (
               <form onSubmit={handleSubmitVote} className="space-y-4">
-                <p className="text-sm font-semibold text-gray-200">Vote for the funniest comment</p>
+                <p className="text-sm font-semibold text-gray-200">
+                  Vote for the funniest comment
+                </p>
                 <div className="space-y-2">
                   {players
                     .filter((p) => comments[p.id] !== undefined)
@@ -1663,7 +1674,7 @@ export function PerformanceReviewGameView({
                         >
                           <span className="block text-[10px] uppercase tracking-widest text-gray-500 mb-1">
                             {p.name}
-                            {isOwn && " (you — can't vote for yourself)"}
+                            {isOwn && " (you — self-recognition is not recognized)"}
                           </span>
                           <span className="text-gray-200">
                             <CommentText text={comments[p.id]} players={players} />
@@ -1677,7 +1688,11 @@ export function PerformanceReviewGameView({
                   disabled={isVoting || !voteFor}
                   className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
                 >
-                  {isVoting ? "Submitting..." : !voteFor ? "Pick a comment to vote" : "Submit Vote"}
+                  {isVoting
+                    ? "Recording..."
+                    : !voteFor
+                    ? "Select a comment to recognize"
+                    : "Submit Recognition"}
                 </button>
               </form>
             )}
@@ -1711,6 +1726,9 @@ export function PerformanceReviewGameView({
                   {standings[0].id === playerId && " (You)"}
                 </p>
                 <p className="text-gray-400 text-sm mt-1">{standings[0].score} Performance Points</p>
+                <p className="text-[10px] text-amber-500/70 mt-1">
+                  Further recognition will occur when appropriate.
+                </p>
               </div>
             )}
             <div>
@@ -1734,7 +1752,8 @@ export function PerformanceReviewGameView({
             </div>
             {!isHost && (
               <p className="text-gray-500 text-xs text-center">
-                Awaiting management. The host may run it back.
+                The cycle is complete. The records are not. The host may reconvene the
+                department.
               </p>
             )}
           </div>
@@ -1766,7 +1785,7 @@ function RevealPanel({
       <div className="bg-gray-900 rounded-lg p-4 space-y-3">
         <div>
           <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">
-            Player HR report · filed by {lastRound.reporterName || "HR"}
+            Original filing · submitted by {lastRound.reporterName || "HR"}
           </p>
           <p className="text-sm text-gray-200">
             “{lastRound.rawAccusation || "No report on record."}”
@@ -1775,19 +1794,21 @@ function RevealPanel({
         {lastRound.accusation && (
           <div>
             <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">
-              Manager / AI feedback from the HR report
+              As processed by HR
             </p>
             <p className="text-sm text-gray-300">“{lastRound.accusation}”</p>
           </div>
         )}
         <div>
-          <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">The accused</p>
+          <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">
+            Employee named
+          </p>
           <p className="text-lg font-bold text-white">{lastRound.accusedName}</p>
         </div>
         {lastRound.explanation && (
           <div>
             <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">
-              Player response to the accusation
+              Employee statement
             </p>
             <p className="text-sm text-gray-300 italic">“{lastRound.explanation}”</p>
           </div>
@@ -1820,7 +1841,7 @@ function RevealPanel({
 
       {lastRound.challenge === "thread" && lastRound.threadResults ? (
         <div className="space-y-2">
-          <h3 className="text-sm font-semibold text-gray-300">The thread</h3>
+          <h3 className="text-sm font-semibold text-gray-300">Thread record</h3>
           {lastRound.threadResults.map((r) => (
             <div
               key={r.id}
@@ -1831,10 +1852,10 @@ function RevealPanel({
               <div className="flex justify-between items-start gap-2">
                 <p className="text-[10px] uppercase tracking-widest text-gray-500">
                   {r.name}
-                  {r.id === accusedId && <span className="text-red-400"> · the accused</span>}
+                  {r.id === accusedId && <span className="text-red-400"> · employee named</span>}
                 </p>
                 <p className="text-xs text-gray-400 whitespace-nowrap">
-                  🗳️ {r.votes} · +{r.commentPoints + r.atBonus} pts
+                  {r.votes} {r.votes === 1 ? "vote" : "votes"} · +{r.commentPoints + r.atBonus} pts
                 </p>
               </div>
               <p className="text-sm text-gray-200 mt-1">
@@ -1843,16 +1864,14 @@ function RevealPanel({
               {r.taggedName && (
                 <p
                   className={`text-[11px] mt-1 ${
-                    r.atBonus > 0
-                      ? "text-green-400"
-                      : r.guessedTarget
-                      ? "text-gray-500"
-                      : "text-gray-500"
+                    r.atBonus > 0 ? "text-green-400" : "text-gray-500"
                   }`}
                 >
-                  Tagged @{r.taggedName}
-                  {r.atBonus > 0 && ` — correct! (+${r.atBonus})`}
-                  {r.guessedTarget && !r.eligibleForBonus && " — already in the know, no bonus"}
+                  Identified @{r.taggedName}
+                  {r.atBonus > 0 && ` — identification confirmed (+${r.atBonus})`}
+                  {r.guessedTarget &&
+                    !r.eligibleForBonus &&
+                    " — prior knowledge; bonus withheld"}
                 </p>
               )}
             </div>
@@ -1861,7 +1880,9 @@ function RevealPanel({
       ) : null}
 
       <div>
-        <h3 className="text-sm font-semibold text-gray-300 mb-2">Performance Points</h3>
+        <h3 className="text-sm font-semibold text-gray-300 mb-2">
+          Performance Points — adjusted
+        </h3>
         <ul className="space-y-1">
           {standings.map((s, i) => (
             <li
@@ -1870,7 +1891,7 @@ function RevealPanel({
             >
               <span className="text-gray-300">
                 {i + 1}. {s.name}
-                {s.id === accusedId && <span className="text-gray-500 text-xs"> (accused)</span>}
+                {s.id === accusedId && <span className="text-gray-500 text-xs"> (named)</span>}
                 {s.id === playerId && <span className="text-gray-500 text-xs"> (you)</span>}
               </span>
               <span className="text-gray-300">
