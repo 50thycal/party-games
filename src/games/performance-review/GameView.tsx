@@ -18,6 +18,7 @@ import type {
 } from "./config";
 import {
   ACCUSATION_SHADE,
+  BANTER_LINES,
   B_VOTE_TERMINAL,
   CASE_PREP_LINES,
   FALLBACK_GUIDELINES,
@@ -38,6 +39,7 @@ import {
   REFRAMING_LINES,
   REPORT_FILED_LINES,
   ROUND_OPENINGS,
+  WAIVE_LINES,
   buildOrientationModules,
   fallbackFinal,
   fallbackIntro,
@@ -49,6 +51,21 @@ import {
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
+
+// The narrator reads a touch quicker than a ceremonial monotone (client-side so
+// it works regardless of the TTS model's speed support).
+const SPEECH_RATE = 1.2;
+// Terminal print is held back this long for spoken lines, to meet the voice.
+const SPEECH_TEXT_DELAY_MS = 800;
+// Phases where the narrator fills the wait with ambient banter.
+const BANTER_PHASES = new Set([
+  "accusation",
+  "interview",
+  "a_stance",
+  "a_guess",
+  "b_comment",
+  "b_vote",
+]);
 
 const HEAT_OPTIONS: Array<{ value: PRHeat; label: string; desc: string }> = [
   { value: "mild", label: "Mild", desc: HEAT_DESCRIPTIONS.mild },
@@ -73,21 +90,39 @@ function clampPct(value: number): number {
   return Math.min(100, Math.max(0, value));
 }
 
-function useTypewriter(text: string): string {
+// `delayMs` holds the print back a beat so the text lands roughly when the
+// spoken line begins (TTS has fetch latency), keeping voice and terminal in sync.
+function useTypewriter(text: string, delayMs = 0): string {
   const [len, setLen] = useState(0);
   useEffect(() => {
     setLen(0);
     if (!text) return;
-    const interval = setInterval(() => {
-      setLen((l) => (l >= text.length ? l : l + 2));
-    }, 24);
-    return () => clearInterval(interval);
-  }, [text]);
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const startTimer = setTimeout(() => {
+      interval = setInterval(() => {
+        setLen((l) => (l >= text.length ? l : l + 2));
+      }, 24);
+    }, delayMs);
+    return () => {
+      clearTimeout(startTimer);
+      if (interval) clearInterval(interval);
+    };
+  }, [text, delayMs]);
   return text.slice(0, Math.min(len, text.length));
 }
 
-function Terminal({ to, text, live }: { to: string; text: string; live?: boolean }) {
-  const shown = useTypewriter(text);
+function Terminal({
+  to,
+  text,
+  live,
+  delayMs = 0,
+}: {
+  to: string;
+  text: string;
+  live?: boolean;
+  delayMs?: number;
+}) {
+  const shown = useTypewriter(text, delayMs);
   const done = shown.length >= text.length;
   return (
     <div className="bg-black border border-green-900/70 rounded-lg mb-4 overflow-hidden font-mono">
@@ -754,6 +789,18 @@ export function PerformanceReviewGameView({
   const handleStartGame = () =>
     withFlag(setIsStarting, () => dispatchAction("START_GAME", { heat: heatChoice }));
   const handleBegin = () => withFlag(setIsProceeding, () => dispatchAction("BEGIN"));
+  // Skipping orientation earns a witty aside; hold the start a beat so it plays
+  // before the first assignment is read.
+  const handleWaive = async () => {
+    if (voiceEnabled && isAudioDevice) {
+      void speakNow(pick(WAIVE_LINES), voiceIdRef.current, { priority: "high" });
+      await withFlag(
+        setIsProceeding,
+        () => new Promise<void>((r) => setTimeout(r, 2600))
+      );
+    }
+    await handleBegin();
+  };
   const handleTutorialStep = (step: number) =>
     dispatchAction("SET_TUTORIAL_STEP", { tutorialStep: step });
 
@@ -867,10 +914,11 @@ export function PerformanceReviewGameView({
           ? { to: ALL, text: introText, speak: introText, speakKey: `intro:${introText}` }
           : silent(ALL, "Establishing secure channel to management...");
       case "accusation": {
-        const opener =
+        const openerText =
           investigationRound > 1 && ROUND_OPENINGS[investigationRound]
-            ? `${ROUND_OPENINGS[investigationRound]}\n\n`
+            ? ROUND_OPENINGS[investigationRound]
             : "";
+        const opener = openerText ? `${openerText}\n\n` : "";
         if (!myAssignment) {
           return silent(
             myName,
@@ -879,10 +927,14 @@ export function PerformanceReviewGameView({
         }
         // Filed already: the host fills the wait with shade at the room.
         if (hasAccused) return silent(myName, accusationShade);
-        return silent(
-          myName,
-          `${opener}HR REPORT — RE: ${myAssignment.subjectName}.\n${myQuestion ?? ""}`
-        );
+        // Assignment + any cycle opener are public announcements — read aloud.
+        const text = `${opener}HR REPORT — RE: ${myAssignment.subjectName}.\n${myQuestion ?? ""}`;
+        return {
+          to: myName,
+          text,
+          speak: `${openerText ? openerText + " " : ""}HR report. Regarding ${myAssignment.subjectName}. ${myQuestion ?? ""}`,
+          speakKey: `accuse:${investigationRound}:${playerId}`,
+        };
       }
       case "reframing":
         return silent(ALL, pickStable(REFRAMING_LINES, phaseSeed));
@@ -945,6 +997,11 @@ export function PerformanceReviewGameView({
   const spokenKeyRef = useRef<string | null>(null);
   const voiceIdRef = useRef(voiceId);
   voiceIdRef.current = voiceId;
+  // A high-priority utterance (intro, assignment, guideline, ruling, orientation,
+  // waive line) blocks low-priority banter from starting. Tokened so a stale
+  // onended can't clear a newer utterance's flag.
+  const highPlayingRef = useRef(false);
+  const playTokenRef = useRef(0);
 
   function getAudioCtx(): AudioContext | null {
     try {
@@ -984,21 +1041,43 @@ export function PerformanceReviewGameView({
     sourceRef.current = null;
     fetchAbortRef.current?.abort();
     fetchAbortRef.current = null;
+    playTokenRef.current++;
+    highPlayingRef.current = false;
   }
   // Fetch + play one line. Returns true only once playback has actually started,
   // so the caller can decide whether to mark the message as spoken. A transient
   // TTS failure retries a couple of times before giving up — important because
   // the guideline and the case-closed ruling are the beats the room most needs
   // to hear, and a single dropped request used to silence them permanently.
-  async function speakNow(text: string, voice: string): Promise<boolean> {
+  // Low-priority calls (ambient banter) refuse to start while a high-priority
+  // utterance is playing, so they never talk over a ruling or a guideline.
+  async function speakNow(
+    text: string,
+    voice: string,
+    opts: { priority?: "high" | "low" } = {}
+  ): Promise<boolean> {
+    const priority = opts.priority ?? "high";
     const ctx = getAudioCtx();
     if (!ctx) return false;
+    if (priority === "low" && highPlayingRef.current) return false;
+
     fetchAbortRef.current?.abort();
     const controller = new AbortController();
     fetchAbortRef.current = controller;
 
+    const token = ++playTokenRef.current;
+    if (priority === "high") highPlayingRef.current = true;
+    const clearHigh = () => {
+      if (priority === "high" && playTokenRef.current === token) {
+        highPlayingRef.current = false;
+      }
+    };
+
     for (let attempt = 0; attempt < 3; attempt++) {
-      if (controller.signal.aborted) return false;
+      if (controller.signal.aborted) {
+        clearHigh();
+        return false;
+      }
       try {
         const res = await fetch("/api/speak", {
           method: "POST",
@@ -1006,16 +1085,28 @@ export function PerformanceReviewGameView({
           body: JSON.stringify({ text, voice }),
           signal: controller.signal,
         });
-        if (controller.signal.aborted) return false;
+        if (controller.signal.aborted) {
+          clearHigh();
+          return false;
+        }
         if (!res.ok) {
           // 503 (no key) is permanent — do not retry. Others may be transient.
-          if (res.status === 503) return false;
+          if (res.status === 503) {
+            clearHigh();
+            return false;
+          }
           throw new Error(`speak ${res.status}`);
         }
         const arr = await res.arrayBuffer();
-        if (controller.signal.aborted) return false;
+        if (controller.signal.aborted) {
+          clearHigh();
+          return false;
+        }
         const audioBuf = await ctx.decodeAudioData(arr);
-        if (controller.signal.aborted) return false;
+        if (controller.signal.aborted) {
+          clearHigh();
+          return false;
+        }
         // The context can suspend between messages (tab blur, iOS); resume it
         // right before playback so a later guideline/ruling still sounds.
         if (ctx.state === "suspended") await ctx.resume();
@@ -1026,16 +1117,22 @@ export function PerformanceReviewGameView({
         }
         const src = ctx.createBufferSource();
         src.buffer = audioBuf;
+        src.playbackRate.value = SPEECH_RATE;
         src.connect(ctx.destination);
+        src.onended = clearHigh;
         sourceRef.current = src;
         src.start(0);
         return true;
       } catch {
-        if (controller.signal.aborted) return false;
+        if (controller.signal.aborted) {
+          clearHigh();
+          return false;
+        }
         // brief backoff, then retry
         await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
       }
     }
+    clearHigh();
     return false;
   }
   useEffect(() => {
@@ -1056,6 +1153,108 @@ export function PerformanceReviewGameView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voiceEnabled]);
   useEffect(() => () => stopSpeaking(), []);
+
+  // Read each orientation module aloud as the host advances. Module 1 (step 0)
+  // is covered by the spoken opening address; steps 1-3 carry the mechanics.
+  const orientationModules = buildOrientationModules(players.map((p) => p.name));
+  useEffect(() => {
+    if (phase !== "intro" || !voiceEnabled || !isAudioDevice) return;
+    if (tutorialStep < 1) return;
+    const mod = orientationModules[tutorialStep];
+    if (!mod) return;
+    const key = `orient:${tutorialStep}`;
+    if (spokenKeyRef.current === key) return;
+    spokenKeyRef.current = key;
+    void speakNow(`${mod.title}. ${mod.body}`, voiceIdRef.current).then((played) => {
+      if (!played && spokenKeyRef.current === key) spokenKeyRef.current = null;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, tutorialStep, voiceEnabled, isAudioDevice]);
+
+  // ==========================================================================
+  // Ambient narrator banter — spoken on a loose 11-24s cadence during the
+  // working phases, low priority so it never steps on a guideline or ruling.
+  // A batch is fetched from the AI (referencing what players just wrote) and
+  // refreshed periodically; the static pool is the offline / pre-fetch baseline.
+  // ==========================================================================
+  const aiBanterRef = useRef<string[]>([]);
+  const lastBanterRef = useRef<string>("");
+
+  // Latest banter context, refreshed every render so periodic refetches see new
+  // submissions without re-subscribing the effect.
+  const banterCtxRef = useRef<{ phase: string; snippets: string[] }>({
+    phase,
+    snippets: [],
+  });
+  const truncSnip = (s: string) => s.trim().slice(0, 140);
+  let banterSnippets: string[] = [];
+  if (phase === "accusation") {
+    banterSnippets = Object.values(accusations).map(truncSnip).slice(-8);
+  } else if (phase === "interview") {
+    banterSnippets = Object.values(explanations).map(truncSnip).slice(-8);
+  } else if (phase === "b_comment" || phase === "b_vote") {
+    banterSnippets = Object.values(comments).map(truncSnip).slice(-8);
+  } else if (phase === "a_stance" || phase === "a_guess") {
+    banterSnippets = [
+      ...(currentCase?.guideline ? [truncSnip(currentCase.guideline)] : []),
+      ...Object.values(accusations).map(truncSnip),
+    ].slice(-8);
+  }
+  banterCtxRef.current = { phase, snippets: banterSnippets };
+
+  // Fetch (and periodically refresh) the AI banter batch for this phase.
+  useEffect(() => {
+    aiBanterRef.current = [];
+    if (!voiceEnabled || !isAudioDevice || !BANTER_PHASES.has(phase)) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const run = async () => {
+      const { phase: bphase, snippets } = banterCtxRef.current;
+      const json = await fetchHost({
+        ...buildHostRequest("resolve"),
+        kind: "banter",
+        banterPhase: bphase,
+        snippets,
+      });
+      if (!cancelled && json && Array.isArray(json.lines)) {
+        const lines = (json.lines as unknown[]).filter(
+          (l): l is string => typeof l === "string" && l.trim().length > 0
+        );
+        if (lines.length > 0) aiBanterRef.current = lines;
+      }
+      if (!cancelled) timer = setTimeout(run, 35000);
+    };
+    run();
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, voiceEnabled, isAudioDevice]);
+
+  // Speak one banter line every 11-24s while in a working phase.
+  useEffect(() => {
+    if (!voiceEnabled || !isAudioDevice || !BANTER_PHASES.has(phase)) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      const pool =
+        aiBanterRef.current.length > 0
+          ? [...aiBanterRef.current, ...BANTER_LINES]
+          : BANTER_LINES;
+      // avoid repeating the previous line back-to-back
+      let line = pool[Math.floor(Math.random() * pool.length)];
+      for (let i = 0; i < 4 && line === lastBanterRef.current; i++) {
+        line = pool[Math.floor(Math.random() * pool.length)];
+      }
+      lastBanterRef.current = line;
+      void speakNow(line, voiceIdRef.current, { priority: "low" });
+      timer = setTimeout(tick, 11000 + Math.random() * 13000);
+    };
+    // first line a few seconds in, so it doesn't collide with a phase-entry beat
+    timer = setTimeout(tick, 5000 + Math.random() * 5000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, voiceEnabled, isAudioDevice]);
 
   async function handleToggleVoice() {
     const next = !voiceEnabled;
@@ -1311,7 +1510,14 @@ export function PerformanceReviewGameView({
           {phase === "game_over" && "Final Review"}
         </h2>
 
-        <Terminal to={terminal.to} text={terminal.text} live={voiceEnabled} />
+        <Terminal
+          to={terminal.to}
+          text={terminal.text}
+          live={voiceEnabled}
+          delayMs={
+            voiceEnabled && isAudioDevice && terminal.speak ? SPEECH_TEXT_DELAY_MS : 0
+          }
+        />
 
         {/* lobby */}
         {phase === "lobby" && (
@@ -1393,7 +1599,7 @@ export function PerformanceReviewGameView({
                         : ORIENTATION_BEGIN_LABEL}
                     </button>
                     <button
-                      onClick={handleBegin}
+                      onClick={handleWaive}
                       disabled={isProceeding || !introText}
                       className="w-full bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors"
                     >

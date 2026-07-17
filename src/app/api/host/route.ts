@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 
 type HostHeat = "mild" | "spicy" | "scorched";
 type HostChallenge = "spectrum" | "thread";
-type HostKind = "intro" | "reframe" | "resolve" | "final";
+type HostKind = "intro" | "reframe" | "resolve" | "final" | "banter";
 
 type HostRequest = {
   kind: HostKind;
@@ -26,6 +26,9 @@ type HostRequest = {
   reporterName: string;
   accusation: string; // already manager-reframed
   explanation: string;
+  // kind=banter — what's happening right now + what players just wrote
+  banterPhase: string;
+  snippets: string[];
   // context
   recentGuidelines: string[];
   caseLog: Array<{
@@ -144,7 +147,18 @@ kind = "final" — the closing address. Short. Name the top scorer Employee of t
 backhanded corporate praise ("recognition will occur when appropriate"), note the lowest
 performer without cruelty, and reference ONE memorable case or guideline from the session by its
 actual content. You may close on one quiet irregularity, delivered as routine.
-STRICT JSON: {"commentary": string}`;
+STRICT JSON: {"commentary": string}
+
+kind = "banter" — ambient one-liners read aloud over the room while employees work (writing
+reports, giving statements, or completing a challenge — banterPhase says which). Produce 6 SHORT
+lines (each max ~14 words, ONE sentence, easily spoken). They are surveillance-room muttering: dry,
+witty, and quietly unsettling, always delivered as routine. snippets[] contains things employees
+JUST wrote (reports, statements, or comments). Reference them for at least half the lines —
+OBLIQUELY: echo a detail, a word choice, a suspicious specificity, a hesitation. Do NOT quote a full
+statement, do NOT expose someone's private defense verbatim, and do NOT name who is guilty of the
+current case. Keep the unsettling material bureaucratic (heard this before, files, previous cohorts,
+recognizability, a floor that is unavailable) — never a threat, never horror. No exclamation marks.
+STRICT JSON: {"lines": string[] (6 items)}`;
 }
 
 // ============================================================================
@@ -170,7 +184,10 @@ export async function POST(req: NextRequest) {
 
     const body = (await req.json()) as Partial<HostRequest>;
     const kind: HostKind =
-      body.kind === "final" || body.kind === "intro" || body.kind === "reframe"
+      body.kind === "final" ||
+      body.kind === "intro" ||
+      body.kind === "reframe" ||
+      body.kind === "banter"
         ? body.kind
         : "resolve";
     const heat: HostHeat =
@@ -213,10 +230,17 @@ export async function POST(req: NextRequest) {
         accusation: cleanString(r?.accusation, 300),
       }))
       .filter((r) => r.accusation.length > 0);
+    const snippets = (Array.isArray(body.snippets) ? body.snippets : [])
+      .slice(0, 8)
+      .map((s) => cleanString(s, 160))
+      .filter((s) => s.length > 0);
+    const banterPhase = cleanString(body.banterPhase, 40);
 
     const caseData = {
       kind,
       challenge,
+      banterPhase,
+      snippets,
       investigationRound:
         typeof body.investigationRound === "number" ? body.investigationRound : 1,
       totalInvestigationRounds:
@@ -242,6 +266,7 @@ export async function POST(req: NextRequest) {
           ? `Produce the HR ruling, the new Company Guideline, and a WACKY spectrum (kind = "resolve", challenge = "spectrum"). Respond with STRICT JSON only: {"hrResponse": string, "guideline": string, "spectrumQuestion": string, "leftLabel": string, "rightLabel": string, "nudges": string[]}`
           : `Produce the HR ruling and the new Company Guideline (kind = "resolve", challenge = "thread"). Respond with STRICT JSON only: {"hrResponse": string, "guideline": string, "nudges": string[]}`,
       final: `Produce the closing address (kind = "final"). Respond with STRICT JSON only: {"commentary": string}`,
+      banter: `Produce 6 short ambient one-liners for banterPhase, referencing snippets obliquely (kind = "banter"). Respond with STRICT JSON only: {"lines": string[]}`,
     };
 
     const userPrompt = [
@@ -280,6 +305,15 @@ export async function POST(req: NextRequest) {
         return failure("Malformed reframes from Overlord");
       }
       return Response.json({ ok: true, reframes });
+    }
+
+    if (kind === "banter") {
+      const lines = (Array.isArray(parsed.lines) ? parsed.lines : [])
+        .map((l) => cleanString(l, 160))
+        .filter((l) => l.length > 0)
+        .slice(0, 8);
+      if (lines.length === 0) return failure("Malformed banter from Overlord");
+      return Response.json({ ok: true, lines });
     }
 
     if (kind === "resolve") {
