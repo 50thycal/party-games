@@ -7,10 +7,11 @@
 // right. The wrongness is never explained. It is treated as routine.
 //
 // House rules for writing in this file:
-//   - ~80% plausible corporate, ~15% dry satire, ~5% quietly off. Not per line;
-//     per screen. Most lines should be boring on purpose.
+//   - ~50% plausible corporate, ~25% dry satire, ~25% quietly wrong. About
+//     half of what a player reads should carry something slightly off,
+//     always delivered as ordinary administrative context.
 //   - No exclamation marks. No horror theatrics. No "we are watching you."
-//   - The unsettling lines read as ordinary administrative context.
+//     The wrongness is never explained, never reacted to, never escalated.
 // ============================================================================
 
 // ----------------------------------------------------------------------------
@@ -46,11 +47,22 @@ export type OrientationModule = {
   mockBody?: string;
 };
 
-/** Roster line status — almost everyone is simply present. One is not unusual either. */
+/**
+ * Roster line status — plain attendance for some, something slightly off for
+ * others. Deterministic per room so it never reshuffles between polls.
+ */
+const ODD_STATUSES = [
+  "PRESENT · AGAIN",
+  "PRESENT · AS BEFORE",
+  "PRESENT · SEE FILE",
+  "PRESENT · STILL RECOGNIZABLE",
+  "PRESENT · MATCHES DESCRIPTION",
+];
 export function rosterStatus(name: string, index: number, roomSeed: string, total: number): string {
-  const oddOne = hashSeed(roomSeed + ":roster") % total;
-  if (index === oddOne) return "PRESENT · AGAIN";
-  return "PRESENT";
+  // Roughly half the roster reads plainly; the rest carry a note.
+  const odd = hashSeed(`${roomSeed}:roster:${name}`) % 2 === 0;
+  if (!odd) return "PRESENT";
+  return ODD_STATUSES[hashSeed(`${roomSeed}:status:${name}`) % ODD_STATUSES.length];
 }
 
 export function buildOrientationModules(names: string[]): OrientationModule[] {
@@ -67,7 +79,8 @@ export function buildOrientationModules(names: string[]): OrientationModule[] {
       body:
         `This department has been selected for a routine internal investigation. ` +
         `${n} employees are present. ${n} were expected. ` +
-        `Your names were already on the list.`,
+        `Your names were already on the list. The list is older than this session. ` +
+        `Do not ask which list.`,
       kind: "roster",
     },
     {
@@ -77,13 +90,14 @@ export function buildOrientationModules(names: string[]): OrientationModule[] {
       body:
         "Each of you will be assigned one colleague and one reporting question. " +
         "Answer it in your own words. Be specific — names, incidents, condiments. " +
-        "Vague reports create additional paperwork for everyone.",
+        "Vague reports create additional paperwork, and the department that handles " +
+        "additional paperwork is no longer reachable.",
       kind: "mock",
       mockTitle: `HR REPORT — RE: ${b} (EXAMPLE)`,
       mockBody:
         `Q: Has ${b} been taking suspiciously long breaks?\n\n` +
         `Filed by ${a}: "${b} disappears whenever the printer needs paper. Every single time."\n\n` +
-        `Your question will differ. Your colleague will not.`,
+        `Your question will differ. Your colleague will not. This example was taken from a previous cohort.`,
     },
     {
       procedureId: "ORIENTATION 03 / 04",
@@ -92,7 +106,7 @@ export function buildOrientationModules(names: string[]): OrientationModule[] {
       body:
         "A report will also be filed about you. You will be shown HR's processed " +
         "version and offered space to provide a statement. Provide the version of " +
-        "events you would prefer retained.",
+        "events you would prefer retained. Management has usually heard both versions before.",
       kind: "mock",
       mockTitle: `EMPLOYEE STATEMENT — ${c} (EXAMPLE)`,
       mockBody:
@@ -109,7 +123,8 @@ export function buildOrientationModules(names: string[]): OrientationModule[] {
         "Each guideline is then reviewed by the group. Spectrum Review: one employee " +
         "privately rates the policy; colleagues estimate that rating. Guideline Thread: " +
         "everyone comments on the policy; the funniest comments earn votes, and " +
-        "@-identifying the employee who caused it earns a bonus.",
+        "@-identifying the employee who caused it earns a bonus. Each new guideline " +
+        "replaces a version some employees may remember.",
       kind: "mock",
       mockTitle: "SCORING NOTICE",
       mockBody:
@@ -117,7 +132,7 @@ export function buildOrientationModules(names: string[]): OrientationModule[] {
         "Each vote on your comment: 2 pts\n" +
         "Correct @-identification: +3 pts\n\n" +
         "Three reporting cycles. The highest standing is named Employee of the Cycle.\n" +
-        "Performance Points are not compensation.",
+        "Performance Points are not compensation. Do not attempt to redeem them.",
     },
   ];
 }
@@ -137,15 +152,20 @@ export const ORIENTATION_NONHOST_HINT =
 export const LOBBY_TERMINAL_LINES = [
   "Channel open. Staff may identify themselves. Attendance is being recorded.",
   "Channel open. Attendance is voluntary in the technical sense.",
-  "Channel open. Please assemble. This channel is monitored for quality and other purposes.",
+  "Channel open. This channel is monitored for quality and other purposes.",
   "Channel open. Seating is not assigned. Seating is remembered.",
+  "Channel open. The wellness floor remains unavailable. Assemble here instead.",
+  "Channel open. Do not compare case numbers with other departments.",
+  "Channel open. If you have received this message before, disregard the previous instance.",
+  "Channel open. Management appreciates your continued recognizability.",
 ];
 
 export const LOBBY_EXPLAINER =
   "A routine internal investigation. Everyone files a report on an assigned colleague; " +
   "everyone is interviewed about the report filed on them; HR converts each incident into " +
   "a new Company Guideline, which the group then rates or roasts. Three reporting cycles. " +
-  "Performance Points determine the Employee of the Cycle.";
+  "Performance Points determine the Employee of the Cycle. Previous cohorts found the " +
+  "process clarifying.";
 
 export const MIN_HEADCOUNT_LABEL = "Minimum viable department: 3";
 
@@ -174,8 +194,8 @@ export function fallbackIntro(names: string[]): string {
   const b = names[1 % n];
   const greet =
     n >= 3
-      ? `${a}, ${b} — welcome. ${names[2]}, welcome back.`
-      : `${a}, ${b} — welcome.`;
+      ? `${a}, ${b} — welcome. ${names[2]}, welcome back. You were not told this was happening again, and yet here you are, on time.`
+      : `${a}, ${b} — welcome. Your files were already open when you arrived.`;
   return (
     `Attendance confirmed. ${n} employees are present, as expected. ` +
     `${greet} ` +
@@ -191,6 +211,8 @@ export const FALLBACK_REFRAME_TEMPLATES = [
   'It has come to HR\'s attention that "{raw}". No conclusions have been drawn. Several have been prepared.',
   'The following has been logged: "{raw}". Management is treating it as routine.',
   'Per a peer submission: "{raw}". This aligns with earlier observations that were never written down.',
+  'The following has been reported: "{raw}". A matching entry already existed. The dates do not align.',
+  'A colleague has stated: "{raw}". The previous occupant of your desk was flagged for the same behavior.',
 ];
 
 export function fallbackReframe(raw: string): string {
@@ -214,6 +236,9 @@ export const FALLBACK_HR_RESPONSES = [
   "HR thanks you for your candor, {name}. It has been logged as a contributing factor.",
   "{name}, no further action will be taken at this time. The phrase 'at this time' was selected carefully.",
   "{name}, management has reviewed both versions of events and selected the useful one.",
+  "{name}, your statement matches one already on file. You have not given a statement here before. Noted.",
+  "{name}, HR has heard this explanation before, word for word, from someone who no longer works on this floor.",
+  "{name}, your statement has been accepted and filed with the others. There are more of them than you would expect.",
 ];
 
 export const FALLBACK_GUIDELINES = [
@@ -227,6 +252,10 @@ export const FALLBACK_GUIDELINES = [
   "Employees may describe the break room as 'fine.' Additional adjectives require documentation.",
   "Personal items left in the refrigerator past Friday become the responsibility of no one.",
   "Staff are reminded that the suggestion box is for suggestions, not questions.",
+  "Employees are reminded that the stairwell renovation between floors three and five is ongoing. There is no fourth floor and there never has been.",
+  "This guideline replaces the version some employees may remember. The remembered version was never issued.",
+  "Effective immediately, employees may not discuss this guideline with departments that no longer respond.",
+  "Badge photos will be retaken annually so that employees continue to match their descriptions.",
 ];
 
 export const FALLBACK_SPECTRUMS: Array<{
@@ -242,7 +271,7 @@ export const FALLBACK_SPECTRUMS: Array<{
   { question: "How would the previous department have handled this?", leftLabel: "Quiet chuckle at the sink", rightLabel: "That is why they are the previous department" },
 ];
 
-// Shown one at a time while employees "work." Mostly mundane on purpose.
+// Shown one at a time while employees "work." Half routine, half not quite.
 export const FALLBACK_NUDGES = [
   "Please continue.",
   "Take your time. Within reason.",
@@ -251,6 +280,12 @@ export const FALLBACK_NUDGES = [
   "This waiting period counts as focus time.",
   "Your pace has been recorded as 'a pace.'",
   "The metrics have noticed nothing unusual.",
+  "Your chair reports that you are sitting correctly.",
+  "Someone on your floor is also waiting. Do not look for them.",
+  "The previous occupant of your seat finished faster.",
+  "Your badge photo has been updated. No action was taken by you.",
+  "The building would like to remind you that it is a normal building.",
+  "You have been waiting for an acceptable duration. This is not a compliment.",
 ];
 
 export function fallbackFinal(topName: string | undefined): string {
@@ -259,8 +294,9 @@ export function fallbackFinal(topName: string | undefined): string {
   }
   return (
     `The investigation cycle is complete. The records are not. ` +
-    `${topName} has been identified as Employee of the Cycle. Recognition will occur when appropriate. ` +
-    `The rest of you have been noted. You may return to your duties.`
+    `${topName} has been identified as Employee of the Cycle. Recognition will occur when appropriate, ` +
+    `as it did for the previous Employee of the Cycle, whose name has been retired. ` +
+    `The rest of you have been noted. You may return to your duties. The exits are where you remember them.`
   );
 }
 
@@ -270,8 +306,8 @@ export function fallbackFinal(topName: string | undefined): string {
 // ============================================================================
 
 export const ROUND_OPENINGS: Record<number, string> = {
-  2: "The first reporting cycle produced insufficient behavioral correction. A second cycle has been authorized. Previous statements remain active.",
-  3: "A final reporting cycle has been authorized. Management is confident this will be sufficient. It has been confident before.",
+  2: "The first reporting cycle produced insufficient behavioral correction. A second cycle has been authorized. Previous statements remain active and have been re-read.",
+  3: "A final reporting cycle has been authorized. Management is confident this will be sufficient. It was sufficient for the previous cohort, eventually.",
 };
 
 // ============================================================================
@@ -283,6 +319,8 @@ export const REFRAMING_LINES = [
   "Your complaints are being converted into approved language.",
   "Nuance is being removed for clarity.",
   "Wording is under review. The facts were fine.",
+  "Your complaints are being cross-referenced with complaints nobody here filed.",
+  "Approved language is being applied. The original language has been stored somewhere safe.",
 ];
 
 export const CASE_PREP_LINES = [
@@ -290,18 +328,22 @@ export const CASE_PREP_LINES = [
   "Both versions of events are being reviewed. One will be selected.",
   "A guideline is being prepared for employees who require one.",
   "Deliberation is underway. It concludes when it concludes.",
+  "Precedent is being consulted. The precedent predates this office.",
+  "A ruling is being drafted. The outcome was drafted earlier.",
 ];
 
 export const INTERVIEW_WAIT_LINES = [
   "Statement received. Other employees are still preparing their accounts.",
   "Statement received. Remain available while your colleagues reconsider their wording.",
   "Statement received. Its accuracy is no longer your responsibility.",
+  "Statement received. It has been placed beside the statement you did not know you had on file.",
 ];
 
 export const REPORT_FILED_LINES = [
   "Filed. Its accuracy is no longer your responsibility.",
   "Filed. HR understood what you meant.",
   "Filed. Edits are unnecessary at this stage.",
+  "Filed. Your handwriting has improved since your last report. You typed this one too.",
 ];
 
 export const B_VOTE_TERMINAL =
