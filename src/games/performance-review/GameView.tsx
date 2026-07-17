@@ -8,25 +8,34 @@ import {
   useState,
 } from "react";
 import type { GameViewProps } from "@/games/views";
-import { ATMENTION_BONUS, PR_VOICES } from "./config";
-import type {
-  PRChallenge,
-  PRHeat,
-  PRLastRound,
-  PRSpectrumResult,
-  PRState,
+import {
+  ATMENTION_BONUS,
+  FAVORITE_VOTE_PTS,
+  MAX_BLACKOUT,
+  MAX_REPLACEMENT_LENGTH,
+  PR_VOICES,
+  parseMention,
+  reconstructGuideline,
+  tokenizeGuideline,
 } from "./config";
+import type { PRCase, PRHeat, PRState } from "./config";
 import {
   ACCUSATION_SHADE,
   BANTER_LINES,
-  B_VOTE_TERMINAL,
   CASE_PREP_LINES,
+  EDITING_BLACKOUT_HINT,
+  EDITING_BLACKOUT_LABEL,
+  EDITING_DONE_LINE,
+  EDITING_REWRITE_HINT,
+  EDITING_REWRITE_LABEL,
+  EDITING_WAIT_LINES,
   FALLBACK_GUIDELINES,
+  FALLBACK_GUIDELINE_COMMENTS,
   FALLBACK_HR_RESPONSES,
   FALLBACK_NUDGES,
-  FALLBACK_SPECTRUMS,
   GUIDELINE_CARD_LABEL,
   HEAT_DESCRIPTIONS,
+  HR_COMMENT_LABEL,
   INTERVIEW_SHADE,
   LOBBY_EXPLAINER,
   LOBBY_TERMINAL_LINES,
@@ -38,7 +47,10 @@ import {
   ORIENTATION_WAIVE_LABEL,
   REFRAMING_LINES,
   REPORT_FILED_LINES,
+  REVEAL_COMMENT_HINT,
+  REVEAL_POSTED_LINE,
   ROUND_OPENINGS,
+  VOTE_TERMINAL,
   WAIVE_LINES,
   buildOrientationModules,
   fallbackFinal,
@@ -58,25 +70,18 @@ const SPEECH_RATE = 1.2;
 // Terminal print is held back this long for spoken lines, to meet the voice.
 const SPEECH_TEXT_DELAY_MS = 800;
 // Phases where the narrator fills the wait with ambient banter.
-const BANTER_PHASES = new Set([
-  "accusation",
-  "interview",
-  "a_stance",
-  "a_guess",
-  "b_comment",
-  "b_vote",
-]);
+const BANTER_PHASES = new Set(["accusation", "interview", "editing"]);
+
+// Policy Revision timings.
+const BLACKOUT_MS = 10_000; // window 1: redact
+const REWRITE_MS = 20_000; // window 2: rewrite
+const COMMENT_WINDOW_MS = 15_000; // comment window after a guideline is read
 
 const HEAT_OPTIONS: Array<{ value: PRHeat; label: string; desc: string }> = [
   { value: "mild", label: "Mild", desc: HEAT_DESCRIPTIONS.mild },
   { value: "spicy", label: "Spicy", desc: HEAT_DESCRIPTIONS.spicy },
   { value: "scorched", label: "Scorched", desc: HEAT_DESCRIPTIONS.scorched },
 ];
-
-const CHALLENGE_LABEL: Record<PRChallenge, string> = {
-  spectrum: "Spectrum Review",
-  thread: "Guideline Thread",
-};
 
 // Orientation module count is fixed; the modules themselves are built per room
 // so the briefing can address the actual roster.
@@ -85,10 +90,6 @@ const ORIENTATION_MODULE_COUNT = 4;
 // ============================================================================
 // Small presentational helpers
 // ============================================================================
-
-function clampPct(value: number): number {
-  return Math.min(100, Math.max(0, value));
-}
 
 // `delayMs` holds the print back a beat so the text lands roughly when the
 // spoken line begins (TTS has fetch latency), keeping voice and terminal in sync.
@@ -168,126 +169,17 @@ function ActionBanner({
   return <div className={`rounded-lg border p-3 mb-4 text-sm ${toneClass}`}>{children}</div>;
 }
 
-function GuidelineCard({ guideline }: { guideline: string }) {
+function GuidelineCard({
+  guideline,
+  label = GUIDELINE_CARD_LABEL,
+}: {
+  guideline: string;
+  label?: string;
+}) {
   return (
     <div className="bg-gradient-to-br from-indigo-950 to-gray-900 border border-indigo-700 rounded-lg p-4 mb-4">
-      <p className="text-[10px] uppercase tracking-widest text-indigo-400 mb-1">
-        {GUIDELINE_CARD_LABEL}
-      </p>
+      <p className="text-[10px] uppercase tracking-widest text-indigo-400 mb-1">{label}</p>
       <p className="text-base font-semibold text-indigo-100">{guideline}</p>
-    </div>
-  );
-}
-
-function SpectrumHeader({
-  question,
-  leftLabel,
-  rightLabel,
-}: {
-  question: string;
-  leftLabel: string;
-  rightLabel: string;
-}) {
-  return (
-    <div className="bg-gray-900 rounded-lg p-4 mb-4 text-center">
-      <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Spectrum</p>
-      <p className="text-base font-semibold mb-2">{question}</p>
-      <p className="text-xs text-gray-400">
-        <span className="text-blue-300">0 · {leftLabel}</span>
-        <span className="mx-2 text-gray-600">⟷</span>
-        <span className="text-red-300">{rightLabel} · 100</span>
-      </p>
-    </div>
-  );
-}
-
-function StanceSlider({
-  value,
-  onChange,
-  leftLabel,
-  rightLabel,
-}: {
-  value: number;
-  onChange: (v: number) => void;
-  leftLabel: string;
-  rightLabel: string;
-}) {
-  return (
-    <div>
-      <div className="flex justify-between text-xs text-gray-400 mb-1 gap-4">
-        <span>{leftLabel} · 0</span>
-        <span className="text-right">100 · {rightLabel}</span>
-      </div>
-      <input
-        type="range"
-        min={0}
-        max={100}
-        step={1}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full accent-blue-500"
-      />
-      <p className="text-center text-3xl font-bold mt-1">{value}</p>
-    </div>
-  );
-}
-
-function SpectrumBar({
-  leftLabel,
-  rightLabel,
-  stance,
-  raterName,
-  results,
-}: {
-  leftLabel: string;
-  rightLabel: string;
-  stance: number;
-  raterName: string;
-  results: PRSpectrumResult[];
-}) {
-  return (
-    <div className="select-none">
-      <div className="relative h-12">
-        {results.map((r, i) => (
-          <div
-            key={`label-${r.name}-${i}`}
-            className={`absolute -translate-x-1/2 text-[10px] leading-tight whitespace-nowrap ${
-              i % 2 === 0 ? "top-6" : "top-0"
-            } ${r.points >= 5 ? "text-green-300" : "text-blue-300"}`}
-            style={{ left: `${Math.min(95, Math.max(5, clampPct(r.guess)))}%` }}
-          >
-            {r.name} · {r.guess}
-          </div>
-        ))}
-      </div>
-      <div className="relative h-8">
-        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-2 rounded-full bg-gray-700" />
-        {results.map((r, i) => (
-          <div
-            key={`tick-${r.name}-${i}`}
-            className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-5 rounded ${
-              r.points >= 5 ? "bg-green-400" : "bg-blue-400"
-            }`}
-            style={{ left: `${clampPct(r.guess)}%` }}
-          />
-        ))}
-        <div
-          className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-8 rounded bg-yellow-400"
-          style={{ left: `${clampPct(stance)}%` }}
-        />
-      </div>
-      <div className="relative h-5">
-        <div
-          className="absolute -translate-x-1/2 text-[10px] font-bold text-yellow-400 whitespace-nowrap"
-          style={{ left: `${Math.min(90, Math.max(8, clampPct(stance)))}%` }}
-        >
-          ▲ {raterName} · {stance}
-        </div>
-      </div>
-      <div className="flex justify-between text-xs text-gray-400 mt-1 gap-4">
-        <span>{leftLabel}</span>
-        <span className="text-right">{rightLabel}</span>
-      </div>
     </div>
   );
 }
@@ -450,6 +342,35 @@ function CommentText({
   );
 }
 
+// Show a guideline with the Editor's redactions marked: removed words struck
+// through, replacements highlighted.
+function EditedGuideline({
+  original,
+  blackedOut,
+  replacements,
+}: {
+  original: string;
+  blackedOut: number[];
+  replacements: Record<number, string>;
+}) {
+  const tokens = tokenizeGuideline(original);
+  const bset = new Set(blackedOut);
+  return (
+    <p className="text-sm leading-relaxed">
+      {tokens.map((tok, i) => {
+        if (!bset.has(i)) return <span key={i}>{tok} </span>;
+        const r = replacements[i];
+        return (
+          <span key={i}>
+            <span className="line-through text-gray-600 mr-1">{tok}</span>
+            {r ? <span className="text-amber-300 font-semibold">{r}</span> : null}{" "}
+          </span>
+        );
+      })}
+    </p>
+  );
+}
+
 // ============================================================================
 // Main view
 // ============================================================================
@@ -464,7 +385,6 @@ export function PerformanceReviewGameView({
   const gameState = state as PRState;
   const phase = gameState?.phase ?? "lobby";
   const heat = gameState?.heat ?? "spicy";
-  const challengeIndex = gameState?.challengeIndex ?? 0;
   const totalCases = gameState?.totalCases ?? room.players.length;
   const investigationRound = gameState?.investigationRound ?? 1;
   const totalInvestigationRounds = gameState?.totalInvestigationRounds ?? 3;
@@ -480,10 +400,10 @@ export function PerformanceReviewGameView({
   const explanations = gameState?.explanations ?? {};
   const cases = gameState?.cases ?? [];
 
-  const stance = gameState?.stance ?? null;
-  const guesses = gameState?.guesses ?? {};
-  const comments = gameState?.comments ?? {};
-  const votes = gameState?.votes ?? {};
+  const revealIndex = gameState?.revealIndex ?? 0;
+  const revealComments = gameState?.revealComments ?? {};
+  const guidelineComments = gameState?.guidelineComments ?? {};
+  const favorites = gameState?.favorites ?? {};
 
   const scores = gameState?.scores ?? {};
   const roundScores = gameState?.roundScores ?? {};
@@ -491,16 +411,12 @@ export function PerformanceReviewGameView({
   const introText = gameState?.introText ?? null;
   const nudges = gameState?.nudges ?? [];
   const caseLog = gameState?.caseLog ?? [];
-  const lastRound = gameState?.lastRound ?? null;
   const finalCommentary = gameState?.finalCommentary ?? null;
 
   const voiceEnabled = gameState?.voiceEnabled ?? false;
   const voiceId = gameState?.voiceId ?? "onyx";
 
   const players = room.players;
-  const currentCase = cases[challengeIndex] ?? null;
-  const challenge: PRChallenge = currentCase?.challenge ?? "spectrum";
-
   const myName = players.find((p) => p.id === playerId)?.name ?? "Employee";
 
   // accusation-phase derived
@@ -519,22 +435,30 @@ export function PerformanceReviewGameView({
     (p) => explanations[p.id] !== undefined
   ).length;
 
-  // spectrum challenge derived
-  const rater = currentCase?.raterId
-    ? players.find((p) => p.id === currentCase.raterId) ?? null
-    : null;
-  const isRater = rater !== null && rater.id === playerId;
-  const guessers = players.filter((p) => p.id !== currentCase?.raterId);
-  const guessedCount = guessers.filter((g) => guesses[g.id] !== undefined).length;
-  const hasGuessed = guesses[playerId] !== undefined;
+  // case_prep derived
+  const guidelinesReady = cases.filter((c) => c.guideline).length;
 
-  // thread challenge derived
-  const commentedCount = players.filter((p) => comments[p.id] !== undefined).length;
-  const hasCommented = comments[playerId] !== undefined;
-  const votedCount = players.filter((p) => votes[p.id] !== undefined).length;
-  const hasVoted = votes[playerId] !== undefined;
-  const isAccusedInCase = currentCase?.accusedId === playerId;
-  const isReporterInCase = currentCase?.reporterId === playerId;
+  // editing derived — every employee edits exactly one guideline.
+  const myEditIndex = cases.findIndex((c) => c.editorId === playerId);
+  const myEditCase = myEditIndex >= 0 ? cases[myEditIndex] : null;
+  const myHasEdited = myEditCase ? myEditCase.editedGuideline !== null : false;
+  const editorsDone = cases.filter((c) => c.editedGuideline !== null).length;
+  const editorsTotal = cases.filter((c) => c.editorId !== null).length;
+
+  // reveal derived
+  const revealCase: PRCase | null = cases[revealIndex] ?? null;
+  const revealThread = revealComments[revealIndex] ?? {};
+  const hasCommentedThis = revealThread[playerId] !== undefined;
+  const hrComment = guidelineComments[revealIndex] ?? null;
+  const revealedGuideline =
+    revealCase?.editedGuideline ?? revealCase?.guideline ?? "";
+
+  // voting derived
+  const votableCases = cases
+    .map((c, i) => ({ c, i }))
+    .filter(({ c }) => c.editorId !== playerId && (c.editedGuideline || c.guideline));
+  const hasVotedFav = favorites[playerId] !== undefined;
+  const favVotedCount = players.filter((p) => favorites[p.id] !== undefined).length;
 
   const standings = players
     .map((p) => ({
@@ -552,13 +476,9 @@ export function PerformanceReviewGameView({
   const [isAccusing, setIsAccusing] = useState(false);
   const [explanationInput, setExplanationInput] = useState("");
   const [isExplaining, setIsExplaining] = useState(false);
-  const [stanceInput, setStanceInput] = useState(50);
-  const [isStancing, setIsStancing] = useState(false);
-  const [guessInput, setGuessInput] = useState(50);
-  const [isGuessing, setIsGuessing] = useState(false);
   const [commentInput, setCommentInput] = useState("");
   const [isCommenting, setIsCommenting] = useState(false);
-  const [voteFor, setVoteFor] = useState<string | null>(null);
+  const [voteFor, setVoteFor] = useState<number | null>(null);
   const [isVoting, setIsVoting] = useState(false);
 
   const [isProceeding, setIsProceeding] = useState(false);
@@ -566,28 +486,98 @@ export function PerformanceReviewGameView({
   const [isForcingReframe, setIsForcingReframe] = useState(false);
   const [isSkipping, setIsSkipping] = useState(false);
   const [isForcingResolve, setIsForcingResolve] = useState(false);
-  const [isClosingComments, setIsClosingComments] = useState(false);
-  const [isRevealing, setIsRevealing] = useState(false);
+  const [isClosingEditing, setIsClosingEditing] = useState(false);
+  const [isNextReveal, setIsNextReveal] = useState(false);
+  const [isClosingVoting, setIsClosingVoting] = useState(false);
   const [isAdvancing, setIsAdvancing] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
 
-  // Reset inputs when the phase, case, or controlled player changes.
+  // --- editing working state (the two windows) ---
+  const [editStep, setEditStep] = useState<"blackout" | "rewrite">("blackout");
+  const [blackedOut, setBlackedOut] = useState<Set<number>>(new Set());
+  const [replacements, setReplacements] = useState<Record<number, string>>({});
+  const [editDeadline, setEditDeadline] = useState(0);
+  const blackedRef = useRef(blackedOut);
+  blackedRef.current = blackedOut;
+  const replRef = useRef(replacements);
+  replRef.current = replacements;
+  const submittingEditRef = useRef(false);
+
+  // Reset comment/vote inputs when the phase or revealed guideline changes.
   useEffect(() => {
-    setAccusationInput("");
-    setExplanationInput("");
-    setStanceInput(50);
-    setGuessInput(50);
     setCommentInput("");
     setVoteFor(null);
-  }, [phase, challengeIndex, playerId]);
+  }, [phase, revealIndex, playerId]);
+
+  // A coarse clock for the on-screen countdowns during timed phases.
+  const [nowTs, setNowTs] = useState(0);
+  useEffect(() => {
+    if (phase !== "editing" && phase !== "reveal") return;
+    setNowTs(Date.now());
+    const iv = setInterval(() => setNowTs(Date.now()), 300);
+    return () => clearInterval(iv);
+  }, [phase]);
+
+  const canDrive = room.mode !== "multiplayer" || isHost;
+
+  // ==========================================================================
+  // Editing — the two timed windows. Sequenced locally on each Editor's device;
+  // auto-submits whatever they have when the rewrite window closes.
+  // ==========================================================================
+  async function submitEditNow() {
+    if (submittingEditRef.current) return;
+    submittingEditRef.current = true;
+    const bo = Array.from(blackedRef.current);
+    const repl: Record<number, string> = {};
+    for (const i of bo) {
+      const w = (replRef.current[i] ?? "").trim();
+      if (w) repl[i] = w;
+    }
+    try {
+      await dispatchAction("SUBMIT_EDIT", { blackedOut: bo, replacements: repl });
+    } finally {
+      // leave the guard set; myHasEdited flips and the UI moves on.
+    }
+  }
+  useEffect(() => {
+    if (phase !== "editing" || !myEditCase || myHasEdited) return;
+    submittingEditRef.current = false;
+    setBlackedOut(new Set());
+    setReplacements({});
+    setEditStep("blackout");
+    setEditDeadline(Date.now() + BLACKOUT_MS);
+    const t1 = setTimeout(() => {
+      setEditStep("rewrite");
+      setEditDeadline(Date.now() + REWRITE_MS);
+    }, BLACKOUT_MS);
+    const t2 = setTimeout(() => {
+      void submitEditNow();
+    }, BLACKOUT_MS + REWRITE_MS);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, myEditIndex, myHasEdited]);
+
+  function toggleBlackout(i: number) {
+    setBlackedOut((prev) => {
+      const n = new Set(prev);
+      if (n.has(i)) {
+        n.delete(i);
+      } else {
+        if (n.size >= MAX_BLACKOUT) return prev;
+        n.add(i);
+      }
+      return n;
+    });
+  }
 
   // ==========================================================================
   // AI integration helpers. The automatic beats run on the "compute device":
   // the host in multiplayer, or any client in hotseat/simulation (one device),
   // so pass-and-play never stalls waiting for the host seat.
   // ==========================================================================
-  const canDrive = room.mode !== "multiplayer" || isHost;
-
   function reporterEntryFor(accusedId: string): [string, string] | null {
     for (const [reporterId, a] of Object.entries(assignments)) {
       if (a.subjectId === accusedId) {
@@ -597,11 +587,14 @@ export function PerformanceReviewGameView({
     return null;
   }
 
-  function buildHostRequest(kind: "intro" | "reframe" | "resolve" | "final") {
+  function buildHostRequest(
+    kind: "intro" | "reframe" | "resolve" | "comment" | "final",
+    opts: { caseIndex?: number; guideline?: string } = {}
+  ) {
+    const c = opts.caseIndex != null ? cases[opts.caseIndex] : null;
     return {
       kind,
       heat,
-      challenge,
       investigationRound,
       totalInvestigationRounds,
       standings: standings.map((s) => ({
@@ -617,15 +610,16 @@ export function PerformanceReviewGameView({
           : "";
         return { accused: p.name, reporter: reporterName, raw: entry?.[1] ?? "" };
       }),
-      accusedName: currentCase?.accusedName ?? "",
-      reporterName: currentCase?.reporterName ?? "",
-      accusation: currentCase?.accusation ?? "",
-      explanation: currentCase?.explanation ?? "",
+      accusedName: c?.accusedName ?? "",
+      reporterName: c?.reporterName ?? "",
+      accusation: c?.accusation ?? "",
+      explanation: c?.explanation ?? "",
+      guideline: opts.guideline ?? c?.editedGuideline ?? c?.guideline ?? "",
       // Guidelines already drafted this cycle, so the AI won't repeat itself.
       recentGuidelines: cases
-        .slice(0, challengeIndex)
-        .map((c) => c.guideline ?? "")
-        .filter(Boolean),
+        .map((x) => x.guideline ?? "")
+        .filter((g) => g && g !== (c?.guideline ?? ""))
+        .slice(-8),
       caseLog: caseLog.slice(-12).map((r) => ({
         reporter: r.reporterName,
         accused: r.accusedName,
@@ -697,61 +691,96 @@ export function PerformanceReviewGameView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, isHost]);
 
-  // Draft the ruling + guideline for the current case.
-  const resolveRequestedFor = useRef(-1);
+  // Draft the ruling + guideline for EVERY case, in one pass.
+  const casePrepRequested = useRef(false);
   useEffect(() => {
     if (phase !== "case_prep") {
-      resolveRequestedFor.current = -1;
+      casePrepRequested.current = false;
       return;
     }
-    if (!canDrive || (currentCase && currentCase.guideline)) return;
-    if (resolveRequestedFor.current === challengeIndex) return;
-    resolveRequestedFor.current = challengeIndex;
+    if (!canDrive || casePrepRequested.current) return;
+    casePrepRequested.current = true;
+    const snapshot = cases;
     (async () => {
-      const accusedName = currentCase?.accusedName ?? "The employee";
-      const json = await fetchHost(buildHostRequest("resolve"));
-      const okResponse =
-        json &&
-        typeof json.hrResponse === "string" &&
-        json.hrResponse.trim() &&
-        typeof json.guideline === "string" &&
-        json.guideline.trim();
-
-      const payload: Record<string, unknown> = {
-        hrResponse: okResponse
-          ? (json!.hrResponse as string)
-          : pick(FALLBACK_HR_RESPONSES).replace(/\{name\}/g, accusedName),
-        guideline: okResponse ? (json!.guideline as string) : pick(FALLBACK_GUIDELINES),
-        nudges:
-          json && Array.isArray(json.nudges) && json.nudges.length > 0
-            ? json.nudges
-            : FALLBACK_NUDGES.slice(0, 3),
-      };
-
-      if (challenge === "spectrum") {
-        const okSpectrum =
+      for (let i = 0; i < snapshot.length; i++) {
+        if (snapshot[i].guideline) continue;
+        const accusedName = snapshot[i].accusedName || "The employee";
+        const json = await fetchHost(buildHostRequest("resolve", { caseIndex: i }));
+        const ok =
           json &&
-          typeof json.spectrumQuestion === "string" &&
-          json.spectrumQuestion.trim() &&
-          typeof json.leftLabel === "string" &&
-          json.leftLabel.trim() &&
-          typeof json.rightLabel === "string" &&
-          json.rightLabel.trim();
-        if (okSpectrum) {
-          payload.spectrumQuestion = json!.spectrumQuestion;
-          payload.leftLabel = json!.leftLabel;
-          payload.rightLabel = json!.rightLabel;
-        } else {
-          const fb = pick(FALLBACK_SPECTRUMS);
-          payload.spectrumQuestion = fb.question;
-          payload.leftLabel = fb.leftLabel;
-          payload.rightLabel = fb.rightLabel;
-        }
+          typeof json.hrResponse === "string" &&
+          json.hrResponse.trim() &&
+          typeof json.guideline === "string" &&
+          json.guideline.trim();
+        await dispatchAction("SET_CASE_RESOLUTION", {
+          index: i,
+          hrResponse: ok
+            ? (json!.hrResponse as string)
+            : pick(FALLBACK_HR_RESPONSES).replace(/\{name\}/g, accusedName),
+          guideline: ok ? (json!.guideline as string) : pick(FALLBACK_GUIDELINES),
+          nudges:
+            json && Array.isArray(json.nudges) && json.nudges.length > 0
+              ? json.nudges
+              : FALLBACK_NUDGES.slice(0, 3),
+        });
       }
-      await dispatchAction("SET_CASE_RESOLUTION", payload);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, isHost, challengeIndex, challenge]);
+  }, [phase, isHost]);
+
+  // Reveal loop — for the current guideline: after it's read, HR posts one
+  // comment, and (on the driver) advance once the comment window elapses.
+  useEffect(() => {
+    if (phase !== "reveal" || !canDrive) return;
+    const idx = revealIndex;
+    const c = cases[idx];
+    if (!c) return;
+    const guidelineText = c.editedGuideline ?? c.guideline ?? "";
+    const words = guidelineText.split(/\s+/).filter(Boolean).length;
+    const readMs =
+      voiceEnabled && isAudioDevice
+        ? Math.min(12_000, Math.max(2_500, words * 380))
+        : 1_200;
+    let cancelled = false;
+    const timers: Array<ReturnType<typeof setTimeout>> = [];
+
+    // HR posts its own comment shortly after the guideline is read.
+    timers.push(
+      setTimeout(async () => {
+        if (cancelled || guidelineComments[idx]) return;
+        const json = await fetchHost({
+          ...buildHostRequest("comment", { caseIndex: idx, guideline: guidelineText }),
+        });
+        const comment =
+          json && typeof json.comment === "string" && json.comment.trim()
+            ? (json.comment as string)
+            : pick(FALLBACK_GUIDELINE_COMMENTS);
+        if (!cancelled) {
+          await dispatchAction("SET_GUIDELINE_COMMENT", { index: idx, comment });
+        }
+      }, readMs + 500)
+    );
+
+    // Advance after the read + the comment window.
+    timers.push(
+      setTimeout(() => {
+        if (!cancelled) void dispatchAction("NEXT_REVEAL");
+      }, readMs + COMMENT_WINDOW_MS)
+    );
+
+    return () => {
+      cancelled = true;
+      timers.forEach(clearTimeout);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, revealIndex, canDrive, voiceEnabled]);
+
+  // A local deadline just for the "next in Ns" display (advance is driver-owned).
+  const [revealDeadline, setRevealDeadline] = useState(0);
+  useEffect(() => {
+    if (phase !== "reveal") return;
+    setRevealDeadline(Date.now() + COMMENT_WINDOW_MS + 3_000);
+  }, [phase, revealIndex]);
 
   // Final address
   const finalRequested = useRef(false);
@@ -837,32 +866,24 @@ export function PerformanceReviewGameView({
   const handleSkipInterview = () =>
     withFlag(setIsSkipping, () => dispatchAction("SKIP_INTERVIEW"));
 
-  async function handleForceResolve() {
+  async function handleForceResolveAll() {
     await withFlag(setIsForcingResolve, async () => {
-      const accusedName = currentCase?.accusedName ?? "The employee";
-      const payload: Record<string, unknown> = {
-        hrResponse: pick(FALLBACK_HR_RESPONSES).replace(/\{name\}/g, accusedName),
-        guideline: pick(FALLBACK_GUIDELINES),
-        nudges: FALLBACK_NUDGES.slice(0, 3),
-      };
-      if (challenge === "spectrum") {
-        const fb = pick(FALLBACK_SPECTRUMS);
-        payload.spectrumQuestion = fb.question;
-        payload.leftLabel = fb.leftLabel;
-        payload.rightLabel = fb.rightLabel;
+      for (let i = 0; i < cases.length; i++) {
+        if (cases[i].guideline) continue;
+        const accusedName = cases[i].accusedName || "The employee";
+        await dispatchAction("SET_CASE_RESOLUTION", {
+          index: i,
+          hrResponse: pick(FALLBACK_HR_RESPONSES).replace(/\{name\}/g, accusedName),
+          guideline: pick(FALLBACK_GUIDELINES),
+          nudges: FALLBACK_NUDGES.slice(0, 3),
+        });
       }
-      await dispatchAction("SET_CASE_RESOLUTION", payload);
     });
   }
 
-  async function handleSubmitStance(e: FormEvent) {
-    e.preventDefault();
-    await withFlag(setIsStancing, () => dispatchAction("SET_STANCE", { stance: stanceInput }));
-  }
-  async function handleSubmitGuess(e: FormEvent) {
-    e.preventDefault();
-    await withFlag(setIsGuessing, () => dispatchAction("SUBMIT_GUESS", { guess: guessInput }));
-  }
+  const handleCloseEditing = () =>
+    withFlag(setIsClosingEditing, () => dispatchAction("CLOSE_EDITING"));
+
   async function handleSubmitComment(e: FormEvent) {
     e.preventDefault();
     const text = commentInput.trim();
@@ -871,26 +892,32 @@ export function PerformanceReviewGameView({
       dispatchAction("SUBMIT_COMMENT", { comment: text })
     );
   }
-  const handleCloseComments = () =>
-    withFlag(setIsClosingComments, () => dispatchAction("CLOSE_COMMENTS"));
+  const handleNextReveal = () =>
+    withFlag(setIsNextReveal, () => dispatchAction("NEXT_REVEAL"));
+
   async function handleSubmitVote(e: FormEvent) {
     e.preventDefault();
-    if (!voteFor) return;
-    await withFlag(setIsVoting, () => dispatchAction("SUBMIT_VOTE", { voteFor }));
+    if (voteFor === null) return;
+    await withFlag(setIsVoting, () =>
+      dispatchAction("SUBMIT_FAVORITE", { favorite: voteFor })
+    );
   }
-  const handleForceReveal = () => withFlag(setIsRevealing, () => dispatchAction("REVEAL"));
-  const handleNextCase = () => withFlag(setIsAdvancing, () => dispatchAction("NEXT_CASE"));
-  const handlePlayAgain = () => withFlag(setIsResetting, () => dispatchAction("PLAY_AGAIN"));
+  const handleCloseVoting = () =>
+    withFlag(setIsClosingVoting, () => dispatchAction("CLOSE_VOTING"));
+  const handleNextRound = () =>
+    withFlag(setIsAdvancing, () => dispatchAction("NEXT_ROUND"));
+  const handlePlayAgain = () =>
+    withFlag(setIsResetting, () => dispatchAction("PLAY_AGAIN"));
 
   // ==========================================================================
   // HR terminal content + voice
   // ==========================================================================
 
-  // Ambient rotation drives the "guessing" nudges and the host's shade while
-  // employees write reports and statements — so the terminal is never dead air.
+  // Ambient rotation drives the host's shade / nudges while employees write
+  // reports, statements, and revisions — so the terminal is never dead air.
   const [nudgeIdx, setNudgeIdx] = useState(0);
   useEffect(() => {
-    if (phase !== "a_guess" && phase !== "accusation" && phase !== "interview") return;
+    if (phase !== "editing" && phase !== "accusation" && phase !== "interview") return;
     const interval = setInterval(() => setNudgeIdx((i) => i + 1), 8000);
     return () => clearInterval(interval);
   }, [phase]);
@@ -902,7 +929,7 @@ export function PerformanceReviewGameView({
   const ALL = "All staff";
   // Deterministic seeds so waiting copy is stable across the 1s polling loop.
   const roomSeed = room.roomCode;
-  const phaseSeed = `${roomSeed}:${investigationRound}:${challengeIndex}`;
+  const phaseSeed = `${roomSeed}:${investigationRound}:${revealIndex}`;
 
   function terminalContent(): { to: string; text: string; speak: string; speakKey: string } {
     const silent = (to: string, text: string) => ({ to, text, speak: "", speakKey: "" });
@@ -925,7 +952,6 @@ export function PerformanceReviewGameView({
             `${opener}No report has been assigned to you this cycle. Remain available.`
           );
         }
-        // Filed already: the host fills the wait with shade at the room.
         if (hasAccused) return silent(myName, accusationShade);
         const text = `${opener}HR REPORT — RE: ${myAssignment.subjectName}.\n${myQuestion ?? ""}`;
         // SECRET: the report assignment feeds the challenge, so it is NEVER read
@@ -941,7 +967,6 @@ export function PerformanceReviewGameView({
       case "reframing":
         return silent(ALL, pickStable(REFRAMING_LINES, phaseSeed));
       case "interview":
-        // Statement in: the host passes the time with shade at the room.
         return hasExplained
           ? silent(myName, interviewShade)
           : myReframe
@@ -952,36 +977,21 @@ export function PerformanceReviewGameView({
           : silent(myName, "Your record is being retrieved.");
       case "case_prep":
         return silent(ALL, pickStable(CASE_PREP_LINES, phaseSeed));
-      case "a_stance":
-      case "b_comment":
-        return currentCase?.guideline
-          ? {
-              to: ALL,
-              text: `NEW COMPANY GUIDELINE:\n${currentCase.guideline}`,
-              speak: `A new company guideline is in effect. ${currentCase.guideline}`,
-              speakKey: `guideline:${investigationRound}:${challengeIndex}`,
-            }
-          : silent(ALL, "A guideline is being prepared.");
-      case "a_guess":
-        return hasGuessed || isRater
-          ? silent(myName, currentNudge)
-          : silent(
-              ALL,
-              currentCase?.guideline
-                ? `Guideline in effect: ${currentCase.guideline}`
-                : "Review in progress."
-            );
-      case "b_vote":
-        return silent(ALL, B_VOTE_TERMINAL);
+      case "editing":
+        return silent(ALL, pickStable(EDITING_WAIT_LINES, phaseSeed));
       case "reveal":
-        return currentCase?.hrResponse
+        return revealedGuideline
           ? {
               to: ALL,
-              text: currentCase.hrResponse,
-              speak: currentCase.hrResponse,
-              speakKey: `reveal:${investigationRound}:${challengeIndex}`,
+              text: `REVISED COMPANY GUIDELINE:\n${revealedGuideline}`,
+              speak: `A revised company guideline. ${revealedGuideline}`,
+              speakKey: `reveal:${investigationRound}:${revealIndex}`,
             }
-          : silent(ALL, "The ruling is being finalized.");
+          : silent(ALL, "The revised guideline is being retrieved.");
+      case "voting":
+        return silent(ALL, VOTE_TERMINAL);
+      case "round_over":
+        return silent(ALL, "The reporting cycle is under review. Standings have been adjusted.");
       case "game_over":
         return finalCommentary
           ? { to: ALL, text: finalCommentary, speak: finalCommentary, speakKey: `final:${finalCommentary}` }
@@ -999,9 +1009,6 @@ export function PerformanceReviewGameView({
   const spokenKeyRef = useRef<string | null>(null);
   const voiceIdRef = useRef(voiceId);
   voiceIdRef.current = voiceId;
-  // A high-priority utterance (intro, assignment, guideline, ruling, orientation,
-  // waive line) blocks low-priority banter from starting. Tokened so a stale
-  // onended can't clear a newer utterance's flag.
   const highPlayingRef = useRef(false);
   const playTokenRef = useRef(0);
 
@@ -1046,13 +1053,6 @@ export function PerformanceReviewGameView({
     playTokenRef.current++;
     highPlayingRef.current = false;
   }
-  // Fetch + play one line. Returns true only once playback has actually started,
-  // so the caller can decide whether to mark the message as spoken. A transient
-  // TTS failure retries a couple of times before giving up — important because
-  // the guideline and the case-closed ruling are the beats the room most needs
-  // to hear, and a single dropped request used to silence them permanently.
-  // Low-priority calls (ambient banter) refuse to start while a high-priority
-  // utterance is playing, so they never talk over a ruling or a guideline.
   async function speakNow(
     text: string,
     voice: string,
@@ -1092,7 +1092,6 @@ export function PerformanceReviewGameView({
           return false;
         }
         if (!res.ok) {
-          // 503 (no key) is permanent — do not retry. Others may be transient.
           if (res.status === 503) {
             clearHigh();
             return false;
@@ -1109,8 +1108,6 @@ export function PerformanceReviewGameView({
           clearHigh();
           return false;
         }
-        // The context can suspend between messages (tab blur, iOS); resume it
-        // right before playback so a later guideline/ruling still sounds.
         if (ctx.state === "suspended") await ctx.resume();
         try {
           sourceRef.current?.stop();
@@ -1130,7 +1127,6 @@ export function PerformanceReviewGameView({
           clearHigh();
           return false;
         }
-        // brief backoff, then retry
         await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
       }
     }
@@ -1141,9 +1137,6 @@ export function PerformanceReviewGameView({
     if (!voiceEnabled || !isAudioDevice || !terminal.speakKey || !terminal.speak) return;
     if (spokenKeyRef.current === terminal.speakKey) return;
     const key = terminal.speakKey;
-    // Reserve the key so the 1s poll re-render doesn't launch a duplicate while
-    // this request is in flight; clear it again if playback never starts, so a
-    // failure can be retried when state next changes.
     spokenKeyRef.current = key;
     void speakNow(terminal.speak, voiceIdRef.current).then((played) => {
       if (!played && spokenKeyRef.current === key) spokenKeyRef.current = null;
@@ -1156,8 +1149,7 @@ export function PerformanceReviewGameView({
   }, [voiceEnabled]);
   useEffect(() => () => stopSpeaking(), []);
 
-  // Read each orientation module aloud as the host advances. Module 1 (step 0)
-  // is covered by the spoken opening address; steps 1-3 carry the mechanics.
+  // Read each orientation module aloud as the host advances.
   const orientationModules = buildOrientationModules(players.map((p) => p.name));
   useEffect(() => {
     if (phase !== "intro" || !voiceEnabled || !isAudioDevice) return;
@@ -1176,8 +1168,6 @@ export function PerformanceReviewGameView({
   // ==========================================================================
   // Ambient narrator banter — spoken on a loose 11-24s cadence during the
   // working phases, low priority so it never steps on a guideline or ruling.
-  // A batch is fetched from the AI (referencing what players just wrote) and
-  // refreshed periodically; the static pool is the offline / pre-fetch baseline.
   // ==========================================================================
   const aiBanterRef = useRef<string[]>([]);
   const lastBanterRef = useRef<string>("");
@@ -1187,9 +1177,6 @@ export function PerformanceReviewGameView({
   useEffect(() => {
     if (phase === "intro" || phase === "lobby") usedStaticRef.current = new Set();
   }, [phase]);
-
-  // Latest banter context, refreshed every render so periodic refetches see new
-  // submissions without re-subscribing the effect.
   const banterCtxRef = useRef<{ phase: string; snippets: string[] }>({
     phase,
     snippets: [],
@@ -1200,17 +1187,15 @@ export function PerformanceReviewGameView({
     banterSnippets = Object.values(accusations).map(truncSnip).slice(-8);
   } else if (phase === "interview") {
     banterSnippets = Object.values(explanations).map(truncSnip).slice(-8);
-  } else if (phase === "b_comment" || phase === "b_vote") {
-    banterSnippets = Object.values(comments).map(truncSnip).slice(-8);
-  } else if (phase === "a_stance" || phase === "a_guess") {
-    banterSnippets = [
-      ...(currentCase?.guideline ? [truncSnip(currentCase.guideline)] : []),
-      ...Object.values(accusations).map(truncSnip),
-    ].slice(-8);
+  } else if (phase === "editing") {
+    banterSnippets = cases
+      .map((c) => c.guideline ?? "")
+      .filter(Boolean)
+      .map(truncSnip)
+      .slice(-8);
   }
   banterCtxRef.current = { phase, snippets: banterSnippets };
 
-  // Fetch (and periodically refresh) the AI banter batch for this phase.
   useEffect(() => {
     aiBanterRef.current = [];
     if (!voiceEnabled || !isAudioDevice || !BANTER_PHASES.has(phase)) return;
@@ -1279,7 +1264,6 @@ export function PerformanceReviewGameView({
       }
       timer = setTimeout(tick, 11000 + Math.random() * 13000);
     };
-    // first line a few seconds in, so it doesn't collide with a phase-entry beat
     timer = setTimeout(tick, 5000 + Math.random() * 5000);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1300,6 +1284,30 @@ export function PerformanceReviewGameView({
     voiceIdRef.current = nextVoiceId;
     if (voiceEnabled) void speakNow("Voice recalibrated.", nextVoiceId);
     await dispatchAction("SET_VOICE", { voiceId: nextVoiceId });
+  }
+
+  // ==========================================================================
+  // Derived countdowns
+  // ==========================================================================
+  const editSecondsLeft = Math.max(0, Math.ceil((editDeadline - nowTs) / 1000));
+  const revealSecondsLeft = Math.max(0, Math.ceil((revealDeadline - nowTs) / 1000));
+
+  // Header sub-label per phase.
+  let headerDetail = "";
+  if (phase === "accusation" || phase === "reframing" || phase === "interview") {
+    headerDetail = " · CASE INTAKE";
+  } else if (phase === "case_prep") {
+    headerDetail = " · DELIBERATION";
+  } else if (phase === "editing") {
+    headerDetail = " · POLICY REVISION";
+  } else if (phase === "reveal") {
+    headerDetail = ` · REVISION ${String(revealIndex + 1).padStart(2, "0")}/${String(
+      totalCases
+    ).padStart(2, "0")}`;
+  } else if (phase === "voting") {
+    headerDetail = " · RECOGNITION";
+  } else if (phase === "round_over") {
+    headerDetail = " · CYCLE REVIEW";
   }
 
   // ==========================================================================
@@ -1432,72 +1440,65 @@ export function PerformanceReviewGameView({
 
           {phase === "case_prep" && (
             <button
-              onClick={handleForceResolve}
-              disabled={isForcingResolve || !!currentCase?.guideline}
+              onClick={handleForceResolveAll}
+              disabled={isForcingResolve || guidelinesReady >= totalCases}
               className="w-full bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors"
             >
               {isForcingResolve
-                ? "Issuing standing ruling..."
-                : "Deliberation stalled? Issue a standing ruling"}
+                ? "Issuing standing rulings..."
+                : `Deliberation stalled? Issue standing rulings (${guidelinesReady}/${totalCases})`}
             </button>
           )}
 
-          {phase === "a_stance" && (
-            <p className="text-gray-400 text-sm">
-              Awaiting policy feedback from{" "}
-              <span className="text-white font-semibold">{rater?.name ?? "the reviewer"}</span>.
-            </p>
-          )}
-
-          {phase === "a_guess" && (
+          {phase === "editing" && (
             <button
-              onClick={handleForceReveal}
-              disabled={isRevealing}
+              onClick={handleCloseEditing}
+              disabled={isClosingEditing}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
             >
-              {isRevealing
-                ? "Compiling findings..."
-                : `Close Estimates & Reveal (${guessedCount}/${guessers.length} in)`}
-            </button>
-          )}
-
-          {phase === "b_comment" && (
-            <button
-              onClick={handleCloseComments}
-              disabled={isClosingComments || commentedCount === 0}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-            >
-              {isClosingComments
-                ? "Locking the thread..."
-                : `Close Thread & Open Voting (${commentedCount}/${players.length} posted)`}
-            </button>
-          )}
-
-          {phase === "b_vote" && (
-            <button
-              onClick={handleForceReveal}
-              disabled={isRevealing}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-            >
-              {isRevealing
-                ? "Tallying recognition..."
-                : `Close Voting & Tally (${votedCount}/${players.length} in)`}
+              {isClosingEditing
+                ? "Filing revisions..."
+                : `Close Editing & Begin Review (${editorsDone}/${editorsTotal} filed)`}
             </button>
           )}
 
           {phase === "reveal" && (
             <button
-              onClick={handleNextCase}
+              onClick={handleNextReveal}
+              disabled={isNextReveal}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+            >
+              {isNextReveal
+                ? "Advancing..."
+                : revealIndex >= totalCases - 1
+                ? "Close Review & Open Voting"
+                : "Skip to Next Revision"}
+            </button>
+          )}
+
+          {phase === "voting" && (
+            <button
+              onClick={handleCloseVoting}
+              disabled={isClosingVoting || favVotedCount === 0}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+            >
+              {isClosingVoting
+                ? "Tallying recognition..."
+                : `Close Voting & Tally (${favVotedCount}/${players.length} in)`}
+            </button>
+          )}
+
+          {phase === "round_over" && (
+            <button
+              onClick={handleNextRound}
               disabled={isAdvancing}
               className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
             >
               {isAdvancing
                 ? "Filing..."
-                : challengeIndex >= totalCases - 1
-                ? investigationRound < totalInvestigationRounds
-                  ? `Authorize Reporting Cycle ${investigationRound + 1}`
-                  : "Conclude the Investigation"
-                : "Open the Next Case"}
+                : investigationRound < totalInvestigationRounds
+                ? `Authorize Reporting Cycle ${investigationRound + 1}`
+                : "Conclude the Investigation"}
             </button>
           )}
 
@@ -1517,9 +1518,7 @@ export function PerformanceReviewGameView({
         {phase !== "lobby" && phase !== "intro" && (
           <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-mono">
             CYCLE {investigationRound}/{totalInvestigationRounds}
-            {phase === "accusation" || phase === "reframing" || phase === "interview"
-              ? " · CASE INTAKE"
-              : ` · CASE ${String(Math.min(challengeIndex + 1, totalCases)).padStart(2, "0")}/${String(totalCases).padStart(2, "0")} · ${CHALLENGE_LABEL[challenge].toUpperCase()}`}
+            {headerDetail}
             {" · "}INTENSITY: {heat.toUpperCase()} · ROOM {room.roomCode}
           </p>
         )}
@@ -1531,11 +1530,10 @@ export function PerformanceReviewGameView({
           {phase === "reframing" && "Processing Statements"}
           {phase === "interview" && "Employee Response"}
           {phase === "case_prep" && "Case Preparation"}
-          {phase === "a_stance" && "Spectrum Review"}
-          {phase === "a_guess" && "Spectrum Review"}
-          {phase === "b_comment" && "Guideline Thread"}
-          {phase === "b_vote" && "Peer Recognition Vote"}
-          {phase === "reveal" && "Case Closed"}
+          {phase === "editing" && "Policy Revision — Editing"}
+          {phase === "reveal" && "Policy Revision — Review"}
+          {phase === "voting" && "Recognition Vote"}
+          {phase === "round_over" && "Cycle Review"}
           {phase === "game_over" && "Final Review"}
         </h2>
 
@@ -1549,9 +1547,7 @@ export function PerformanceReviewGameView({
         />
 
         {/* lobby */}
-        {phase === "lobby" && (
-          <p className="text-gray-500 text-xs">{LOBBY_EXPLAINER}</p>
-        )}
+        {phase === "lobby" && <p className="text-gray-500 text-xs">{LOBBY_EXPLAINER}</p>}
 
         {/* intro — Personnel Orientation, administered by the host */}
         {phase === "intro" &&
@@ -1570,7 +1566,7 @@ export function PerformanceReviewGameView({
                     </p>
                   </div>
                   <h3 className="text-lg font-bold text-white mb-2">{mod.title}</h3>
-                  <p className="text-sm text-gray-300 mb-4">{mod.body}</p>
+                  <p className="text-sm text-gray-300 mb-4 whitespace-pre-wrap">{mod.body}</p>
 
                   {mod.kind === "roster" ? (
                     <div className="bg-black/40 border border-gray-700 rounded-lg p-3 font-mono">
@@ -1755,151 +1751,110 @@ export function PerformanceReviewGameView({
               <span className="animate-pulse">▌</span> STATUS: IN DELIBERATION
             </p>
             <p className="text-gray-300">
-              Management is reviewing both versions of events and selecting the useful one.
+              Management is reviewing every case and drafting a guideline for each.
             </p>
             <p className="text-gray-500 text-xs mt-2">
-              A ruling and a new Company Guideline will follow.
+              {guidelinesReady} of {totalCases} guidelines drafted.
             </p>
           </div>
         )}
 
-        {/* a_stance */}
-        {phase === "a_stance" && (
+        {/* editing */}
+        {phase === "editing" && (
           <div>
-            <SpectrumHeader
-              question={currentCase?.spectrumQuestion ?? ""}
-              leftLabel={currentCase?.leftLabel ?? ""}
-              rightLabel={currentCase?.rightLabel ?? ""}
-            />
-            {isRater ? (
-              <form onSubmit={handleSubmitStance} className="space-y-5">
-                <ActionBanner tone="blue">
-                  <p className="font-semibold">
-                    Management would like to hear your feedback on the new policy.
+            {myEditCase && myEditCase.guideline ? (
+              myHasEdited ? (
+                <div className="space-y-3">
+                  <ActionBanner tone="gray">{EDITING_DONE_LINE}</ActionBanner>
+                  <div className="bg-gray-900 rounded-lg p-4">
+                    <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">
+                      Your revision
+                    </p>
+                    <EditedGuideline
+                      original={myEditCase.guideline}
+                      blackedOut={myEditCase.blackedOut}
+                      replacements={myEditCase.replacements}
+                    />
+                  </div>
+                  <p className="text-gray-500 text-xs text-center">
+                    {editorsDone} of {editorsTotal} revisions filed. {currentNudge}
                   </p>
-                  <p className="text-xs opacity-80 mt-1">
-                    Mark your position privately. Your colleagues will estimate it. Your
-                    response may be considered.
-                  </p>
-                </ActionBanner>
-                <StanceSlider
-                  value={stanceInput}
-                  onChange={setStanceInput}
-                  leftLabel={currentCase?.leftLabel ?? ""}
-                  rightLabel={currentCase?.rightLabel ?? ""}
+                </div>
+              ) : (
+                <EditorWorkspace
+                  original={myEditCase.guideline}
+                  step={editStep}
+                  secondsLeft={editSecondsLeft}
+                  blackedOut={blackedOut}
+                  replacements={replacements}
+                  onToggle={toggleBlackout}
+                  onReplacement={(i, v) =>
+                    setReplacements((prev) => ({
+                      ...prev,
+                      [i]: v.replace(/\s/g, "").slice(0, MAX_REPLACEMENT_LENGTH),
+                    }))
+                  }
+                  onSubmit={() => void submitEditNow()}
                 />
-                <button
-                  type="submit"
-                  disabled={isStancing}
-                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-                >
-                  {isStancing ? "Recording feedback..." : "Submit Policy Feedback"}
-                </button>
-              </form>
+              )
             ) : (
-              <div className="text-center py-4">
+              <div className="text-center py-6">
                 <p className="text-gray-300">
-                  <span className="font-semibold text-white">{rater?.name ?? "A reviewer"}</span>{" "}
-                  has been selected to provide feedback on the new policy.
+                  The department is revising its guidelines.
                 </p>
                 <p className="text-gray-500 text-xs mt-2">
-                  You will estimate their position shortly. Remain available.
+                  {editorsDone} of {editorsTotal} revisions filed. {currentNudge}
                 </p>
               </div>
             )}
           </div>
         )}
 
-        {/* a_guess */}
-        {phase === "a_guess" && (
-          <div>
-            <SpectrumHeader
-              question={currentCase?.spectrumQuestion ?? ""}
-              leftLabel={currentCase?.leftLabel ?? ""}
-              rightLabel={currentCase?.rightLabel ?? ""}
+        {/* reveal */}
+        {phase === "reveal" && revealCase && (
+          <div className="space-y-4">
+            <GuidelineCard
+              guideline={revealedGuideline}
+              label={`Revised Company Guideline — ${revealIndex + 1} of ${totalCases}`}
             />
-            <div className="text-center py-3 bg-gray-900 rounded-lg mb-4">
-              <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">
-                Feedback on file from
-              </p>
-              <p className="text-2xl font-bold text-white">{rater?.name ?? "The reviewer"}</p>
-              <p className="text-gray-500 text-xs mt-1">
-                Estimate their position. Accuracy is a performance metric.
-              </p>
+
+            {/* the thread */}
+            <div className="space-y-2">
+              {hrComment && (
+                <div className="rounded-lg border border-indigo-800 bg-indigo-950/40 p-3">
+                  <p className="text-[10px] uppercase tracking-widest text-indigo-400 mb-1">
+                    {HR_COMMENT_LABEL}
+                  </p>
+                  <p className="text-sm text-indigo-100">{hrComment}</p>
+                </div>
+              )}
+              {players
+                .filter((p) => revealThread[p.id] !== undefined)
+                .map((p) => (
+                  <div key={p.id} className="rounded-lg border border-gray-700 bg-gray-900 p-3">
+                    <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">
+                      {p.name}
+                      {p.id === playerId && " (you)"}
+                    </p>
+                    <p className="text-sm text-gray-200">
+                      <CommentText text={revealThread[p.id]} players={players} />
+                    </p>
+                  </div>
+                ))}
             </div>
-            {isRater ? (
-              <div className="text-center py-4">
-                <p className="text-gray-300">
-                  Your colleagues are estimating your position. Remain still and recognizable.
-                </p>
-                <p className="text-gray-500 text-xs mt-2">
-                  {guessedCount} of {guessers.length} estimates submitted.
-                </p>
-              </div>
-            ) : hasGuessed ? (
-              <div className="text-center py-4">
-                <p className="text-gray-400 mb-1">Your estimate has been recorded:</p>
-                <p className="text-3xl font-bold text-green-400">{guesses[playerId]}</p>
-                <p className="text-gray-500 text-xs mt-2">
-                  {guessedCount} of {guessers.length} estimates in.
-                </p>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmitGuess} className="space-y-4">
-                <p className="text-gray-400 text-sm">
-                  Where did {rater?.name ?? "the reviewer"} place the policy?
-                </p>
-                <StanceSlider
-                  value={guessInput}
-                  onChange={setGuessInput}
-                  leftLabel={currentCase?.leftLabel ?? ""}
-                  rightLabel={currentCase?.rightLabel ?? ""}
-                />
-                <button
-                  type="submit"
-                  disabled={isGuessing}
-                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-                >
-                  {isGuessing ? "Recording estimate..." : "Submit Estimate"}
-                </button>
-              </form>
-            )}
-          </div>
-        )}
 
-        {/* b_comment */}
-        {phase === "b_comment" && (
-          <div>
-            <ActionBanner tone="blue">
-              <p className="font-semibold">The guideline has been posted to all staff.</p>
-              <p className="text-xs opacity-80 mt-1">
-                Add your comment to the thread, and use{" "}
-                <span className="font-semibold">@</span> to identify the employee you believe
-                caused this policy. Correct identification: +{ATMENTION_BONUS} Performance
-                Points.
-              </p>
-            </ActionBanner>
-
-            {hasCommented ? (
-              <div className="bg-gray-900 rounded-lg p-4">
-                <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">
-                  Your contribution
-                </p>
-                <p className="text-sm text-gray-300 mb-2">
-                  <CommentText text={comments[playerId]} players={players} />
-                </p>
-                <p className="text-gray-500 text-xs italic">
-                  Posted. Edits are unnecessary. HR understood what you meant.
-                </p>
-              </div>
+            {hasCommentedThis ? (
+              <p className="text-gray-500 text-xs italic text-center">{REVEAL_POSTED_LINE}</p>
             ) : (
               <form onSubmit={handleSubmitComment} className="space-y-3">
+                <p className="text-xs text-gray-400">{REVEAL_COMMENT_HINT}</p>
                 <MentionTextarea
                   value={commentInput}
                   onChange={setCommentInput}
                   players={players}
                   maxLength={240}
-                  placeholder="Add your comment. Type @ to identify the responsible party."
+                  rows={2}
+                  placeholder="Add your comment. Type @ to identify who it was really about."
                 />
                 <button
                   type="submit"
@@ -1910,87 +1865,85 @@ export function PerformanceReviewGameView({
                 </button>
               </form>
             )}
-            <p className="text-gray-500 text-xs mt-3">
-              {commentedCount} of {players.length} employees have contributed. Participation is
-              noticed.
+            <p className="text-gray-500 text-xs text-center">
+              Correct @-identification earns +{ATMENTION_BONUS}. Next guideline in{" "}
+              {revealSecondsLeft}s.
             </p>
           </div>
         )}
 
-        {/* b_vote */}
-        {phase === "b_vote" && (
+        {/* voting */}
+        {phase === "voting" && (
           <div>
-            {currentCase?.guideline && <GuidelineCard guideline={currentCase.guideline} />}
-            {hasVoted ? (
+            <ActionBanner tone="blue">
+              <p className="font-semibold">Vote for your favorite revised guideline.</p>
+              <p className="text-xs opacity-80 mt-1">
+                You cannot vote for the one you edited. Each vote credits that guideline&apos;s
+                Editor +{FAVORITE_VOTE_PTS} Performance Points.
+              </p>
+            </ActionBanner>
+            {hasVotedFav ? (
               <div className="text-center py-4">
                 <p className="text-gray-300">Your recognition has been recorded.</p>
                 <p className="text-gray-500 text-xs mt-2">
-                  {votedCount} of {players.length} votes in.
+                  {favVotedCount} of {players.length} votes in.
                 </p>
               </div>
             ) : (
               <form onSubmit={handleSubmitVote} className="space-y-4">
-                <p className="text-sm font-semibold text-gray-200">
-                  Vote for the funniest comment
-                </p>
                 <div className="space-y-2">
-                  {players
-                    .filter((p) => comments[p.id] !== undefined)
-                    .map((p) => {
-                      const isOwn = p.id === playerId;
-                      const selected = voteFor === p.id;
-                      return (
-                        <button
-                          type="button"
-                          key={p.id}
-                          disabled={isOwn}
-                          onClick={() => setVoteFor(p.id)}
-                          className={`w-full text-left rounded-lg border p-3 text-sm transition-colors ${
-                            selected
-                              ? "bg-green-900/40 border-green-600"
-                              : isOwn
-                              ? "bg-gray-900/50 border-gray-800 opacity-50 cursor-not-allowed"
-                              : "bg-gray-900 border-gray-700 hover:border-gray-500"
-                          }`}
-                        >
-                          <span className="block text-[10px] uppercase tracking-widest text-gray-500 mb-1">
-                            {p.name}
-                            {isOwn && " (you — self-recognition is not recognized)"}
-                          </span>
-                          <span className="text-gray-200">
-                            <CommentText text={comments[p.id]} players={players} />
-                          </span>
-                        </button>
-                      );
-                    })}
+                  {votableCases.map(({ c, i }) => {
+                    const selected = voteFor === i;
+                    return (
+                      <button
+                        type="button"
+                        key={i}
+                        onClick={() => setVoteFor(i)}
+                        className={`w-full text-left rounded-lg border p-3 text-sm transition-colors ${
+                          selected
+                            ? "bg-green-900/40 border-green-600"
+                            : "bg-gray-900 border-gray-700 hover:border-gray-500"
+                        }`}
+                      >
+                        <span className="block text-[10px] uppercase tracking-widest text-gray-500 mb-1">
+                          Revision {i + 1}
+                        </span>
+                        <span className="text-gray-200">
+                          {c.editedGuideline ?? c.guideline}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
                 <button
                   type="submit"
-                  disabled={isVoting || !voteFor}
+                  disabled={isVoting || voteFor === null}
                   className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
                 >
                   {isVoting
                     ? "Recording..."
-                    : !voteFor
-                    ? "Select a comment to recognize"
+                    : voteFor === null
+                    ? "Select a guideline to recognize"
                     : "Submit Recognition"}
                 </button>
               </form>
             )}
-            <p className="text-gray-500 text-xs mt-3">
-              {votedCount} of {players.length} votes in.
+            <p className="text-gray-500 text-xs mt-3 text-center">
+              {favVotedCount} of {players.length} votes in.
             </p>
           </div>
         )}
 
-        {/* reveal */}
-        {phase === "reveal" && lastRound && (
-          <RevealPanel
-            lastRound={lastRound}
-            standings={standings}
+        {/* round_over */}
+        {phase === "round_over" && (
+          <RoundReviewPanel
+            cases={cases}
             players={players}
             playerId={playerId}
-            accusedId={currentCase?.accusedId ?? null}
+            revealComments={revealComments}
+            guidelineComments={guidelineComments}
+            favorites={favorites}
+            standings={standings}
           />
         )}
 
@@ -2045,121 +1998,150 @@ export function PerformanceReviewGameView({
 }
 
 // ============================================================================
-// Reveal panel — "case closed"
+// Editor workspace — the two editing windows
 // ============================================================================
 
-function RevealPanel({
-  lastRound,
-  standings,
-  players,
-  playerId,
-  accusedId,
+function EditorWorkspace({
+  original,
+  step,
+  secondsLeft,
+  blackedOut,
+  replacements,
+  onToggle,
+  onReplacement,
+  onSubmit,
 }: {
-  lastRound: PRLastRound;
-  standings: Array<{ id: string; name: string; score: number; roundDelta: number }>;
-  players: Array<{ id: string; name: string }>;
-  playerId: string;
-  accusedId: string | null;
+  original: string;
+  step: "blackout" | "rewrite";
+  secondsLeft: number;
+  blackedOut: Set<number>;
+  replacements: Record<number, string>;
+  onToggle: (i: number) => void;
+  onReplacement: (i: number, v: string) => void;
+  onSubmit: () => void;
 }) {
+  const tokens = tokenizeGuideline(original);
+  const selected = Array.from(blackedOut).sort((a, b) => a - b);
+  const preview = reconstructGuideline(tokens, selected, replacements);
+
   return (
-    <div className="space-y-5">
-      <div className="bg-gray-900 rounded-lg p-4 space-y-3">
-        <div>
-          <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">
-            Original filing · submitted by {lastRound.reporterName || "HR"}
-          </p>
-          <p className="text-sm text-gray-200">
-            “{lastRound.rawAccusation || "No report on record."}”
-          </p>
-        </div>
-        {lastRound.accusation && (
-          <div>
-            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">
-              As processed by HR
-            </p>
-            <p className="text-sm text-gray-300">“{lastRound.accusation}”</p>
-          </div>
-        )}
-        <div>
-          <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">
-            Employee named
-          </p>
-          <p className="text-lg font-bold text-white">{lastRound.accusedName}</p>
-        </div>
-        {lastRound.explanation && (
-          <div>
-            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">
-              Employee statement
-            </p>
-            <p className="text-sm text-gray-300 italic">“{lastRound.explanation}”</p>
-          </div>
-        )}
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold text-white">
+          {step === "blackout" ? EDITING_BLACKOUT_LABEL : EDITING_REWRITE_LABEL}
+        </p>
+        <span
+          className={`font-mono text-lg font-bold ${
+            secondsLeft <= 3 ? "text-red-400" : "text-amber-300"
+          }`}
+        >
+          {secondsLeft}s
+        </span>
       </div>
+      <p className="text-xs text-gray-400">
+        {step === "blackout" ? EDITING_BLACKOUT_HINT : EDITING_REWRITE_HINT}
+      </p>
 
-      <GuidelineCard guideline={lastRound.guideline} />
-
-      {lastRound.challenge === "spectrum" &&
-      lastRound.spectrumResults &&
-      lastRound.stance !== undefined ? (
-        <div className="space-y-3">
-          <div className="text-center">
-            <span className="inline-block px-4 py-1 rounded-full text-sm font-bold bg-yellow-500 text-gray-900">
-              {lastRound.raterName} · {lastRound.stance}
-            </span>
-            <p className="text-gray-500 text-xs mt-2">{lastRound.spectrumQuestion}</p>
-          </div>
-          <div className="bg-gray-900 rounded-lg p-4">
-            <SpectrumBar
-              leftLabel={lastRound.leftLabel ?? ""}
-              rightLabel={lastRound.rightLabel ?? ""}
-              stance={lastRound.stance}
-              raterName={lastRound.raterName ?? "Reviewer"}
-              results={lastRound.spectrumResults}
-            />
-          </div>
-        </div>
-      ) : null}
-
-      {lastRound.challenge === "thread" && lastRound.threadResults ? (
-        <div className="space-y-2">
-          <h3 className="text-sm font-semibold text-gray-300">Thread record</h3>
-          {lastRound.threadResults.map((r) => (
-            <div
-              key={r.id}
-              className={`rounded-lg border p-3 ${
-                r.id === accusedId ? "bg-red-950/30 border-red-800" : "bg-gray-900 border-gray-700"
-              }`}
-            >
-              <div className="flex justify-between items-start gap-2">
-                <p className="text-[10px] uppercase tracking-widest text-gray-500">
-                  {r.name}
-                  {r.id === accusedId && <span className="text-red-400"> · employee named</span>}
-                </p>
-                <p className="text-xs text-gray-400 whitespace-nowrap">
-                  {r.votes} {r.votes === 1 ? "vote" : "votes"} · +{r.commentPoints + r.atBonus} pts
-                </p>
-              </div>
-              <p className="text-sm text-gray-200 mt-1">
-                <CommentText text={r.comment} players={players} />
-              </p>
-              {r.taggedName && (
-                <p
-                  className={`text-[11px] mt-1 ${
-                    r.atBonus > 0 ? "text-green-400" : "text-gray-500"
+      {step === "blackout" ? (
+        <div className="bg-gray-900 border border-gray-700 rounded-lg p-4">
+          <p className="text-[10px] uppercase tracking-widest text-indigo-400 mb-2">
+            {GUIDELINE_CARD_LABEL}
+          </p>
+          <p className="leading-loose">
+            {tokens.map((tok, i) => {
+              const on = blackedOut.has(i);
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => onToggle(i)}
+                  className={`inline rounded px-1 mr-1 mb-1 text-sm transition-colors ${
+                    on
+                      ? "bg-black text-black ring-1 ring-gray-600"
+                      : "text-indigo-100 hover:bg-gray-700"
                   }`}
                 >
-                  Identified @{r.taggedName}
-                  {r.atBonus > 0 && ` — identification confirmed (+${r.atBonus})`}
-                  {r.guessedTarget &&
-                    !r.eligibleForBonus &&
-                    " — prior knowledge; bonus withheld"}
-                </p>
-              )}
-            </div>
-          ))}
+                  {tok}
+                </button>
+              );
+            })}
+          </p>
+          <p className="text-[11px] text-gray-500 mt-3">
+            {blackedOut.size}/{MAX_BLACKOUT} words redacted.
+          </p>
         </div>
-      ) : null}
+      ) : (
+        <div className="space-y-3">
+          {selected.length === 0 ? (
+            <p className="text-sm text-gray-400 bg-gray-900 rounded-lg p-4 text-center">
+              You redacted nothing. The guideline will stand as written — unless you go
+              back and strike a word.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {selected.map((i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500 line-through w-24 shrink-0 truncate text-right">
+                    {tokens[i]}
+                  </span>
+                  <span className="text-gray-600">→</span>
+                  <input
+                    value={replacements[i] ?? ""}
+                    onChange={(e) => onReplacement(i, e.target.value)}
+                    maxLength={MAX_REPLACEMENT_LENGTH}
+                    placeholder="one word"
+                    className="flex-1 bg-gray-900 border border-gray-700 rounded-lg py-1.5 px-3 text-sm focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="bg-gray-900 border border-gray-700 rounded-lg p-3">
+            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Preview</p>
+            <p className="text-sm text-indigo-100">{preview || "…"}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onSubmit}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+          >
+            File Revision
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
+// ============================================================================
+// Round review — the cycle scoreboard and the unsealing of the raw filings
+// ============================================================================
+
+function RoundReviewPanel({
+  cases,
+  players,
+  playerId,
+  revealComments,
+  guidelineComments,
+  favorites,
+  standings,
+}: {
+  cases: PRCase[];
+  players: Array<{ id: string; name: string }>;
+  playerId: string;
+  revealComments: Record<number, Record<string, string>>;
+  guidelineComments: Record<number, string>;
+  favorites: Record<string, number>;
+  standings: Array<{ id: string; name: string; score: number; roundDelta: number }>;
+}) {
+  // Favorite-vote tally per case.
+  const favCounts: Record<number, number> = {};
+  for (const idx of Object.values(favorites)) {
+    favCounts[idx] = (favCounts[idx] ?? 0) + 1;
+  }
+
+  return (
+    <div className="space-y-6">
       <div>
         <h3 className="text-sm font-semibold text-gray-300 mb-2">
           Performance Points — adjusted
@@ -2172,7 +2154,6 @@ function RevealPanel({
             >
               <span className="text-gray-300">
                 {i + 1}. {s.name}
-                {s.id === accusedId && <span className="text-gray-500 text-xs"> (named)</span>}
                 {s.id === playerId && <span className="text-gray-500 text-xs"> (you)</span>}
               </span>
               <span className="text-gray-300">
@@ -2192,6 +2173,113 @@ function RevealPanel({
             </li>
           ))}
         </ul>
+      </div>
+
+      <div>
+        <h3 className="text-sm font-semibold text-gray-300 mb-2">
+          Case files — unsealed
+        </h3>
+        <div className="space-y-4">
+          {cases.map((c, i) => {
+            const thread = revealComments[i] ?? {};
+            const hrComment = guidelineComments[i] ?? null;
+            const favVotes = favCounts[i] ?? 0;
+            return (
+              <div
+                key={i}
+                className="rounded-lg border border-gray-700 bg-gray-900 p-4 space-y-3"
+              >
+                <div className="flex items-baseline justify-between gap-2">
+                  <p className="text-[10px] uppercase tracking-widest text-gray-500">
+                    Revision {i + 1}
+                  </p>
+                  <p className="text-[11px] text-gray-400">
+                    {favVotes} {favVotes === 1 ? "vote" : "votes"} · Editor{" "}
+                    <span className="text-amber-300">{c.editorName ?? "—"}</span>
+                  </p>
+                </div>
+
+                {c.editedGuideline && c.editedGuideline !== c.guideline ? (
+                  <div className="space-y-1">
+                    <p className="text-[10px] uppercase tracking-widest text-gray-600">
+                      As revised
+                    </p>
+                    <p className="text-sm text-indigo-100 font-semibold">
+                      {c.editedGuideline}
+                    </p>
+                    <p className="text-[10px] uppercase tracking-widest text-gray-600 pt-1">
+                      Originally issued
+                    </p>
+                    <p className="text-xs text-gray-500">{c.guideline}</p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-indigo-100 font-semibold">
+                    {c.editedGuideline ?? c.guideline}
+                  </p>
+                )}
+
+                <div className="rounded bg-black/30 p-3 space-y-2">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-widest text-gray-600 mb-0.5">
+                      It was really about
+                    </p>
+                    <p className="text-sm font-bold text-white">
+                      {c.accusedName}
+                      {c.accusedId === playerId && (
+                        <span className="text-gray-500 text-xs"> (you)</span>
+                      )}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-widest text-gray-600 mb-0.5">
+                      Filed by {c.reporterName}
+                    </p>
+                    <p className="text-sm text-gray-300">
+                      “{c.rawAccusation || "No report on record."}”
+                    </p>
+                  </div>
+                  {c.explanation && (
+                    <div>
+                      <p className="text-[10px] uppercase tracking-widest text-gray-600 mb-0.5">
+                        Employee statement
+                      </p>
+                      <p className="text-sm text-gray-400 italic">“{c.explanation}”</p>
+                    </div>
+                  )}
+                </div>
+
+                {(hrComment || Object.keys(thread).length > 0) && (
+                  <div className="space-y-1.5">
+                    {hrComment && (
+                      <p className="text-xs text-indigo-300">
+                        <span className="text-indigo-500">{HR_COMMENT_LABEL}:</span> {hrComment}
+                      </p>
+                    )}
+                    {players
+                      .filter((p) => thread[p.id] !== undefined)
+                      .map((p) => {
+                        const taggedId = parseMention(thread[p.id], players);
+                        const correct = taggedId === c.accusedId;
+                        const eligible = p.id !== c.reporterId && p.id !== c.accusedId;
+                        return (
+                          <p key={p.id} className="text-xs text-gray-400">
+                            <span className="text-gray-500">{p.name}:</span>{" "}
+                            <CommentText text={thread[p.id]} players={players} />
+                            {correct && eligible && (
+                              <span className="text-green-400"> · +{ATMENTION_BONUS}</span>
+                            )}
+                            {correct && !eligible && (
+                              <span className="text-gray-600"> · prior knowledge</span>
+                            )}
+                          </p>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

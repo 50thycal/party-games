@@ -11,36 +11,38 @@ import type { BaseAction, GamePhase, GameContext, Player } from "@/engine/types"
 //                   accusation about them and explains what actually happened
 //   3. Resolution   for each employee, HR issues a ruling + a new Company
 //                   Guideline born from that incident
-//   4. Challenges   one challenge PER guideline (so #challenges == #players),
-//                   alternating between the two types:
-//                     A) Spectrum Review  a rotating employee privately rates the
-//                        new policy; everyone else guesses where they landed
-//                     B) Guideline Thread everyone comments on the policy, tagging
-//                        (@) who they think it targets inside their comment
-//   5. Reveal       each challenge ends on a "case closed" screen
+//   4. Policy Revision — a single challenge for the whole cycle:
+//                   a) Editing    every guideline is handed to an UNINVOLVED
+//                      employee (never its reporter or accused). The Editor
+//                      blacks out up to 10 words, then types one-word
+//                      replacements. All editors work in parallel.
+//                   b) Reveal     each edited guideline is read aloud one at a
+//                      time; the room comments and @-tags who they think it was
+//                      really about (the accused), and HR posts one comment of
+//                      its own. Correct @-tags earn a small bonus.
+//                   c) Vote       once every guideline has been read, everyone
+//                      votes for their favorite; each vote earns that
+//                      guideline's Editor points (the Editor's main payday).
+//   5. Round close  the round scoreboard, and only now the raw filings are
+//                   unsealed — who each guideline was really about.
 // ============================================================================
 
 // ============================================================================
 // Tunable constants
 // ============================================================================
 
-// --- Spectrum Review (Challenge A) scoring ---
-// Distance bands: how close a guess lands to where the rater put the policy
-// (d = |guess - stance|) -> Performance Points.
-const BAND_BULLSEYE_DIST = 5; // d <= 5  -> bullseye
-const BAND_CLOSE_DIST = 15; // d <= 15 -> close
-const BAND_WARM_DIST = 30; // d <= 30 -> warm
-const BAND_BULLSEYE_PTS = 5;
-const BAND_CLOSE_PTS = 3;
-const BAND_WARM_PTS = 1;
+// --- Policy Revision scoring ---
+export const ATMENTION_BONUS = 3; // correctly @-tagging the accused in a comment
+export const FAVORITE_VOTE_PTS = 4; // points to the Editor per favorite-vote received
 
-// --- Guideline Thread (Challenge B) scoring ---
-export const COMMENT_VOTE_PTS = 2; // points per vote your comment receives
-export const ATMENTION_BONUS = 3; // bonus for correctly @-tagging the target
+// --- Editing limits ---
+export const MAX_BLACKOUT = 10; // words an Editor may black out per guideline
+export const MAX_REPLACEMENT_LENGTH = 30; // chars per one-word replacement
 
 const MAX_ACCUSATION_LENGTH = 280;
 const MAX_EXPLANATION_LENGTH = 400;
 const MAX_COMMENT_LENGTH = 240;
+const MAX_GUIDELINE_COMMENT_LENGTH = 240;
 const MAX_CASE_LOG = 40;
 const MAX_NUDGES = 5;
 const MAX_NUDGE_LENGTH = 140;
@@ -132,17 +134,14 @@ export type PRPhase =
   | "accusation" // everyone files a report on an assigned colleague
   | "reframing" // HR reframes every accusation into managerial language
   | "interview" // everyone explains the accusation about them
-  | "case_prep" // HR drafts the ruling + guideline for the current case
-  | "a_stance" // Challenge A: the rotating rater privately rates the policy
-  | "a_guess" // Challenge A: everyone else guesses where the rater landed
-  | "b_comment" // Challenge B: everyone comments (with an @-tag guess inside)
-  | "b_vote" // Challenge B: vote the funniest comment
-  | "reveal" // "case closed" for the current guideline
+  | "case_prep" // HR drafts the ruling + guideline for every case
+  | "editing" // every guideline is edited by an uninvolved employee (in parallel)
+  | "reveal" // each edited guideline is read + commented on, one at a time
+  | "voting" // once all are read, everyone votes their favorite guideline
+  | "round_over" // round scoreboard + the raw filings are unsealed
   | "game_over";
 
 export type PRHeat = "mild" | "spicy" | "scorched";
-
-export type PRChallenge = "spectrum" | "thread";
 
 // HR voice options for text-to-speech. IDs are OpenAI TTS voices.
 export const PR_VOICES: Array<{ id: string; label: string; blurb: string }> = [
@@ -168,15 +167,16 @@ export type PRCase = {
   rawAccusation: string; // exactly what the reporter wrote
   accusation: string | null; // AI manager-reframed version (shown everywhere)
   explanation: string | null; // the accused's interview answer
-  challenge: PRChallenge; // which challenge this guideline resolves through
-  raterId: string | null; // spectrum only — the rotating rater
-  raterName: string | null;
   // filled during case_prep
   hrResponse: string | null;
-  guideline: string | null;
-  spectrumQuestion: string | null;
-  leftLabel: string | null;
-  rightLabel: string | null;
+  guideline: string | null; // the AI's original Company Guideline
+  // the Editor — an employee who is neither the reporter nor the accused
+  editorId: string | null;
+  editorName: string | null;
+  // filled during editing
+  editedGuideline: string | null; // guideline after the Editor's revision
+  blackedOut: number[]; // word indices the Editor removed
+  replacements: Record<number, string>; // word index -> one-word replacement
 };
 
 // An archived accusation for the AI's callbacks.
@@ -185,44 +185,6 @@ export type PRCaseRecord = {
   accusedName: string;
   question: string;
   accusation: string;
-};
-
-export type PRSpectrumResult = { name: string; guess: number; points: number };
-
-export type PRThreadResult = {
-  id: string;
-  name: string;
-  comment: string;
-  votes: number;
-  commentPoints: number;
-  atBonus: number;
-  taggedName: string | null; // who this commenter @-tagged
-  guessedTarget: boolean; // did they tag the real accused
-  eligibleForBonus: boolean;
-};
-
-export type PRLastRound = {
-  challenge: PRChallenge;
-  caseNumber: number;
-  totalCases: number;
-  investigationRound: number;
-  totalInvestigationRounds: number;
-  rawAccusation: string;
-  accusation: string;
-  reporterName: string;
-  accusedName: string;
-  explanation: string;
-  hrResponse: string;
-  guideline: string;
-  // spectrum-only
-  spectrumQuestion?: string;
-  leftLabel?: string;
-  rightLabel?: string;
-  raterName?: string;
-  stance?: number;
-  spectrumResults?: PRSpectrumResult[];
-  // thread-only
-  threadResults?: PRThreadResult[];
 };
 
 export type PRState = {
@@ -245,25 +207,23 @@ export type PRState = {
   // --- the built docket ---
   cases: PRCase[];
   totalCases: number;
-  challengeIndex: number; // which case is currently being challenged (0-based)
 
-  // --- current challenge working state (reset per case) ---
-  stance: number | null; // rater's private 0..100
-  guesses: Record<string, number>; // guesserId -> 0..100
-  comments: Record<string, string>; // authorId -> comment (may contain @tag)
-  votes: Record<string, string>; // voterId -> authorId voted funniest
+  // --- Policy Revision working state (reset per cycle) ---
+  revealIndex: number; // which guideline is currently being read (0-based)
+  revealComments: Record<number, Record<string, string>>; // caseIndex -> playerId -> comment
+  guidelineComments: Record<number, string>; // caseIndex -> HR's own posted comment
+  favorites: Record<string, number>; // voterId -> caseIndex they voted favorite
 
   // --- scoring ---
   scores: Record<string, number>;
-  roundScores: Record<string, number>; // this case's delta
+  roundScores: Record<string, number>; // this cycle's delta
 
   // --- HR terminal ---
   introText: string | null;
   nudges: string[];
 
-  // --- context / reveal ---
+  // --- context / final ---
   caseLog: PRCaseRecord[];
-  lastRound: PRLastRound | null;
   finalCommentary: string | null;
 
   // --- voice ---
@@ -282,13 +242,14 @@ export type PRActionType =
   | "SUBMIT_EXPLANATION"
   | "SKIP_INTERVIEW"
   | "SET_CASE_RESOLUTION"
-  | "SET_STANCE"
-  | "SUBMIT_GUESS"
+  | "SUBMIT_EDIT"
+  | "CLOSE_EDITING"
+  | "SET_GUIDELINE_COMMENT"
   | "SUBMIT_COMMENT"
-  | "CLOSE_COMMENTS"
-  | "SUBMIT_VOTE"
-  | "REVEAL"
-  | "NEXT_CASE"
+  | "NEXT_REVEAL"
+  | "SUBMIT_FAVORITE"
+  | "CLOSE_VOTING"
+  | "NEXT_ROUND"
   | "SET_FINAL"
   | "SET_VOICE"
   | "PLAY_AGAIN";
@@ -304,16 +265,17 @@ export interface PRAction extends BaseAction {
     accusation?: string;
     reframes?: Record<string, string>; // accusedId -> reframe
     explanation?: string;
+    // case resolution (batched, per index)
+    index?: number;
     hrResponse?: string;
     guideline?: string;
-    spectrumQuestion?: string;
-    leftLabel?: string;
-    rightLabel?: string;
     nudges?: string[];
-    stance?: number;
-    guess?: number;
-    comment?: string;
-    voteFor?: string;
+    // editing
+    blackedOut?: number[];
+    replacements?: Record<number, string>;
+    // reveal + voting
+    comment?: string; // player comment, or HR's guideline comment
+    favorite?: number; // caseIndex voted favorite
   };
 }
 
@@ -336,17 +298,15 @@ function initialState(_players: Player[]): PRState {
     explanations: {},
     cases: [],
     totalCases: 0,
-    challengeIndex: 0,
-    stance: null,
-    guesses: {},
-    comments: {},
-    votes: {},
+    revealIndex: 0,
+    revealComments: {},
+    guidelineComments: {},
+    favorites: {},
     scores: {},
     roundScores: {},
     introText: null,
     nudges: [],
     caseLog: [],
-    lastRound: null,
     finalCommentary: null,
     voiceEnabled: false,
     voiceId: DEFAULT_VOICE_ID,
@@ -361,25 +321,13 @@ function isHost(ctx: GameContext): boolean {
   return ctx.room.hostId === ctx.playerId;
 }
 
-// Automatic "HR" beats (intro / reframes / rulings / final) are fetched from the
-// AI by one client and written back via an action. In multiplayer only the host
-// runs them; in hotseat/simulation the whole game lives on one device, so any
-// active player may commit them — otherwise the game stalls waiting for the host
-// seat to come back around during pass-and-play.
+// Automatic "HR" beats (intro / reframes / rulings / comments / final) are
+// fetched from the AI by one client and written back via an action. In
+// multiplayer only the host runs them; in hotseat/simulation the whole game
+// lives on one device, so any active player may commit them — otherwise the
+// game stalls waiting for the host seat to come back around during pass-and-play.
 function canDrive(ctx: GameContext): boolean {
   return isHost(ctx) || ctx.room.mode !== "multiplayer";
-}
-
-function clampInt0100(value: unknown): number | null {
-  if (typeof value !== "number" || !Number.isFinite(value)) return null;
-  return Math.min(100, Math.max(0, Math.round(value)));
-}
-
-function band(d: number): number {
-  if (d <= BAND_BULLSEYE_DIST) return BAND_BULLSEYE_PTS;
-  if (d <= BAND_CLOSE_DIST) return BAND_CLOSE_PTS;
-  if (d <= BAND_WARM_DIST) return BAND_WARM_PTS;
-  return 0;
 }
 
 function sanitizeNudges(raw: unknown): string[] {
@@ -412,7 +360,10 @@ function accusationAbout(
  * a real player (ties broken by the longest matching name). Returns the tagged
  * player's id, or null.
  */
-export function parseMention(text: string, players: Player[]): string | null {
+export function parseMention(
+  text: string,
+  players: Array<{ id: string; name: string }>
+): string | null {
   const lower = text.toLowerCase();
   let best: { index: number; id: string; len: number } | null = null;
   for (const p of players) {
@@ -428,6 +379,61 @@ export function parseMention(text: string, players: Player[]): string | null {
     }
   }
   return best?.id ?? null;
+}
+
+// --- editing helpers: tokenize a guideline, then rebuild it after a revision ---
+
+/** Split a guideline into whitespace-delimited tokens (punctuation stays put). */
+export function tokenizeGuideline(text: string): string[] {
+  return text.split(/\s+/).filter((t) => t.length > 0);
+}
+
+function sanitizeBlackout(raw: unknown, tokenCount: number): number[] {
+  if (!Array.isArray(raw)) return [];
+  const set = new Set<number>();
+  for (const v of raw) {
+    if (typeof v === "number" && Number.isInteger(v) && v >= 0 && v < tokenCount) {
+      set.add(v);
+    }
+  }
+  return Array.from(set).sort((a, b) => a - b).slice(0, MAX_BLACKOUT);
+}
+
+function sanitizeReplacements(
+  raw: unknown,
+  blackedOut: number[]
+): Record<number, string> {
+  const out: Record<number, string> = {};
+  if (!raw || typeof raw !== "object") return out;
+  const allow = new Set(blackedOut);
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    const idx = Number(k);
+    if (!Number.isInteger(idx) || !allow.has(idx)) continue;
+    if (typeof v !== "string") continue;
+    // one word: strip all whitespace, cap length.
+    const word = v.replace(/\s+/g, "").slice(0, MAX_REPLACEMENT_LENGTH);
+    if (word) out[idx] = word;
+  }
+  return out;
+}
+
+/** Rebuild the guideline: blacked-out words become their replacement, or vanish. */
+export function reconstructGuideline(
+  tokens: string[],
+  blackedOut: number[],
+  replacements: Record<number, string>
+): string {
+  const bset = new Set(blackedOut);
+  const parts: string[] = [];
+  tokens.forEach((tok, i) => {
+    if (!bset.has(i)) {
+      parts.push(tok);
+      return;
+    }
+    const r = replacements[i];
+    if (r) parts.push(r); // else: removed entirely
+  });
+  return parts.join(" ").trim();
 }
 
 function shuffle<T>(arr: T[], random: () => number): T[] {
@@ -547,11 +553,10 @@ function openAccusationWindow(state: PRState, ctx: GameContext): PRState {
     reframes: {},
     explanations: {},
     cases: [],
-    challengeIndex: 0,
-    stance: null,
-    guesses: {},
-    comments: {},
-    votes: {},
+    revealIndex: 0,
+    revealComments: {},
+    guidelineComments: {},
+    favorites: {},
     roundScores: {},
   };
 }
@@ -579,39 +584,21 @@ function closeAccusationWindow(state: PRState, ctx: GameContext): PRState {
 
 /**
  * Build the docket once interviews close: one case per employee, in seating
- * order, alternating challenge types. Spectrum cases get a rotating rater
- * (never the accused) so the on-the-spot role travels around the table.
+ * order. Each guideline gets an Editor — an employee who is neither its reporter
+ * nor its accused — assigned by a single rotation offset so every employee edits
+ * exactly one guideline.
  */
 function buildCases(state: PRState, ctx: GameContext): PRState {
   const players = ctx.room.players;
   const n = players.length;
 
-  const cases: PRCase[] = [];
-  let raterPtr = Math.floor(ctx.random() * n);
-
-  players.forEach((accused, i) => {
+  // First pass: the cases themselves (case i's accused is players[i]).
+  const cases: PRCase[] = players.map((accused) => {
     const src = accusationAbout(state, accused.id);
     const reporter = src.reporterId
       ? players.find((p) => p.id === src.reporterId)
       : undefined;
-    const challenge: PRChallenge = i % 2 === 0 ? "spectrum" : "thread";
-
-    let raterId: string | null = null;
-    let raterName: string | null = null;
-    if (challenge === "spectrum") {
-      let tries = 0;
-      let rater = players[raterPtr % n];
-      while (rater.id === accused.id && tries < n) {
-        raterPtr++;
-        rater = players[raterPtr % n];
-        tries++;
-      }
-      raterId = rater.id;
-      raterName = rater.name;
-      raterPtr++;
-    }
-
-    cases.push({
+    return {
       accusedId: accused.id,
       accusedName: accused.name,
       reporterId: src.reporterId,
@@ -620,173 +607,116 @@ function buildCases(state: PRState, ctx: GameContext): PRState {
       rawAccusation: src.raw,
       accusation: state.reframes[accused.id] ?? null,
       explanation: state.explanations[accused.id] ?? null,
-      challenge,
-      raterId,
-      raterName,
       hrResponse: null,
       guideline: null,
-      spectrumQuestion: null,
-      leftLabel: null,
-      rightLabel: null,
-    });
+      editorId: null,
+      editorName: null,
+      editedGuideline: null,
+      blackedOut: [],
+      replacements: {},
+    };
+  });
+
+  // Editor for case i is players[(i + k) % n] for a single offset k. Pick a k
+  // (1..n-1) such that no case's editor is that case's accused (k != 0, always)
+  // or its reporter. A valid k always exists for n >= 3; if the assignment map
+  // is irregular (mid-round joins) we fall back to a per-case skip search.
+  const reporterIdxOf = (i: number): number =>
+    cases[i].reporterId
+      ? players.findIndex((p) => p.id === cases[i].reporterId)
+      : -1;
+
+  let chosenK = 0;
+  if (n >= 2) {
+    const start = 1 + Math.floor(ctx.random() * (n - 1));
+    for (let t = 0; t < n - 1; t++) {
+      const k = ((start - 1 + t) % (n - 1)) + 1; // cycles through 1..n-1
+      let ok = true;
+      for (let i = 0; i < n; i++) {
+        const e = (i + k) % n;
+        if (e === i || e === reporterIdxOf(i)) {
+          ok = false;
+          break;
+        }
+      }
+      if (ok) {
+        chosenK = k;
+        break;
+      }
+    }
+  }
+
+  cases.forEach((c, i) => {
+    let editorIdx: number;
+    if (chosenK !== 0) {
+      editorIdx = (i + chosenK) % n;
+    } else {
+      // Fallback: walk forward until we find someone eligible.
+      editorIdx = (i + 1) % n;
+      const rep = reporterIdxOf(i);
+      let tries = 0;
+      while ((editorIdx === i || editorIdx === rep) && tries < n) {
+        editorIdx = (editorIdx + 1) % n;
+        tries++;
+      }
+    }
+    const editor = players[editorIdx];
+    c.editorId = editor?.id ?? null;
+    c.editorName = editor?.name ?? null;
   });
 
   return {
     ...state,
     cases,
     totalCases: cases.length,
-    challengeIndex: 0,
+    revealIndex: 0,
+    revealComments: {},
+    guidelineComments: {},
+    favorites: {},
     phase: "case_prep",
   };
 }
 
-/** Reset the per-case working state and route to the right challenge start. */
-function startChallenge(state: PRState, index: number): PRState {
-  const c = state.cases[index];
-  return {
-    ...state,
-    challengeIndex: index,
-    stance: null,
-    guesses: {},
-    comments: {},
-    votes: {},
-    roundScores: {},
-    phase: c.challenge === "spectrum" ? "a_stance" : "b_comment",
-  };
-}
-
-function currentCase(state: PRState): PRCase | undefined {
-  return state.cases[state.challengeIndex];
-}
-
-function buildLastRound(state: PRState, extra: Partial<PRLastRound>): PRLastRound {
-  const c = currentCase(state);
-  return {
-    challenge: c?.challenge ?? "spectrum",
-    caseNumber: state.challengeIndex + 1,
-    totalCases: state.totalCases,
-    investigationRound: state.investigationRound,
-    totalInvestigationRounds: state.totalInvestigationRounds,
-    rawAccusation: c?.rawAccusation ?? "",
-    accusation: c?.accusation ?? "",
-    reporterName: c?.reporterName ?? "",
-    accusedName: c?.accusedName ?? "",
-    explanation: c?.explanation ?? "",
-    hrResponse: c?.hrResponse ?? "",
-    guideline: c?.guideline ?? "",
-    ...extra,
-  };
-}
-
-/** Spectrum: guessers score for reading the rater; the rater shares the total. */
-function scoreSpectrum(state: PRState, ctx: GameContext): PRState {
-  const c = currentCase(state);
-  if (!c || !c.raterId) return state;
-  const rater = ctx.room.players.find((p) => p.id === c.raterId);
-  if (!rater) return state;
-
-  const stance = state.stance ?? 50;
-  const guessers = ctx.room.players.filter((p) => p.id !== rater.id);
-
-  const scores = { ...state.scores };
-  const roundScores: Record<string, number> = {};
-  const results: PRSpectrumResult[] = [];
-  let raterScore = 0;
-
-  for (const g of guessers) {
-    const guess = state.guesses[g.id];
-    if (guess === undefined) {
-      roundScores[g.id] = 0;
-      continue;
-    }
-    const points = band(Math.abs(guess - stance));
-    roundScores[g.id] = points;
-    scores[g.id] = Math.max(0, (scores[g.id] ?? 0) + points);
-    raterScore += points;
-    results.push({ name: g.name, guess, points });
-  }
-
-  roundScores[rater.id] = (roundScores[rater.id] ?? 0) + raterScore;
-  scores[rater.id] = Math.max(0, (scores[rater.id] ?? 0) + raterScore);
-
-  return {
-    ...state,
-    phase: "reveal",
-    scores,
-    roundScores,
-    lastRound: buildLastRound(state, {
-      spectrumQuestion: c.spectrumQuestion ?? "",
-      leftLabel: c.leftLabel ?? "",
-      rightLabel: c.rightLabel ?? "",
-      raterName: rater.name,
-      stance,
-      spectrumResults: results,
-    }),
-  };
+function currentRevealCase(state: PRState): PRCase | undefined {
+  return state.cases[state.revealIndex];
 }
 
 /**
- * Thread: comments score per vote; the @-tag inside a comment is that author's
- * guess of who the guideline targets. The reporter and the accused already know
- * the answer, so they earn no tag bonus.
+ * Tally the whole cycle once voting closes:
+ *   - a correct @-tag of the accused earns ATMENTION_BONUS (the reporter and
+ *     accused already know, so they are never eligible),
+ *   - each favorite-vote earns that guideline's Editor FAVORITE_VOTE_PTS.
  */
-function scoreThread(state: PRState, ctx: GameContext): PRState {
+function scoreRound(state: PRState, ctx: GameContext): PRState {
   const players = ctx.room.players;
-  const c = currentCase(state);
-  if (!c) return state;
-
-  const voteCount: Record<string, number> = {};
-  for (const authorId of Object.values(state.votes)) {
-    voteCount[authorId] = (voteCount[authorId] ?? 0) + 1;
-  }
-
   const scores = { ...state.scores };
   const roundScores: Record<string, number> = {};
-  const results: PRThreadResult[] = [];
+  for (const p of players) roundScores[p.id] = 0;
 
-  for (const p of players) {
-    const comment = state.comments[p.id];
-    const votes = voteCount[p.id] ?? 0;
-    const commentPoints = votes * COMMENT_VOTE_PTS;
-
-    const taggedId =
-      comment !== undefined ? parseMention(comment, players) : null;
-    const taggedName = taggedId
-      ? players.find((pl) => pl.id === taggedId)?.name ?? null
-      : null;
-    const eligibleForBonus =
-      p.id !== c.accusedId && p.id !== c.reporterId;
-    const guessedTarget = taggedId === c.accusedId;
-    const atBonus = guessedTarget && eligibleForBonus ? ATMENTION_BONUS : 0;
-
-    const total = commentPoints + atBonus;
-    roundScores[p.id] = total;
-    scores[p.id] = Math.max(0, (scores[p.id] ?? 0) + total);
-
-    if (comment !== undefined) {
-      results.push({
-        id: p.id,
-        name: p.name,
-        comment,
-        votes,
-        commentPoints,
-        atBonus,
-        taggedName,
-        guessedTarget,
-        eligibleForBonus,
-      });
+  // @-tag bonuses, per guideline thread.
+  state.cases.forEach((c, i) => {
+    const thread = state.revealComments[i] ?? {};
+    for (const [pid, text] of Object.entries(thread)) {
+      const eligible = pid !== c.reporterId && pid !== c.accusedId;
+      if (!eligible) continue;
+      if (parseMention(text, players) === c.accusedId) {
+        roundScores[pid] = (roundScores[pid] ?? 0) + ATMENTION_BONUS;
+      }
     }
+  });
+
+  // Favorite votes reward the Editor of the chosen guideline.
+  for (const idx of Object.values(state.favorites)) {
+    const c = state.cases[idx];
+    if (!c || !c.editorId) continue;
+    roundScores[c.editorId] = (roundScores[c.editorId] ?? 0) + FAVORITE_VOTE_PTS;
   }
 
-  results.sort((a, b) => b.votes - a.votes);
+  for (const p of players) {
+    scores[p.id] = Math.max(0, (scores[p.id] ?? 0) + (roundScores[p.id] ?? 0));
+  }
 
-  return {
-    ...state,
-    phase: "reveal",
-    scores,
-    roundScores,
-    lastRound: buildLastRound(state, { threadResults: results }),
-  };
+  return { ...state, phase: "round_over", scores, roundScores };
 }
 
 // ============================================================================
@@ -831,7 +761,6 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
       if (typeof commentary !== "string" || !commentary.trim()) return state;
       return { ...state, introText: commentary.trim() };
     }
-
 
     case "SET_TUTORIAL_STEP": {
       if (!isHost(ctx)) return state;
@@ -928,8 +857,14 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
     case "SET_CASE_RESOLUTION": {
       if (!canDrive(ctx)) return state;
       if (state.phase !== "case_prep") return state;
-      const c = currentCase(state);
-      if (!c) return state;
+      const index = action.payload?.index;
+      if (
+        typeof index !== "number" ||
+        index < 0 ||
+        index >= state.cases.length
+      ) {
+        return state;
+      }
 
       const hrResponse =
         typeof action.payload?.hrResponse === "string"
@@ -941,146 +876,158 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
           : "";
       if (!hrResponse || !guideline) return state;
 
-      let spectrumQuestion = c.spectrumQuestion;
-      let leftLabel = c.leftLabel;
-      let rightLabel = c.rightLabel;
-      if (c.challenge === "spectrum") {
-        const q =
-          typeof action.payload?.spectrumQuestion === "string"
-            ? action.payload.spectrumQuestion.trim()
-            : "";
-        const l =
-          typeof action.payload?.leftLabel === "string"
-            ? action.payload.leftLabel.trim()
-            : "";
-        const r =
-          typeof action.payload?.rightLabel === "string"
-            ? action.payload.rightLabel.trim()
-            : "";
-        if (!q || !l || !r) return state;
-        spectrumQuestion = q;
-        leftLabel = l;
-        rightLabel = r;
-      }
+      const cases = state.cases.map((x, i) =>
+        i === index ? { ...x, hrResponse, guideline } : x
+      );
+
+      const nudges = sanitizeNudges(action.payload?.nudges);
+      const allReady = cases.every((c) => c.guideline);
+
+      return {
+        ...state,
+        cases,
+        nudges: nudges.length > 0 ? nudges : state.nudges,
+        phase: allReady ? "editing" : "case_prep",
+      };
+    }
+
+    case "SUBMIT_EDIT": {
+      if (state.phase !== "editing") return state;
+      if (!ctx.room.players.some((p) => p.id === ctx.playerId)) return state;
+      // The one guideline this player is assigned to edit (and hasn't yet).
+      const index = state.cases.findIndex(
+        (c) => c.editorId === ctx.playerId && c.editedGuideline === null
+      );
+      if (index < 0) return state;
+
+      const c = state.cases[index];
+      const tokens = tokenizeGuideline(c.guideline ?? "");
+      const blackedOut = sanitizeBlackout(action.payload?.blackedOut, tokens.length);
+      const replacements = sanitizeReplacements(
+        action.payload?.replacements,
+        blackedOut
+      );
+      const rebuilt = reconstructGuideline(tokens, blackedOut, replacements);
+      const edited = rebuilt || (c.guideline ?? "");
 
       const cases = state.cases.map((x, i) =>
-        i === state.challengeIndex
-          ? { ...x, hrResponse, guideline, spectrumQuestion, leftLabel, rightLabel }
+        i === index
+          ? { ...x, editedGuideline: edited, blackedOut, replacements }
           : x
       );
 
-      const withResolution: PRState = {
+      const allEdited = cases.every(
+        (x) => x.editorId === null || x.editedGuideline !== null
+      );
+
+      return {
         ...state,
         cases,
-        nudges: sanitizeNudges(action.payload?.nudges),
+        revealIndex: 0,
+        phase: allEdited ? "reveal" : "editing",
       };
-      return startChallenge(withResolution, state.challengeIndex);
     }
 
-    case "SET_STANCE": {
-      if (state.phase !== "a_stance") return state;
-      const c = currentCase(state);
-      if (!c || ctx.playerId !== c.raterId) return state;
-      const stance = clampInt0100(action.payload?.stance);
-      if (stance === null) return state;
-      return { ...state, stance, phase: "a_guess" };
+    case "CLOSE_EDITING": {
+      if (!isHost(ctx)) return state;
+      if (state.phase !== "editing") return state;
+      const cases = state.cases.map((x) =>
+        x.editedGuideline === null
+          ? { ...x, editedGuideline: x.guideline ?? "" }
+          : x
+      );
+      return { ...state, cases, revealIndex: 0, phase: "reveal" };
     }
 
-    case "SUBMIT_GUESS": {
-      if (state.phase !== "a_guess") return state;
-      const c = currentCase(state);
-      if (!c) return state;
-      if (ctx.playerId === c.raterId) return state;
-      if (!ctx.room.players.some((p) => p.id === ctx.playerId)) return state;
-
-      const guess = clampInt0100(action.payload?.guess);
-      if (guess === null) return state;
-
-      const next: PRState = {
+    case "SET_GUIDELINE_COMMENT": {
+      if (!canDrive(ctx)) return state;
+      if (state.phase !== "reveal") return state;
+      const index = action.payload?.index;
+      if (
+        typeof index !== "number" ||
+        index < 0 ||
+        index >= state.cases.length
+      ) {
+        return state;
+      }
+      const comment =
+        typeof action.payload?.comment === "string"
+          ? action.payload.comment.trim().slice(0, MAX_GUIDELINE_COMMENT_LENGTH)
+          : "";
+      if (!comment) return state;
+      if (state.guidelineComments[index]) return state; // already posted
+      return {
         ...state,
-        guesses: { ...state.guesses, [ctx.playerId]: guess },
+        guidelineComments: { ...state.guidelineComments, [index]: comment },
       };
-      const guessers = ctx.room.players.filter((p) => p.id !== c.raterId);
-      const allGuessed =
-        guessers.length > 0 &&
-        guessers.every((g) => next.guesses[g.id] !== undefined);
-      return allGuessed ? scoreSpectrum(next, ctx) : next;
     }
 
     case "SUBMIT_COMMENT": {
-      if (state.phase !== "b_comment") return state;
+      if (state.phase !== "reveal") return state;
       if (!ctx.room.players.some((p) => p.id === ctx.playerId)) return state;
       const text =
         typeof action.payload?.comment === "string"
           ? action.payload.comment.trim().slice(0, MAX_COMMENT_LENGTH)
           : "";
       if (!text) return state;
-
-      const next: PRState = {
+      const idx = state.revealIndex;
+      const thread = { ...(state.revealComments[idx] ?? {}) };
+      thread[ctx.playerId] = text;
+      return {
         ...state,
-        comments: { ...state.comments, [ctx.playerId]: text },
+        revealComments: { ...state.revealComments, [idx]: thread },
       };
-      const allCommented =
-        ctx.room.players.length > 0 &&
-        ctx.room.players.every((p) => next.comments[p.id] !== undefined);
-      return allCommented ? { ...next, phase: "b_vote" } : next;
     }
 
-    case "CLOSE_COMMENTS": {
-      if (!isHost(ctx)) return state;
-      if (state.phase !== "b_comment") return state;
-      if (Object.keys(state.comments).length === 0) return state;
-      return { ...state, phase: "b_vote" };
+    case "NEXT_REVEAL": {
+      if (!canDrive(ctx)) return state;
+      if (state.phase !== "reveal") return state;
+      if (state.revealIndex < state.totalCases - 1) {
+        return { ...state, revealIndex: state.revealIndex + 1 };
+      }
+      return { ...state, phase: "voting" };
     }
 
-    case "SUBMIT_VOTE": {
-      if (state.phase !== "b_vote") return state;
+    case "SUBMIT_FAVORITE": {
+      if (state.phase !== "voting") return state;
       if (!ctx.room.players.some((p) => p.id === ctx.playerId)) return state;
-
-      const voteFor =
-        typeof action.payload?.voteFor === "string"
-          ? action.payload.voteFor
-          : null;
+      const index = action.payload?.favorite;
       if (
-        !voteFor ||
-        voteFor === ctx.playerId ||
-        state.comments[voteFor] === undefined
+        typeof index !== "number" ||
+        index < 0 ||
+        index >= state.cases.length
       ) {
         return state;
       }
+      // Cannot vote for a guideline you edited.
+      if (state.cases[index].editorId === ctx.playerId) return state;
 
       const next: PRState = {
         ...state,
-        votes: { ...state.votes, [ctx.playerId]: voteFor },
+        favorites: { ...state.favorites, [ctx.playerId]: index },
       };
       const allVoted = ctx.room.players.every(
-        (p) => next.votes[p.id] !== undefined
+        (p) => next.favorites[p.id] !== undefined
       );
-      return allVoted ? scoreThread(next, ctx) : next;
+      return allVoted ? scoreRound(next, ctx) : next;
     }
 
-    case "REVEAL": {
+    case "CLOSE_VOTING": {
       if (!isHost(ctx)) return state;
-      if (state.phase === "a_guess") return scoreSpectrum(state, ctx);
-      if (state.phase === "b_vote") return scoreThread(state, ctx);
-      return state;
+      if (state.phase !== "voting") return state;
+      return scoreRound(state, ctx);
     }
 
-    case "NEXT_CASE": {
+    case "NEXT_ROUND": {
       if (!isHost(ctx)) return state;
-      if (state.phase !== "reveal") return state;
-      if (state.challengeIndex < state.totalCases - 1) {
-        return { ...startChallenge(state, state.challengeIndex + 1), phase: "case_prep" };
-      }
+      if (state.phase !== "round_over") return state;
       if (state.investigationRound < state.totalInvestigationRounds) {
         return openAccusationWindow(
           {
             ...state,
             investigationRound: state.investigationRound + 1,
             totalCases: ctx.room.players.length,
-            challengeIndex: 0,
             cases: [],
-            lastRound: null,
             nudges: [],
           },
           ctx
@@ -1169,29 +1116,27 @@ export const performanceReviewGame = defineGame<PRState, PRAction>({
         return isHost(ctx) && state.phase === "interview";
       case "SET_CASE_RESOLUTION":
         return canDrive(ctx) && state.phase === "case_prep";
-      case "SET_STANCE":
+      case "SUBMIT_EDIT":
         return (
-          state.phase === "a_stance" &&
-          ctx.playerId === currentCase(state)?.raterId
+          state.phase === "editing" &&
+          state.cases.some(
+            (c) => c.editorId === ctx.playerId && c.editedGuideline === null
+          )
         );
-      case "SUBMIT_GUESS":
-        return (
-          state.phase === "a_guess" &&
-          ctx.playerId !== currentCase(state)?.raterId
-        );
+      case "CLOSE_EDITING":
+        return isHost(ctx) && state.phase === "editing";
+      case "SET_GUIDELINE_COMMENT":
+        return canDrive(ctx) && state.phase === "reveal";
       case "SUBMIT_COMMENT":
-        return state.phase === "b_comment";
-      case "CLOSE_COMMENTS":
-        return isHost(ctx) && state.phase === "b_comment";
-      case "SUBMIT_VOTE":
-        return state.phase === "b_vote";
-      case "REVEAL":
-        return (
-          isHost(ctx) &&
-          (state.phase === "a_guess" || state.phase === "b_vote")
-        );
-      case "NEXT_CASE":
-        return isHost(ctx) && state.phase === "reveal";
+        return state.phase === "reveal";
+      case "NEXT_REVEAL":
+        return canDrive(ctx) && state.phase === "reveal";
+      case "SUBMIT_FAVORITE":
+        return state.phase === "voting";
+      case "CLOSE_VOTING":
+        return isHost(ctx) && state.phase === "voting";
+      case "NEXT_ROUND":
+        return isHost(ctx) && state.phase === "round_over";
       case "SET_FINAL":
         return canDrive(ctx) && state.phase === "game_over";
       case "SET_VOICE":
