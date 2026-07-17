@@ -120,18 +120,23 @@ export function buildOrientationModules(names: string[]): OrientationModule[] {
       title: "Rulings, guidelines, recognition",
       body:
         "HR rules on each case and converts the incident into a new Company Guideline. " +
-        "Each guideline is then reviewed by the group. Spectrum Review: one employee " +
-        "privately rates the policy; colleagues estimate that rating. Guideline Thread: " +
-        "everyone comments on the policy; the funniest comments earn votes, and " +
-        "@-identifying the employee who caused it earns a bonus. Each new guideline " +
-        "replaces a version some employees may remember.",
+        "Every guideline is then reviewed by the group in ONE of TWO formats, and the two " +
+        "formats ALTERNATE from case to case:\n\n" +
+        "• Spectrum Review — one employee privately rates the policy; everyone else estimates " +
+        "that rating.\n" +
+        "• Guideline Thread — everyone comments on the policy; the funniest comments earn votes, " +
+        "and @-identifying the employee who caused it earns a bonus.\n\n" +
+        "You do not choose the format. Each new guideline also replaces a version some employees " +
+        "may remember.",
       kind: "mock",
-      mockTitle: "SCORING NOTICE",
+      mockTitle: "REVIEW FORMATS — ALTERNATING",
       mockBody:
-        "Accurate estimate: up to 5 pts\n" +
-        "Each vote on your comment: 2 pts\n" +
-        "Correct @-identification: +3 pts\n\n" +
-        "Three reporting cycles. The highest standing is named Employee of the Cycle.\n" +
+        "Case 01 → Spectrum Review\n" +
+        "Case 02 → Guideline Thread\n" +
+        "Case 03 → Spectrum Review\n" +
+        "...and so on. Attendance in both formats is expected.\n\n" +
+        "Scoring: accurate estimate up to 5 pts · each vote on your comment 2 pts · correct " +
+        "@-identification +3 pts. Three reporting cycles decide the Employee of the Cycle.\n" +
         "Performance Points are not compensation. Do not attempt to redeem them.",
     },
   ];
@@ -332,13 +337,6 @@ export const CASE_PREP_LINES = [
   "A ruling is being drafted. The outcome was drafted earlier.",
 ];
 
-export const INTERVIEW_WAIT_LINES = [
-  "Statement received. Other employees are still preparing their accounts.",
-  "Statement received. Remain available while your colleagues reconsider their wording.",
-  "Statement received. Its accuracy is no longer your responsibility.",
-  "Statement received. It has been placed beside the statement you did not know you had on file.",
-];
-
 export const REPORT_FILED_LINES = [
   "Filed. Its accuracy is no longer your responsibility.",
   "Filed. HR understood what you meant.",
@@ -348,6 +346,37 @@ export const REPORT_FILED_LINES = [
 
 export const B_VOTE_TERMINAL =
   "Comments are in. Recognize your colleague's finest contribution.";
+
+// ============================================================================
+// Ambient host "shade" — rotated through the terminal while employees write
+// reports (accusation) and statements (interview), to fill the wait. Dry,
+// group-directed, "hurry up / be honest" energy. NEVER spoken aloud — these
+// rotate too often for TTS. Half plausible, half quietly wrong, per house rules.
+// ============================================================================
+
+export const ACCUSATION_SHADE = [
+  "Report received. Several colleagues are still choosing their words. HR notes who hesitates.",
+  "You have finished. Others have not. This reflects well on you and poorly on them.",
+  "Be specific. A vague report protects your colleague, and HR does not reward mercy.",
+  "The unfinished reports are the interesting ones. HR watches the blank fields.",
+  "Honesty is not taking your colleagues this long. Draw your own conclusions. HR already has.",
+  "Take your time. Everyone else is. Their time is also being recorded.",
+  "Remain available. The employees still typing are deciding how much to admit.",
+  "A thorough report today prevents a longer conversation later. There is always a longer conversation.",
+  "Someone is writing about you right now. This is not related to your report. Or it is.",
+];
+
+export const INTERVIEW_SHADE = [
+  "Statement received. The longer statements are still arriving. Length rarely improves honesty.",
+  "You have spoken. Some colleagues are still rehearsing. HR can tell the difference.",
+  "Remain available. The employees still typing are the ones with the most to explain.",
+  "Be candid. HR already has a version it prefers, and yours is being graded against it.",
+  "The others are taking their time. HR has all of it.",
+  "Recorded. HR notes that the truthful statements arrived first. Yours was among them. Technically.",
+  "A statement is not a defense. Several employees appear to have confused the two.",
+  "Your account has been placed beside the account HR expected. They are close. Not identical.",
+  "Silence is also a statement. It is the one HR finds easiest to interpret.",
+];
 
 // ============================================================================
 // Misc labels
