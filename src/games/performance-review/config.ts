@@ -48,63 +48,79 @@ export const TOTAL_INVESTIGATION_ROUNDS = 3;
 
 // ============================================================================
 // The corporate grievance bank — HR report prompts ({subject} interpolated).
-// Roughly half relatable office grievances, half questions from a company that
-// is not entirely right. All of them tee up a silly answer about a coworker.
+// Three tiers, dealt by weight rather than deck position:
+//   ordinary (20%) — relatable office grievances. No wrongness at all.
+//   tamed    (50%) — dry, bureaucratic, quietly wrong. Never explained.
+//   untamed  (30%) — the register where the fiction stops being polite.
 // ============================================================================
-export const HR_QUESTION_BANK: string[] = [
-  // --- ordinary grievances, as filed anywhere ---
-  "Has {subject} been taking suspiciously long bathroom breaks?",
-  "Has {subject} been showing up late to work more than usual?",
-  "Has {subject} been microwaving fish in the shared kitchen again?",
-  "Does {subject} mute themselves to eat during video calls?",
-  "Is {subject} 'working from home' or working from the beach?",
-  "Does {subject} reply-all when they absolutely should not?",
-  "Has {subject} taken the last coffee without starting a new pot?",
-  "Does {subject} schedule meetings that could have been an email?",
-  "Has {subject} been stealing office supplies for 'home office' use?",
-  "Does {subject} keep their camera off in every single meeting?",
-  "Has {subject} ever taken credit for someone else's idea?",
-  "Has {subject} been leaving passive-aggressive notes on the fridge?",
-  "Does {subject} wield 'per my last email' as a weapon?",
-  "Does {subject} say 'let's circle back' and then never circle back?",
-  "Has {subject} been napping in the wellness room during work hours?",
-  "Does {subject} conveniently go on mute the moment they're asked a question?",
+
+export type HRQuestionTier = "ordinary" | "tamed" | "untamed";
+
+export const HR_TIER_WEIGHTS: Record<HRQuestionTier, number> = {
+  ordinary: 0.2,
+  tamed: 0.5,
+  untamed: 0.3,
+};
+
+export const HR_QUESTIONS_ORDINARY: string[] = [
   "Has {subject} ghosted a calendar invite they clearly saw?",
+  "Does {subject} wield 'per my last email' as a weapon?",
   "Does {subject} log off at exactly 4:59 every single day?",
-  "Has {subject} taken another 'sick day' that landed on a Friday?",
-  "Has {subject} been eating someone else's labeled lunch from the fridge?",
-  "Does {subject} reply 'sounds good!' without reading the message?",
   "Does {subject} take a two-hour lunch and call it a 'working lunch'?",
-  "Does {subject} say 'great question' to stall when they don't know the answer?",
-  "Has {subject} been dodging the mandatory cybersecurity training?",
-  "Does {subject} show up to the potluck with store-bought and zero effort?",
-  "Has {subject} been treating 'reply by EOD' as a gentle suggestion?",
-  // --- grievances specific to this company ---
-  "Does {subject} actually participate in the monthly safety moment? The safety moment participates in them.",
-  "Has {subject} been seen near the wellness floor? The wellness floor remains unavailable.",
-  "Does {subject} still match their badge photo? Describe any drift.",
-  "Has {subject} been comparing case numbers with other departments? Report the numbers they compared.",
-  "Does {subject} remember the previous office layout? Describe what they claim to remember.",
-  "Has {subject} attended the mandatory retreat? Attendance records show no one attended the mandatory retreat.",
-  "Does {subject} greet the building when arriving? The building has commented on this.",
-  "Has {subject} been using the elevator button for the floor we do not discuss?",
-  "Does {subject} eat lunch at their desk in a way that suggests they are being observed? They are not being observed. Describe the behavior anyway.",
-  "Has {subject} filed this exact report about you before? Answer as if they had.",
-  "Does {subject} respond to their name on the first attempt, or does it take several? Which name?",
-  "Has {subject} been leaving work through the correct exit? List any incorrect exits they prefer.",
-  "Does {subject} water the third-floor plant? Someone does. It is thriving. It should not be.",
-  "Has {subject} shown signs of remembering the previous cohort? Give one example.",
-  "Does {subject} decorate their desk in a way that implies they intend to stay? Describe the items.",
-  "Has {subject} been humming the onboarding jingle? The onboarding jingle was retired for a reason.",
-  "Does {subject} take the stairs between floors three and five? Explain how.",
-  "Has {subject} ever replied to an email that had not been sent yet? Include timestamps if convenient.",
-  "Does {subject} know where the suggestion box goes when it is emptied? Do they seem at peace with it?",
-  "Has {subject} been photocopying their own hands? The count is currently at eleven.",
-  "Does {subject} maintain eye contact with the lobby portrait? The portrait has filed no complaints. Yet.",
-  "Has {subject} RSVP'd to the holiday party? The date has not been announced. Their RSVP is on file.",
-  "Does {subject} avoid the break room at 3:15? Everyone avoids the break room at 3:15. Why do they?",
-  "Has {subject} been keeping personal items in the refrigerator past Friday? The refrigerator keeps its own records.",
+  "Has {subject} been taking suspiciously long bathroom breaks?",
+  "Does {subject} say 'let's circle back' and then never circle back?",
+  "Has {subject} been 'in a meeting' for suspiciously long stretches with nothing on the shared calendar?",
+  "Does {subject} send a message and then immediately walk over to ask if you saw it?",
+  "Has {subject} used the last of the printer paper and left the tray empty for the next person?",
+  "Does {subject} take personal calls on speakerphone at their desk like the rest of us don't exist?",
 ];
+
+export const HR_QUESTIONS_TAMED: string[] = [
+  "Has {subject} shown signs of remembering the previous cohort? Give one example.",
+  "Does {subject} greet the building when arriving? The building has commented on this.",
+  "Has {subject} attended the mandatory retreat? Attendance records show no one attended the mandatory retreat.",
+  "Does {subject} eat lunch at their desk in a way that suggests they are being observed? They are not being observed. Describe the behavior anyway.",
+  "Does {subject} respond to their name on the first attempt, or does it take several? Which name?",
+  "Does {subject} water the third-floor plant? Someone does. It is thriving. It should not be.",
+  "Does {subject} maintain eye contact with the lobby portrait? The portrait has filed no complaints. Yet.",
+  "Does {subject} know why the third floor has no employees on it? Did they explain, or just look at you?",
+  "Has {subject} referred to their badge number instead of their name? More than once?",
+  "Does {subject} take the stairs instead of the elevator on days the elevator is working fine?",
+  "Has {subject} mentioned a team that no longer appears in the directory?",
+  "Does {subject} keep a second lanyard? Whose name is on it?",
+  "Does {subject} know why the fire drill headcount never matches the badge count? Did they offer a theory?",
+  "Does {subject} know about the layoffs before they are announced, or after?",
+  "Has {subject} been seen speaking to someone at a desk that has been empty since March?",
+  "Does {subject} still badge into a door that was sealed last quarter?",
+  "Has {subject} referred to today as a day of the week it is not? Which one?",
+  "Does {subject} address the security cameras when entering a room? What do they say?",
+  "Has {subject} noticed their headshot on the company website isn't the photo they submitted? Whose photo is it?",
+  "Does {subject} know the name of the employee they replaced? HR does not have this on file.",
+];
+
+export const HR_QUESTIONS_UNTAMED: string[] = [
+  "Has {subject} tried to leave through an exit that isn't on the floor plan? How far did they get?",
+  "Does {subject} ask when they get to go home? What do you tell them?",
+  "Has {subject} figured out what is in the basement? Who told them?",
+  "Do you consider {subject} a flight risk? Would restraints be premature, or overdue?",
+  "Has {subject} asked about the employees who no longer appear in the directory? What did you say to end the conversation?",
+  "Has {subject} stopped mentioning their family? When did that start, and should HR be concerned or relieved?",
+  "Has {subject} tried to warn a new hire about something? What did you do about it?",
+  "Does {subject} count the days out loud? Should someone ask them to stop?",
+  "Has {subject} asked what's behind the door with no handle? What did you tell them was behind it?",
+  "Does {subject} still flinch at the sound of the elevator? Describe the flinch.",
+  "Has {subject} tried to unionize the sub-basement? Name everyone involved.",
+  "Does {subject} still believe someone is coming to get them out? Should they?",
+  "Has {subject} been added to the list of employees who ask too many questions? Who keeps that list?",
+  "Does {subject} still recognize the sound of their own name? Test it and report back.",
+  "Has {subject} requested a wellness check on themselves? Was it granted?",
+];
+
+const HR_QUESTION_TIERS: Record<HRQuestionTier, string[]> = {
+  ordinary: HR_QUESTIONS_ORDINARY,
+  tamed: HR_QUESTIONS_TAMED,
+  untamed: HR_QUESTIONS_UNTAMED,
+};
 
 // ============================================================================
 // Types
@@ -220,6 +236,7 @@ export type PRState = {
   assignments: Record<string, PRAssignment>; // reporterId -> subject
   questions: Record<string, string>; // reporterId -> bank prompt
   accusations: Record<string, string>; // reporterId -> raw text
+  usedQuestions: string[]; // bank templates already dealt this game (and any earlier Play Again cycle) — never dealt twice
 
   // --- reframing + interview (keyed by accused) ---
   reframes: Record<string, string>; // accusedId -> managerial reframe
@@ -314,6 +331,7 @@ function initialState(_players: Player[]): PRState {
     assignments: {},
     questions: {},
     accusations: {},
+    usedQuestions: [],
     reframes: {},
     explanations: {},
     cases: [],
@@ -412,6 +430,81 @@ export function parseMention(text: string, players: Player[]): string | null {
   return best?.id ?? null;
 }
 
+function shuffle<T>(arr: T[], random: () => number): T[] {
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+/**
+ * Deal `n` distinct question templates, weighted by HR_TIER_WEIGHTS rather
+ * than picked uniformly from one flat bank, while honoring `usedUp` — the
+ * templates already dealt earlier this game (or an earlier Play Again cycle
+ * with this same group) that must not be dealt again.
+ *
+ * Each tier's still-available questions are pre-shuffled and drawn from
+ * without repeats; if a tier runs dry mid-deal, the draw spills into the
+ * next tier (ordinary -> tamed -> untamed order). If the whole bank has been
+ * exhausted (fewer questions remain than players to deal to), the "used"
+ * history is cleared and every question becomes available again — a fresh
+ * shoe, not a crash.
+ */
+function dealWeightedQuestions(
+  n: number,
+  random: () => number,
+  usedUp: ReadonlySet<string>
+): { templates: string[]; used: Set<string> } {
+  const order: HRQuestionTier[] = ["ordinary", "tamed", "untamed"];
+
+  const remaining = (tier: HRQuestionTier, exclude: ReadonlySet<string>) =>
+    HR_QUESTION_TIERS[tier].filter((q) => !exclude.has(q));
+
+  let exclude = usedUp;
+  const totalRemaining = order.reduce(
+    (sum, t) => sum + remaining(t, exclude).length,
+    0
+  );
+  if (totalRemaining < n) {
+    exclude = new Set(); // every question has been seen — reshuffle the whole bank
+  }
+
+  const pools: Record<HRQuestionTier, string[]> = {
+    ordinary: shuffle(remaining("ordinary", exclude), random),
+    tamed: shuffle(remaining("tamed", exclude), random),
+    untamed: shuffle(remaining("untamed", exclude), random),
+  };
+
+  const dealt: string[] = [];
+  for (let i = 0; i < n; i++) {
+    let roll = random();
+    let tier: HRQuestionTier = order[order.length - 1];
+    for (const t of order) {
+      roll -= HR_TIER_WEIGHTS[t];
+      if (roll <= 0) {
+        tier = t;
+        break;
+      }
+    }
+
+    const startIdx = order.indexOf(tier);
+    for (let k = 0; k < order.length; k++) {
+      const candidate = order[(startIdx + k) % order.length];
+      const picked = pools[candidate].pop();
+      if (picked !== undefined) {
+        dealt.push(picked);
+        break;
+      }
+    }
+  }
+
+  const used = new Set(exclude);
+  for (const q of dealt) used.add(q);
+  return { templates: dealt, used };
+}
+
 /**
  * Open the accusation window: assign each employee a colleague to report on
  * (cyclic shift => a permutation, so everyone is reported on exactly once) and
@@ -429,16 +522,16 @@ function openAccusationWindow(state: PRState, ctx: GameContext): PRState {
     assignments[p.id] = { subjectId: subject.id, subjectName: subject.name };
   });
 
-  // Deal distinct prompts from a shuffled bank.
-  const pool = [...HR_QUESTION_BANK];
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(ctx.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
+  // Deal distinct prompts, weighted across the three tiers, never a template
+  // already dealt earlier this game (or an earlier Play Again cycle).
+  const { templates, used } = dealWeightedQuestions(
+    n,
+    ctx.random,
+    new Set(state.usedQuestions)
+  );
   const questions: Record<string, string> = {};
   players.forEach((p, i) => {
-    const q = pool[i % pool.length];
-    questions[p.id] = q.replace(
+    questions[p.id] = templates[i].replace(
       /\{subject\}/g,
       assignments[p.id].subjectName
     );
@@ -449,6 +542,7 @@ function openAccusationWindow(state: PRState, ctx: GameContext): PRState {
     phase: "accusation",
     assignments,
     questions,
+    usedQuestions: Array.from(used),
     accusations: {},
     reframes: {},
     explanations: {},
@@ -726,6 +820,7 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
         scores,
         voiceEnabled: state.voiceEnabled,
         voiceId: state.voiceId,
+        usedQuestions: state.usedQuestions,
       };
     }
 
@@ -1026,6 +1121,7 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
         heat: state.heat,
         voiceEnabled: state.voiceEnabled,
         voiceId: state.voiceId,
+        usedQuestions: state.usedQuestions,
       };
     }
 
