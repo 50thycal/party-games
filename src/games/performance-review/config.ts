@@ -88,13 +88,13 @@ export const HR_QUESTIONS_TAMED: string[] = [
   "Does {subject} take the stairs instead of the elevator on days the elevator is working fine?",
   "Has {subject} mentioned a team that no longer appears in the directory?",
   "Does {subject} keep a second lanyard? Whose name is on it?",
-  "Has {subject} corrected anyone who used the old name for this building?",
+  "Does {subject} know why the fire drill headcount never matches the badge count? Did they offer a theory?",
   "Does {subject} know about the layoffs before they are announced, or after?",
   "Has {subject} been seen speaking to someone at a desk that has been empty since March?",
   "Does {subject} still badge into a door that was sealed last quarter?",
   "Has {subject} referred to today as a day of the week it is not? Which one?",
   "Does {subject} address the security cameras when entering a room? What do they say?",
-  "Has {subject} kept the same seat since before the seating chart existed? Explain how.",
+  "Has {subject} noticed their headshot on the company website isn't the photo they submitted? Whose photo is it?",
   "Does {subject} know the name of the employee they replaced? HR does not have this on file.",
 ];
 
@@ -104,7 +104,7 @@ export const HR_QUESTIONS_UNTAMED: string[] = [
   "Has {subject} figured out what is in the basement? Who told them?",
   "Do you consider {subject} a flight risk? Would restraints be premature, or overdue?",
   "Has {subject} asked about the employees who no longer appear in the directory? What did you say to end the conversation?",
-  "Does {subject} still have all of their pre-onboarding memories? All of them, {subject}?",
+  "Has {subject} stopped mentioning their family? When did that start, and should HR be concerned or relieved?",
   "Has {subject} tried to warn a new hire about something? What did you do about it?",
   "Does {subject} count the days out loud? Should someone ask them to stop?",
   "Has {subject} asked what's behind the door with no handle? What did you tell them was behind it?",
@@ -236,6 +236,7 @@ export type PRState = {
   assignments: Record<string, PRAssignment>; // reporterId -> subject
   questions: Record<string, string>; // reporterId -> bank prompt
   accusations: Record<string, string>; // reporterId -> raw text
+  usedQuestions: string[]; // bank templates already dealt this game (and any earlier Play Again cycle) — never dealt twice
 
   // --- reframing + interview (keyed by accused) ---
   reframes: Record<string, string>; // accusedId -> managerial reframe
@@ -330,6 +331,7 @@ function initialState(_players: Player[]): PRState {
     assignments: {},
     questions: {},
     accusations: {},
+    usedQuestions: [],
     reframes: {},
     explanations: {},
     cases: [],
@@ -439,20 +441,43 @@ function shuffle<T>(arr: T[], random: () => number): T[] {
 
 /**
  * Deal `n` distinct question templates, weighted by HR_TIER_WEIGHTS rather
- * than picked uniformly from one flat bank. Each tier is pre-shuffled and
- * drawn from without repeats; if a tier runs dry mid-deal, the draw spills
- * into the next tier (in ordinary -> tamed -> untamed order) instead of
- * repeating a question within the same round.
+ * than picked uniformly from one flat bank, while honoring `usedUp` — the
+ * templates already dealt earlier this game (or an earlier Play Again cycle
+ * with this same group) that must not be dealt again.
+ *
+ * Each tier's still-available questions are pre-shuffled and drawn from
+ * without repeats; if a tier runs dry mid-deal, the draw spills into the
+ * next tier (ordinary -> tamed -> untamed order). If the whole bank has been
+ * exhausted (fewer questions remain than players to deal to), the "used"
+ * history is cleared and every question becomes available again — a fresh
+ * shoe, not a crash.
  */
-function dealWeightedQuestions(n: number, random: () => number): string[] {
+function dealWeightedQuestions(
+  n: number,
+  random: () => number,
+  usedUp: ReadonlySet<string>
+): { templates: string[]; used: Set<string> } {
   const order: HRQuestionTier[] = ["ordinary", "tamed", "untamed"];
+
+  const remaining = (tier: HRQuestionTier, exclude: ReadonlySet<string>) =>
+    HR_QUESTION_TIERS[tier].filter((q) => !exclude.has(q));
+
+  let exclude = usedUp;
+  const totalRemaining = order.reduce(
+    (sum, t) => sum + remaining(t, exclude).length,
+    0
+  );
+  if (totalRemaining < n) {
+    exclude = new Set(); // every question has been seen — reshuffle the whole bank
+  }
+
   const pools: Record<HRQuestionTier, string[]> = {
-    ordinary: shuffle(HR_QUESTION_TIERS.ordinary, random),
-    tamed: shuffle(HR_QUESTION_TIERS.tamed, random),
-    untamed: shuffle(HR_QUESTION_TIERS.untamed, random),
+    ordinary: shuffle(remaining("ordinary", exclude), random),
+    tamed: shuffle(remaining("tamed", exclude), random),
+    untamed: shuffle(remaining("untamed", exclude), random),
   };
 
-  const out: string[] = [];
+  const dealt: string[] = [];
   for (let i = 0; i < n; i++) {
     let roll = random();
     let tier: HRQuestionTier = order[order.length - 1];
@@ -469,12 +494,15 @@ function dealWeightedQuestions(n: number, random: () => number): string[] {
       const candidate = order[(startIdx + k) % order.length];
       const picked = pools[candidate].pop();
       if (picked !== undefined) {
-        out.push(picked);
+        dealt.push(picked);
         break;
       }
     }
   }
-  return out;
+
+  const used = new Set(exclude);
+  for (const q of dealt) used.add(q);
+  return { templates: dealt, used };
 }
 
 /**
@@ -494,8 +522,13 @@ function openAccusationWindow(state: PRState, ctx: GameContext): PRState {
     assignments[p.id] = { subjectId: subject.id, subjectName: subject.name };
   });
 
-  // Deal distinct prompts, weighted across the three tiers.
-  const templates = dealWeightedQuestions(n, ctx.random);
+  // Deal distinct prompts, weighted across the three tiers, never a template
+  // already dealt earlier this game (or an earlier Play Again cycle).
+  const { templates, used } = dealWeightedQuestions(
+    n,
+    ctx.random,
+    new Set(state.usedQuestions)
+  );
   const questions: Record<string, string> = {};
   players.forEach((p, i) => {
     questions[p.id] = templates[i].replace(
@@ -509,6 +542,7 @@ function openAccusationWindow(state: PRState, ctx: GameContext): PRState {
     phase: "accusation",
     assignments,
     questions,
+    usedQuestions: Array.from(used),
     accusations: {},
     reframes: {},
     explanations: {},
@@ -786,6 +820,7 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
         scores,
         voiceEnabled: state.voiceEnabled,
         voiceId: state.voiceId,
+        usedQuestions: state.usedQuestions,
       };
     }
 
@@ -1086,6 +1121,7 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
         heat: state.heat,
         voiceEnabled: state.voiceEnabled,
         voiceId: state.voiceId,
+        usedQuestions: state.usedQuestions,
       };
     }
 
