@@ -954,11 +954,14 @@ export function PerformanceReviewGameView({
         }
         if (hasAccused) return silent(myName, accusationShade);
         const text = `${opener}HR REPORT — RE: ${myAssignment.subjectName}.\n${myQuestion ?? ""}`;
+        // SECRET: the report assignment feeds the challenge, so it is NEVER read
+        // aloud. Only the cycle-transition announcement (rounds 2+) is public.
+        if (!openerText) return silent(myName, text);
         return {
           to: myName,
           text,
-          speak: `${openerText ? openerText + " " : ""}HR report. Regarding ${myAssignment.subjectName}. ${myQuestion ?? ""}`,
-          speakKey: `accuse:${investigationRound}:${playerId}`,
+          speak: openerText,
+          speakKey: `opener:${investigationRound}`,
         };
       }
       case "reframing":
@@ -1168,6 +1171,12 @@ export function PerformanceReviewGameView({
   // ==========================================================================
   const aiBanterRef = useRef<string[]>([]);
   const lastBanterRef = useRef<string>("");
+  // On-file (pre-written) banter is one-and-done per game — once a static line
+  // has been spoken it is never repeated until a new game starts.
+  const usedStaticRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (phase === "intro" || phase === "lobby") usedStaticRef.current = new Set();
+  }, [phase]);
   const banterCtxRef = useRef<{ phase: string; snippets: string[] }>({
     phase,
     snippets: [],
@@ -1216,20 +1225,43 @@ export function PerformanceReviewGameView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, voiceEnabled, isAudioDevice]);
 
+  // Speak one banter line every 11-24s while in a working phase. Freshly
+  // generated (AI) lines are favored over the pre-written pool, and each
+  // pre-written line is spoken at most once per game.
+  const AI_BANTER_BIAS = 0.72; // chance of an AI line when both are available
   useEffect(() => {
     if (!voiceEnabled || !isAudioDevice || !BANTER_PHASES.has(phase)) return;
     let timer: ReturnType<typeof setTimeout>;
-    const tick = () => {
-      const pool =
-        aiBanterRef.current.length > 0
-          ? [...aiBanterRef.current, ...BANTER_LINES]
-          : BANTER_LINES;
-      let line = pool[Math.floor(Math.random() * pool.length)];
-      for (let i = 0; i < 4 && line === lastBanterRef.current; i++) {
-        line = pool[Math.floor(Math.random() * pool.length)];
+    const pickAi = () => {
+      const ai = aiBanterRef.current;
+      let line = ai[Math.floor(Math.random() * ai.length)];
+      for (let i = 0; i < 4 && ai.length > 1 && line === lastBanterRef.current; i++) {
+        line = ai[Math.floor(Math.random() * ai.length)];
       }
-      lastBanterRef.current = line;
-      void speakNow(line, voiceIdRef.current, { priority: "low" });
+      return line;
+    };
+    const tick = () => {
+      const ai = aiBanterRef.current;
+      const staticUnused = BANTER_LINES.filter(
+        (l) => !usedStaticRef.current.has(l)
+      );
+      let line: string;
+      if (ai.length > 0 && (staticUnused.length === 0 || Math.random() < AI_BANTER_BIAS)) {
+        line = pickAi();
+      } else if (staticUnused.length > 0) {
+        line = staticUnused[Math.floor(Math.random() * staticUnused.length)];
+        usedStaticRef.current.add(line);
+      } else if (ai.length > 0) {
+        line = pickAi();
+      } else {
+        // No AI and every pre-written line already used this game: skip a beat
+        // rather than repeat one.
+        line = "";
+      }
+      if (line) {
+        lastBanterRef.current = line;
+        void speakNow(line, voiceIdRef.current, { priority: "low" });
+      }
       timer = setTimeout(tick, 11000 + Math.random() * 13000);
     };
     timer = setTimeout(tick, 5000 + Math.random() * 5000);
