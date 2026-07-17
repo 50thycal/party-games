@@ -1039,7 +1039,7 @@ export const performanceReviewGame = defineGame<PRState, PRAction>({
   id: "performance-review",
   name: "HR Investigation",
   description:
-    "File a complaint, get investigated, and turn every workplace incident into an absurd new company policy. HR is watching.",
+    "File a complaint, survive the interview, and turn every workplace incident into company policy. HR thanks you in advance.",
   minPlayers: 3,
   maxPlayers: 8,
   initialState,
