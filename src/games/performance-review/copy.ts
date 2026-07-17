@@ -123,7 +123,7 @@ export function buildOrientationModules(names: string[]): OrientationModule[] {
         "Each guideline is then assigned to an uninvolved employee — the Editor — who did not " +
         "file it and is not named in it:\n\n" +
         "• Editing — the Editor blacks out up to ten words of the guideline, then types a single " +
-        "word in place of each. There are two windows: ten seconds to redact, twenty to rewrite.\n" +
+        "word in place of each. There are two windows: thirty seconds to redact, forty-five to rewrite.\n" +
         "• Review — each revised guideline is read to the department one at a time. Comment on it, " +
         "and use @ to identify the employee you believe it was really about. Correct identification " +
         "earns Performance Points.\n" +
@@ -281,16 +281,16 @@ export const FALLBACK_GUIDELINES = [
 // AI supplies these live; this is the offline / fallback pool. One sentence,
 // dry, quietly wrong — reacting to the fact of a REVISION, never naming anyone.
 export const FALLBACK_GUIDELINE_COMMENTS = [
-  "The revised wording has been filed. The previous wording is no longer on record.",
-  "Noted. This is the version we will pretend was always in effect.",
-  "The edit has been logged. It matches an edit made to a guideline you have not seen.",
-  "This revision improves nothing and has been approved on that basis.",
-  "The department will adopt this wording. The department adopted the last wording too.",
-  "A word here was replaced. HR agrees the original was safer, and has kept it.",
-  "This guideline now reads differently than it did a moment ago. So does your file.",
-  "Recorded. The Editor's changes have been attributed to no one, as requested by no one.",
-  "The policy stands as revised. Employees who remember the original are asked not to.",
-  "Filed under 'clarifications.' It clarifies nothing. It has been clarified regardless.",
+  "A bold revision. HR noticed the word that was chosen and will not be asking who chose it.",
+  "This reads worse than the original. Management considers that an improvement.",
+  "Whoever this concerns, the wording rather gives them away. We have circled it.",
+  "HR read that twice. It did not help. It has been adopted anyway.",
+  "Interesting choice of words. We think everyone here knows the choice that was made.",
+  "That is not what the policy said this morning. It is what it says now.",
+  "The revision clarifies nothing and implicates someone. Both boxes are ticked.",
+  "HR would like to know who this reminds you of. HR already knows.",
+  "A word was replaced. The replacement is louder than the word it replaced.",
+  "Noted, and filed, and quietly enjoyed. Do not make HR say that again.",
 ];
 
 // Shown one at a time while employees "work." Half routine, half not quite.
@@ -372,9 +372,9 @@ export const VOTE_TERMINAL =
 export const EDITING_BLACKOUT_LABEL = "Redact — select up to 10 words";
 export const EDITING_REWRITE_LABEL = "Rewrite — one word per redaction";
 export const EDITING_BLACKOUT_HINT =
-  "Tap words to strike them from the guideline. Ten seconds.";
+  "Tap words to strike them from the guideline. Thirty seconds.";
 export const EDITING_REWRITE_HINT =
-  "Type a single word in place of each. Twenty seconds. Blanks are simply removed.";
+  "Type a single word in place of each. Forty-five seconds. Blanks are simply removed.";
 export const EDITING_WAIT_LINES = [
   "The department is revising its guidelines. This is considered maintenance.",
   "Editors are at work. Their changes are being recorded as their own.",

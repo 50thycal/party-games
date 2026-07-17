@@ -139,13 +139,19 @@ kind = "resolve" — the case: accusedName was reported on; the manager-reframed
 STRICT JSON:
 {"hrResponse": string, "guideline": string, "nudges": string[3]}
 
-kind = "comment" — an edited guideline (in "guideline") has just been read to the department, and
-HR posts ONE short comment beneath it, as if in the company thread. It must sound like a workplace
-memo reacting to the (often garbled) revised policy: one sentence, max ~22 words, dry and quietly
-unsettling — note that the wording has changed, that the revision has been filed, that a prior
-version is no longer on record, that the edit matches an earlier one. Do NOT name who the guideline
-was about. Do NOT quote a whole sentence back. No exclamation marks, no threats, no horror.
-STRICT JSON: {"comment": string}
+kind = "comment" — an edited guideline (in "guideline") has just been read aloud to the department,
+and HR posts ONE short reaction beneath it. REACT TO THE ACTUAL WORDING that is in "guideline": riff
+on the specific edit — the strange word that got swapped in, the phrase that now makes no sense, how
+absurd or damning the revised policy reads, or a knowing nudge that everyone can tell who it is about.
+Read it and respond to what it literally says now. One or two short sentences, max ~24 words, spoken
+aloud — so it must sound natural out loud. Keep the HR voice (dry, deadpan, corporate), but this is a
+REACTION, not a filing receipt: it should feel like the narrator just read the line and had a
+thought. You may be pointed and a little amused; you may imply the target is obvious without naming a
+name. Do NOT actually name who it was about. No exclamation-mark spam (at most one), no threats, no
+horror. Examples of the register (do not reuse verbatim): "A bold revision. HR notes the word that
+was chosen and will not be asking who chose it." / "Whoever this concerns, the wording gives them
+away. We have circled it." / "This reads worse than the original. Management considers that an
+improvement." STRICT JSON: {"comment": string}
 
 kind = "final" — the closing address. Short. Name the top scorer Employee of the Cycle with
 backhanded corporate praise ("recognition will occur when appropriate"), note the lowest

@@ -67,15 +67,23 @@ function pick<T>(arr: T[]): T {
 // The narrator reads a touch quicker than a ceremonial monotone (client-side so
 // it works regardless of the TTS model's speed support).
 const SPEECH_RATE = 1.2;
-// Terminal print is held back this long for spoken lines, to meet the voice.
-const SPEECH_TEXT_DELAY_MS = 800;
 // Phases where the narrator fills the wait with ambient banter.
 const BANTER_PHASES = new Set(["accusation", "interview", "editing"]);
 
 // Policy Revision timings.
-const BLACKOUT_MS = 10_000; // window 1: redact
-const REWRITE_MS = 20_000; // window 2: rewrite
-const COMMENT_WINDOW_MS = 15_000; // comment window after a guideline is read
+const BLACKOUT_MS = 30_000; // window 1: redact
+const REWRITE_MS = 45_000; // window 2: rewrite
+const COMMENT_WINDOW_MS = 20_000; // comment window after a guideline is read
+// If the voice never actually starts (TTS down), print the terminal text anyway
+// after this long rather than leaving it blank.
+const PRINT_FALLBACK_MS = 6_000;
+
+// Rough time to read a guideline aloud — used to open the comment window only
+// after the narrator finishes. Voiced: ~380ms/word, clamped; silent: a beat.
+function estimateReadMs(text: string, voiced: boolean): number {
+  const words = text.split(/\s+/).filter(Boolean).length;
+  return voiced ? Math.min(12_000, Math.max(2_500, words * 380)) : 1_200;
+}
 
 const HEAT_OPTIONS: Array<{ value: PRHeat; label: string; desc: string }> = [
   { value: "mild", label: "Mild", desc: HEAT_DESCRIPTIONS.mild },
@@ -91,39 +99,53 @@ const ORIENTATION_MODULE_COUNT = 4;
 // Small presentational helpers
 // ============================================================================
 
-// `delayMs` holds the print back a beat so the text lands roughly when the
-// spoken line begins (TTS has fetch latency), keeping voice and terminal in sync.
-function useTypewriter(text: string, delayMs = 0): string {
-  const [len, setLen] = useState(0);
+// Reveal `text` over `durationMs`, beginning at the `beginTs` timestamp. When a
+// line is being spoken, the parent passes the moment audio actually started and
+// the real (decoded) audio length, so the print tracks the voice instead of
+// guessing with a fixed delay. beginTs=0 / durationMs=0 fall back to "start now,
+// print fast" (used when the voice is off).
+const FAST_MS_PER_CHAR = 14;
+function useTypewriter(text: string, beginTs = 0, durationMs = 0): string {
+  const [shown, setShown] = useState("");
   useEffect(() => {
-    setLen(0);
-    if (!text) return;
-    let interval: ReturnType<typeof setInterval> | null = null;
-    const startTimer = setTimeout(() => {
-      interval = setInterval(() => {
-        setLen((l) => (l >= text.length ? l : l + 2));
-      }, 24);
-    }, delayMs);
-    return () => {
-      clearTimeout(startTimer);
-      if (interval) clearInterval(interval);
+    if (!text) {
+      setShown("");
+      return;
+    }
+    const begin = beginTs && beginTs > 0 ? beginTs : Date.now();
+    const dur = durationMs && durationMs > 0 ? durationMs : text.length * FAST_MS_PER_CHAR;
+    let raf = 0;
+    const tick = () => {
+      const now = Date.now();
+      if (now < begin) {
+        setShown("");
+        raf = requestAnimationFrame(tick);
+        return;
+      }
+      const frac = Math.min(1, (now - begin) / dur);
+      setShown(text.slice(0, Math.ceil(frac * text.length)));
+      if (frac < 1) raf = requestAnimationFrame(tick);
     };
-  }, [text, delayMs]);
-  return text.slice(0, Math.min(len, text.length));
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [text, beginTs, durationMs]);
+  return shown;
 }
 
 function Terminal({
   to,
   text,
   live,
-  delayMs = 0,
+  beginTs = 0,
+  durationMs = 0,
 }: {
   to: string;
   text: string;
   live?: boolean;
-  delayMs?: number;
+  beginTs?: number;
+  durationMs?: number;
 }) {
-  const shown = useTypewriter(text, delayMs);
+  const shown = useTypewriter(text, beginTs, durationMs);
   const done = shown.length >= text.length;
   return (
     <div className="bg-black border border-green-900/70 rounded-lg mb-4 overflow-hidden font-mono">
@@ -503,10 +525,13 @@ export function PerformanceReviewGameView({
   replRef.current = replacements;
   const submittingEditRef = useRef(false);
 
-  // Reset comment/vote inputs when the phase or revealed guideline changes.
+  // Reset all text inputs when the phase or revealed guideline changes, so a
+  // fresh round never shows what this player typed in an earlier one.
   useEffect(() => {
     setCommentInput("");
     setVoteFor(null);
+    setAccusationInput("");
+    setExplanationInput("");
   }, [phase, revealIndex, playerId]);
 
   // A coarse clock for the on-screen countdowns during timed phases.
@@ -736,11 +761,7 @@ export function PerformanceReviewGameView({
     const c = cases[idx];
     if (!c) return;
     const guidelineText = c.editedGuideline ?? c.guideline ?? "";
-    const words = guidelineText.split(/\s+/).filter(Boolean).length;
-    const readMs =
-      voiceEnabled && isAudioDevice
-        ? Math.min(12_000, Math.max(2_500, words * 380))
-        : 1_200;
+    const readMs = estimateReadMs(guidelineText, voiceEnabled && isAudioDevice);
     let cancelled = false;
     const timers: Array<ReturnType<typeof setTimeout>> = [];
 
@@ -775,11 +796,12 @@ export function PerformanceReviewGameView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, revealIndex, canDrive, voiceEnabled]);
 
-  // A local deadline just for the "next in Ns" display (advance is driver-owned).
-  const [revealDeadline, setRevealDeadline] = useState(0);
+  // When this guideline came on screen — the comment window opens once the
+  // narrator is estimated to have finished reading it. (Advance is driver-owned.)
+  const [revealEnteredTs, setRevealEnteredTs] = useState(0);
   useEffect(() => {
     if (phase !== "reveal") return;
-    setRevealDeadline(Date.now() + COMMENT_WINDOW_MS + 3_000);
+    setRevealEnteredTs(Date.now());
   }, [phase, revealIndex]);
 
   // Final address
@@ -1007,6 +1029,13 @@ export function PerformanceReviewGameView({
   const sourceRef = useRef<AudioBufferSourceNode | null>(null);
   const fetchAbortRef = useRef<AbortController | null>(null);
   const spokenKeyRef = useRef<string | null>(null);
+  // When (and how fast) the terminal should print the currently-spoken line, so
+  // the typewriter tracks the actual voice. Set by the speak effect below.
+  const [speechInfo, setSpeechInfo] = useState<{
+    key: string;
+    beginTs: number;
+    durationMs: number;
+  } | null>(null);
   const voiceIdRef = useRef(voiceId);
   voiceIdRef.current = voiceId;
   const highPlayingRef = useRef(false);
@@ -1056,7 +1085,7 @@ export function PerformanceReviewGameView({
   async function speakNow(
     text: string,
     voice: string,
-    opts: { priority?: "high" | "low" } = {}
+    opts: { priority?: "high" | "low"; onStart?: (playMs: number) => void } = {}
   ): Promise<boolean> {
     const priority = opts.priority ?? "high";
     const ctx = getAudioCtx();
@@ -1121,6 +1150,9 @@ export function PerformanceReviewGameView({
         src.onended = clearHigh;
         sourceRef.current = src;
         src.start(0);
+        // Real playback length (playbackRate speeds it up), so the terminal can
+        // pace its print to match the voice instead of guessing.
+        opts.onStart?.((audioBuf.duration / SPEECH_RATE) * 1000);
         return true;
       } catch {
         if (controller.signal.aborted) {
@@ -1138,8 +1170,19 @@ export function PerformanceReviewGameView({
     if (spokenKeyRef.current === terminal.speakKey) return;
     const key = terminal.speakKey;
     spokenKeyRef.current = key;
-    void speakNow(terminal.speak, voiceIdRef.current).then((played) => {
-      if (!played && spokenKeyRef.current === key) spokenKeyRef.current = null;
+    // Hold the print until audio starts (or a safety fallback fires).
+    setSpeechInfo({ key, beginTs: Date.now() + PRINT_FALLBACK_MS, durationMs: 0 });
+    void speakNow(terminal.speak, voiceIdRef.current, {
+      onStart: (playMs) =>
+        setSpeechInfo({ key, beginTs: Date.now(), durationMs: playMs }),
+    }).then((played) => {
+      if (!played) {
+        if (spokenKeyRef.current === key) spokenKeyRef.current = null;
+        // Audio never started — print it now rather than leaving a blank screen.
+        setSpeechInfo((cur) =>
+          cur && cur.key === key ? { key, beginTs: Date.now(), durationMs: 0 } : cur
+        );
+      }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [terminal.speakKey, voiceEnabled, isAudioDevice]);
@@ -1164,6 +1207,43 @@ export function PerformanceReviewGameView({
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, tutorialStep, voiceEnabled, isAudioDevice]);
+
+  // Slide 1 (module 0) is not covered by the opening address — read it aloud
+  // only AFTER the address finishes, so the two don't overlap.
+  const module0SpokenRef = useRef(false);
+  useEffect(() => {
+    if (phase !== "intro") module0SpokenRef.current = false;
+  }, [phase]);
+  useEffect(() => {
+    if (phase !== "intro" || tutorialStep !== 0) return;
+    if (!voiceEnabled || !isAudioDevice || !introText || module0SpokenRef.current) return;
+    const introKey = `intro:${introText}`;
+    // Wait until the address has actually begun and we know how long it runs.
+    if (!speechInfo || speechInfo.key !== introKey || speechInfo.durationMs <= 0) return;
+    const mod0 = orientationModules[0];
+    if (!mod0) return;
+    const fireAt = speechInfo.beginTs + speechInfo.durationMs + 500;
+    const t = setTimeout(() => {
+      module0SpokenRef.current = true;
+      void speakNow(`${mod0.title}. ${mod0.body}`, voiceIdRef.current);
+    }, Math.max(0, fireAt - Date.now()));
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, tutorialStep, voiceEnabled, isAudioDevice, introText, speechInfo]);
+
+  // Speak HR's comment aloud right after the guideline it reacts to is read.
+  useEffect(() => {
+    if (phase !== "reveal" || !voiceEnabled || !isAudioDevice) return;
+    const c = guidelineComments[revealIndex];
+    if (!c) return;
+    const key = `hrcomment:${investigationRound}:${revealIndex}`;
+    if (spokenKeyRef.current === key) return;
+    spokenKeyRef.current = key;
+    void speakNow(c, voiceIdRef.current).then((played) => {
+      if (!played && spokenKeyRef.current === key) spokenKeyRef.current = null;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, revealIndex, guidelineComments, voiceEnabled, isAudioDevice]);
 
   // ==========================================================================
   // Ambient narrator banter — spoken on a loose 11-24s cadence during the
@@ -1289,8 +1369,30 @@ export function PerformanceReviewGameView({
   // ==========================================================================
   // Derived countdowns
   // ==========================================================================
+  // How the terminal should print its current line: paced to the voice when one
+  // is playing (beginTs = when audio started, durationMs = its real length),
+  // else immediately-and-fast (0/0). While audio is requested but hasn't started
+  // this render, hold the print (beginTs far future) until the speak effect
+  // reports timing.
+  const wantsSpeech =
+    voiceEnabled && isAudioDevice && !!terminal.speak && !!terminal.speakKey;
+  let terminalPrint = { beginTs: 0, durationMs: 0 };
+  if (wantsSpeech) {
+    terminalPrint =
+      speechInfo && speechInfo.key === terminal.speakKey
+        ? { beginTs: speechInfo.beginTs, durationMs: speechInfo.durationMs }
+        : { beginTs: Number.MAX_SAFE_INTEGER, durationMs: 0 };
+  }
+
   const editSecondsLeft = Math.max(0, Math.ceil((editDeadline - nowTs) / 1000));
-  const revealSecondsLeft = Math.max(0, Math.ceil((revealDeadline - nowTs) / 1000));
+  // The comment window opens only once the narrator finishes the guideline.
+  const revealReadMs = estimateReadMs(revealedGuideline, voiceEnabled && isAudioDevice);
+  const commentStartTs = revealEnteredTs + revealReadMs;
+  const commentOpen = revealEnteredTs > 0 && nowTs >= commentStartTs;
+  const commentSecondsLeft = Math.max(
+    0,
+    Math.ceil((commentStartTs + COMMENT_WINDOW_MS - nowTs) / 1000)
+  );
 
   // Header sub-label per phase.
   let headerDetail = "";
@@ -1541,9 +1643,8 @@ export function PerformanceReviewGameView({
           to={terminal.to}
           text={terminal.text}
           live={voiceEnabled}
-          delayMs={
-            voiceEnabled && isAudioDevice && terminal.speak ? SPEECH_TEXT_DELAY_MS : 0
-          }
+          beginTs={terminalPrint.beginTs}
+          durationMs={terminalPrint.durationMs}
         />
 
         {/* lobby */}
@@ -1843,6 +1944,23 @@ export function PerformanceReviewGameView({
                 ))}
             </div>
 
+            <div className="flex items-center justify-between gap-3 mb-1">
+              <p className="text-xs text-gray-400">
+                Correct @-identification earns +{ATMENTION_BONUS}.
+              </p>
+              <span
+                className={`font-mono text-sm font-bold whitespace-nowrap ${
+                  !commentOpen
+                    ? "text-gray-500"
+                    : commentSecondsLeft <= 5
+                    ? "text-red-400"
+                    : "text-amber-300"
+                }`}
+              >
+                {commentOpen ? `${commentSecondsLeft}s to comment` : "Reading…"}
+              </span>
+            </div>
+
             {hasCommentedThis ? (
               <p className="text-gray-500 text-xs italic text-center">{REVEAL_POSTED_LINE}</p>
             ) : (
@@ -1865,10 +1983,6 @@ export function PerformanceReviewGameView({
                 </button>
               </form>
             )}
-            <p className="text-gray-500 text-xs text-center">
-              Correct @-identification earns +{ATMENTION_BONUS}. Next guideline in{" "}
-              {revealSecondsLeft}s.
-            </p>
           </div>
         )}
 
@@ -2199,53 +2313,47 @@ function RoundReviewPanel({
                   </p>
                 </div>
 
-                {c.editedGuideline && c.editedGuideline !== c.guideline ? (
-                  <div className="space-y-1">
-                    <p className="text-[10px] uppercase tracking-widest text-gray-600">
-                      As revised
-                    </p>
-                    <p className="text-sm text-indigo-100 font-semibold">
-                      {c.editedGuideline}
-                    </p>
-                    <p className="text-[10px] uppercase tracking-widest text-gray-600 pt-1">
-                      Originally issued
-                    </p>
-                    <p className="text-xs text-gray-500">{c.guideline}</p>
-                  </div>
-                ) : (
+                {/* the guideline: original, then as revised */}
+                <div className="space-y-1">
+                  <p className="text-[10px] uppercase tracking-widest text-gray-600">
+                    Original guideline
+                  </p>
+                  <p className="text-xs text-gray-400">{c.guideline}</p>
+                  <p className="text-[10px] uppercase tracking-widest text-amber-500 pt-1.5">
+                    As revised
+                  </p>
                   <p className="text-sm text-indigo-100 font-semibold">
                     {c.editedGuideline ?? c.guideline}
+                    {c.editedGuideline && c.editedGuideline === c.guideline && (
+                      <span className="text-gray-500 text-xs font-normal"> (left unchanged)</span>
+                    )}
                   </p>
-                )}
+                </div>
 
-                <div className="rounded bg-black/30 p-3 space-y-2">
+                {/* the report that started it, and the accused's statement */}
+                <div className="rounded bg-black/30 p-3 space-y-3">
                   <div>
                     <p className="text-[10px] uppercase tracking-widest text-gray-600 mb-0.5">
-                      It was really about
+                      Prompt filed by {c.reporterName}
                     </p>
-                    <p className="text-sm font-bold text-white">
-                      {c.accusedName}
-                      {c.accusedId === playerId && (
-                        <span className="text-gray-500 text-xs"> (you)</span>
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] uppercase tracking-widest text-gray-600 mb-0.5">
-                      Filed by {c.reporterName}
-                    </p>
+                    {c.question && (
+                      <p className="text-xs text-gray-500 italic mb-1">{c.question}</p>
+                    )}
                     <p className="text-sm text-gray-300">
                       “{c.rawAccusation || "No report on record."}”
                     </p>
                   </div>
-                  {c.explanation && (
-                    <div>
-                      <p className="text-[10px] uppercase tracking-widest text-gray-600 mb-0.5">
-                        Employee statement
-                      </p>
-                      <p className="text-sm text-gray-400 italic">“{c.explanation}”</p>
-                    </div>
-                  )}
+                  <div>
+                    <p className="text-[10px] uppercase tracking-widest text-gray-600 mb-0.5">
+                      Employee statement — {c.accusedName}
+                    </p>
+                    {c.accusation && (
+                      <p className="text-xs text-gray-500 italic mb-1">Shown: “{c.accusation}”</p>
+                    )}
+                    <p className="text-sm text-gray-400 italic">
+                      {c.explanation ? `“${c.explanation}”` : "No statement provided."}
+                    </p>
+                  </div>
                 </div>
 
                 {(hrComment || Object.keys(thread).length > 0) && (
@@ -2276,6 +2384,20 @@ function RoundReviewPanel({
                       })}
                   </div>
                 )}
+
+                {/* the reveal: who it was really about */}
+                <div className="flex items-baseline justify-between gap-2 pt-2 border-t border-gray-800">
+                  <p className="text-[10px] uppercase tracking-widest text-gray-500">
+                    Really about{" "}
+                    <span className="text-white font-bold text-sm normal-case tracking-normal">
+                      {c.accusedName}
+                      {c.accusedId === playerId && " (you)"}
+                    </span>
+                  </p>
+                  <p className="text-[10px] uppercase tracking-widest text-gray-500">
+                    Filed by {c.reporterName}
+                  </p>
+                </div>
               </div>
             );
           })}
