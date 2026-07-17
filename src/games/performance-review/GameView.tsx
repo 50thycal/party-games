@@ -1126,32 +1126,9 @@ export function PerformanceReviewGameView({
           )}
 
           {phase === "intro" && (
-            <div className="space-y-2">
-              <button
-                onClick={() =>
-                  tutorialStep < ORIENTATION_MODULE_COUNT - 1
-                    ? handleTutorialStep(tutorialStep + 1)
-                    : handleBegin()
-                }
-                disabled={isProceeding || !introText}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-              >
-                {!introText
-                  ? ORIENTATION_PREPARING_LABEL
-                  : isProceeding
-                  ? "Opening case intake..."
-                  : tutorialStep < ORIENTATION_MODULE_COUNT - 1
-                  ? ORIENTATION_NEXT_LABEL
-                  : ORIENTATION_BEGIN_LABEL}
-              </button>
-              <button
-                onClick={handleBegin}
-                disabled={isProceeding || !introText}
-                className="w-full bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors"
-              >
-                {ORIENTATION_WAIVE_LABEL}
-              </button>
-            </div>
+            <p className="text-gray-500 text-xs">
+              Orientation controls are attached to the module below.
+            </p>
           )}
 
           {phase === "accusation" && (
@@ -1360,7 +1337,35 @@ export function PerformanceReviewGameView({
                     </div>
                   )}
                 </div>
-                {!isHost && (
+
+                {isHost ? (
+                  <div className="space-y-2">
+                    <button
+                      onClick={() =>
+                        tutorialStep < ORIENTATION_MODULE_COUNT - 1
+                          ? handleTutorialStep(tutorialStep + 1)
+                          : handleBegin()
+                      }
+                      disabled={isProceeding || !introText}
+                      className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                    >
+                      {!introText
+                        ? ORIENTATION_PREPARING_LABEL
+                        : isProceeding
+                        ? "Opening case intake..."
+                        : tutorialStep < ORIENTATION_MODULE_COUNT - 1
+                        ? ORIENTATION_NEXT_LABEL
+                        : ORIENTATION_BEGIN_LABEL}
+                    </button>
+                    <button
+                      onClick={handleBegin}
+                      disabled={isProceeding || !introText}
+                      className="w-full bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors"
+                    >
+                      {ORIENTATION_WAIVE_LABEL}
+                    </button>
+                  </div>
+                ) : (
                   <p className="text-gray-500 text-xs text-center">
                     {ORIENTATION_NONHOST_HINT}
                   </p>
