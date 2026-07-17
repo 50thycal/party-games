@@ -17,6 +17,7 @@ import type {
   PRState,
 } from "./config";
 import {
+  ACCUSATION_SHADE,
   B_VOTE_TERMINAL,
   CASE_PREP_LINES,
   FALLBACK_GUIDELINES,
@@ -25,7 +26,7 @@ import {
   FALLBACK_SPECTRUMS,
   GUIDELINE_CARD_LABEL,
   HEAT_DESCRIPTIONS,
-  INTERVIEW_WAIT_LINES,
+  INTERVIEW_SHADE,
   LOBBY_EXPLAINER,
   LOBBY_TERMINAL_LINES,
   MIN_HEADCOUNT_LABEL,
@@ -838,14 +839,18 @@ export function PerformanceReviewGameView({
   // HR terminal content + voice
   // ==========================================================================
 
+  // Ambient rotation drives the "guessing" nudges and the host's shade while
+  // employees write reports and statements — so the terminal is never dead air.
   const [nudgeIdx, setNudgeIdx] = useState(0);
   useEffect(() => {
-    if (phase !== "a_guess") return;
-    const interval = setInterval(() => setNudgeIdx((i) => i + 1), 9000);
+    if (phase !== "a_guess" && phase !== "accusation" && phase !== "interview") return;
+    const interval = setInterval(() => setNudgeIdx((i) => i + 1), 8000);
     return () => clearInterval(interval);
   }, [phase]);
   const nudgePool = nudges.length > 0 ? nudges : FALLBACK_NUDGES;
   const currentNudge = nudgePool[nudgeIdx % nudgePool.length];
+  const accusationShade = ACCUSATION_SHADE[nudgeIdx % ACCUSATION_SHADE.length];
+  const interviewShade = INTERVIEW_SHADE[nudgeIdx % INTERVIEW_SHADE.length];
 
   const ALL = "All staff";
   // Deterministic seeds so waiting copy is stable across the 1s polling loop.
@@ -866,22 +871,25 @@ export function PerformanceReviewGameView({
           investigationRound > 1 && ROUND_OPENINGS[investigationRound]
             ? `${ROUND_OPENINGS[investigationRound]}\n\n`
             : "";
-        if (myAssignment && myQuestion) {
+        if (!myAssignment) {
           return silent(
             myName,
-            `${opener}HR REPORT — RE: ${myAssignment.subjectName}.\n${myQuestion}`
+            `${opener}No report has been assigned to you this cycle. Remain available.`
           );
         }
+        // Filed already: the host fills the wait with shade at the room.
+        if (hasAccused) return silent(myName, accusationShade);
         return silent(
           myName,
-          `${opener}No report has been assigned to you this cycle. Remain available.`
+          `${opener}HR REPORT — RE: ${myAssignment.subjectName}.\n${myQuestion ?? ""}`
         );
       }
       case "reframing":
         return silent(ALL, pickStable(REFRAMING_LINES, phaseSeed));
       case "interview":
+        // Statement in: the host passes the time with shade at the room.
         return hasExplained
-          ? silent(myName, pickStable(INTERVIEW_WAIT_LINES, `${phaseSeed}:${myName}`))
+          ? silent(myName, interviewShade)
           : myReframe
           ? silent(
               myName,
@@ -977,43 +985,70 @@ export function PerformanceReviewGameView({
     fetchAbortRef.current?.abort();
     fetchAbortRef.current = null;
   }
-  async function speakNow(text: string, voice: string) {
+  // Fetch + play one line. Returns true only once playback has actually started,
+  // so the caller can decide whether to mark the message as spoken. A transient
+  // TTS failure retries a couple of times before giving up — important because
+  // the guideline and the case-closed ruling are the beats the room most needs
+  // to hear, and a single dropped request used to silence them permanently.
+  async function speakNow(text: string, voice: string): Promise<boolean> {
     const ctx = getAudioCtx();
-    if (!ctx) return;
+    if (!ctx) return false;
     fetchAbortRef.current?.abort();
     const controller = new AbortController();
     fetchAbortRef.current = controller;
-    try {
-      const res = await fetch("/api/speak", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, voice }),
-        signal: controller.signal,
-      });
-      if (!res.ok || controller.signal.aborted) return;
-      const arr = await res.arrayBuffer();
-      if (controller.signal.aborted) return;
-      const audioBuf = await ctx.decodeAudioData(arr);
-      if (controller.signal.aborted) return;
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (controller.signal.aborted) return false;
       try {
-        sourceRef.current?.stop();
+        const res = await fetch("/api/speak", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, voice }),
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return false;
+        if (!res.ok) {
+          // 503 (no key) is permanent — do not retry. Others may be transient.
+          if (res.status === 503) return false;
+          throw new Error(`speak ${res.status}`);
+        }
+        const arr = await res.arrayBuffer();
+        if (controller.signal.aborted) return false;
+        const audioBuf = await ctx.decodeAudioData(arr);
+        if (controller.signal.aborted) return false;
+        // The context can suspend between messages (tab blur, iOS); resume it
+        // right before playback so a later guideline/ruling still sounds.
+        if (ctx.state === "suspended") await ctx.resume();
+        try {
+          sourceRef.current?.stop();
+        } catch {
+          /* none playing */
+        }
+        const src = ctx.createBufferSource();
+        src.buffer = audioBuf;
+        src.connect(ctx.destination);
+        sourceRef.current = src;
+        src.start(0);
+        return true;
       } catch {
-        /* none playing */
+        if (controller.signal.aborted) return false;
+        // brief backoff, then retry
+        await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
       }
-      const src = ctx.createBufferSource();
-      src.buffer = audioBuf;
-      src.connect(ctx.destination);
-      sourceRef.current = src;
-      src.start(0);
-    } catch {
-      /* skip audio this message */
     }
+    return false;
   }
   useEffect(() => {
     if (!voiceEnabled || !isAudioDevice || !terminal.speakKey || !terminal.speak) return;
     if (spokenKeyRef.current === terminal.speakKey) return;
-    spokenKeyRef.current = terminal.speakKey;
-    void speakNow(terminal.speak, voiceIdRef.current);
+    const key = terminal.speakKey;
+    // Reserve the key so the 1s poll re-render doesn't launch a duplicate while
+    // this request is in flight; clear it again if playback never starts, so a
+    // failure can be retried when state next changes.
+    spokenKeyRef.current = key;
+    void speakNow(terminal.speak, voiceIdRef.current).then((played) => {
+      if (!played && spokenKeyRef.current === key) spokenKeyRef.current = null;
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [terminal.speakKey, voiceEnabled, isAudioDevice]);
   useEffect(() => {
@@ -1405,6 +1440,9 @@ export function PerformanceReviewGameView({
                   >
                     {isAccusing ? "Filing..." : "File HR Report"}
                   </button>
+                  <p className="text-gray-600 text-xs italic text-center pt-1">
+                    {accusationShade}
+                  </p>
                 </form>
               )
             ) : (
@@ -1463,6 +1501,9 @@ export function PerformanceReviewGameView({
                 >
                   {isExplaining ? "Submitting..." : "Submit Statement"}
                 </button>
+                <p className="text-gray-600 text-xs italic text-center pt-1">
+                  {interviewShade}
+                </p>
               </form>
             )}
             <p className="text-gray-500 text-xs">
