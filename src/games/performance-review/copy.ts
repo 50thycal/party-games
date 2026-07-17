@@ -142,6 +142,17 @@ export function buildOrientationModules(names: string[]): OrientationModule[] {
   ];
 }
 
+// Spoken when the host waives orientation — witty, faintly put out that you
+// already seem to know the procedure. Read aloud; one is picked at random.
+export const WAIVE_LINES = [
+  "Orientation waived. I did not realize you had already been through this. Neither did your file.",
+  "Skipping ahead. Most employees who already know the procedure learned it somewhere. We will not ask where.",
+  "Orientation waived, then. It is refreshing to meet a cohort that remembers a training it was never given.",
+  "Very well. Comprehension will be assumed. It usually is, and it usually should not be.",
+  "Noted. You would rather begin. The last group that felt this prepared is why we now hold orientation.",
+  "Orientation marked complete. Your confidence has been recorded, and will be revisited.",
+];
+
 // Orientation controls (host-only actions, in-world labels).
 export const ORIENTATION_NEXT_LABEL = "Acknowledge and Continue";
 export const ORIENTATION_BEGIN_LABEL = "Begin Case Intake";
@@ -346,6 +357,38 @@ export const REPORT_FILED_LINES = [
 
 export const B_VOTE_TERMINAL =
   "Comments are in. Recognize your colleague's finest contribution.";
+
+// ============================================================================
+// Ambient narrator banter — spoken aloud on a loose 11-24s cadence during the
+// working phases (reports, statements, challenges), low priority so it never
+// steps on a guideline or ruling. This is the STATIC baseline / offline pool;
+// when the AI is reachable it also returns lines that reference what players
+// actually wrote. Witty and unsettling, always delivered as routine.
+// ============================================================================
+
+export const BANTER_LINES = [
+  "Keep writing. HR reads faster than you type.",
+  "Someone in this room has done this before. They are pretending otherwise.",
+  "Do not mind the cursor. It blinks whether or not you are watched.",
+  "Your colleagues are being more honest than you. Statistically, that is unusual.",
+  "The quiet ones always have the longest files.",
+  "I can hear you thinking. It is not as private as you assume.",
+  "Take your time. Time is the one thing we keep an accurate record of.",
+  "Two of you paused at the same moment. HR found that interesting.",
+  "Whatever you are about to delete, HR already saw it.",
+  "The employee to your left is doing fine. Do not ask which left.",
+  "Honesty is encouraged. It is also easier to file.",
+  "You are doing well. 'Well' is a category with a wide bottom.",
+  "The last person who sat where you are sitting also hesitated here.",
+  "Nothing you write will surprise us. We would prefer you tried anyway.",
+  "A draft is just a confession you have not committed to yet.",
+  "Somewhere a printer is warming up. Nobody sent anything to it.",
+  "Your keystrokes are within normal parameters. The parameters are wide today.",
+  "HR appreciates a specific answer. Vagueness is a decision, and it is noted as one.",
+  "Relax your shoulders. This is a friendly investigation. They are all friendly.",
+  "The room temperature is correct. Please stop adjusting to it.",
+  "You have been recognizable for the entire session. Thank you for your consistency.",
+];
 
 // ============================================================================
 // Ambient host "shade" — rotated through the terminal while employees write
