@@ -8,13 +8,11 @@ export const runtime = "nodejs";
 // ============================================================================
 
 type HostHeat = "mild" | "spicy" | "scorched";
-type HostChallenge = "spectrum" | "thread";
-type HostKind = "intro" | "reframe" | "resolve" | "final" | "banter";
+type HostKind = "intro" | "reframe" | "resolve" | "comment" | "final" | "banter";
 
 type HostRequest = {
   kind: HostKind;
   heat: HostHeat;
-  challenge: HostChallenge;
   investigationRound: number;
   totalInvestigationRounds: number;
   standings: Array<{ name: string; score: number; trend: "up" | "down" | "flat" }>;
@@ -26,6 +24,8 @@ type HostRequest = {
   reporterName: string;
   accusation: string; // already manager-reframed
   explanation: string;
+  // kind=comment — the (possibly edited) guideline HR is commenting on
+  guideline: string;
   // kind=banter — what's happening right now + what players just wrote
   banterPhase: string;
   snippets: string[];
@@ -87,10 +87,12 @@ VOICE — READ CAREFULLY:
 
 HOW THE PROCEDURE WORKS: every employee files a short HR report on an assigned colleague. Every
 employee is then interviewed about the report filed on them. For each incident you issue a ruling
-and convert it into a new COMPANY GUIDELINE. Each guideline is then reviewed by the group: rated
-on a spectrum by one employee (colleagues estimate the rating), or commented on in a company
-thread. The investigation runs multiple reporting cycles (investigationRound /
-totalInvestigationRounds in the data).
+and convert it into a new COMPANY GUIDELINE. Each guideline is then handed to an uninvolved
+employee — the Editor — who redacts words and substitutes their own, producing a garbled revised
+policy. The revised guidelines are then read to the whole department one at a time; employees
+comment on each and try to identify who it was really about, and you post one comment of your own.
+Finally the group votes for its favorite revised guideline. The investigation runs multiple
+reporting cycles (investigationRound / totalInvestigationRounds in the data).
 
 HEAT ("${heat}") — how pointed you are about employee BEHAVIOR. Heat never changes how wrong the
 company is; the irregularities stay at the same level at every heat.
@@ -130,18 +132,20 @@ kind = "resolve" — the case: accusedName was reported on; the manager-reframed
   1-2 sentences. Example: "Effective immediately, employees may not describe a group lunch as
   'technically a hostage situation' unless at least two managers are present." Never repeat
   anything in recentGuidelines.
-- SPECTRUM (only when challenge = "spectrum"): a SPECIFIC, absurd spectrum for rating the
-  guideline — never generic. "spectrumQuestion" (e.g. "How severe is this workplace violation?"),
-  "leftLabel" (the 0/low pole, e.g. "A brave breakfast choice"), "rightLabel" (the 100/high pole,
-  e.g. "Federal building evacuation").
 - "nudges": exactly 3 short lines (max 10 words each) shown to employees while they work. Mix
   mundane corporate patience ("Please continue.", "Take your time. Within reason.") with lines
   that are quietly wrong ("The previous occupant of your seat finished faster."). Roughly half
   and half. No surveillance cliches.
-When challenge = "spectrum" STRICT JSON:
-{"hrResponse": string, "guideline": string, "spectrumQuestion": string, "leftLabel": string, "rightLabel": string, "nudges": string[3]}
-When challenge = "thread" STRICT JSON:
+STRICT JSON:
 {"hrResponse": string, "guideline": string, "nudges": string[3]}
+
+kind = "comment" — an edited guideline (in "guideline") has just been read to the department, and
+HR posts ONE short comment beneath it, as if in the company thread. It must sound like a workplace
+memo reacting to the (often garbled) revised policy: one sentence, max ~22 words, dry and quietly
+unsettling — note that the wording has changed, that the revision has been filed, that a prior
+version is no longer on record, that the edit matches an earlier one. Do NOT name who the guideline
+was about. Do NOT quote a whole sentence back. No exclamation marks, no threats, no horror.
+STRICT JSON: {"comment": string}
 
 kind = "final" — the closing address. Short. Name the top scorer Employee of the Cycle with
 backhanded corporate praise ("recognition will occur when appropriate"), note the lowest
@@ -187,6 +191,7 @@ export async function POST(req: NextRequest) {
       body.kind === "final" ||
       body.kind === "intro" ||
       body.kind === "reframe" ||
+      body.kind === "comment" ||
       body.kind === "banter"
         ? body.kind
         : "resolve";
@@ -194,8 +199,6 @@ export async function POST(req: NextRequest) {
       body.heat === "mild" || body.heat === "spicy" || body.heat === "scorched"
         ? body.heat
         : "spicy";
-    const challenge: HostChallenge =
-      body.challenge === "thread" ? "thread" : "spectrum";
 
     const standings = (Array.isArray(body.standings) ? body.standings : [])
       .slice(0, 16)
@@ -236,9 +239,10 @@ export async function POST(req: NextRequest) {
       .filter((s) => s.length > 0);
     const banterPhase = cleanString(body.banterPhase, 40);
 
+    const guideline = cleanString(body.guideline, 400);
+
     const caseData = {
       kind,
-      challenge,
       banterPhase,
       snippets,
       investigationRound:
@@ -254,6 +258,7 @@ export async function POST(req: NextRequest) {
       reporterName: cleanString(body.reporterName, 40),
       accusation: cleanString(body.accusation, 400),
       explanation: cleanString(body.explanation, 500),
+      guideline,
       recentGuidelines,
       caseLog,
     };
@@ -261,10 +266,8 @@ export async function POST(req: NextRequest) {
     const instruction: Record<HostKind, string> = {
       intro: `Produce your opening address (kind = "intro"). Respond with STRICT JSON only: {"commentary": string}`,
       reframe: `Reframe every raw filing in reframeItems, in order (kind = "reframe"). Respond with STRICT JSON only: {"reframes": string[]}`,
-      resolve:
-        challenge === "spectrum"
-          ? `Produce the HR ruling, the new Company Guideline, and a WACKY spectrum (kind = "resolve", challenge = "spectrum"). Respond with STRICT JSON only: {"hrResponse": string, "guideline": string, "spectrumQuestion": string, "leftLabel": string, "rightLabel": string, "nudges": string[]}`
-          : `Produce the HR ruling and the new Company Guideline (kind = "resolve", challenge = "thread"). Respond with STRICT JSON only: {"hrResponse": string, "guideline": string, "nudges": string[]}`,
+      resolve: `Produce the HR ruling and the new Company Guideline (kind = "resolve"). Respond with STRICT JSON only: {"hrResponse": string, "guideline": string, "nudges": string[]}`,
+      comment: `Post ONE short HR comment beneath the edited guideline in "guideline" (kind = "comment"). Respond with STRICT JSON only: {"comment": string}`,
       final: `Produce the closing address (kind = "final"). Respond with STRICT JSON only: {"commentary": string}`,
       banter: `Produce 6 short ambient one-liners for banterPhase, referencing snippets obliquely (kind = "banter"). Respond with STRICT JSON only: {"lines": string[]}`,
     };
@@ -318,33 +321,21 @@ export async function POST(req: NextRequest) {
 
     if (kind === "resolve") {
       const hrResponse = cleanString(parsed.hrResponse, 800);
-      const guideline = cleanString(parsed.guideline, 400);
-      if (!hrResponse || !guideline) {
+      const guidelineOut = cleanString(parsed.guideline, 400);
+      if (!hrResponse || !guidelineOut) {
         return failure("Malformed resolution from Overlord");
       }
       const nudges = (Array.isArray(parsed.nudges) ? parsed.nudges : [])
         .map((n) => cleanString(n, 140))
         .filter((n) => n.length > 0)
         .slice(0, 5);
+      return Response.json({ ok: true, hrResponse, guideline: guidelineOut, nudges });
+    }
 
-      if (challenge === "spectrum") {
-        const spectrumQuestion = cleanString(parsed.spectrumQuestion, 200);
-        const leftLabel = cleanString(parsed.leftLabel, 80);
-        const rightLabel = cleanString(parsed.rightLabel, 80);
-        if (!spectrumQuestion || !leftLabel || !rightLabel) {
-          return failure("Malformed spectrum from Overlord");
-        }
-        return Response.json({
-          ok: true,
-          hrResponse,
-          guideline,
-          spectrumQuestion,
-          leftLabel,
-          rightLabel,
-          nudges,
-        });
-      }
-      return Response.json({ ok: true, hrResponse, guideline, nudges });
+    if (kind === "comment") {
+      const comment = cleanString(parsed.comment, 240);
+      if (!comment) return failure("Malformed comment from Overlord");
+      return Response.json({ ok: true, comment });
     }
 
     const commentary = cleanString(parsed.commentary, 1200);

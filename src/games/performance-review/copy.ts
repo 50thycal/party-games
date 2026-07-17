@@ -116,27 +116,29 @@ export function buildOrientationModules(names: string[]): OrientationModule[] {
     },
     {
       procedureId: "ORIENTATION 04 / 04",
-      tag: "POLICY & PERFORMANCE REVIEW",
-      title: "Rulings, guidelines, recognition",
+      tag: "POLICY REVISION",
+      title: "Editing, review, recognition",
       body:
         "HR rules on each case and converts the incident into a new Company Guideline. " +
-        "Every guideline is then reviewed by the group in ONE of TWO formats, and the two " +
-        "formats ALTERNATE from case to case:\n\n" +
-        "• Spectrum Review — one employee privately rates the policy; everyone else estimates " +
-        "that rating.\n" +
-        "• Guideline Thread — everyone comments on the policy; the funniest comments earn votes, " +
-        "and @-identifying the employee who caused it earns a bonus.\n\n" +
-        "You do not choose the format. Each new guideline also replaces a version some employees " +
-        "may remember.",
+        "Each guideline is then assigned to an uninvolved employee — the Editor — who did not " +
+        "file it and is not named in it:\n\n" +
+        "• Editing — the Editor blacks out up to ten words of the guideline, then types a single " +
+        "word in place of each. There are two windows: ten seconds to redact, twenty to rewrite.\n" +
+        "• Review — each revised guideline is read to the department one at a time. Comment on it, " +
+        "and use @ to identify the employee you believe it was really about. Correct identification " +
+        "earns Performance Points.\n" +
+        "• Recognition — once every guideline has been read, vote for your favorite. Each vote is " +
+        "credited to that guideline's Editor.\n\n" +
+        "You do not choose which guideline you edit. Each revision replaces a version some " +
+        "employees may remember.",
       kind: "mock",
-      mockTitle: "REVIEW FORMATS — ALTERNATING",
+      mockTitle: "POLICY REVISION — SEQUENCE",
       mockBody:
-        "Case 01 → Spectrum Review\n" +
-        "Case 02 → Guideline Thread\n" +
-        "Case 03 → Spectrum Review\n" +
-        "...and so on. Attendance in both formats is expected.\n\n" +
-        "Scoring: accurate estimate up to 5 pts · each vote on your comment 2 pts · correct " +
-        "@-identification +3 pts. Three reporting cycles decide the Employee of the Cycle.\n" +
+        "1. Every guideline is edited at once, privately.\n" +
+        "2. Revised guidelines are read aloud, one at a time, and discussed.\n" +
+        "3. After the last one, the department votes its favorite.\n\n" +
+        "Scoring: correct @-identification +3 pts · each favorite-vote credits the Editor +4 pts. " +
+        "Three reporting cycles decide the Employee of the Cycle.\n" +
         "Performance Points are not compensation. Do not attempt to redeem them.",
     },
   ];
@@ -179,9 +181,10 @@ export const LOBBY_TERMINAL_LINES = [
 export const LOBBY_EXPLAINER =
   "A routine internal investigation. Everyone files a report on an assigned colleague; " +
   "everyone is interviewed about the report filed on them; HR converts each incident into " +
-  "a new Company Guideline, which the group then rates or roasts. Three reporting cycles. " +
-  "Performance Points determine the Employee of the Cycle. Previous cohorts found the " +
-  "process clarifying.";
+  "a new Company Guideline. An uninvolved employee then edits each guideline — redacting and " +
+  "rewriting it — before the department reads them aloud, guesses who each was about, and votes " +
+  "a favorite. Three reporting cycles. Performance Points determine the Employee of the Cycle. " +
+  "Previous cohorts found the process clarifying.";
 
 export const MIN_HEADCOUNT_LABEL = "Minimum viable department: 3";
 
@@ -274,17 +277,20 @@ export const FALLBACK_GUIDELINES = [
   "Badge photos will be retaken annually so that employees continue to match their descriptions.",
 ];
 
-export const FALLBACK_SPECTRUMS: Array<{
-  question: string;
-  leftLabel: string;
-  rightLabel: string;
-}> = [
-  { question: "How severe is this workplace violation?", leftLabel: "A brave breakfast choice", rightLabel: "Federal building evacuation" },
-  { question: "How much should HR care about this?", leftLabel: "Genuinely nobody's business", rightLabel: "Grounds for a task force" },
-  { question: "Where does this land on the conduct scale?", leftLabel: "Beloved office quirk", rightLabel: "Permanent record, red ink" },
-  { question: "How dangerous is this precedent?", leftLabel: "Charming misunderstanding", rightLabel: "The reason we have lawyers" },
-  { question: "How necessary is this new policy?", leftLabel: "Utterly pointless", rightLabel: "Should have existed for decades" },
-  { question: "How would the previous department have handled this?", leftLabel: "Quiet chuckle at the sink", rightLabel: "That is why they are the previous department" },
+// HR's own comment posted beneath each revised guideline once it is read. The
+// AI supplies these live; this is the offline / fallback pool. One sentence,
+// dry, quietly wrong — reacting to the fact of a REVISION, never naming anyone.
+export const FALLBACK_GUIDELINE_COMMENTS = [
+  "The revised wording has been filed. The previous wording is no longer on record.",
+  "Noted. This is the version we will pretend was always in effect.",
+  "The edit has been logged. It matches an edit made to a guideline you have not seen.",
+  "This revision improves nothing and has been approved on that basis.",
+  "The department will adopt this wording. The department adopted the last wording too.",
+  "A word here was replaced. HR agrees the original was safer, and has kept it.",
+  "This guideline now reads differently than it did a moment ago. So does your file.",
+  "Recorded. The Editor's changes have been attributed to no one, as requested by no one.",
+  "The policy stands as revised. Employees who remember the original are asked not to.",
+  "Filed under 'clarifications.' It clarifies nothing. It has been clarified regardless.",
 ];
 
 // Shown one at a time while employees "work." Half routine, half not quite.
@@ -355,8 +361,41 @@ export const REPORT_FILED_LINES = [
   "Filed. Your handwriting has improved since your last report. You typed this one too.",
 ];
 
-export const B_VOTE_TERMINAL =
-  "Comments are in. Recognize your colleague's finest contribution.";
+export const VOTE_TERMINAL =
+  "Every guideline has been read. Recognize the revision you found most agreeable.";
+
+// ============================================================================
+// Policy Revision — editing, reveal, and voting copy
+// ============================================================================
+
+// Shown to Editors during the two editing windows.
+export const EDITING_BLACKOUT_LABEL = "Redact — select up to 10 words";
+export const EDITING_REWRITE_LABEL = "Rewrite — one word per redaction";
+export const EDITING_BLACKOUT_HINT =
+  "Tap words to strike them from the guideline. Ten seconds.";
+export const EDITING_REWRITE_HINT =
+  "Type a single word in place of each. Twenty seconds. Blanks are simply removed.";
+export const EDITING_WAIT_LINES = [
+  "The department is revising its guidelines. This is considered maintenance.",
+  "Editors are at work. Their changes are being recorded as their own.",
+  "Language is being adjusted. The adjustments will be adopted regardless of merit.",
+  "Please hold. The guidelines are becoming something else.",
+  "Revision is underway. The originals are being kept somewhere they cannot be reached.",
+];
+export const EDITING_DONE_LINE =
+  "Your revision has been filed. It cannot be unfiled.";
+
+// The reveal thread — commenting on each revised guideline as it is read.
+export const REVEAL_COMMENT_HINT =
+  "Comment on the revised guideline, and use @ to identify who you think it was really about.";
+export const REVEAL_WAIT_LINES = [
+  "The guideline is being read. Comments open when it finishes.",
+  "Listen. The revised wording is being entered into the record.",
+  "Management is reading the policy aloud. Remain recognizable.",
+];
+export const REVEAL_POSTED_LINE =
+  "Your comment has been added to the thread. HR understood the tone.";
+export const HR_COMMENT_LABEL = "HR — Management";
 
 // ============================================================================
 // Ambient narrator banter — spoken aloud on a loose 11-24s cadence during the
