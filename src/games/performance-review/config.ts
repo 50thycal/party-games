@@ -208,8 +208,14 @@ export type PRState = {
   cases: PRCase[];
   totalCases: number;
 
+  // --- editing: two collective, server-synced windows (blackout, then rewrite) ---
+  editStep: "blackout" | "rewrite";
+  editStartedAt: number; // server timestamp the current window opened (shared clock)
+  editReady: Record<string, boolean>; // editorId -> ready in the current window
+
   // --- Policy Revision working state (reset per cycle) ---
   revealIndex: number; // which guideline is currently being read (0-based)
+  revealStartedAt: number; // server timestamp the current guideline reveal began
   revealComments: Record<number, Record<string, string>>; // caseIndex -> playerId -> comment
   guidelineComments: Record<number, string>; // caseIndex -> HR's own posted comment
   favorites: Record<string, number>; // voterId -> caseIndex they voted favorite
@@ -242,7 +248,9 @@ export type PRActionType =
   | "SUBMIT_EXPLANATION"
   | "SKIP_INTERVIEW"
   | "SET_CASE_RESOLUTION"
-  | "SUBMIT_EDIT"
+  | "SAVE_EDIT"
+  | "SET_EDIT_READY"
+  | "ADVANCE_EDIT_STEP"
   | "CLOSE_EDITING"
   | "SET_GUIDELINE_COMMENT"
   | "SUBMIT_COMMENT"
@@ -273,6 +281,7 @@ export interface PRAction extends BaseAction {
     // editing
     blackedOut?: number[];
     replacements?: Record<number, string>;
+    ready?: boolean;
     // reveal + voting
     comment?: string; // player comment, or HR's guideline comment
     favorite?: number; // caseIndex voted favorite
@@ -298,7 +307,11 @@ function initialState(_players: Player[]): PRState {
     explanations: {},
     cases: [],
     totalCases: 0,
+    editStep: "blackout",
+    editStartedAt: 0,
+    editReady: {},
     revealIndex: 0,
+    revealStartedAt: 0,
     revealComments: {},
     guidelineComments: {},
     favorites: {},
@@ -553,7 +566,11 @@ function openAccusationWindow(state: PRState, ctx: GameContext): PRState {
     reframes: {},
     explanations: {},
     cases: [],
+    editStep: "blackout",
+    editStartedAt: 0,
+    editReady: {},
     revealIndex: 0,
+    revealStartedAt: 0,
     revealComments: {},
     guidelineComments: {},
     favorites: {},
@@ -669,7 +686,11 @@ function buildCases(state: PRState, ctx: GameContext): PRState {
     ...state,
     cases,
     totalCases: cases.length,
+    editStep: "blackout",
+    editStartedAt: 0,
+    editReady: {},
     revealIndex: 0,
+    revealStartedAt: 0,
     revealComments: {},
     guidelineComments: {},
     favorites: {},
@@ -679,6 +700,47 @@ function buildCases(state: PRState, ctx: GameContext): PRState {
 
 function currentRevealCase(state: PRState): PRCase | undefined {
   return state.cases[state.revealIndex];
+}
+
+/** The distinct employees who are an Editor on some case (each edits one). */
+function editorIds(cases: PRCase[]): string[] {
+  const ids = new Set<string>();
+  for (const c of cases) if (c.editorId) ids.add(c.editorId);
+  return Array.from(ids);
+}
+
+/** Bake each editor's saved selection/replacements into the final guideline. */
+function finalizeEdits(state: PRState): PRState {
+  const cases = state.cases.map((c) => {
+    if (c.editedGuideline !== null) return c;
+    const tokens = tokenizeGuideline(c.guideline ?? "");
+    const rebuilt = reconstructGuideline(tokens, c.blackedOut, c.replacements);
+    return { ...c, editedGuideline: rebuilt || (c.guideline ?? "") };
+  });
+  return { ...state, cases };
+}
+
+/**
+ * A collective editing window closed (all editors readied, or the timer ran
+ * out): blackout -> rewrite opens a fresh synced window; rewrite -> the edits
+ * are finalized and the reveal begins.
+ */
+function advanceEditStep(state: PRState, ctx: GameContext): PRState {
+  if (state.editStep === "blackout") {
+    return {
+      ...state,
+      editStep: "rewrite",
+      editStartedAt: ctx.now(),
+      editReady: {},
+    };
+  }
+  return {
+    ...finalizeEdits(state),
+    editReady: {},
+    revealIndex: 0,
+    revealStartedAt: ctx.now(),
+    phase: "reveal",
+  };
 }
 
 /**
@@ -883,23 +945,32 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
       const nudges = sanitizeNudges(action.payload?.nudges);
       const allReady = cases.every((c) => c.guideline);
 
+      if (allReady) {
+        // Open the first editing window on a shared clock.
+        return {
+          ...state,
+          cases,
+          nudges: nudges.length > 0 ? nudges : state.nudges,
+          phase: "editing",
+          editStep: "blackout",
+          editStartedAt: ctx.now(),
+          editReady: {},
+        };
+      }
       return {
         ...state,
         cases,
         nudges: nudges.length > 0 ? nudges : state.nudges,
-        phase: allReady ? "editing" : "case_prep",
+        phase: "case_prep",
       };
     }
 
-    case "SUBMIT_EDIT": {
+    // Autosave the current selection/replacements onto the editor's case so
+    // nothing is lost when a window closes — even if they never hit Ready.
+    case "SAVE_EDIT": {
       if (state.phase !== "editing") return state;
-      if (!ctx.room.players.some((p) => p.id === ctx.playerId)) return state;
-      // The one guideline this player is assigned to edit (and hasn't yet).
-      const index = state.cases.findIndex(
-        (c) => c.editorId === ctx.playerId && c.editedGuideline === null
-      );
+      const index = state.cases.findIndex((c) => c.editorId === ctx.playerId);
       if (index < 0) return state;
-
       const c = state.cases[index];
       const tokens = tokenizeGuideline(c.guideline ?? "");
       const blackedOut = sanitizeBlackout(action.payload?.blackedOut, tokens.length);
@@ -907,36 +978,53 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
         action.payload?.replacements,
         blackedOut
       );
-      const rebuilt = reconstructGuideline(tokens, blackedOut, replacements);
-      const edited = rebuilt || (c.guideline ?? "");
-
       const cases = state.cases.map((x, i) =>
-        i === index
-          ? { ...x, editedGuideline: edited, blackedOut, replacements }
-          : x
+        i === index ? { ...x, blackedOut, replacements } : x
       );
+      return { ...state, cases };
+    }
 
-      const allEdited = cases.every(
-        (x) => x.editorId === null || x.editedGuideline !== null
+    // Save + mark this editor ready for the current window. When every editor is
+    // ready, the window advances early (no waiting on the timer).
+    case "SET_EDIT_READY": {
+      if (state.phase !== "editing") return state;
+      const index = state.cases.findIndex((c) => c.editorId === ctx.playerId);
+      if (index < 0) return state;
+      const c = state.cases[index];
+      const tokens = tokenizeGuideline(c.guideline ?? "");
+      const blackedOut = sanitizeBlackout(action.payload?.blackedOut, tokens.length);
+      const replacements = sanitizeReplacements(
+        action.payload?.replacements,
+        blackedOut
       );
+      const ready = action.payload?.ready !== false;
+      const cases = state.cases.map((x, i) =>
+        i === index ? { ...x, blackedOut, replacements } : x
+      );
+      const editReady = { ...state.editReady, [ctx.playerId]: ready };
+      const next: PRState = { ...state, cases, editReady };
+      const editors = editorIds(cases);
+      const allReady =
+        editors.length > 0 && editors.every((id) => editReady[id]);
+      return allReady ? advanceEditStep(next, ctx) : next;
+    }
 
-      return {
-        ...state,
-        cases,
-        revealIndex: 0,
-        phase: allEdited ? "reveal" : "editing",
-      };
+    // Timer for the current window expired (driver-owned) — advance for everyone.
+    case "ADVANCE_EDIT_STEP": {
+      if (!canDrive(ctx)) return state;
+      if (state.phase !== "editing") return state;
+      return advanceEditStep(state, ctx);
     }
 
     case "CLOSE_EDITING": {
       if (!isHost(ctx)) return state;
       if (state.phase !== "editing") return state;
-      const cases = state.cases.map((x) =>
-        x.editedGuideline === null
-          ? { ...x, editedGuideline: x.guideline ?? "" }
-          : x
-      );
-      return { ...state, cases, revealIndex: 0, phase: "reveal" };
+      return {
+        ...finalizeEdits(state),
+        revealIndex: 0,
+        revealStartedAt: ctx.now(),
+        phase: "reveal",
+      };
     }
 
     case "SET_GUIDELINE_COMMENT": {
@@ -983,7 +1071,11 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
       if (!canDrive(ctx)) return state;
       if (state.phase !== "reveal") return state;
       if (state.revealIndex < state.totalCases - 1) {
-        return { ...state, revealIndex: state.revealIndex + 1 };
+        return {
+          ...state,
+          revealIndex: state.revealIndex + 1,
+          revealStartedAt: ctx.now(),
+        };
       }
       return { ...state, phase: "voting" };
     }
@@ -1116,13 +1208,14 @@ export const performanceReviewGame = defineGame<PRState, PRAction>({
         return isHost(ctx) && state.phase === "interview";
       case "SET_CASE_RESOLUTION":
         return canDrive(ctx) && state.phase === "case_prep";
-      case "SUBMIT_EDIT":
+      case "SAVE_EDIT":
+      case "SET_EDIT_READY":
         return (
           state.phase === "editing" &&
-          state.cases.some(
-            (c) => c.editorId === ctx.playerId && c.editedGuideline === null
-          )
+          state.cases.some((c) => c.editorId === ctx.playerId)
         );
+      case "ADVANCE_EDIT_STEP":
+        return canDrive(ctx) && state.phase === "editing";
       case "CLOSE_EDITING":
         return isHost(ctx) && state.phase === "editing";
       case "SET_GUIDELINE_COMMENT":
