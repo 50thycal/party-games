@@ -25,7 +25,6 @@ import {
   CASE_PREP_LINES,
   EDITING_BLACKOUT_HINT,
   EDITING_BLACKOUT_LABEL,
-  EDITING_DONE_LINE,
   EDITING_REWRITE_HINT,
   EDITING_REWRITE_LABEL,
   EDITING_WAIT_LINES,
@@ -71,9 +70,14 @@ const SPEECH_RATE = 1.2;
 const BANTER_PHASES = new Set(["accusation", "interview", "editing"]);
 
 // Policy Revision timings.
-const BLACKOUT_MS = 30_000; // window 1: redact
-const REWRITE_MS = 45_000; // window 2: rewrite
+const BLACKOUT_MS = 45_000; // window 1: select which words to replace
+const REWRITE_MS = 60_000; // window 2: type the replacement words
 const COMMENT_WINDOW_MS = 20_000; // comment window after a guideline is read
+// Grace after a window's timer before the driver finalizes it, so every client's
+// last autosave has landed first.
+const EDIT_ADVANCE_GRACE_MS = 900;
+// How long after the last keystroke to autosave in-progress edits.
+const EDIT_AUTOSAVE_MS = 500;
 // If the voice never actually starts (TTS down), print the terminal text anyway
 // after this long rather than leaving it blank.
 const PRINT_FALLBACK_MS = 6_000;
@@ -364,35 +368,6 @@ function CommentText({
   );
 }
 
-// Show a guideline with the Editor's redactions marked: removed words struck
-// through, replacements highlighted.
-function EditedGuideline({
-  original,
-  blackedOut,
-  replacements,
-}: {
-  original: string;
-  blackedOut: number[];
-  replacements: Record<number, string>;
-}) {
-  const tokens = tokenizeGuideline(original);
-  const bset = new Set(blackedOut);
-  return (
-    <p className="text-sm leading-relaxed">
-      {tokens.map((tok, i) => {
-        if (!bset.has(i)) return <span key={i}>{tok} </span>;
-        const r = replacements[i];
-        return (
-          <span key={i}>
-            <span className="line-through text-gray-600 mr-1">{tok}</span>
-            {r ? <span className="text-amber-300 font-semibold">{r}</span> : null}{" "}
-          </span>
-        );
-      })}
-    </p>
-  );
-}
-
 // ============================================================================
 // Main view
 // ============================================================================
@@ -422,7 +397,12 @@ export function PerformanceReviewGameView({
   const explanations = gameState?.explanations ?? {};
   const cases = gameState?.cases ?? [];
 
+  const editStep = gameState?.editStep ?? "blackout";
+  const editStartedAt = gameState?.editStartedAt ?? 0;
+  const editReady = gameState?.editReady ?? {};
+
   const revealIndex = gameState?.revealIndex ?? 0;
+  const revealStartedAt = gameState?.revealStartedAt ?? 0;
   const revealComments = gameState?.revealComments ?? {};
   const guidelineComments = gameState?.guidelineComments ?? {};
   const favorites = gameState?.favorites ?? {};
@@ -463,9 +443,12 @@ export function PerformanceReviewGameView({
   // editing derived — every employee edits exactly one guideline.
   const myEditIndex = cases.findIndex((c) => c.editorId === playerId);
   const myEditCase = myEditIndex >= 0 ? cases[myEditIndex] : null;
-  const myHasEdited = myEditCase ? myEditCase.editedGuideline !== null : false;
-  const editorsDone = cases.filter((c) => c.editedGuideline !== null).length;
-  const editorsTotal = cases.filter((c) => c.editorId !== null).length;
+  const editorIdSet = new Set(
+    cases.map((c) => c.editorId).filter((id): id is string => !!id)
+  );
+  const editorsTotal = editorIdSet.size;
+  const readyCount = Array.from(editorIdSet).filter((id) => editReady[id]).length;
+  const myReady = !!editReady[playerId];
 
   // reveal derived
   const revealCase: PRCase | null = cases[revealIndex] ?? null;
@@ -502,6 +485,11 @@ export function PerformanceReviewGameView({
   const [isCommenting, setIsCommenting] = useState(false);
   const [voteFor, setVoteFor] = useState<number | null>(null);
   const [isVoting, setIsVoting] = useState(false);
+  // Latest values mirrored for the comment-autosave timer (avoids stale closures).
+  const commentInputRef = useRef(commentInput);
+  commentInputRef.current = commentInput;
+  const hasCommentedThisRef = useRef(false);
+  hasCommentedThisRef.current = hasCommentedThis;
 
   const [isProceeding, setIsProceeding] = useState(false);
   const [isClosingAcc, setIsClosingAcc] = useState(false);
@@ -514,16 +502,14 @@ export function PerformanceReviewGameView({
   const [isAdvancing, setIsAdvancing] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
 
-  // --- editing working state (the two windows) ---
-  const [editStep, setEditStep] = useState<"blackout" | "rewrite">("blackout");
+  // --- editing working state (local copy; mirrored to the room via autosave) ---
   const [blackedOut, setBlackedOut] = useState<Set<number>>(new Set());
   const [replacements, setReplacements] = useState<Record<number, string>>({});
-  const [editDeadline, setEditDeadline] = useState(0);
   const blackedRef = useRef(blackedOut);
   blackedRef.current = blackedOut;
   const replRef = useRef(replacements);
   replRef.current = replacements;
-  const submittingEditRef = useRef(false);
+  const [isReadying, setIsReadying] = useState(false);
 
   // Reset all text inputs when the phase or revealed guideline changes, so a
   // fresh round never shows what this player typed in an earlier one.
@@ -544,46 +530,68 @@ export function PerformanceReviewGameView({
   }, [phase]);
 
   const canDrive = room.mode !== "multiplayer" || isHost;
+  const isAudioDevice = room.mode !== "multiplayer" || isHost;
 
   // ==========================================================================
-  // Editing — the two timed windows. Sequenced locally on each Editor's device;
-  // auto-submits whatever they have when the rewrite window closes.
+  // Editing — two collective windows on a shared server clock (editStartedAt +
+  // editStep). Each editor's selection/replacements are autosaved to the room so
+  // nothing is lost when a window closes; "Ready" ends a window early once all
+  // editors are ready; otherwise the driver advances it when the timer expires.
   // ==========================================================================
-  async function submitEditNow() {
-    if (submittingEditRef.current) return;
-    submittingEditRef.current = true;
-    const bo = Array.from(blackedRef.current);
+
+  // The editor's current data, as an action payload.
+  function currentEditPayload(): { blackedOut: number[]; replacements: Record<number, string> } {
+    const bo = Array.from(blackedRef.current).sort((a, b) => a - b);
     const repl: Record<number, string> = {};
     for (const i of bo) {
       const w = (replRef.current[i] ?? "").trim();
       if (w) repl[i] = w;
     }
-    try {
-      await dispatchAction("SUBMIT_EDIT", { blackedOut: bo, replacements: repl });
-    } finally {
-      // leave the guard set; myHasEdited flips and the UI moves on.
-    }
+    return { blackedOut: bo, replacements: repl };
   }
+
+  // Start each round's editing from a clean slate.
   useEffect(() => {
-    if (phase !== "editing" || !myEditCase || myHasEdited) return;
-    submittingEditRef.current = false;
+    if (phase !== "editing") return;
     setBlackedOut(new Set());
     setReplacements({});
-    setEditStep("blackout");
-    setEditDeadline(Date.now() + BLACKOUT_MS);
-    const t1 = setTimeout(() => {
-      setEditStep("rewrite");
-      setEditDeadline(Date.now() + REWRITE_MS);
-    }, BLACKOUT_MS);
-    const t2 = setTimeout(() => {
-      void submitEditNow();
-    }, BLACKOUT_MS + REWRITE_MS);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, myEditIndex, myHasEdited]);
+  }, [myEditIndex, investigationRound]);
+
+  // Autosave in-progress edits (debounced) so a window can close without loss.
+  useEffect(() => {
+    if (phase !== "editing" || !myEditCase) return;
+    const t = setTimeout(() => {
+      void dispatchAction("SAVE_EDIT", currentEditPayload());
+    }, EDIT_AUTOSAVE_MS);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, blackedOut, replacements, myEditIndex]);
+
+  // Driver finalizes a window when its timer runs out (all-ready is handled in
+  // the reducer). Grace lets the last autosaves land first.
+  useEffect(() => {
+    if (phase !== "editing" || !canDrive || editStartedAt <= 0) return;
+    const windowMs = editStep === "blackout" ? BLACKOUT_MS : REWRITE_MS;
+    const fireAt = editStartedAt + windowMs + EDIT_ADVANCE_GRACE_MS;
+    const t = setTimeout(
+      () => void dispatchAction("ADVANCE_EDIT_STEP"),
+      Math.max(0, fireAt - Date.now())
+    );
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, canDrive, editStartedAt, editStep]);
+
+  async function handleReady() {
+    await withFlag(setIsReadying, () =>
+      dispatchAction("SET_EDIT_READY", { ready: true, ...currentEditPayload() })
+    );
+  }
+  async function handleUnready() {
+    await withFlag(setIsReadying, () =>
+      dispatchAction("SET_EDIT_READY", { ready: false, ...currentEditPayload() })
+    );
+  }
 
   function toggleBlackout(i: number) {
     setBlackedOut((prev) => {
@@ -803,6 +811,27 @@ export function PerformanceReviewGameView({
     if (phase !== "reveal") return;
     setRevealEnteredTs(Date.now());
   }, [phase, revealIndex]);
+
+  // Auto-post an unsent comment just before the window closes, so text typed but
+  // never submitted isn't lost. Refs keep the timer off the keystroke path.
+  useEffect(() => {
+    if (phase !== "reveal") return;
+    const clock = revealStartedAt > 0 ? revealStartedAt : Date.now();
+    const readMs = estimateReadMs(
+      cases[revealIndex]?.editedGuideline ?? cases[revealIndex]?.guideline ?? "",
+      voiceEnabled && isAudioDevice
+    );
+    // Fire before the driver's NEXT_REVEAL so it files to the right guideline.
+    const fireAt = clock + readMs + COMMENT_WINDOW_MS - 1500;
+    const t = setTimeout(() => {
+      const text = commentInputRef.current.trim();
+      if (text && !hasCommentedThisRef.current) {
+        void dispatchAction("SUBMIT_COMMENT", { comment: text });
+      }
+    }, Math.max(0, fireAt - Date.now()));
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, revealIndex, revealStartedAt, voiceEnabled, isAudioDevice]);
 
   // Final address
   const finalRequested = useRef(false);
@@ -1024,7 +1053,6 @@ export function PerformanceReviewGameView({
   }
   const terminal = terminalContent();
 
-  const isAudioDevice = room.mode !== "multiplayer" || isHost;
   const audioCtxRef = useRef<AudioContext | null>(null);
   const sourceRef = useRef<AudioBufferSourceNode | null>(null);
   const fetchAbortRef = useRef<AbortController | null>(null);
@@ -1384,11 +1412,19 @@ export function PerformanceReviewGameView({
         : { beginTs: Number.MAX_SAFE_INTEGER, durationMs: 0 };
   }
 
-  const editSecondsLeft = Math.max(0, Math.ceil((editDeadline - nowTs) / 1000));
-  // The comment window opens only once the narrator finishes the guideline.
+  // Editing countdown, off the shared window clock so every editor agrees.
+  const editWindowMs = editStep === "blackout" ? BLACKOUT_MS : REWRITE_MS;
+  const editSecondsLeft =
+    editStartedAt > 0
+      ? Math.max(0, Math.ceil((editStartedAt + editWindowMs - nowTs) / 1000))
+      : Math.round(editWindowMs / 1000);
+
+  // The comment window opens only once the narrator finishes the guideline, on
+  // the shared reveal clock.
+  const revealClock = revealStartedAt > 0 ? revealStartedAt : revealEnteredTs;
   const revealReadMs = estimateReadMs(revealedGuideline, voiceEnabled && isAudioDevice);
-  const commentStartTs = revealEnteredTs + revealReadMs;
-  const commentOpen = revealEnteredTs > 0 && nowTs >= commentStartTs;
+  const commentStartTs = revealClock + revealReadMs;
+  const commentOpen = revealClock > 0 && nowTs >= commentStartTs;
   const commentSecondsLeft = Math.max(
     0,
     Math.ceil((commentStartTs + COMMENT_WINDOW_MS - nowTs) / 1000)
@@ -1560,7 +1596,7 @@ export function PerformanceReviewGameView({
             >
               {isClosingEditing
                 ? "Filing revisions..."
-                : `Close Editing & Begin Review (${editorsDone}/${editorsTotal} filed)`}
+                : `Skip to Review (${readyCount}/${editorsTotal} ready)`}
             </button>
           )}
 
@@ -1864,47 +1900,33 @@ export function PerformanceReviewGameView({
         {phase === "editing" && (
           <div>
             {myEditCase && myEditCase.guideline ? (
-              myHasEdited ? (
-                <div className="space-y-3">
-                  <ActionBanner tone="gray">{EDITING_DONE_LINE}</ActionBanner>
-                  <div className="bg-gray-900 rounded-lg p-4">
-                    <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">
-                      Your revision
-                    </p>
-                    <EditedGuideline
-                      original={myEditCase.guideline}
-                      blackedOut={myEditCase.blackedOut}
-                      replacements={myEditCase.replacements}
-                    />
-                  </div>
-                  <p className="text-gray-500 text-xs text-center">
-                    {editorsDone} of {editorsTotal} revisions filed. {currentNudge}
-                  </p>
-                </div>
-              ) : (
-                <EditorWorkspace
-                  original={myEditCase.guideline}
-                  step={editStep}
-                  secondsLeft={editSecondsLeft}
-                  blackedOut={blackedOut}
-                  replacements={replacements}
-                  onToggle={toggleBlackout}
-                  onReplacement={(i, v) =>
-                    setReplacements((prev) => ({
-                      ...prev,
-                      [i]: v.replace(/\s/g, "").slice(0, MAX_REPLACEMENT_LENGTH),
-                    }))
-                  }
-                  onSubmit={() => void submitEditNow()}
-                />
-              )
+              <EditorWorkspace
+                original={myEditCase.guideline}
+                step={editStep}
+                secondsLeft={editSecondsLeft}
+                blackedOut={blackedOut}
+                replacements={replacements}
+                onToggle={toggleBlackout}
+                onReplacement={(i, v) =>
+                  setReplacements((prev) => ({
+                    ...prev,
+                    [i]: v.replace(/\s/g, "").slice(0, MAX_REPLACEMENT_LENGTH),
+                  }))
+                }
+                ready={myReady}
+                readyCount={readyCount}
+                editorsTotal={editorsTotal}
+                isReadying={isReadying}
+                onReady={handleReady}
+                onUnready={handleUnready}
+              />
             ) : (
               <div className="text-center py-6">
                 <p className="text-gray-300">
                   The department is revising its guidelines.
                 </p>
                 <p className="text-gray-500 text-xs mt-2">
-                  {editorsDone} of {editorsTotal} revisions filed. {currentNudge}
+                  {readyCount} of {editorsTotal} editors ready. {currentNudge}
                 </p>
               </div>
             )}
@@ -2123,7 +2145,12 @@ function EditorWorkspace({
   replacements,
   onToggle,
   onReplacement,
-  onSubmit,
+  ready,
+  readyCount,
+  editorsTotal,
+  isReadying,
+  onReady,
+  onUnready,
 }: {
   original: string;
   step: "blackout" | "rewrite";
@@ -2132,7 +2159,12 @@ function EditorWorkspace({
   replacements: Record<number, string>;
   onToggle: (i: number) => void;
   onReplacement: (i: number, v: string) => void;
-  onSubmit: () => void;
+  ready: boolean;
+  readyCount: number;
+  editorsTotal: number;
+  isReadying: boolean;
+  onReady: () => void;
+  onUnready: () => void;
 }) {
   const tokens = tokenizeGuideline(original);
   const selected = Array.from(blackedOut).sort((a, b) => a - b);
@@ -2146,7 +2178,7 @@ function EditorWorkspace({
         </p>
         <span
           className={`font-mono text-lg font-bold ${
-            secondsLeft <= 3 ? "text-red-400" : "text-amber-300"
+            secondsLeft <= 5 ? "text-red-400" : "text-amber-300"
           }`}
         >
           {secondsLeft}s
@@ -2168,12 +2200,13 @@ function EditorWorkspace({
                 <button
                   key={i}
                   type="button"
+                  disabled={ready}
                   onClick={() => onToggle(i)}
                   className={`inline rounded px-1 mr-1 mb-1 text-sm transition-colors ${
                     on
                       ? "bg-black text-black ring-1 ring-gray-600"
                       : "text-indigo-100 hover:bg-gray-700"
-                  }`}
+                  } ${ready ? "opacity-70" : ""}`}
                 >
                   {tok}
                 </button>
@@ -2201,10 +2234,11 @@ function EditorWorkspace({
                   <span className="text-gray-600">→</span>
                   <input
                     value={replacements[i] ?? ""}
+                    disabled={ready}
                     onChange={(e) => onReplacement(i, e.target.value)}
                     maxLength={MAX_REPLACEMENT_LENGTH}
                     placeholder="one word"
-                    className="flex-1 bg-gray-900 border border-gray-700 rounded-lg py-1.5 px-3 text-sm focus:outline-none focus:border-blue-500"
+                    className="flex-1 bg-gray-900 border border-gray-700 rounded-lg py-1.5 px-3 text-sm focus:outline-none focus:border-blue-500 disabled:opacity-60"
                   />
                 </div>
               ))}
@@ -2214,15 +2248,51 @@ function EditorWorkspace({
             <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Preview</p>
             <p className="text-sm text-indigo-100">{preview || "…"}</p>
           </div>
-          <button
-            type="button"
-            onClick={onSubmit}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
-          >
-            File Revision
-          </button>
         </div>
       )}
+
+      {/* ready-up footer */}
+      <div className="space-y-2">
+        {ready ? (
+          <>
+            <div className="rounded-lg border border-green-700 bg-green-900/30 p-3 text-center">
+              <p className="text-sm font-semibold text-green-300">
+                Ready ✓ — waiting for the department
+              </p>
+              <p className="text-[11px] text-green-500/80 mt-0.5">
+                {readyCount} of {editorsTotal} editors ready. This window advances when
+                everyone is.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onUnready}
+              disabled={isReadying}
+              className="w-full bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors"
+            >
+              Keep editing
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={onReady}
+              disabled={isReadying}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+            >
+              {isReadying
+                ? "Marking ready..."
+                : step === "blackout"
+                ? "Lock in redactions — Ready"
+                : "Submit revision — Ready"}
+            </button>
+            <p className="text-[11px] text-gray-500 text-center">
+              {readyCount} of {editorsTotal} editors ready. Your work is saved automatically.
+            </p>
+          </>
+        )}
+      </div>
     </div>
   );
 }
