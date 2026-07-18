@@ -15,7 +15,6 @@ import {
   MAX_REPLACEMENT_LENGTH,
   PR_VOICES,
   parseMention,
-  reconstructGuideline,
   tokenizeGuideline,
 } from "./config";
 import type { PRCase, PRHeat, PRState } from "./config";
@@ -72,7 +71,6 @@ const BANTER_PHASES = new Set(["accusation", "interview", "editing"]);
 // Policy Revision timings.
 const BLACKOUT_MS = 45_000; // window 1: select which words to replace
 const REWRITE_MS = 60_000; // window 2: type the replacement words
-const COMMENT_WINDOW_MS = 20_000; // comment window after a guideline is read
 // Grace after a window's timer before the driver finalizes it, so every client's
 // last autosave has landed first.
 const EDIT_ADVANCE_GRACE_MS = 900;
@@ -404,6 +402,7 @@ export function PerformanceReviewGameView({
   const revealIndex = gameState?.revealIndex ?? 0;
   const revealStartedAt = gameState?.revealStartedAt ?? 0;
   const revealComments = gameState?.revealComments ?? {};
+  const revealReady = gameState?.revealReady ?? {};
   const guidelineComments = gameState?.guidelineComments ?? {};
   const favorites = gameState?.favorites ?? {};
 
@@ -457,6 +456,10 @@ export function PerformanceReviewGameView({
   const hrComment = guidelineComments[revealIndex] ?? null;
   const revealedGuideline =
     revealCase?.editedGuideline ?? revealCase?.guideline ?? "";
+  const myRevealReady = !!revealReady[playerId];
+  const revealReadyCount = players.filter((p) => revealReady[p.id]).length;
+  const allRevealReady =
+    players.length > 0 && players.every((p) => revealReady[p.id]);
 
   // voting derived
   const votableCases = cases
@@ -485,11 +488,7 @@ export function PerformanceReviewGameView({
   const [isCommenting, setIsCommenting] = useState(false);
   const [voteFor, setVoteFor] = useState<number | null>(null);
   const [isVoting, setIsVoting] = useState(false);
-  // Latest values mirrored for the comment-autosave timer (avoids stale closures).
-  const commentInputRef = useRef(commentInput);
-  commentInputRef.current = commentInput;
-  const hasCommentedThisRef = useRef(false);
-  hasCommentedThisRef.current = hasCommentedThis;
+  const [isRevealReadying, setIsRevealReadying] = useState(false);
 
   const [isProceeding, setIsProceeding] = useState(false);
   const [isClosingAcc, setIsClosingAcc] = useState(false);
@@ -761,77 +760,69 @@ export function PerformanceReviewGameView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, isHost]);
 
-  // Reveal loop — for the current guideline: after it's read, HR posts one
-  // comment, and (on the driver) advance once the comment window elapses.
+  // After the guideline is read, HR posts one comment of its own (driver).
   useEffect(() => {
     if (phase !== "reveal" || !canDrive) return;
     const idx = revealIndex;
     const c = cases[idx];
-    if (!c) return;
+    if (!c || guidelineComments[idx]) return;
     const guidelineText = c.editedGuideline ?? c.guideline ?? "";
     const readMs = estimateReadMs(guidelineText, voiceEnabled && isAudioDevice);
     let cancelled = false;
-    const timers: Array<ReturnType<typeof setTimeout>> = [];
-
-    // HR posts its own comment shortly after the guideline is read.
-    timers.push(
-      setTimeout(async () => {
-        if (cancelled || guidelineComments[idx]) return;
-        const json = await fetchHost({
-          ...buildHostRequest("comment", { caseIndex: idx, guideline: guidelineText }),
-        });
-        const comment =
-          json && typeof json.comment === "string" && json.comment.trim()
-            ? (json.comment as string)
-            : pick(FALLBACK_GUIDELINE_COMMENTS);
-        if (!cancelled) {
-          await dispatchAction("SET_GUIDELINE_COMMENT", { index: idx, comment });
-        }
-      }, readMs + 500)
-    );
-
-    // Advance after the read + the comment window.
-    timers.push(
-      setTimeout(() => {
-        if (!cancelled) void dispatchAction("NEXT_REVEAL");
-      }, readMs + COMMENT_WINDOW_MS)
-    );
-
+    const t = setTimeout(async () => {
+      if (cancelled) return;
+      const json = await fetchHost({
+        ...buildHostRequest("comment", { caseIndex: idx, guideline: guidelineText }),
+      });
+      const comment =
+        json && typeof json.comment === "string" && json.comment.trim()
+          ? (json.comment as string)
+          : pick(FALLBACK_GUIDELINE_COMMENTS);
+      if (!cancelled) {
+        await dispatchAction("SET_GUIDELINE_COMMENT", { index: idx, comment });
+      }
+    }, readMs + 500);
     return () => {
       cancelled = true;
-      timers.forEach(clearTimeout);
+      clearTimeout(t);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, revealIndex, canDrive, voiceEnabled]);
 
-  // When this guideline came on screen — the comment window opens once the
-  // narrator is estimated to have finished reading it. (Advance is driver-owned.)
-  const [revealEnteredTs, setRevealEnteredTs] = useState(0);
+  // Once every player has readied, the narrator reads the thread aloud (each
+  // comment and who wrote it), then the driver advances. No timer — the ready-up
+  // is the gate, and the readout is the pause between guidelines.
+  const readoutDoneRef = useRef(-1);
   useEffect(() => {
-    if (phase !== "reveal") return;
-    setRevealEnteredTs(Date.now());
-  }, [phase, revealIndex]);
+    if (phase !== "reveal") {
+      readoutDoneRef.current = -1;
+      return;
+    }
+    if (!canDrive || !allRevealReady) return;
+    const idx = revealIndex;
+    if (readoutDoneRef.current === idx) return;
+    readoutDoneRef.current = idx;
 
-  // Auto-post an unsent comment just before the window closes, so text typed but
-  // never submitted isn't lost. Refs keep the timer off the keystroke path.
-  useEffect(() => {
-    if (phase !== "reveal") return;
-    const clock = revealStartedAt > 0 ? revealStartedAt : Date.now();
-    const readMs = estimateReadMs(
-      cases[revealIndex]?.editedGuideline ?? cases[revealIndex]?.guideline ?? "",
-      voiceEnabled && isAudioDevice
-    );
-    // Fire before the driver's NEXT_REVEAL so it files to the right guideline.
-    const fireAt = clock + readMs + COMMENT_WINDOW_MS - 1500;
-    const t = setTimeout(() => {
-      const text = commentInputRef.current.trim();
-      if (text && !hasCommentedThisRef.current) {
-        void dispatchAction("SUBMIT_COMMENT", { comment: text });
+    const thread = revealComments[idx] ?? {};
+    const lines = players
+      .filter((p) => thread[p.id])
+      .map((p) => `${p.name} wrote: ${thread[p.id]}`);
+    const readout = lines.length > 0 ? `The thread. ${lines.join(". ")}` : "";
+
+    let advanceMs = 900;
+    if (readout) {
+      if (voiceEnabled && isAudioDevice) {
+        void speakNow(readout, voiceIdRef.current);
+        const words = readout.split(/\s+/).filter(Boolean).length;
+        advanceMs = Math.min(45_000, Math.max(2_500, words * 400)) + 900;
+      } else {
+        advanceMs = 2_500;
       }
-    }, Math.max(0, fireAt - Date.now()));
+    }
+    const t = setTimeout(() => void dispatchAction("NEXT_REVEAL"), advanceMs);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, revealIndex, revealStartedAt, voiceEnabled, isAudioDevice]);
+  }, [phase, revealIndex, canDrive, allRevealReady, voiceEnabled, isAudioDevice]);
 
   // Final address
   const finalRequested = useRef(false);
@@ -943,6 +934,21 @@ export function PerformanceReviewGameView({
       dispatchAction("SUBMIT_COMMENT", { comment: text })
     );
   }
+  // Ready for the next guideline; posts any typed-but-unsent comment first so it
+  // isn't lost.
+  async function handleRevealReady() {
+    await withFlag(setIsRevealReadying, async () => {
+      const text = commentInput.trim();
+      if (text && !hasCommentedThis) {
+        await dispatchAction("SUBMIT_COMMENT", { comment: text });
+      }
+      await dispatchAction("SET_REVEAL_READY", { ready: true });
+    });
+  }
+  const handleRevealUnready = () =>
+    withFlag(setIsRevealReadying, () =>
+      dispatchAction("SET_REVEAL_READY", { ready: false })
+    );
   const handleNextReveal = () =>
     withFlag(setIsNextReveal, () => dispatchAction("NEXT_REVEAL"));
 
@@ -1419,17 +1425,6 @@ export function PerformanceReviewGameView({
       ? Math.max(0, Math.ceil((editStartedAt + editWindowMs - nowTs) / 1000))
       : Math.round(editWindowMs / 1000);
 
-  // The comment window opens only once the narrator finishes the guideline, on
-  // the shared reveal clock.
-  const revealClock = revealStartedAt > 0 ? revealStartedAt : revealEnteredTs;
-  const revealReadMs = estimateReadMs(revealedGuideline, voiceEnabled && isAudioDevice);
-  const commentStartTs = revealClock + revealReadMs;
-  const commentOpen = revealClock > 0 && nowTs >= commentStartTs;
-  const commentSecondsLeft = Math.max(
-    0,
-    Math.ceil((commentStartTs + COMMENT_WINDOW_MS - nowTs) / 1000)
-  );
-
   // Header sub-label per phase.
   let headerDetail = "";
   if (phase === "accusation" || phase === "reframing" || phase === "interview") {
@@ -1609,8 +1604,8 @@ export function PerformanceReviewGameView({
               {isNextReveal
                 ? "Advancing..."
                 : revealIndex >= totalCases - 1
-                ? "Close Review & Open Voting"
-                : "Skip to Next Revision"}
+                ? `Skip to Voting (${revealReadyCount}/${players.length} ready)`
+                : `Skip to Next Revision (${revealReadyCount}/${players.length} ready)`}
             </button>
           )}
 
@@ -1966,26 +1961,20 @@ export function PerformanceReviewGameView({
                 ))}
             </div>
 
-            <div className="flex items-center justify-between gap-3 mb-1">
-              <p className="text-xs text-gray-400">
-                Correct @-identification earns +{ATMENTION_BONUS}.
-              </p>
-              <span
-                className={`font-mono text-sm font-bold whitespace-nowrap ${
-                  !commentOpen
-                    ? "text-gray-500"
-                    : commentSecondsLeft <= 5
-                    ? "text-red-400"
-                    : "text-amber-300"
-                }`}
-              >
-                {commentOpen ? `${commentSecondsLeft}s to comment` : "Reading…"}
-              </span>
-            </div>
+            <p className="text-xs text-gray-400">
+              Correct @-identification earns +{ATMENTION_BONUS}. Take your time — no timer.
+            </p>
 
             {hasCommentedThis ? (
-              <p className="text-gray-500 text-xs italic text-center">{REVEAL_POSTED_LINE}</p>
-            ) : (
+              <div className="rounded-lg border border-gray-700 bg-gray-900 p-3">
+                <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">
+                  Your comment {REVEAL_POSTED_LINE}
+                </p>
+                <p className="text-sm text-gray-200">
+                  <CommentText text={revealThread[playerId]} players={players} />
+                </p>
+              </div>
+            ) : myRevealReady ? null : (
               <form onSubmit={handleSubmitComment} className="space-y-3">
                 <p className="text-xs text-gray-400">{REVEAL_COMMENT_HINT}</p>
                 <MentionTextarea
@@ -2005,6 +1994,45 @@ export function PerformanceReviewGameView({
                 </button>
               </form>
             )}
+
+            {/* ready-up gates the next guideline (the pause between reads) */}
+            <div className="mt-3 space-y-2">
+              {myRevealReady ? (
+                <>
+                  <div className="rounded-lg border border-green-700 bg-green-900/30 p-3 text-center">
+                    <p className="text-sm font-semibold text-green-300">
+                      Ready ✓ — waiting for the department
+                    </p>
+                    <p className="text-[11px] text-green-500/80 mt-0.5">
+                      {revealReadyCount} of {players.length} ready. The next guideline reads
+                      when everyone is.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRevealUnready}
+                    disabled={isRevealReadying}
+                    className="w-full bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors"
+                  >
+                    Keep looking
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleRevealReady}
+                    disabled={isRevealReadying}
+                    className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+                  >
+                    {isRevealReadying ? "Readying..." : "Ready — Next Guideline"}
+                  </button>
+                  <p className="text-[11px] text-gray-500 text-center">
+                    {revealReadyCount} of {players.length} ready.
+                  </p>
+                </>
+              )}
+            </div>
           </div>
         )}
 
@@ -2168,7 +2196,6 @@ function EditorWorkspace({
 }) {
   const tokens = tokenizeGuideline(original);
   const selected = Array.from(blackedOut).sort((a, b) => a - b);
-  const preview = reconstructGuideline(tokens, selected, replacements);
 
   return (
     <div className="space-y-4">
@@ -2218,36 +2245,39 @@ function EditorWorkspace({
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="bg-gray-900 border border-gray-700 rounded-lg p-4">
+          <p className="text-[10px] uppercase tracking-widest text-indigo-400 mb-2">
+            {GUIDELINE_CARD_LABEL}
+          </p>
           {selected.length === 0 ? (
-            <p className="text-sm text-gray-400 bg-gray-900 rounded-lg p-4 text-center">
-              You redacted nothing. The guideline will stand as written — unless you go
-              back and strike a word.
+            <p className="text-sm text-gray-400 text-center py-2">
+              You struck out no words. Go back and tap a word to replace it, or leave the
+              guideline as written.
             </p>
           ) : (
-            <div className="space-y-2">
-              {selected.map((i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500 line-through w-24 shrink-0 truncate text-right">
-                    {tokens[i]}
-                  </span>
-                  <span className="text-gray-600">→</span>
+            <p className="leading-loose text-sm text-indigo-100">
+              {tokens.map((tok, i) => {
+                if (!blackedOut.has(i)) return <span key={i}>{tok} </span>;
+                const val = replacements[i] ?? "";
+                return (
                   <input
-                    value={replacements[i] ?? ""}
+                    key={i}
+                    value={val}
                     disabled={ready}
                     onChange={(e) => onReplacement(i, e.target.value)}
                     maxLength={MAX_REPLACEMENT_LENGTH}
-                    placeholder="one word"
-                    className="flex-1 bg-gray-900 border border-gray-700 rounded-lg py-1.5 px-3 text-sm focus:outline-none focus:border-blue-500 disabled:opacity-60"
+                    size={Math.max(3, val.length + 1)}
+                    placeholder="____"
+                    aria-label={`replacement for "${tok}"`}
+                    className="inline-block align-baseline bg-black/50 border-b-2 border-amber-500 text-amber-300 font-semibold text-sm mx-0.5 px-1 text-center rounded-t focus:outline-none focus:border-amber-300 disabled:opacity-60"
                   />
-                </div>
-              ))}
-            </div>
+                );
+              })}
+            </p>
           )}
-          <div className="bg-gray-900 border border-gray-700 rounded-lg p-3">
-            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Preview</p>
-            <p className="text-sm text-indigo-100">{preview || "…"}</p>
-          </div>
+          <p className="text-[11px] text-gray-500 mt-3">
+            Fill each blank with one word, typed right in the sentence.
+          </p>
         </div>
       )}
 
