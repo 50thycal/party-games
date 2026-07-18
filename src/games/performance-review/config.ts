@@ -217,6 +217,7 @@ export type PRState = {
   revealIndex: number; // which guideline is currently being read (0-based)
   revealStartedAt: number; // server timestamp the current guideline reveal began
   revealComments: Record<number, Record<string, string>>; // caseIndex -> playerId -> comment
+  revealReady: Record<string, boolean>; // playerId -> ready to move to the next guideline
   guidelineComments: Record<number, string>; // caseIndex -> HR's own posted comment
   favorites: Record<string, number>; // voterId -> caseIndex they voted favorite
 
@@ -254,6 +255,7 @@ export type PRActionType =
   | "CLOSE_EDITING"
   | "SET_GUIDELINE_COMMENT"
   | "SUBMIT_COMMENT"
+  | "SET_REVEAL_READY"
   | "NEXT_REVEAL"
   | "SUBMIT_FAVORITE"
   | "CLOSE_VOTING"
@@ -313,6 +315,7 @@ function initialState(_players: Player[]): PRState {
     revealIndex: 0,
     revealStartedAt: 0,
     revealComments: {},
+    revealReady: {},
     guidelineComments: {},
     favorites: {},
     scores: {},
@@ -572,6 +575,7 @@ function openAccusationWindow(state: PRState, ctx: GameContext): PRState {
     revealIndex: 0,
     revealStartedAt: 0,
     revealComments: {},
+    revealReady: {},
     guidelineComments: {},
     favorites: {},
     roundScores: {},
@@ -692,6 +696,7 @@ function buildCases(state: PRState, ctx: GameContext): PRState {
     revealIndex: 0,
     revealStartedAt: 0,
     revealComments: {},
+    revealReady: {},
     guidelineComments: {},
     favorites: {},
     phase: "case_prep",
@@ -739,6 +744,7 @@ function advanceEditStep(state: PRState, ctx: GameContext): PRState {
     editReady: {},
     revealIndex: 0,
     revealStartedAt: ctx.now(),
+    revealReady: {},
     phase: "reveal",
   };
 }
@@ -1023,6 +1029,7 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
         ...finalizeEdits(state),
         revealIndex: 0,
         revealStartedAt: ctx.now(),
+        revealReady: {},
         phase: "reveal",
       };
     }
@@ -1067,6 +1074,16 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
       };
     }
 
+    case "SET_REVEAL_READY": {
+      if (state.phase !== "reveal") return state;
+      if (!ctx.room.players.some((p) => p.id === ctx.playerId)) return state;
+      const ready = action.payload?.ready !== false;
+      return {
+        ...state,
+        revealReady: { ...state.revealReady, [ctx.playerId]: ready },
+      };
+    }
+
     case "NEXT_REVEAL": {
       if (!canDrive(ctx)) return state;
       if (state.phase !== "reveal") return state;
@@ -1075,6 +1092,7 @@ function reducer(state: PRState, action: PRAction, ctx: GameContext): PRState {
           ...state,
           revealIndex: state.revealIndex + 1,
           revealStartedAt: ctx.now(),
+          revealReady: {},
         };
       }
       return { ...state, phase: "voting" };
@@ -1221,6 +1239,8 @@ export const performanceReviewGame = defineGame<PRState, PRAction>({
       case "SET_GUIDELINE_COMMENT":
         return canDrive(ctx) && state.phase === "reveal";
       case "SUBMIT_COMMENT":
+        return state.phase === "reveal";
+      case "SET_REVEAL_READY":
         return state.phase === "reveal";
       case "NEXT_REVEAL":
         return canDrive(ctx) && state.phase === "reveal";
