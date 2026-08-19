@@ -5,6 +5,7 @@ import { cafeGame } from "@/games/cafe/config";
 import { realEstateGame } from "@/games/real-estate/config";
 import { performanceReviewGame } from "@/games/performance-review/config";
 import { theDeskGame } from "@/games/the-desk/config";
+import { subwayGame } from "@/games/subway/config";
 
 // Registry of all available games
 // Games are registered here after being defined
@@ -18,6 +19,7 @@ games.set(cafeGame.id, cafeGame);
 games.set(realEstateGame.id, realEstateGame);
 games.set(performanceReviewGame.id, performanceReviewGame);
 games.set(theDeskGame.id, theDeskGame);
+games.set(subwayGame.id, subwayGame);
 
 /**
  * Register a game template with the engine
