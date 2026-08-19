@@ -7,6 +7,7 @@ import { CafeGameView } from "./cafe/GameView";
 import { RealEstateGameView } from "./real-estate/GameView";
 import { PerformanceReviewGameView } from "./performance-review/GameView";
 import { TheDeskGameView } from "./the-desk/GameView";
+import { SubwayGameView } from "./subway/GameView";
 
 // Props passed to game views
 export type GameViewProps<S = unknown> = {
@@ -31,6 +32,13 @@ export type GameOption = {
 
 // Available games for selection (client-side mirror of registry)
 export const gameOptions: GameOption[] = [
+  {
+    id: "subway",
+    name: "Subway",
+    description: "Schedule construction and race for stations on a shared pegboard.",
+    minPlayers: 2,
+    maxPlayers: 2,
+  },
   {
     id: "number-guess",
     name: "Number Guess",
@@ -85,6 +93,7 @@ const gameViews: Record<string, GameViewComponent> = {
   "real-estate": RealEstateGameView as GameViewComponent,
   "performance-review": PerformanceReviewGameView as GameViewComponent,
   "the-desk": TheDeskGameView as GameViewComponent,
+  subway: SubwayGameView as GameViewComponent,
 };
 
 /**
