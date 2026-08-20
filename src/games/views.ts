@@ -35,7 +35,7 @@ export const gameOptions: GameOption[] = [
   {
     id: "subway",
     name: "Subway",
-    description: "Schedule construction and race for stations on a shared pegboard.",
+    description: "Draft transit contracts and race for stations on a shared pegboard.",
     minPlayers: 2,
     maxPlayers: 2,
   },
