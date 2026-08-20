@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { loadPlayerIdentity } from "@/lib/playerIdentity";
-import { getGameView } from "@/games/views";
+import { getGameView, getGameplayWidth } from "@/games/views";
 
 type PlayerDto = {
   id: string;
@@ -282,7 +282,7 @@ export default function RoomPage() {
 
   return (
     <main className={`min-h-screen ${isInGameplay ? "p-4" : "flex flex-col items-center justify-center p-8"}`}>
-      <div className={`w-full ${isInGameplay ? "max-w-lg mx-auto" : "max-w-md"}`}>
+      <div className={`w-full ${isInGameplay ? `${getGameplayWidth(room.gameId)} mx-auto` : "max-w-md"}`}>
         {/* Action Error Toast */}
         {actionError && (
           <div className="mb-4 bg-red-900 border border-red-700 rounded-lg p-4 text-sm">

@@ -85,6 +85,19 @@ export const gameOptions: GameOption[] = [
   },
 ];
 
+// Games that want a wider gameplay container than the default phone-first
+// column (e.g. board-centric games). Values are Tailwind max-width classes.
+const gameplayWidths: Record<string, string> = {
+  subway: "max-w-6xl",
+};
+
+/**
+ * Max-width class for the gameplay container of a game.
+ */
+export function getGameplayWidth(gameId: string): string {
+  return gameplayWidths[gameId] ?? "max-w-lg";
+}
+
 // Registry of game view components
 const gameViews: Record<string, GameViewComponent> = {
   "number-guess": NumberGuessGameView as GameViewComponent,
