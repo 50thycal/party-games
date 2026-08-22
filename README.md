@@ -11,6 +11,12 @@ It uses a plugin-style architecture:
 
 This design makes the system easy to extend, fast to iterate, and ideal for building lots of small party-style games.
 
+> **Project memory.** This README is the practical quickstart for adding a game.
+> [`docs/PROJECT_MODEL.md`](docs/PROJECT_MODEL.md) is the source of truth for how the system works
+> today, and [`docs/DECISIONS.md`](docs/DECISIONS.md) records why. This repository follows
+> [Build OS v0.1](https://github.com/50thycal/build-os); agent instructions are in
+> [`AGENTS.md`](AGENTS.md).
+
 ---
 
 ## Live System Architecture Overview
@@ -26,7 +32,7 @@ Handles everything related to the game simulation:
 - Dispatching player actions (`/api/game-action`)
 - Running reducers for each game
 - Validating allowed actions
-- Keeping room state in an in-memory store (dev-friendly)
+- Keeping room state in a Turso (libSQL) database, guarded by version-based optimistic locking
 
 The engine is game-agnostic — it does not know anything about UI or phases of any specific game.
 
@@ -218,14 +224,15 @@ This is the best way to test multi-device behavior.
 
 ---
 
-## About In-Memory Storage
+## About Storage
 
-Rooms and game state are stored in an in-memory Map.
-- Works great locally.
-- Fine for short sessions on Vercel.
-- Rooms reset when serverless instances restart or redeploy.
+Rooms and game state live in a hosted Turso (libSQL) database — one row per room holding the whole
+room as JSON, plus a `version` column used for optimistic locking. Requires `TURSO_DATABASE_URL`
+and `TURSO_AUTH_TOKEN`; without them, no room can be created or read.
 
-Future improvement: plug in Redis or a KV store for persistence.
+State persists across serverless instances, cold starts, and deploys. Nothing expires rooms today.
+
+See [`docs/PROJECT_MODEL.md`](docs/PROJECT_MODEL.md) for the full persistence model.
 
 ---
 
@@ -252,8 +259,7 @@ You do not need a new project for each game — all games live inside one engine
 
 ## Future Extensions
 
-- Replace in-memory store with Redis/KV
-- Add WebSockets for real-time sync
+- Add WebSockets for real-time sync (polling is the current transport — see `DEC-003`)
 - Add animations or transitions per-game
 - Create reusable game components (timers, buzzers, modals)
 - Add a Game Browser homepage
@@ -271,7 +277,8 @@ src/
 │   └── rooms/[roomCode]/  # Generic room page
 ├── engine/                # Core game engine
 │   ├── types.ts           # Type definitions
-│   ├── stateStore.ts      # In-memory room storage
+│   ├── stateStore.ts      # Room state facade (versioned reads/writes)
+│   ├── database.ts        # Turso (libSQL) persistence + optimistic locking
 │   ├── gameRegistry.ts    # Game template registry
 │   ├── applyActionToRoom.ts # Action dispatcher
 │   └── defineGame.ts      # Helper for defining games

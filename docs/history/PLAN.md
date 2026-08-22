@@ -1,4 +1,9 @@
-
+> **Historical document — retained for context, not current truth.**
+> This is the original execution plan for the Party Shell Engine, written in December 2025 at the start of
+> the project. Parts of it have since been superseded: game views no longer live inside
+> `GameTemplate` (see `DEC-002`), and room state is no longer held in memory (see `DEC-004` and
+> `DEC-005`). For how the system works today, read [`../PROJECT_MODEL.md`](../PROJECT_MODEL.md);
+> for why, read [`../DECISIONS.md`](../DECISIONS.md).
 
 # **PLAN.md — Party Shell Engine (party-001)**
 
