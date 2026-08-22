@@ -464,11 +464,11 @@ function scheduling(red: string[], blue: string[]): SubwayState {
 {
   const s = base();
   s.players.red.lines = [owned("short")];
-  s.players.blue.lines = [owned("short", [{ x: 4, y: 4, stationId: "garden", stationSlot: 0 }, { x: 4, y: 6 }])];
+  s.players.blue.lines = [owned("short", [{ x: 14, y: 2, stationId: "garden", stationSlot: 0 }, { x: 4, y: 6 }])];
   assert.match(validateNode(s, "red", 0, { x: 5, y: 5 }) ?? "", /empty hole/, "opposing normal nodes enforce spacing");
   assert.equal(validateNode(s, "red", 0, { x: 6, y: 5 }), null, "spacing stops one hole away (no walls)");
-  assert.equal(validateNode(s, "red", 0, { x: 5, y: 4 }), null, "station nodes do not project spacing");
-  assert.match(validateNode(s, "red", 0, { x: 2, y: 2 }, true) ?? "", /normal hole/, "starters cannot use stations");
+  assert.equal(validateNode(s, "red", 0, { x: 15, y: 2 }), null, "station nodes do not project spacing");
+  assert.match(validateNode(s, "red", 0, { x: 5, y: 3 }, true) ?? "", /normal hole/, "starters cannot use stations");
   assert.match(validateNode(s, "red", 0, { x: 4, y: 6 }) ?? "", /occupied/, "normal pegs are never shared");
 }
 {
@@ -490,12 +490,12 @@ function scheduling(red: string[], blue: string[]): SubwayState {
 }
 {
   const s = base();
-  s.players.red.lines = [owned("short", [{ x: 2, y: 4 }, { x: 4, y: 4, stationId: "garden", stationSlot: 0 }])];
-  s.players.blue.lines = [owned("short", [{ x: 6, y: 4 }])];
-  assert.equal(validateNode(s, "blue", 0, { x: 4, y: 4 }), null, "a station dock takes one connection per line");
-  assert.match(validateNode(s, "red", 0, { x: 4, y: 4 }) ?? "", /already connects/, "one line docks a station once");
-  s.players.red.lines.push(owned("medium", [{ x: 4, y: 2 }, { x: 4, y: 4, stationId: "garden", stationSlot: 1 }]));
-  assert.match(validateNode(s, "blue", 0, { x: 4, y: 4 }) ?? "", /capacity/, "a full station rejects further connections");
+  s.players.red.lines = [owned("short", [{ x: 12, y: 2 }, { x: 14, y: 2, stationId: "garden", stationSlot: 0 }])];
+  s.players.blue.lines = [owned("short", [{ x: 16, y: 2 }])];
+  assert.equal(validateNode(s, "blue", 0, { x: 14, y: 2 }), null, "a station dock takes one connection per line");
+  assert.match(validateNode(s, "red", 0, { x: 14, y: 2 }) ?? "", /already connects/, "one line docks a station once");
+  s.players.red.lines.push(owned("medium", [{ x: 14, y: 0 }, { x: 14, y: 2, stationId: "garden", stationSlot: 1 }]));
+  assert.match(validateNode(s, "blue", 0, { x: 14, y: 2 }) ?? "", /capacity/, "a full station rejects further connections");
 }
 {
   const s = base();

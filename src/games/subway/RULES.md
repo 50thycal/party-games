@@ -129,6 +129,14 @@ A company running two blocks in one period (paid second crew) gets both actions.
 
 At most one Construction card per company per period. Nothing already built is ever moved.
 
+## The board
+
+A 27 x 9 pegboard — a 3:1 corridor rather than a square, so routes have room to make real shapes
+instead of doubling back on themselves. The same six stations are spread along it and staggered
+vertically; the two Major Stations sit 17 columns apart, which makes connecting both a long-haul job
+and puts the Express Line's two-major bonus genuinely in reach only for a deliberate run. The board
+pans and zooms, and on a phone it is meant to be zoomed into rather than read whole.
+
 ## Spatial rules (unchanged)
 
 - **Stations are multi-slot docks.** One connection per line, up to the station's capacity (2). A line

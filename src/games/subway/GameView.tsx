@@ -287,11 +287,15 @@ function ContractCard({
 // Pegboard
 // ============================================================================
 
-const VB = 780; // SVG viewBox size
+// The pegboard is a wide corridor, so the viewBox is sized from the board
+// rather than fixed: pegs stay a constant STEP apart however long it gets.
 const PAD = 62;
-const STEP = (VB - PAD * 2) / (SUBWAY_CONFIG.board.columns - 1);
+const STEP = 82;
+const VB_W = PAD * 2 + (SUBWAY_CONFIG.board.columns - 1) * STEP;
+const VB_H = PAD * 2 + (SUBWAY_CONFIG.board.rows - 1) * STEP;
 const MIN_ZOOM = 0.6;
-const MAX_ZOOM = 3;
+// A long board is drawn small to fit, so zooming in has to go further.
+const MAX_ZOOM = 6;
 
 const holePos = (p: Point) => ({ x: PAD + p.x * STEP, y: PAD + p.y * STEP });
 
@@ -314,9 +318,10 @@ type ViewTransform = { scale: number; x: number; y: number };
 
 const clampView = (v: ViewTransform): ViewTransform => {
   const scale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v.scale));
-  const lo = Math.min(0.25 * VB - VB * scale, 0.75 * VB - VB * scale);
-  const hi = 0.75 * VB;
-  return { scale, x: Math.min(hi, Math.max(lo, v.x)), y: Math.min(hi, Math.max(lo, v.y)) };
+  // Keep at least a quarter of the board on screen on each axis.
+  const bound = (size: number, value: number) =>
+    Math.min(size * 0.75, Math.max(size * 0.25 - size * scale, value));
+  return { scale, x: bound(VB_W, v.x), y: bound(VB_H, v.y) };
 };
 
 function Board({
@@ -343,7 +348,7 @@ function Board({
 
   const pxToVb = () => {
     const rect = svgRef.current?.getBoundingClientRect();
-    return rect && rect.width > 0 ? VB / rect.width : 1;
+    return rect && rect.width > 0 ? VB_W / rect.width : 1;
   };
 
   const clientToBoard = (clientX: number, clientY: number) => {
@@ -357,9 +362,9 @@ function Board({
   const zoomAtCenter = (factor: number) => {
     setView((v) => {
       const scale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v.scale * factor));
-      const anchorX = (VB / 2 - v.x) / v.scale;
-      const anchorY = (VB / 2 - v.y) / v.scale;
-      return clampView({ scale, x: VB / 2 - anchorX * scale, y: VB / 2 - anchorY * scale });
+      const anchorX = (VB_W / 2 - v.x) / v.scale;
+      const anchorY = (VB_H / 2 - v.y) / v.scale;
+      return clampView({ scale, x: VB_W / 2 - anchorX * scale, y: VB_H / 2 - anchorY * scale });
     });
   };
 
@@ -370,7 +375,7 @@ function Board({
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const rect = svg.getBoundingClientRect();
-      const f = VB / rect.width;
+      const f = VB_W / rect.width;
       const vx = (e.clientX - rect.left) * f;
       const vy = (e.clientY - rect.top) * f;
       setView((v) => {
@@ -406,7 +411,7 @@ function Board({
       if (dist > 0 && gesture.current.pinch.dist > 0) {
         const start = gesture.current.pinch.view;
         const rect = svgRef.current!.getBoundingClientRect();
-        const f = VB / rect.width;
+        const f = VB_W / rect.width;
         const midX = ((a.x + b.x) / 2 - rect.left) * f;
         const midY = ((a.y + b.y) / 2 - rect.top) * f;
         const scale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, start.scale * (dist / gesture.current.pinch.dist)));
@@ -488,8 +493,9 @@ function Board({
 
       <svg
         ref={svgRef}
-        viewBox={`0 0 ${VB} ${VB}`}
-        className={`aspect-square w-full touch-none select-none ${canAct ? "cursor-crosshair" : "cursor-grab"}`}
+        viewBox={`0 0 ${VB_W} ${VB_H}`}
+        style={{ aspectRatio: `${VB_W} / ${VB_H}` }}
+        className={`w-full touch-none select-none ${canAct ? "cursor-crosshair" : "cursor-grab"}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -497,10 +503,10 @@ function Board({
       >
         {/* All pointer handling lives on the svg itself, so decorations can
             never swallow a tap. */}
-        <rect x="0" y="0" width={VB} height={VB} fill="#8a6844" />
+        <rect x="0" y="0" width={VB_W} height={VB_H} fill="#8a6844" />
         <g transform={`translate(${view.x},${view.y}) scale(${view.scale})`} pointerEvents="none">
-          <rect x="16" y="16" width={VB - 32} height={VB - 32} rx="26" fill="#b98a58" />
-          <rect x="16" y="16" width={VB - 32} height={VB - 32} rx="26" fill="none" stroke="#71533a" strokeWidth="3" opacity="0.6" />
+          <rect x="16" y="16" width={VB_W - 32} height={VB_H - 32} rx="26" fill="#b98a58" />
+          <rect x="16" y="16" width={VB_W - 32} height={VB_H - 32} rx="26" fill="none" stroke="#71533a" strokeWidth="3" opacity="0.6" />
 
           {cells.map((c) => {
             const p = holePos(c);
@@ -1691,7 +1697,9 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
 
   const status = statusFor(game, me, isHost);
   const schedulingRevealed = game.phase !== "SCHEDULING" || game.schedulingStep === "RESOLUTION";
-  const showGantt = ["SCHEDULING", "STARTER_PLACEMENT", "CONSTRUCTION", "SCORING"].includes(game.phase);
+  // Kept on the results screen too: the final programme shows what was planned
+  // against what actually got built.
+  const showGantt = ["SCHEDULING", "STARTER_PLACEMENT", "CONSTRUCTION", "SCORING", "RESULTS"].includes(game.phase);
   const showBoard = game.phase !== "PROCUREMENT" && game.phase !== "ENGINEERING" && game.phase !== "SCHEDULING";
 
   return (
@@ -1725,25 +1733,26 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
         <p className="mt-0.5 text-[11px] italic text-stone-500">{game.message}</p>
       </div>
 
+      {/* The pegboard is a 3:1 corridor, so it gets the full page width rather
+          than sharing a column with the panels. */}
+      {showBoard && (
+        <div className="space-y-2">
+          <Board game={game} legalCells={legalCells} canAct={canAct} onTapHole={onTapHole} />
+          {notice && (
+            <p className="rounded-xl bg-red-100 px-3 py-2 text-center text-sm font-bold text-red-900">{notice}</p>
+          )}
+          {canAct && !notice && me && (
+            <p className="rounded-xl bg-emerald-100 px-3 py-2 text-center text-sm font-semibold text-emerald-900">
+              {placingStarter
+                ? `Tap a glowing hole to start your ${lineLabel(me.lines[activeLineIndex])} (stations not allowed).`
+                : `Tap a glowing hole or open station slot to extend your ${lineLabel(me.lines[activeLineIndex])}.`}
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-start">
         <div className="min-w-0 space-y-3">
-          {showBoard && (
-            <>
-              <div className="mx-auto w-full max-w-2xl lg:max-w-none">
-                <Board game={game} legalCells={legalCells} canAct={canAct} onTapHole={onTapHole} />
-              </div>
-              {notice && (
-                <p className="rounded-xl bg-red-100 px-3 py-2 text-center text-sm font-bold text-red-900">{notice}</p>
-              )}
-              {canAct && !notice && me && (
-                <p className="rounded-xl bg-emerald-100 px-3 py-2 text-center text-sm font-semibold text-emerald-900">
-                  {placingStarter
-                    ? `Tap a glowing hole to start your ${lineLabel(me.lines[activeLineIndex])} (stations not allowed).`
-                    : `Tap a glowing hole or open station slot to extend your ${lineLabel(me.lines[activeLineIndex])}.`}
-                </p>
-              )}
-            </>
-          )}
           {showGantt && (
             <GanttBoard
               game={game}

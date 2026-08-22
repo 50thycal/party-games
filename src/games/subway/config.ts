@@ -15,7 +15,7 @@ import type { BaseAction, GameContext, Player } from "@/engine/types";
 // ============================================================================
 
 /** Bumped when the state shape changes; older rooms must restart. */
-export const SUBWAY_STATE_VERSION = 3;
+export const SUBWAY_STATE_VERSION = 4;
 
 // ----------------------------------------------------------------------------
 // Tunable configuration
@@ -45,7 +45,7 @@ export const SUBWAY_CONFIG = {
     { throughPeriod: 6, cost: 2 },
     { throughPeriod: 9, cost: 1 },
   ],
-  board: { columns: 9, rows: 9 },
+  board: { columns: 27, rows: 9 },
   stationScores: { major: 5, minor: 2 },
   tolerances: {
     straight: 15, // degrees: "approximately straight"
@@ -76,13 +76,18 @@ export type Station = Point & {
   capacity: number;
 };
 
+/**
+ * The same six stations as before, spread along the 27-wide corridor and
+ * staggered vertically so routes have room to make real shapes. The two Major
+ * Stations sit 17 columns apart, which makes connecting both a long-haul job.
+ */
 export const STATIONS: Station[] = [
-  { id: "grand", name: "Grand Central", kind: "major", x: 2, y: 2, capacity: 2 },
-  { id: "harbor", name: "Harbor Exchange", kind: "major", x: 6, y: 6, capacity: 2 },
-  { id: "museum", name: "Museum", kind: "minor", x: 6, y: 1, capacity: 2 },
-  { id: "market", name: "Market", kind: "minor", x: 1, y: 5, capacity: 2 },
-  { id: "garden", name: "Garden", kind: "minor", x: 4, y: 4, capacity: 2 },
-  { id: "stadium", name: "Stadium", kind: "minor", x: 7, y: 3, capacity: 2 },
+  { id: "market", name: "Market", kind: "minor", x: 3, y: 7, capacity: 2 },
+  { id: "grand", name: "Grand Central", kind: "major", x: 5, y: 3, capacity: 2 },
+  { id: "museum", name: "Museum", kind: "minor", x: 10, y: 6, capacity: 2 },
+  { id: "garden", name: "Garden", kind: "minor", x: 14, y: 2, capacity: 2 },
+  { id: "stadium", name: "Stadium", kind: "minor", x: 19, y: 7, capacity: 2 },
+  { id: "harbor", name: "Harbor Exchange", kind: "major", x: 22, y: 4, capacity: 2 },
 ];
 
 const STATION_BY_ID = new Map(STATIONS.map((s) => [s.id, s]));
