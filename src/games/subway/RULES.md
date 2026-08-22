@@ -23,10 +23,12 @@ secret commitment, once Construction begins.
   card: the contract moves to the visible **Discount Yard**, marked down by $2M (floor $3M).
 - Once the deck is empty, the Discount Yard is cleared one contract at a time under the same
   alternating first refusal. Each further double pass knocks another $2M off.
-- **Ownership range: 2–4 contracts per company.** Because all six are bought and the cap is four,
-  enforcing the cap is what guarantees the other company its minimum of two — a 4/2, 3/3 or 2/4 split.
-  A company holding four cannot buy again, and when the opposition is capped the other company may no
-  longer pass.
+- **Hard cap: 3 contracts per company.** A company holding three cannot buy again, and once one is
+  capped the other becomes the only possible owner and may no longer pass.
+  **Note the arithmetic:** six contracts, all of which must sell, against a cap of three forces the
+  split to exactly 3/3 every game. The declared minimum of two is therefore unreachable-below-three
+  in practice, and a deliberately contract-heavy portfolio is no longer possible. What the draft
+  still decides is *which* three you get and *what you pay* — see DEC-010 for the trade-off.
 
 ### Prototype rulings
 
@@ -54,9 +56,11 @@ second-crew capacity.
 | Crosstown Line | 8 | 7 | $10M | +7 | +4 | −7 |
 | Long Line | 9 | 8 | $12M | +9 | +4 | −8 |
 
-Two contracts are comfortable, three demand tradeoffs, four is financially aggressive — and the real
-ceiling is calendar, not cash: 16 periods against one crew means a portfolio over 16 build periods
-cannot run end to end at all.
+Every company ends up with three, so the money question is *which* three: the cheap end (Short +
+Branch + Medium, $19M) leaves real capital for mobilization and second crew, while the expensive end
+(Express + Crosstown + Long, $31M) leaves almost none. The other ceiling is calendar, not cash: 16
+periods against one crew means a portfolio over 16 build periods cannot run end to end at all, and
+three contracts frequently total more than that.
 
 ## Engineering (unchanged)
 
@@ -101,14 +105,16 @@ Charged per contract on the period its block starts: periods 1–3 cost $3M, 4�
 
 A contract may be left off the schedule entirely. This is the escape valve for a portfolio too big for
 the horizon (or too expensive to compress): the contract is simply never built and takes its incomplete
-penalty at scoring. Without it, a company forced up to four contracts could have no legal schedule at
-all. Shelved contracts are labelled as such on the board.
+penalty at scoring. Without it, a company whose three contracts total more than 16 build periods
+could have no legal schedule at all. Shelved contracts are labelled as such on the board.
 
 ## Starter placement
 
-One free starter peg per owned contract, costing no scheduled action. Companies alternate placements —
-the priority company first, then whoever has placed fewer — until every contract has one. All spatial
-rules apply; starters may not use station holes.
+One free starter peg per **scheduled** contract, costing no scheduled action. A shelved contract gets
+no peg at all — it is never built, so a peg for it would only be a free blocker planting an exclusion
+zone on the board. Companies alternate placements — the priority company first, then whoever has
+placed fewer — until every scheduled contract has one. All spatial rules apply; starters may not use
+station holes.
 
 ## Construction — executing the plan
 
@@ -134,7 +140,9 @@ At most one Construction card per company per period. Nothing already built is e
 A 27 x 9 pegboard — a 3:1 corridor rather than a square, so routes have room to make real shapes
 instead of doubling back on themselves. The same six stations are spread along it and staggered
 vertically; the two Major Stations sit 17 columns apart, which makes connecting both a long-haul job
-and puts the Express Line's two-major bonus genuinely in reach only for a deliberate run. The board
+and puts the Express Line's two-major bonus genuinely in reach only for a deliberate run. Long
+Segment asks for 5 pegs rather than 3 for the same reason — on a 27-wide corridor a 3-peg reach
+happens by accident. The board
 pans and zooms, and on a phone it is meant to be zoomed into rather than read whole.
 
 ## Spatial rules (unchanged)

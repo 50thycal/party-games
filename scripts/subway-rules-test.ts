@@ -15,6 +15,7 @@ import {
   mustBuyOffer,
   objectiveMet,
   ownershipFeasible,
+  pendingStarters,
   scheduleCost,
   scheduleProblems,
   scheduledLines,
@@ -176,37 +177,35 @@ const DECK_ORDER = ["branch", "medium", "express", "crosstown", "long", "short"]
   assert.ok(s.players.red.money >= 0 && s.players.blue.money >= 0, "nobody ends procurement in debt");
 }
 
-// 9. a company may not exceed four contracts
-// 10. the split can therefore never leave anyone below two
+// 9. a company may not exceed the contract cap
+// 10. the split therefore cannot leave anyone below the minimum
 // 12. a forced owner cannot refuse
 {
   let s = started();
-  s = dispatch(s, "red", "PROCURE", { choice: "buy" }); // branch  $6  → red 1
+  s = dispatch(s, "red", "PROCURE", { choice: "buy" }); // branch  $6 → red 1
   s = dispatch(s, "blue", "PROCURE", { choice: "pass", deck: "engineering" });
-  s = dispatch(s, "red", "PROCURE", { choice: "buy" }); // medium  $8  → red 2
-  s = dispatch(s, "red", "PROCURE", { choice: "buy" }); // express $9  → red 3
-  s = dispatch(s, "blue", "PROCURE", { choice: "pass", deck: "engineering" });
-  s = dispatch(s, "red", "PROCURE", { choice: "buy" }); // crosstown $10 → red 4 (cap)
+  s = dispatch(s, "red", "PROCURE", { choice: "buy" }); // medium  $8 → red 2
+  s = dispatch(s, "red", "PROCURE", { choice: "buy" }); // express $9 → red 3 (cap)
   assert.equal(s.players.red.lines.length, SUBWAY_CONFIG.maxContractsPerPlayer, "red is at the cap");
+  assert.equal(dispatch(s, "red", "PROCURE", { choice: "buy" }), s, "a capped company cannot buy again");
 
-  // Offer 5 (long) — red has first refusal but can no longer hold a contract.
-  assert.equal(offerOf(s).firstRefusalId, "red", "the alternation is unaffected by the cap");
-  assert.equal(dispatch(s, "red", "PROCURE", { choice: "buy" }), s, "a capped company cannot buy");
-  s = dispatch(s, "red", "PROCURE", { choice: "pass", deck: "engineering" });
-  assert.equal(mustBuyOffer(s, "blue"), true, "blue is now the only company that can own it");
-  assert.equal(dispatch(s, "blue", "PROCURE", { choice: "pass" }), s, "so blue may not refuse");
+  // Offer 4 (crosstown) — blue has first refusal and is now the only possible owner.
+  assert.equal(offerOf(s).firstRefusalId, "blue", "the alternation is unaffected by the cap");
+  assert.equal(mustBuyOffer(s, "blue"), true, "blue is the only company that can still own it");
+  assert.equal(dispatch(s, "blue", "PROCURE", { choice: "pass", deck: "engineering" }), s, "so blue may not refuse");
   s = dispatch(s, "blue", "PROCURE", { choice: "buy" });
 
+  // Offer 5 (long) — red has first refusal but is capped, so it may still pass for a card.
+  assert.equal(offerOf(s).firstRefusalId, "red", "first refusal still alternates");
+  s = dispatch(s, "red", "PROCURE", { choice: "pass", deck: "engineering" });
+  s = dispatch(s, "blue", "PROCURE", { choice: "buy" });
   s = dispatch(s, "blue", "PROCURE", { choice: "buy" }); // short — forced again
+
   assert.equal(s.phase, "ENGINEERING", "the draft completes");
-  assert.equal(s.players.red.lines.length, 4, "one company may run four projects");
-  assert.equal(
-    s.players.blue.lines.length,
-    SUBWAY_CONFIG.minContractsPerPlayer,
-    "which leaves the other exactly the minimum two"
-  );
-  assert.ok(ownershipFeasible(s, { red: 4, blue: 2 }), "a 4/2 split satisfies the ownership range");
-  assert.equal(ownershipFeasible(s, { red: 5, blue: 1 }), false, "5/1 never is");
+  assert.equal(s.players.red.lines.length, 3, "neither company exceeds three contracts");
+  assert.equal(s.players.blue.lines.length, 3, "and six contracts across a cap of three forces an even split");
+  assert.ok(ownershipFeasible(s, { red: 3, blue: 3 }), "3/3 satisfies the ownership range");
+  assert.equal(ownershipFeasible(s, { red: 4, blue: 2 }), false, "4/2 no longer does");
 }
 
 // 11. a company that cannot pay cannot buy
@@ -448,6 +447,33 @@ function scheduling(red: string[], blue: string[]): SubwayState {
   assert.equal(bluePaid.points, contractById("short")!.completionVp, "a delivered one pays out");
 }
 
+// A shelved contract gets no starter peg — it is never built, so a peg for it
+// would just be a free blocker on the board.
+{
+  let s = scheduling(["short", "long"], ["short"]);
+  s = dispatch(s, "red", "SET_SCHEDULE", { lineIndex: 0, start: 1 });
+  s = dispatch(s, "red", "SET_SCHEDULE", { lineIndex: 1, start: null });
+  s = dispatch(s, "blue", "SET_SCHEDULE", { lineIndex: 0, start: 1 });
+  s = dispatch(s, "red", "SUBMIT_SCHEDULE", {});
+  s = dispatch(s, "blue", "SUBMIT_SCHEDULE", {});
+  s = dispatch(s, "red", "CONFIRM_SCHEDULE", {});
+  s = dispatch(s, "blue", "CONFIRM_SCHEDULE", {});
+  assert.equal(s.phase, "STARTER_PLACEMENT", "schedules lock");
+  assert.deepEqual(pendingStarters(s.players.red), [0], "only the scheduled contract is owed a peg");
+
+  assert.equal(
+    dispatch(s, "red", "PLACE_STARTER", { lineIndex: 1, x: 0, y: 0 }),
+    s,
+    "a shelved contract cannot take a starter peg"
+  );
+  s = dispatch(s, "red", "PLACE_STARTER", { lineIndex: 0, x: 0, y: 0 });
+  assert.deepEqual(pendingStarters(s.players.red), [], "red is finished after its one scheduled line");
+  assert.equal(starterTurnId(s), "blue", "and play passes to the opposition");
+  s = dispatch(s, "blue", "PLACE_STARTER", { lineIndex: 0, x: 8, y: 8 });
+  assert.equal(s.phase, "CONSTRUCTION", "construction begins without a peg for the shelved line");
+  assert.equal(s.players.red.lines[1].route.length, 0, "the shelved contract never reaches the board");
+}
+
 // A shelved contract simply scores its penalty rather than blocking the phase.
 {
   let s = scheduling(["short", "long"], ["short"]);
@@ -506,8 +532,11 @@ function scheduling(red: string[], blue: string[]): SubwayState {
 }
 {
   const p = base().players.red;
-  p.lines = [owned("short", [{ x: 0, y: 0 }, { x: 1, y: 2 }]), owned("medium", [{ x: 8, y: 0 }, { x: 8, y: 3 }])];
+  p.lines = [owned("short", [{ x: 0, y: 0 }, { x: 1, y: 2 }]), owned("medium", [{ x: 8, y: 0 }, { x: 14, y: 0 }])];
   assert.equal(objectiveMet("long-segment", p, []), true, "an objective may be met by either line");
+  // The 27-wide board raised the bar from 3 pegs to 5.
+  p.lines[1] = owned("medium", [{ x: 8, y: 0 }, { x: 12, y: 0 }]);
+  assert.equal(objectiveMet("long-segment", p, []), false, "a four-peg reach is no longer a Long Segment");
   assert.equal(objectiveMet("minimal", p, []), false, "Minimal Footprint needs every contract delivered");
 }
 

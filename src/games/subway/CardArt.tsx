@@ -185,7 +185,7 @@ function Diagram({ id, color }: { id: string; color: string }) {
       return (
         <>
           <Route points={[[12, 26], [92, 26]]} color={color} />
-          <SpanMark x1={12} x2={92} y={44} label="3+ pegs" />
+          <SpanMark x1={12} x2={92} y={44} label="5+ pegs" />
         </>
       );
     case "parallel":

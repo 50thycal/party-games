@@ -15,7 +15,7 @@ import type { BaseAction, GameContext, Player } from "@/engine/types";
 // ============================================================================
 
 /** Bumped when the state shape changes; older rooms must restart. */
-export const SUBWAY_STATE_VERSION = 4;
+export const SUBWAY_STATE_VERSION = 5;
 
 // ----------------------------------------------------------------------------
 // Tunable configuration
@@ -30,7 +30,7 @@ export const SUBWAY_CONFIG = {
   startingMoney: 34,
   timelinePeriods: 16,
   minContractsPerPlayer: 2,
-  maxContractsPerPlayer: 4,
+  maxContractsPerPlayer: 3,
   /** Nominal market-phase decisions per player; not a hard gate (RULES.md). */
   procurementDecisions: 5,
   /** $M knocked off a contract each time both companies decline it. */
@@ -54,7 +54,9 @@ export const SUBWAY_CONFIG = {
     parallelHeading: 15, // degrees: headings that count as parallel
     parallelMaxDistance: 2.5, // pegs: max midpoint distance for Parallel Corridor
   },
-  longSegmentDistance: 3, // pegs: minimum length for Long Segment
+  // Pegs for Long Segment. Raised from 3 with the 27-wide board: on a long
+  // corridor a 3-peg reach happens by accident, which made the card free.
+  longSegmentDistance: 5,
   startingHands: {
     engineering: ["straight", "bend", "long-segment", "terminal", "crossing"],
     scheduling: ["early", "float", "priority"],
@@ -195,7 +197,7 @@ export const ENGINEERING_CARDS: EngineeringCard[] = [
     id: "long-segment",
     name: "Long Segment",
     description: "Span real distance in a single reach.",
-    requirement: "One segment spans at least 3 peg widths.",
+    requirement: "One segment spans at least 5 peg widths.",
     vp: 3,
     kind: "objective",
   },
@@ -450,9 +452,9 @@ export const lineActionsRemaining = (line: PlayerLine): number => {
   return Math.max(0, contract.nodes - Math.max(1, line.route.length));
 };
 
-/** Total build actions still owed across all of a company's contracts. */
+/** Build actions still owed across the contracts this company scheduled. */
 export const actionsRemaining = (p: SubwayPlayer): number =>
-  p.lines.reduce((sum, line) => sum + lineActionsRemaining(line), 0);
+  p.lines.reduce((sum, line) => sum + (line.start === undefined ? 0 : lineActionsRemaining(line)), 0);
 
 export const marketEngineering = (m: Market): EngineeringCard =>
   engineeringById(MARKET_DECKS.engineering[m.engineeringIndex % MARKET_DECKS.engineering.length])!;
@@ -1348,7 +1350,7 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
           p.schedulePaid = cost;
         }
         s.phase = "STARTER_PLACEMENT";
-        s.message = "Schedules are locked. Place one free starter peg per contract.";
+        s.message = "Schedules are locked. Place one free starter peg per scheduled contract.";
       }
       return s;
     }
@@ -1359,6 +1361,8 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
       const lineIndex = action.payload?.lineIndex ?? -1;
       const line = me.lines[lineIndex];
       if (!line || line.route.length) return state;
+      // Shelved contracts are never built, so they get no starter peg.
+      if (line.start === undefined) return state;
       const pt = { x: action.payload?.x ?? -1, y: action.payload?.y ?? -1 };
       if (validateNode(s, me.id, lineIndex, pt, true)) return state;
       line.route = [pt];
@@ -1461,14 +1465,22 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
   }
 }
 
+/** Line indexes that were actually scheduled, so are owed a starter peg. */
+export const starterLines = (p: SubwayPlayer): number[] =>
+  p.lines.map((_, i) => i).filter((i) => p.lines[i].start !== undefined);
+
+/** Scheduled lines of this company that still need their starter peg. */
+export const pendingStarters = (p: SubwayPlayer): number[] =>
+  starterLines(p).filter((i) => !p.lines[i].route.length);
+
 /** Whose turn it is to place a starter peg, alternating between companies. */
 export function starterTurnId(s: SubwayState): string | undefined {
   const waiting = s.playerOrder
     .map((id) => s.players[id])
-    .filter((p) => p && p.lines.some((l) => !l.route.length));
+    .filter((p) => p && pendingStarters(p).length > 0);
   if (!waiting.length) return undefined;
   if (waiting.length === 1) return waiting[0].id;
-  const placed = (p: SubwayPlayer) => p.lines.filter((l) => l.route.length).length;
+  const placed = (p: SubwayPlayer) => starterLines(p).length - pendingStarters(p).length;
   const [a, b] = waiting;
   if (placed(a) !== placed(b)) return placed(a) < placed(b) ? a.id : b.id;
   return s.priorityPlayerId === b.id ? b.id : a.id;

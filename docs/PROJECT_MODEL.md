@@ -208,7 +208,7 @@ the room shell reads `state.phase` directly.
 | Open House | `real-estate` | `lobby → playing → round_results → … → results` |
 | HR Investigation | `performance-review` | `lobby → intro → accusation → reframing → interview → case_prep → editing → reveal → voting → round_over → … → game_over` |
 | The Desk | `the-desk` | `lobby → briefing → quote → trading → settlement → briefing … → final` |
-| Subway | `subway` | `SETUP → PROCUREMENT → ENGINEERING → STARTER_PLACEMENT → CONSTRUCTION → SCORING → RESULTS`, with `periodStep: COMMIT → RESOLVE` inside `CONSTRUCTION` |
+| Subway | `subway` | `SETUP → PROCUREMENT → ENGINEERING → SCHEDULING → STARTER_PLACEMENT → CONSTRUCTION → SCORING → RESULTS`, with `schedulingStep: PLANNING → RESOLUTION` inside `SCHEDULING` |
 
 **The string `"lobby"` is load-bearing in the shell.** The room page shows the room-code header,
 the player list, and the leave link only while `gameState` is null or `state.phase === "lobby"`;
