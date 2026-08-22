@@ -1,83 +1,175 @@
-# Subway v0.2 rules and design pins
+# Subway v0.3 rules and design pins
 
-Subway is a two-player prototype. Each company drafts up to two Line Contracts, commits three private
-Engineering cards, then builds period by period: every period both companies secretly commit to a line
-(or to passing), reveal together, and build in priority order.
+Subway is a two-player prototype played as a single pass:
 
-## Flow
+```
+Setup → Procurement → Engineering → Scheduling → Starter placement → Construction → Scoring → Results
+```
 
-1. **Setup** — the host starts once two players are in the room.
-2. **Procurement** — a snake draft over 6 picks (three each). All four Line Contracts are face up
-   alongside one face-up Engineering, Scheduling, and Construction card.
-3. **Engineering** — each company commits exactly 3 cards face down.
-4. **Starter placement** — one free starter peg per contracted line.
-5. **Construction** — 10 periods, each a secret commitment → simultaneous reveal → build in priority
-   order.
-6. **Scoring / Results**.
+Every decision about *when* work happens is made during Scheduling, before a single peg goes down.
+Construction then executes that locked plan period by period. There is no scheduling phase, and no
+secret commitment, once Construction begins.
 
-## Prototype assumptions (v0.2 rulings)
+## Procurement — six contracts, first refusal, and the Discount Yard
 
-- **The draft is a snake** (A B | B A | A B) and the company *without* Priority 1 picks first, so the
-  random priority coin flip is offset by first pick. Total picks = contracts on offer + 2, which is
-  three each in a two-player game; a company may hold at most two contracts. Cards cost nothing, so
-  money only ever buys contracts and is otherwise a tiebreaker.
-- **A company that reaches its final pick with no contract must buy one.** With four contracts and a
-  two-contract cap, at least two are always still available, so this can never deadlock.
-- **The action budget, not money, is the real constraint.** Ten periods against contracts costing 4–8
-  actions means only the cheaper pairings can both be finished; a second contract you cannot deliver
-  costs you its incomplete penalty.
-- **Per-period commitment:** a company commits to one line or to a pass, in secret. Commitments reveal
-  simultaneously. A company with no incomplete, unblocked line is auto-passed and is never asked.
-  Priority 1 builds first when both build in the same period, which matters because the second builder
-  sees where the first one placed before choosing.
-- **Stations are multi-slot docks, not single pegs.** A station hole accepts one connection per *line*,
-  up to the station's capacity (2). Placing a node on a station locks that line into a docking slot and
-  consumes one slot — so a company holding two contracts can take both slots and shut the rival out.
-  A single line may dock a given station only once. Station VP scores once per company however many of
-  its lines dock there, so the second dock is a purely defensive play. When a station is full no
-  further line may connect, but strings may still pass over the station area — stations never become
-  walls.
-- **Node spacing** uses the eight surrounding holes and applies only between opposing *normal* nodes.
-  Station nodes neither project nor receive spacing, and a company's own two lines may run side by side.
-- **Physical string rules:** a peg may not be placed on any existing string, a new string may not run
-  through any occupied peg hole, and two strings may never occupy exactly the same path. A company's
-  own lines may never cross each other or themselves. Any segment length is legal — long jumps are
-  allowed.
-- **Crossing** the opposing line requires the committed Crossing Design permit and is limited to one
-  crossing in total, so a single segment that would cross two opposing segments is illegal.
-- **Scheduling cards** were redefined for the per-period model (the old block-shifting effects have no
-  meaning without a Gantt block). At most one per period:
-  - *Early Mobilization* — after the reveal, change what you committed to this period.
-  - *Float* — after the reveal, drop to the back of this period's build order and place last.
-  - *Priority Permit* — take Priority 1 for the rest of the game, re-ordering the current period too.
-- **Construction cards**, at most one per period, played on a period you build:
-  - *Overtime* — one extra node, on the committed line.
-  - *Extra Crew* — one extra node, on either of your lines.
-  - *Expedite Materials* — build first this period, ahead of the opposition. ("One period earlier" has
-    no meaning without a fixed schedule; within-period order is the equivalent granularity.)
-  - *Field Adjustment* is retired and excluded from the market: destinations are never pre-committed,
-    so it would do nothing.
-- **Passing:** a company building this period may stop early, and the UI offers this prominently when
-  no legal placement exists, so a blocked-in line can never soft-lock the game.
-- **Scoring:** stations score once per company. Each contract scores its completion VP or its incomplete
-  penalty, plus its major-station bonus if *that line* connects a Major Station. The Express special
-  needs that one line to reach two Major Stations. Terminal Approach requires a completed line;
-  Minimal Footprint requires every contract you signed to be delivered. Other objectives are satisfied
-  by any one of your lines. Parallel Corridor is approximated as one of your segments running within
-  15° of an opposing segment with midpoints at most 2.5 pegs apart. Geometry uses peg-coordinate
-  vectors with the tolerances in `SUBWAY_CONFIG.tolerances`.
-- **Seats:** the first two players in the room become the companies; later joiners spectate the shared
-  board. Starting rebuilds seats from the live room so nobody is stranded by lazy state init.
-- **State version:** `SUBWAY_STATE_VERSION` guards the saved shape. A room holding an older game shows
-  a restart prompt instead of breaking, and starting resets it to the current rules.
-- Clients receive shared room state, but the view never renders an opponent's card identities or their
-  unrevealed commitment. True server-filtered private state is a future engine enhancement.
+- Six Line Contracts are shuffled into a deck at setup and revealed **one at a time**. All six are
+  bought before the phase ends; they do not all have to be *completed*.
+- First refusal alternates contract by contract (contract 1 → seat A, contract 2 → seat B, …),
+  independent of the construction priority assigned at setup.
+- The company with first refusal either **buys** at the listed price, or **passes and drafts** one of
+  the three face-up cards (Engineering / Scheduling / Construction). The drafted slot refills at once.
+  Cards cost no money.
+- The contract then goes to the opposition, who may **buy** it or **pass**. A second pass earns no
+  card: the contract moves to the visible **Discount Yard**, marked down by $2M (floor $3M).
+- Once the deck is empty, the Discount Yard is cleared one contract at a time under the same
+  alternating first refusal. Each further double pass knocks another $2M off.
+- **Ownership range: 2–4 contracts per company.** Because all six are bought and the cap is four,
+  enforcing the cap is what guarantees the other company its minimum of two — a 4/2, 3/3 or 2/4 split.
+  A company holding four cannot buy again, and when the opposition is capped the other company may no
+  longer pass.
+
+### Prototype rulings
+
+- **The "five decisions" per company is descriptive, not a gate.** The offer sequence drives the
+  phase, and Discount Yard cleanup can need extra decisions; blocking on a counter could leave a
+  contract unowned. `decisionsUsed` is tracked and shown but never blocks a decision.
+- **Distressed sale.** If a company is the only one that may legally own a contract and cannot afford
+  the asking price, it pays what it holds. Together with the floor this guarantees the phase always
+  terminates with all six owned and nobody in debt.
+- **Floor deadlock.** If a Discount Yard contract is declined by both companies while already at the
+  floor price, it is assigned to the legal buyer with the most money rather than looping forever.
+
+## Economy
+
+Six contracts total $50M, so an even 3/3 split runs about $25M — roughly 74% of the $34M starting
+capital, which is the intended squeeze. Money is only ever spent on contracts, mobilization, and
+second-crew capacity.
+
+| Contract | Nodes | Build periods | List | Complete | Major | Incomplete |
+| --- | --- | --- | --- | --- | --- | --- |
+| Short Line | 5 | 4 | $5M | +4 | +3 | −4 |
+| Branch Line | 6 | 5 | $6M | +5 | +3 | −5 |
+| Medium Line | 7 | 6 | $8M | +6 | +4 | −6 |
+| Express Line | 7 | 6 | $9M | +6 | +5 | −7 (+3 VP for two Majors) |
+| Crosstown Line | 8 | 7 | $10M | +7 | +4 | −7 |
+| Long Line | 9 | 8 | $12M | +9 | +4 | −8 |
+
+Two contracts are comfortable, three demand tradeoffs, four is financially aggressive — and the real
+ceiling is calendar, not cash: 16 periods against one crew means a portfolio over 16 build periods
+cannot run end to end at all.
+
+## Engineering (unchanged)
+
+Each company holds Engineering cards, commits exactly three face down, and keeps them hidden until
+scoring. They are objectives and permissions, not a drawn route. Crossing Design is still required to
+cross an opposing line, once. Survey Markers remain pinned for a future version.
+
+## Scheduling — one Gantt board, settled before any building
+
+Each owned contract becomes a contiguous block as long as its construction actions (nodes − 1).
+The horizon is 16 periods.
+
+1. **Private planning.** Every company lays its blocks out on its own board, seeing live mobilization,
+   second-crew cost, remaining capital, and any problems. The opposition sees only "planning".
+2. **Submit.** A schedule cannot be submitted while it overruns the horizon or costs more than the
+   company holds.
+3. **Simultaneous reveal** once both are in, with opponent overlap and contested-period priority shown.
+4. **One Scheduling card** per company, at most.
+5. **Confirm.** Mobilization and crew are charged, schedules lock, and play moves to starter pegs.
+
+### One base crew
+
+A company's own blocks may not run concurrently for free — one base Construction Crew means one block
+at a time. **Second crew** capacity costs $2M per period per extra simultaneous block, bought simply by
+overlapping them (no card required). Opponent overlap is always legal and free; it only decides who
+builds first.
+
+### Mobilization
+
+Charged per contract on the period its block starts: periods 1–3 cost $3M, 4–6 cost $2M, 7–9 cost $1M,
+10 and later are free. Starting early is an economic decision, not a free one.
+
+### Scheduling cards (rewritten for Gantt blocks)
+
+- **Early Mobilization** — move one block one period earlier and waive the extra mobilization that
+  earlier start would have cost.
+- **Float** — after the reveal, slide one block one period earlier or later; costs recompute.
+- **Priority Permit** — name one period where both companies are building; you build first in *that
+  period only*. It never grants permanent priority.
+
+### Shelving
+
+A contract may be left off the schedule entirely. This is the escape valve for a portfolio too big for
+the horizon (or too expensive to compress): the contract is simply never built and takes its incomplete
+penalty at scoring. Without it, a company forced up to four contracts could have no legal schedule at
+all. Shelved contracts are labelled as such on the board.
+
+## Starter placement
+
+One free starter peg per owned contract, costing no scheduled action. Companies alternate placements —
+the priority company first, then whoever has placed fewer — until every contract has one. All spatial
+rules apply; starters may not use station holes.
+
+## Construction — executing the plan
+
+Each period, every block scheduled in that period grants its line exactly one construction action.
+A company running two blocks in one period (paid second crew) gets both actions.
+
+- The default priority company acts first in a shared period, unless a Priority Permit named it.
+- A scheduled action is a right, not a duty: a company may skip. **A skipped action is lost** — it
+  never rolls into a later period, and the project may go unfinished.
+
+### Construction cards
+
+- **Overtime** — after a scheduled action, take one more on that same line.
+- **Surge Crew** (renamed from Extra Crew, which now names the paid scheduling resource) — one extra
+  action this period on a *different* line of yours.
+- **Expedite Materials** — build before the opposition this period.
+- *Field Adjustment* is retired: destinations are never pre-committed, so it would do nothing.
+
+At most one Construction card per company per period. Nothing already built is ever moved.
+
+## The board
+
+A 27 x 9 pegboard — a 3:1 corridor rather than a square, so routes have room to make real shapes
+instead of doubling back on themselves. The same six stations are spread along it and staggered
+vertically; the two Major Stations sit 17 columns apart, which makes connecting both a long-haul job
+and puts the Express Line's two-major bonus genuinely in reach only for a deliberate run. The board
+pans and zooms, and on a phone it is meant to be zoomed into rather than read whole.
+
+## Spatial rules (unchanged)
+
+- **Stations are multi-slot docks.** One connection per line, up to the station's capacity (2). A line
+  docks a given station once. Station VP scores once per company however many of its lines dock there,
+  so a second dock is purely defensive. A full station blocks further connections but never blocks
+  strings passing over it.
+- **Node spacing** — one empty hole between opposing *normal* nodes. Stations neither project nor
+  receive spacing, and a company's own lines may run side by side.
+- **Strings** — a peg may not sit on an existing string, a string may not run through an occupied hole,
+  two strings may not share a path, and a company's own lines may never cross each other or themselves.
+- **Crossing** the opposition needs the committed Crossing Design permit, and is limited to one crossing
+  in total.
+
+## Scoring
+
+Every purchased contract scores: completion VP if delivered, its incomplete penalty if not, plus its
+major-station bonus if that line reached a Major Station. Stations score once per company. Engineering
+cards reveal and score; Terminal Approach needs a completed line and Minimal Footprint needs every
+contract delivered. Ties break on major connections, then remaining money, then a shared victory.
+
+## Other prototype notes
+
+- **Seats:** the first two players in the room become the companies; later joiners spectate.
+- **State version:** `SUBWAY_STATE_VERSION` guards the saved shape. A room holding an older game shows a
+  restart prompt rather than misreading it.
+- Clients receive shared room state, but the view never renders an opponent's committed cards or their
+  unrevealed schedule. Server-filtered private state is a future engine enhancement.
 
 ## Future design pins (not implemented)
 
-- **Survey Markers:** give each player 2–3 non-reserving, stackable intent markers during Engineering
-  and consider bonus VP when a route reaches one.
+- **Survey Markers:** 2–3 non-reserving, stackable intent markers placed during Engineering, with bonus
+  VP for building through one.
 - **Company Cards:** asymmetric money, card counts, and abilities.
-- **More contracts / multiple project cycles** per company.
-- **Bot Player:** optional server-controlled third transit company for two-human games.
+- **Multiple project cycles** per company.
+- **Bot Player:** optional server-controlled third transit company.
 - **Additional maps:** vary station layouts, peg density, geography, and constraints.
