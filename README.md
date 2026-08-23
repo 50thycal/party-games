@@ -13,9 +13,10 @@ This design makes the system easy to extend, fast to iterate, and ideal for buil
 
 > **Project memory.** This README is the practical quickstart for adding a game.
 > [`docs/PROJECT_MODEL.md`](docs/PROJECT_MODEL.md) is the source of truth for how the system works
-> today, and [`docs/DECISIONS.md`](docs/DECISIONS.md) records why. This repository follows
-> [Build OS v0.1](https://github.com/50thycal/build-os); agent instructions are in
-> [`AGENTS.md`](AGENTS.md).
+> today, [`docs/DECISIONS.md`](docs/DECISIONS.md) records why, and
+> [`docs/workstreams/ACTIVE.md`](docs/workstreams/ACTIVE.md) shows what is being designed and built
+> right now. This repository follows [Build OS v0.4](https://github.com/50thycal/build-os); agent
+> instructions are in [`AGENTS.md`](AGENTS.md).
 
 ---
 
