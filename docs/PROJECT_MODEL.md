@@ -2,7 +2,12 @@
 
 <!-- How does this system work TODAY? Present tense. Not a roadmap, not a history. -->
 
-**Last updated:** 2026-08-22 · **Build OS v0.1** (see [50thycal/build-os](https://github.com/50thycal/build-os))
+**Last updated:** 2026-08-23 · **Build OS v0.4** (see [50thycal/build-os](https://github.com/50thycal/build-os))
+
+Project memory has three layers: this file (how the system works today),
+[`DECISIONS.md`](DECISIONS.md) (why), and [`workstreams/`](workstreams/ACTIVE.md) (what is being
+designed and built right now). Work in flight is described in its workstream, not here — this
+file describes what is merged and live.
 
 Audience: the project owner, design/review sessions, implementation agents, and future
 maintainers. This is a conceptual mental model, not generated API documentation. Where the
@@ -84,7 +89,7 @@ Two properties define the shape of everything else:
 | Entry pages | `src/app/page.tsx`, `create/`, `join/` | Home (with a "latest merged PR" banner), room creation (game + mode + players), room joining. |
 | AI narrator routes | `src/app/api/{host,desk,speak}/route.ts` | Stateless OpenAI calls serving one game each: HR Investigation narration, The Desk's Oracle round generation, and text-to-speech. |
 | Dev simulator | `src/app/test/`, `src/app/api/llm-bot/route.ts`, `src/games/cafe/bots.ts` | **Development-only.** Runs Comet Rush and Cafe reducers in the browser with scripted or LLM bots. Bypasses the API routes and the database entirely. |
-| Subway rules harness | `scripts/subway-rules-test.ts`, `scripts/test-subway.sh` | The only automated test in the repository: compiles the Subway reducer plus engine types and asserts rules by driving the reducer directly. |
+| Subway rules harness | `scripts/subway-rules-test.ts`, `scripts/test-subway.sh` | The only automated test in the repository: compiles the Subway reducer plus engine types and asserts rules by driving the reducer directly. Covers Subway's procurement, scheduling, spatial, and scoring rules. |
 
 ### How they relate
 
@@ -305,6 +310,13 @@ These should remain true across implementations:
 10. **AI output is untrusted input.** It reaches state only via an action whose reducer clamps,
     validates, and bounds it (see The Desk re-clamping the Oracle's numbers), and every AI path
     has a deterministic fallback.
+11. **Hidden information is a rendering convention, not a guarantee.** `GET /api/get-room`
+    returns the entire room state to every client, so a game's "secret" values — The Desk's
+    `trueValue` and the Market Maker's position band, Subway's unrevealed schedules and committed
+    Engineering cards, HR Investigation's unsealed filings — are concealed only by the view that
+    chooses not to draw them. Any player reading the poll response can see them. Games may rely
+    on this for social play; they must not rely on it for anything where a determined player's
+    advantage would break the game.
 
 ---
 
@@ -330,7 +342,11 @@ These should remain true across implementations:
   `npm run lint`, that script, and manual play.
 - **Player-count limits are advisory.** `minPlayers`/`maxPlayers` are declared in the template and
   mirrored in `gameOptions`, but no server route enforces them — `join-room` admits any number of
-  players, in any phase, including after a game has started.
+  players, in any phase, including after a game has started. Subway declares 2/2 and seats the
+  first two players in the room; later joiners are spectators by convention, not by enforcement.
+- **No server-side private state.** There is one room payload and every client gets all of it
+  (invariant 11). A mechanic that needs true secrecy needs an engine change — per-player state
+  filtering in `get-room` — not a game-level change.
 
 ---
 
@@ -363,6 +379,11 @@ observable in the code, not as plans.
   behind the games it simulates. `/test` offers only these two games.
 - **`src/engine/index.ts`** re-exports the engine as a barrel that nothing imports; call sites use
   deep paths.
+- **Secrecy pressure is growing.** Three of the seven games now hold values the rules call secret,
+  and every one of them is visible in the poll response (invariant 11). Subway v0.3's private
+  scheduling phase is the strongest case yet for per-player filtering in `get-room`; the design
+  question is tracked in [WS-001](workstreams/WS-001-subway-v0-3-redesign.md) as a non-goal, not
+  a plan.
 - **Uncertain / not documented in the code:** whether `simulation` mode is intended to become a
   user-facing room mode (the shell supports it, the create page does not offer it), and whether
   the original `docs/history/` spec's WebSocket phase is still the intended upgrade path.
@@ -371,8 +392,9 @@ observable in the code, not as plans.
 
 ## Where the older documents went
 
-`docs/history/SPEC.md` and `docs/history/PLAN.md` are the original December 2025 design and
-roadmap for the engine. They are retained for context and are **partly superseded**: they
+Active design and build state lives in [`docs/workstreams/`](workstreams/ACTIVE.md) —
+`ACTIVE.md` is the board, one `WS-###` file per thread. `docs/history/SPEC.md` and
+`docs/history/PLAN.md` are the original December 2025 design and roadmap for the engine. They are retained for context and are **partly superseded**: they
 describe views living inside `GameTemplate` (removed, see `DEC-002`) and an in-memory state store
 (replaced, see `DEC-004` / `DEC-005`). `README.md` remains the practical quickstart for adding a
 game. This file is the current source of truth for architecture; `docs/DECISIONS.md` records why.

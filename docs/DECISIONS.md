@@ -1,7 +1,7 @@
 # Decisions — Party Games
 
 Why does the system work this way? Lightweight ADRs, appended in order, newest at the bottom.
-This log follows [Build OS v0.1](https://github.com/50thycal/build-os).
+This log follows [Build OS v0.4](https://github.com/50thycal/build-os).
 
 ## How to add an entry
 
@@ -17,6 +17,10 @@ This log follows [Build OS v0.1](https://github.com/50thycal/build-os).
 4. **Write `Alternatives considered: Unknown / not documented`** rather than inventing a rationale
    that was never recorded.
 5. **Ship the entry in the same pull request as the change it explains.**
+6. **An *open* decision does not belong here.** A choice still awaiting owner judgment lives in
+   its workstream file under `Open Decisions` (`docs/workstreams/`). It graduates to a `DEC-nnn`
+   once it is both settled and consequential — recording an unratified implementer ruling as an
+   accepted decision launders it into history.
 
 Format:
 
@@ -414,3 +418,63 @@ the price of a contract the company had already written off.
 - `starterTurnId` alternates over scheduled lines only, and `PLACE_STARTER` rejects a shelved line.
 - A company that shelves everything places no pegs and builds nothing; the phase still completes.
 - `actionsRemaining` now ignores shelved contracts, so "work owed" reflects the real plan.
+
+---
+
+### DEC-012 — Upgrade to Build OS v0.4 and install the workstream layer
+
+**Date:** 2026-08-23
+**Status:** Accepted
+
+**Context**
+Party Games adopted Build OS v0.1 in PR #138 (`DEC-009`). Canonical Build OS had by then reached
+v0.4, three minor versions ahead: v0.2 added persistent workstreams as a third project-memory
+layer, v0.3 added the framework compatibility check and the pinned-version metadata block, and
+v0.4 added protocol contracts for machine consumers. The gap was created in a day, which is the
+point — the drift the compatibility check exists to catch does not need months to appear.
+
+The gap had already cost something concrete. Subway v0.3 (PRs #137, #139) was designed outside
+the repository, built, and merged, and its design brief, its four implementer rulings, and its
+unanswered balance questions had no durable home. `PROJECT_MODEL.md` and `DECISIONS.md` cannot
+hold in-flight design state: one describes what is, the other describes what was settled.
+
+**Decision**
+Upgrade the adopted version to v0.4, following the migration notes for each intervening version:
+install `docs/workstreams/` with an `ACTIVE.md` board and one file per live effort (v0.2), record
+the canonical/adopted/last-checked framework block in `AGENTS.md` and mark project-specific rules
+as such (v0.3), and take no action on v0.4's contracts, whose migration note says a project with
+no tooling reading Build OS artifacts needs none.
+
+Retrofit exactly one workstream, `WS-001`, for Subway v0.3 — the only effort still live. Finished
+work is not retrofitted.
+
+**Rationale**
+The workstream layer is the part of Build OS this project was actually missing: it runs one
+substantial design thread at a time, designed in a separate tool, and the state between sessions
+was living in chat and in merged PR descriptions. The compatibility block is cheap and makes the
+next gap visible rather than silent.
+
+Upgrading straight to v0.4 rather than stopping at v0.2 follows the framework's own guidance —
+read every migration note between adopted and canonical, and apply what each requires. v0.4's
+notes require nothing here, and saying so explicitly is itself the record.
+
+**Alternatives considered**
+- **Stay on v0.1 until Subway v0.3 is reviewed.** Rejected: the review is precisely the work that
+  needs a workstream to hang from, and the framework permits a deliberate lag only as a recorded
+  decision with a revisit date, which buys nothing here.
+- **Retrofit a workstream per past effort** — the engine, each of the seven games. Rejected as
+  workstream sprawl: they are complete, and what is worth keeping about them is already in the
+  other two memory layers.
+- **Adopt the workstream layer without the compatibility block.** Rejected: the block is what
+  turned a one-day-old adoption into a detectable three-version gap.
+
+**Consequences**
+- Design and implementation sessions now start by reading `docs/workstreams/ACTIVE.md`, and
+  checkpoint workstream state at meaningful moments.
+- Handoffs on significant PRs carry `Framework:` and `Workstream:` fields.
+- Unratified implementer rulings now have a home that is not `DECISIONS.md` — see `WS-001`'s open
+  decisions D1–D4, which under the old setup would have had nowhere to go but a merged PR body.
+- The adopted version is a pin that must be checked, not tracked. The next agent doing
+  substantial work compares `AGENTS.md` against canonical `VERSION.md` and records the result,
+  whether or not anything changed.
+
