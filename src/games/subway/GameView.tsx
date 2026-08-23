@@ -30,6 +30,7 @@ import {
   mobilizationCost,
   mobilizationFor,
   mustBuyOffer,
+  pendingStarters,
   periodPriorityId,
   scheduleCost,
   scheduleProblems,
@@ -141,11 +142,12 @@ function statusFor(game: SubwayState, me: SubwayPlayer | undefined, isHost: bool
       if (turn !== me.id) {
         return { headline: `${game.players[turn ?? ""]?.name ?? oppName} is placing a starter peg.`, tone: "wait" };
       }
-      const pending = me.lines.filter((l) => !l.route.length);
+      // Shelved contracts are never built, so they are not owed a peg.
+      const pending = pendingStarters(me);
       return {
-        headline: `Place the free starter peg for your ${lineLabel(pending[0])}.`,
+        headline: `Place the free starter peg for your ${lineLabel(me.lines[pending[0]])}.`,
         tone: "act",
-        detail: pending.length > 1 ? `${pending.length} of your contracts still need one.` : undefined,
+        detail: pending.length > 1 ? `${pending.length} of your scheduled contracts still need one.` : undefined,
       };
     }
     case "CONSTRUCTION": {
@@ -1200,24 +1202,33 @@ function SchedulingPanel({
 }
 
 function StarterPanel({ game, me }: { game: SubwayState; me: SubwayPlayer }) {
-  const pending = me.lines.filter((l) => !l.route.length);
+  const pending = pendingStarters(me);
   const turn = starterTurnId(game);
   return (
     <Panel title="Starter pegs">
       <p className="mt-1 text-sm text-stone-600">
-        Each contract gets one free starter peg. It counts as node 1 and costs no scheduled action.
-        Companies alternate placements.
+        Every <strong>scheduled</strong> contract gets one free starter peg — it counts as node 1 and
+        costs no scheduled action. Shelved contracts get none, since they are never built. Companies
+        alternate placements.
       </p>
       <ul className="mt-2 space-y-1 text-sm">
         {me.lines.map((line, i) => (
           <li key={i} className="flex items-center gap-2">
             <span
               className="h-2.5 w-2.5 rounded-full"
-              style={{ background: me.color, opacity: i % 2 === 1 ? 0.55 : 1 }}
+              style={{ background: me.color, opacity: line.start === undefined ? 0.25 : i % 2 === 1 ? 0.55 : 1 }}
             />
-            <span className="font-semibold">{lineLabel(line)}</span>
+            <span className={`font-semibold ${line.start === undefined ? "text-stone-400" : ""}`}>
+              {lineLabel(line)}
+            </span>
             <span className="text-stone-500">
-              {line.route.length ? "placed" : turn === me.id && pending[0] === line ? "← place now" : "waiting"}
+              {line.start === undefined
+                ? "shelved — no peg"
+                : line.route.length
+                  ? "placed"
+                  : turn === me.id && pending[0] === i
+                    ? "← place now"
+                    : "waiting"}
             </span>
           </li>
         ))}
@@ -1621,7 +1632,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
 
   // Which line the next tap on the board extends.
   const myStarterTurn = !!game && game.phase === "STARTER_PLACEMENT" && starterTurnId(game) === playerId;
-  const starterLine = game && me ? me.lines.findIndex((l) => !l.route.length) : -1;
+  const starterLine = game && me ? pendingStarters(me)[0] ?? -1 : -1;
   const placingStarter = myStarterTurn && starterLine >= 0;
   const myBuild =
     !!game && !!me && game.phase === "CONSTRUCTION" && game.resolveQueue[0] === me.id && me.pendingActions.length > 0;

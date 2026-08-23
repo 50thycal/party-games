@@ -347,3 +347,70 @@ protocol in — keeps the framework upgradeable in one place instead of rotting 
 - Architecture-changing work now carries a documentation obligation in the same PR.
 - Consequential decisions get recorded here as they are made, rather than reconstructed later.
 - Final chat responses become deliberately short; the PR body carries the real handoff.
+
+### DEC-010 — Subway caps a company at three Line Contracts, accepting a forced 3/3 split
+
+**Date:** 2026-08-22
+**Status:** Accepted
+
+**Context**
+Subway v0.3 sells all six Line Contracts every game and capped ownership at four, giving 4/2, 3/3
+or 2/4 splits. The v0.3 brief explicitly wanted that asymmetry: it warned against any rule that
+"would mathematically force exactly a 3–3 split and remove the ability for one company to pursue a
+more contract-heavy strategy." Play-testing the four-cap showed the opposite problem — a company
+could take four contracts, discover during Scheduling that they did not fit in 16 periods, and
+shelve the overflow, which felt like a punishment for a decision made before the schedule was
+visible.
+
+**Decision**
+Cap a company at three Line Contracts. All six still sell.
+
+**Rationale**
+Owner decision after play-testing. Three contracts is roughly the largest portfolio that can
+actually be scheduled inside the 16-period horizon without heavy second-crew spending, so the cap
+puts the ownership limit where the calendar limit already was.
+
+**Alternatives considered**
+- **Keeping the cap at four.** Rejected by the owner: it let a company over-commit before it could
+  see whether the schedule fit.
+- **Capping at three *and* letting contracts go unsold**, which would preserve asymmetric portfolio
+  sizes (3/2 with one unsold). Not taken now — it is a larger change to Procurement, whose whole
+  structure assumes every contract finds an owner. Recorded here as the obvious future move if the
+  forced split proves dull.
+
+**Consequences**
+- **The split is now forced to exactly 3/3 every game**: six contracts, all sold, cap of three. The
+  configured minimum of two is unreachable-below-three in practice, and the contract-heavy strategy
+  the v0.3 brief wanted to preserve is no longer available. This supersedes that goal knowingly.
+- The draft still decides *which* three contracts each company gets and *what it pays*, which the
+  Discount Yard makes meaningful; only portfolio *size* stopped being a lever.
+- `mustBuyOffer` fires more often, because a company reaches the cap sooner.
+- `SUBWAY_CONFIG.maxContractsPerPlayer` remains the single knob; restoring asymmetry means changing
+  it and relaxing "every contract is sold" together, not either alone.
+
+### DEC-011 — A shelved Subway contract receives no starter peg
+
+**Date:** 2026-08-22
+**Status:** Accepted
+
+**Context**
+Scheduling lets a company shelve a contract it cannot fit in the horizon; the contract is never
+built and takes its incomplete penalty. Starter placement, written before shelving existed, gave
+one free peg to every *owned* contract.
+
+**Decision**
+Only contracts with a scheduled block receive a starter peg.
+
+**Rationale**
+A peg for a line that will never be built is not a neutral leftover: pegs project the one-empty-hole
+spacing exclusion against the opposition, so a shelved contract's peg was a free blocker bought for
+the price of a contract the company had already written off.
+
+**Alternatives considered**
+- **Placing the peg but exempting it from spacing.** Rejected: a peg on the board that does not
+  behave like a peg is harder to explain than no peg at all.
+
+**Consequences**
+- `starterTurnId` alternates over scheduled lines only, and `PLACE_STARTER` rejects a shelved line.
+- A company that shelves everything places no pegs and builds nothing; the phase still completes.
+- `actionsRemaining` now ignores shelved contracts, so "work owed" reflects the real plan.
