@@ -2,7 +2,7 @@
 
 <!-- How does this system work TODAY? Present tense. Not a roadmap, not a history. -->
 
-**Last updated:** 2026-08-23 · **Build OS v0.4** (see [50thycal/build-os](https://github.com/50thycal/build-os))
+**Last updated:** 2026-08-24 · **Build OS v0.4** (see [50thycal/build-os](https://github.com/50thycal/build-os))
 
 Project memory has three layers: this file (how the system works today),
 [`DECISIONS.md`](DECISIONS.md) (why), and [`workstreams/`](workstreams/ACTIVE.md) (what is being
@@ -89,7 +89,7 @@ Two properties define the shape of everything else:
 | Entry pages | `src/app/page.tsx`, `create/`, `join/` | Home (with a "latest merged PR" banner), room creation (game + mode + players), room joining. |
 | AI narrator routes | `src/app/api/{host,desk,speak}/route.ts` | Stateless OpenAI calls serving one game each: HR Investigation narration, The Desk's Oracle round generation, and text-to-speech. |
 | Dev simulator | `src/app/test/`, `src/app/api/llm-bot/route.ts`, `src/games/cafe/bots.ts` | **Development-only.** Runs Comet Rush and Cafe reducers in the browser with scripted or LLM bots. Bypasses the API routes and the database entirely. |
-| Subway rules harness | `scripts/subway-rules-test.ts`, `scripts/test-subway.sh` | The only automated test in the repository: compiles the Subway reducer plus engine types and asserts rules by driving the reducer directly. Covers Subway's procurement, scheduling, spatial, and scoring rules. |
+| Subway rules harness | `scripts/subway-rules-test.ts`, `scripts/test-subway.sh` | The only automated test in the repository: compiles the Subway reducer plus engine types and asserts rules by driving the reducer directly. Covers Subway's contract recipes and route geometry, station docks, priority, procurement, Engineering plan lock, Destinations, Survey Pins, placement undo, scheduling, spatial rules, scoring, and state versioning. |
 
 ### How they relate
 
@@ -213,7 +213,7 @@ the room shell reads `state.phase` directly.
 | Open House | `real-estate` | `lobby → playing → round_results → … → results` |
 | HR Investigation | `performance-review` | `lobby → intro → accusation → reframing → interview → case_prep → editing → reveal → voting → round_over → … → game_over` |
 | The Desk | `the-desk` | `lobby → briefing → quote → trading → settlement → briefing … → final` |
-| Subway | `subway` | `SETUP → PROCUREMENT → ENGINEERING → SCHEDULING → STARTER_PLACEMENT → CONSTRUCTION → SCORING → RESULTS`, with `schedulingStep: PLANNING → RESOLUTION` inside `SCHEDULING` |
+| Subway | `subway` | `SETUP → PROCUREMENT → ENGINEERING → SCHEDULING → STARTER_PLACEMENT → CONSTRUCTION → SCORING → RESULTS`, with `engineeringStep: PLAN → SURVEY` inside `ENGINEERING` and `schedulingStep: PLANNING → RESOLUTION` inside `SCHEDULING`. One `UNDO_PLACEMENT` action can walk the latest physical placement back across a phase boundary. |
 
 **The string `"lobby"` is load-bearing in the shell.** The room page shows the room-code header,
 the player list, and the leave link only while `gameState` is null or `state.phase === "lobby"`;
@@ -312,8 +312,9 @@ These should remain true across implementations:
     has a deterministic fallback.
 11. **Hidden information is a rendering convention, not a guarantee.** `GET /api/get-room`
     returns the entire room state to every client, so a game's "secret" values — The Desk's
-    `trueValue` and the Market Maker's position band, Subway's unrevealed schedules and committed
-    Engineering cards, HR Investigation's unsealed filings — are concealed only by the view that
+    `trueValue` and the Market Maker's position band, Subway's unrevealed schedules, committed
+    Engineering cards and Destination assignments, HR Investigation's unsealed filings — are
+    concealed only by the view that
     chooses not to draw them. Any player reading the poll response can see them. Games may rely
     on this for social play; they must not rely on it for anything where a determined player's
     advantage would break the game.
@@ -381,9 +382,13 @@ observable in the code, not as plans.
   deep paths.
 - **Secrecy pressure is growing.** Three of the seven games now hold values the rules call secret,
   and every one of them is visible in the poll response (invariant 11). Subway v0.3's private
-  scheduling phase is the strongest case yet for per-player filtering in `get-room`; the design
-  question is tracked in [WS-001](workstreams/WS-001-subway-v0-3-redesign.md) as a non-goal, not
-  a plan.
+  scheduling phase, and v0.4's committed Destinations, are the strongest case yet for per-player
+  filtering in `get-room`; the design question is tracked in
+  [WS-001](workstreams/WS-001-subway-v0-3-redesign.md) and
+  [WS-002](workstreams/WS-002-subway-route-engineering.md) as a non-goal, not a plan. Subway's
+  Route Planner is the counter-example that shows the shape of the alternative: because it is a
+  client-local sketch that never enters an action payload or room state, it is genuinely private
+  in a way no committed card is.
 - **Uncertain / not documented in the code:** whether `simulation` mode is intended to become a
   user-facing room mode (the shell supports it, the create page does not offer it), and whether
   the original `docs/history/` spec's WebSocket phase is still the intended upgrade path.

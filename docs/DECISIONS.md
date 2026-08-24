@@ -478,3 +478,191 @@ notes require nothing here, and saying so explicitly is itself the record.
   substantial work compares `AGENTS.md` against canonical `VERSION.md` and records the result,
   whether or not anything changed.
 
+
+---
+
+### DEC-013 — A Subway contract is its ordered segment recipe, and every contract owns a permanent line color
+
+**Date:** 2026-08-24
+**Status:** Accepted
+
+**Context**
+Subway v0.3 let a line go anywhere: any segment length, any turn, and routes drawn in the owning
+company's color. The owner's first playtest of merged v0.3 found the consequence — routes looked
+like scribbles rather than engineered alignments, every line a company owned looked the same, and
+nothing about a placement was a decision beyond "is this hole free". WS-002's Build Card resolved
+this with two owner decisions: every contract carries an exact ordered list of segment lengths that
+must be built in order, and every contract carries a permanent, globally distinct line color.
+
+The contract table already carried a `nodes` count that the schedule, completion check, progress
+bar, and tests all read. A recipe makes that count derivable, and two sources for one number drift.
+
+**Decision**
+`LineContract.recipe: number[]` is the authoritative shape of a contract. Node count, construction
+actions, Gantt block length, completion, UI progress, and tests all derive from it; the standalone
+`nodes` field is gone. Each contract also carries a permanent `color`, a one-letter `code`, and a
+dash pattern, used everywhere that line appears — string, pegs, station dock, Gantt bar, contract
+card, Survey Pin, active-line banner. Company ownership moves to the peg's outer ring, badges, and
+labels.
+
+Segment length is physical Euclidean peg distance within ±0.5 of the required whole number, and a
+line may turn at most 90° between consecutive segments. A station connection is a specific **dock**
+the player names; the dock's offset position inside the station tile is the position used for both
+drawing the route and measuring length and angle.
+
+**Rationale**
+Making the recipe the single source of truth is what stops a "7 nodes / 6 segments" contract from
+ever being inconsistent with itself, and it is the reason the schedule model survived the change
+untouched: recipe length equals the old action count for all six contracts, so the 16-period
+calendar did not move.
+
+Line color rather than company color is what makes a three-contract portfolio legible as three
+projects. It costs the at-a-glance read of *whose* line a string is, which is why the code letter,
+the dash pattern, the peg ring, and the panel badges all carry ownership instead — and why color is
+never the only cue anywhere.
+
+Docks participate in geometry because they must: if a dock renders 0.16 pegs off-centre but distance
+is measured to the hole, the drawn route and the validated route are different objects, and a player
+reasoning from the picture would be reasoning from a lie.
+
+**Alternatives considered**
+- **Keep `nodes` alongside `recipe`.** Rejected: two numbers, one truth, guaranteed drift.
+- **Segment length as Chebyshev or Manhattan distance.** Rejected: neither matches what a player
+  measures with their eye on a pegboard, and diagonals become either free or impossible.
+- **Snap a station connection to the first open dock.** Rejected by OD-6: it makes a dock race
+  invisible, and it silently relocates the endpoint a player chose their approach angle for.
+- **Measure occupancy, spacing, and crossings from dock positions too.** Rejected as a scoped
+  interpretation of R-2: those rules are about pegboard holes, and moving them onto fractional dock
+  coordinates would newly make two lines docking *different* slots of one station cross each other
+  near the tile — an owner-visible rule change nobody asked for.
+
+**Consequences**
+- Adding or rebalancing a contract means editing one array; nothing else needs to agree with it.
+- A recipe must be provably buildable on the 27×9 board. The rules harness proves all six are, and
+  proves every dock is reachable at every recipe length. A future board or recipe change must keep
+  that test passing.
+- Lines get boxed in far more often than in v0.3: a required length plus a 90° cap can leave no legal
+  endpoint at all. The existing skip path absorbs it, and the active-line banner says so explicitly,
+  but a company that starts three lines close together will strand them. That is a balance question
+  for the owner playtest, not a bug.
+- `SUBWAY_STATE_VERSION` is 6; v5 rooms restart per `DEC-008`.
+
+---
+
+### DEC-014 — Destinations and Survey Pins are paid commitments made beside the three Engineering cards, not among them
+
+**Date:** 2026-08-24
+**Status:** Accepted
+
+**Context**
+WS-002 activated two systems Subway had been carrying as future design pins: Destination cards
+naming a station, and Survey Pins marking intent on the board. The obvious cheap implementation is
+to make both of them Engineering cards — the market already exists, the commit action already
+exists, the scorer already walks `committedEngineering`. The owner decided otherwise: exactly three
+normal Engineering cards remain the commitment, Destinations sit beside them with their own cap of
+two per line, and Survey Pins are bought with money rather than drafted.
+
+**Decision**
+Destinations share the face-up Engineering market but land in a separate `destinationHand`, are
+assigned to a specific owned line at plan lock, and score +3 VP when that line connects the named
+station — complete or not. Survey Pins cost $1M each, 0–5 per company, are charged once at plan
+lock, and are then placed publicly on normal holes in alternating order starting with the
+odd-period company. A pin scores +1 VP only when its own assigned line reaches its hole.
+
+`ENGINEERING` therefore grows a substep: `PLAN` (one atomic lock of objectives, Destination
+assignments, and pin purchase) then `SURVEY` (placing what was bought). Long Segment is deleted and
+replaced by Network Link, +3 VP for one completed line connecting two distinct stations.
+
+**Rationale**
+Keeping the three-card commitment fixed is what keeps Engineering a real choice: if Destinations
+competed for those slots they would just be objectives with a different picture, and the "assign it
+to a line" decision — the interesting part — would never happen. Binding a Destination to one line
+is also what makes it a *plan* rather than a wish; a card that pays out whichever line happens to
+arrive asks nothing of the player.
+
+Pricing pins in money rather than card slots puts them in tension with mobilization and second crew,
+which is the only scarce resource Subway has that Engineering did not previously touch. Five pins
+is a fifth of a cheap contract — enough to hurt, not enough to be a strategy on its own.
+
+Pins reserve nothing deliberately. A marker that blocked a hole would be a $1M denial tool, and
+denial on a 243-hole board with ±0.5 length tolerance is both stronger and duller than intent.
+
+Long Segment had to go rather than be re-tuned: with recipes, segment length is no longer something
+a player chooses, so an objective about segment length asks for nothing.
+
+**Alternatives considered**
+- **Destinations as ordinary Engineering cards.** Rejected by OD-11; see above.
+- **Destinations scoring only on a completed line.** Rejected by OD-12: it would make an early
+  Destination worthless the moment its line got shelved, and shelving is already penalised.
+- **Survey Pins drafted from a market instead of bought.** Rejected: it puts them back in
+  competition with objectives and removes the money tension that is their point.
+- **Pins reserving their hole.** Rejected by OD-14.
+- **Re-tuning Long Segment to a longer reach.** Rejected: ordered recipes remove the player choice
+  the card was about.
+
+**Consequences**
+- Engineering is now two server round-trips, not one, and the phase can end without a Survey step at
+  all when both companies buy zero pins. Both paths are covered by the rules harness.
+- A player can buy pins they cannot usefully place, and can assign a Destination to a line they
+  later shelve. Both are legal, both cost, and both are visible before locking — the plan panel
+  shows cost and cash-after, and the private panel shows live status all game.
+- Destination assignments are hidden from the opponent by the view only, exactly like committed
+  Engineering cards, and inherit invariant 11's limitation. This is disclosed, not solved.
+- The Engineering market deck now interleaves objectives and Destinations so both kinds are
+  realistically draftable in the handful of passes a game contains.
+
+---
+
+### DEC-015 — Undo in Subway is one physical placement deep, implemented as a single pre-placement snapshot
+
+**Date:** 2026-08-24
+**Status:** Accepted
+
+**Context**
+The v0.3 playtest lost pegs to mis-taps, most painfully on a phone, where a stray tap costs a
+scheduled action that never comes back. OD-15 permits undoing exactly the latest starter, Survey
+Pin, or construction placement, only by its actor, and only until any later accepted action. Nothing
+else — no purchase, card play, commitment, schedule edit, lock, skip, or scoring — is undoable.
+
+Restoring a construction node exactly is not a matter of popping the route. A build can consume a
+Crossing Design permit, complete a line, end a turn, advance the period, prune queued actions on
+other lines, and end the Construction phase, all in one action.
+
+**Decision**
+`SubwayState.undo` holds one `UndoRecord`: the actor, a label, and a complete snapshot of the state
+as it was immediately before the placement. The snapshot never carries an undo record of its own, so
+the structure is exactly one level deep and bounded. `UNDO_PLACEMENT` restores the snapshot wholesale.
+
+Expiry is structural rather than checked: the reducer clones the incoming state and clears `undo` on
+the clone before dispatching, so every path that *accepts* an action returns a state with the window
+already consumed, and every path that *rejects* one returns the untouched original with the window
+intact. Only the undo branch itself reads the record.
+
+**Rationale**
+An inverse operation per action type is the version of this that looks tidy and is wrong: each new
+side effect is a new thing to remember to reverse, and the failure mode is silent state corruption
+discovered at scoring. A snapshot is exactly correct by construction, and correctness here is worth
+roughly doubling one game's state blob — Subway's is small, bounded by six routes of at most nine
+nodes and ten pins.
+
+Deriving expiry from accept/reject rather than testing for it means a rule added later cannot forget
+to expire the window. It also gives the two behaviours the spec asks for free: a rejected action
+leaves the window standing, and a placement that advanced a phase stays undoable across that
+boundary because the snapshot predates the advance.
+
+**Alternatives considered**
+- **Per-action inverse operations.** Rejected: correct only until the next side effect is added.
+- **A general undo/history stack.** Rejected by the Build Card's non-goals and by unbounded room
+  state; the spec names it as a stop condition.
+- **Requiring opponent consent.** Rejected as a non-goal; it also cannot work under polling without
+  a request/response mechanic the engine does not have.
+- **Keeping the window open across the opponent's turn.** Rejected by OD-15: undoing a placement the
+  opposition has already built against would rewrite their decision too.
+
+**Consequences**
+- Subway's persisted state roughly doubles in the worst case. It stays JSON-serialisable and
+  bounded, and `structuredClone` in the reducer copies the snapshot with it.
+- Any future Subway action must go through the same clone-and-clear path, or it will leave a stale
+  undo window standing. The rules harness asserts the accept/reject behaviour directly.
+- Derived status — objective completion, Destination fulfilment, Survey fulfilment — reverts with an
+  undo automatically, because none of it is stored.

@@ -1,6 +1,13 @@
 "use client";
 
-import { ENGINEERING_CARDS, engineeringById, type EngineeringCard } from "./config";
+import {
+  ENGINEERING_CARDS,
+  destinationById,
+  engineeringById,
+  stationById,
+  type DestinationCard,
+  type EngineeringCard,
+} from "./config";
 
 // ============================================================================
 // Engineering card artwork.
@@ -110,19 +117,6 @@ function AngleMark({
   );
 }
 
-function SpanMark({ x1, x2, y, label }: { x1: number; x2: number; y: number; label: string }) {
-  return (
-    <g stroke={RULE} fill={RULE}>
-      <line x1={x1} y1={y - 4} x2={x1} y2={y + 4} strokeWidth="1.4" />
-      <line x1={x2} y1={y - 4} x2={x2} y2={y + 4} strokeWidth="1.4" />
-      <line x1={x1} y1={y} x2={x2} y2={y} strokeWidth="1.4" strokeDasharray="3 2" />
-      <text x={(x1 + x2) / 2} y={y + 12} textAnchor="middle" fontSize="8.5" fontWeight="700" stroke="none">
-        {label}
-      </text>
-    </g>
-  );
-}
-
 function Tick({ x, y }: { x: number; y: number }) {
   return (
     <path
@@ -181,11 +175,16 @@ function Diagram({ id, color }: { id: string; color: string }) {
           </text>
         </>
       );
-    case "long-segment":
+    case "network":
       return (
         <>
-          <Route points={[[12, 26], [92, 26]]} color={color} />
-          <SpanMark x1={12} x2={92} y={44} label="5+ pegs" />
+          <Route points={[[20, 26], [50, 34], [80, 26], [100, 34]]} color={color} />
+          <StationTile x={20} y={26} />
+          <StationTile x={100} y={34} />
+          <Tick x={62} y={16} />
+          <text x="60" y="58" textAnchor="middle" fontSize="8.5" fontWeight="700" fill={RULE}>
+            one finished line, two stations
+          </text>
         </>
       );
     case "parallel":
@@ -320,3 +319,96 @@ export function EngineeringCardFace({
 }
 
 export const ALL_ENGINEERING = ENGINEERING_CARDS;
+
+// ============================================================================
+// Destination cards — same market, deliberately different face.
+//
+// A Destination is not one of the three Engineering commitments: it names one
+// station and is bound to a single line, so its face shows the station rather
+// than a shape to build.
+// ============================================================================
+
+export type DestinationCardState = "idle" | "selected" | "committed" | "met" | "missed";
+
+export function DestinationArt({ stationId, color }: { stationId: string; color: string }) {
+  const station = stationById(stationId);
+  const major = station?.kind === "major";
+  return (
+    <svg viewBox="0 0 120 64" className="h-auto w-full rounded-lg bg-[#efe3f5]" role="img" aria-hidden>
+      <PegField />
+      <Route points={[[10, 48], [40, 42], [70, 34]]} color={color} nodes={false} />
+      <g>
+        <rect x={74} y={18} width={38} height={30} rx="6" fill={major ? "#24384c" : "#4f6357"} stroke="#f5d98a" strokeWidth="2" />
+        <text x={93} y={31} textAnchor="middle" fontSize="8.5" fontWeight="700" fill="#ffffff">
+          {major ? "MAJOR" : "MINOR"}
+        </text>
+        <text x={93} y={42} textAnchor="middle" fontSize="8" fontWeight="700" fill="#f5d98a">
+          ARRIVE
+        </text>
+      </g>
+      <Tick x={62} y={16} />
+    </svg>
+  );
+}
+
+export function DestinationCardFace({
+  card,
+  color,
+  state = "idle",
+  footer,
+  onClick,
+  disabled,
+  compact,
+}: {
+  card: DestinationCard | string;
+  color: string;
+  state?: DestinationCardState;
+  footer?: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  compact?: boolean;
+}) {
+  const resolved = typeof card === "string" ? destinationById(card) : card;
+  if (!resolved) return null;
+  const station = stationById(resolved.stationId);
+
+  const chrome: Record<DestinationCardState, string> = {
+    idle: "border-purple-300",
+    selected: "border-amber-500 ring-2 ring-amber-300",
+    committed: "border-purple-800",
+    met: "border-emerald-600 ring-2 ring-emerald-200",
+    missed: "border-purple-200 opacity-60",
+  };
+
+  const body = (
+    <>
+      <div className="flex items-start justify-between gap-1">
+        <strong className="text-[13px] leading-tight text-stone-900">{station?.name ?? resolved.name}</strong>
+        <span className="shrink-0 rounded bg-purple-700 px-1.5 py-0.5 text-[10px] font-black text-white">
+          +{resolved.vp}
+        </span>
+      </div>
+      <p className="text-[10px] font-black uppercase tracking-wider text-purple-700">Destination</p>
+      <div className="mt-1.5">
+        <DestinationArt stationId={resolved.stationId} color={color} />
+      </div>
+      {!compact && <p className="mt-1.5 text-[11px] leading-snug text-stone-600">{resolved.description}</p>}
+      <p className="mt-1 text-[11px] font-semibold leading-snug text-stone-700">{resolved.requirement}</p>
+      {footer}
+    </>
+  );
+
+  const shell = `w-full rounded-xl border-2 bg-[#fdf7ff] p-2.5 text-left shadow-sm ${chrome[state]}`;
+
+  if (!onClick) return <div className={shell}>{body}</div>;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`${shell} transition ${disabled ? "opacity-45" : "hover:-translate-y-0.5 hover:border-purple-400"}`}
+    >
+      {body}
+    </button>
+  );
+}
