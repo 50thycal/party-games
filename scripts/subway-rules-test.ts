@@ -817,6 +817,41 @@ function construction(red: PlayerLine[], blue: PlayerLine[]): SubwayState {
   );
 }
 
+// Re-selecting a schedule value that is already selected changes nothing, so it
+// must leave the outstanding Undo window alone. The last Survey Pin's window
+// reaches into Scheduling, which is exactly where a player fiddles with blocks.
+{
+  let withUndo = surveying(1, 0);
+  withUndo = dispatch(withUndo, "red", "PLACE_SURVEY", { lineIndex: 0, x: 1, y: 1 });
+  assert.equal(withUndo.phase, "SCHEDULING", "the last pin opens Scheduling");
+  assert.equal(withUndo.undo?.kind, "survey", "and is still undoable there");
+  const scheduled = withUndo.players.red.lines[0].start!;
+
+  const same = dispatch(withUndo, "red", "SET_SCHEDULE", { lineIndex: 0, start: scheduled });
+  assert.equal(same, withUndo, "re-picking the same start returns the state untouched");
+  assert.equal(same.undo?.kind, "survey", "so the pin can still be taken back");
+
+  const badStart = dispatch(withUndo, "red", "SET_SCHEDULE", { lineIndex: 0, start: 99 });
+  assert.equal(badStart, withUndo, "a start that does not fit is rejected outright");
+  assert.equal(badStart.undo?.kind, "survey", "and likewise leaves Undo standing");
+
+  // Already shelved, asked to shelve again — the other half of the same rule.
+  const parked = structuredClone(withUndo);
+  parked.players.red.lines[0].start = undefined;
+  const reshelved = dispatch(parked, "red", "SET_SCHEDULE", { lineIndex: 0, start: null });
+  assert.equal(reshelved, parked, "shelving a shelved line returns the state untouched");
+  assert.equal(reshelved.undo?.kind, "survey", "and keeps the Undo window open");
+
+  // A real edit is a real action, and does consume the window.
+  const moved = dispatch(withUndo, "red", "SET_SCHEDULE", { lineIndex: 0, start: scheduled + 5 });
+  assert.equal(moved.players.red.lines[0].start, scheduled + 5, "moving a block actually moves it");
+  assert.equal(moved.undo, undefined, "and being an accepted change, it expires Undo");
+
+  const shelved = dispatch(withUndo, "red", "SET_SCHEDULE", { lineIndex: 0, start: null });
+  assert.equal(shelved.players.red.lines[0].start, undefined, "shelving a scheduled line shelves it");
+  assert.equal(shelved.undo, undefined, "which also expires Undo");
+}
+
 // ============================================================================
 // PART 9 — Procurement
 // ============================================================================

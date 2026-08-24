@@ -8,7 +8,7 @@
 | ID | Workstream | Phase | Status | Current Next Step | Related PR |
 |---|---|---|---|---|---|
 | [WS-001](WS-001-subway-v0-3-redesign.md) | Subway v0.3 gameplay redesign | REVIEW | Active | Independent design review of merged v0.3 against the reconstructed Build Card; owner to rule on D1–D4 | [#137](https://github.com/50thycal/party-games/pull/137), [#139](https://github.com/50thycal/party-games/pull/139) (both merged) |
-| [WS-002](WS-002-subway-route-engineering.md) | Subway route engineering and playtest UX | REVIEW | Active | Independent design review of PR #141 against the approved Build Card and Build Spec, then an owner balance playtest | [#141](https://github.com/50thycal/party-games/pull/141) (implementation, ready for review) |
+| [WS-002](WS-002-subway-route-engineering.md) | Subway route engineering and playtest UX | REVIEW | Active | Merge the independently re-reviewed fix, then run the owner's balance playtest | [#141](https://github.com/50thycal/party-games/pull/141) (merged implementation); [#142](https://github.com/50thycal/party-games/pull/142) (fix, ready to merge) |
 
 <!-- Phase: IDEA · EXPLORE · MODEL · DECIDE · BUILD_CARD · READY_TO_BUILD · BUILDING · REVIEW
      Status: Active · Paused · Blocked · Abandoned
