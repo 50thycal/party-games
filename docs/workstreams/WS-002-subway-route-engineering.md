@@ -190,7 +190,7 @@ Not started. Independent review must compare the approved card, spec, implementa
 
 ## Related PRs
 
-The draft implementation/handoff PR will be linked after it is opened.
+[#141](https://github.com/50thycal/party-games/pull/141) is the draft design checkpoint and implementation handoff. Claude continues on that same branch and PR; no second implementation PR is needed.
 
 ## Next Step
 
