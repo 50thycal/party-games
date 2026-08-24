@@ -1,9 +1,9 @@
 # WS-002 — Subway route engineering and playtest UX
 
-**Phase:** READY_TO_BUILD
+**Phase:** REVIEW
 **Status:** Active
 **Created:** 2026-08-23
-**Updated:** 2026-08-23
+**Updated:** 2026-08-24
 
 ## Goal
 
@@ -161,15 +161,15 @@ Lengths are measured in physical peg spaces with a small tolerance for diagonals
 
 ### Definition of done
 
-- [ ] Players can privately preview an entire ordered route before construction.
-- [ ] Every placement is validated against segment length, the 90° limit, spatial rules, and the selected station slot.
-- [ ] Unique line colors and active-line highlighting remain clear on desktop and phone.
-- [ ] Destination and Survey commitments are assigned, tracked, completed, and scored correctly.
-- [ ] Odd/even priority and Priority Permit overrides resolve correctly.
-- [ ] Limited undo safely restores all affected construction state.
-- [ ] Existing Engineering objectives show live private completion.
-- [ ] Rules, persisted-state version, automated behavior tests, and project memory are updated.
-- [ ] Subway build, lint, rules tests, and desktop/mobile playtests pass.
+- [x] Players can privately preview an entire ordered route before construction.
+- [x] Every placement is validated against segment length, the 90° limit, spatial rules, and the selected station slot.
+- [x] Unique line colors and active-line highlighting remain clear on desktop and phone.
+- [x] Destination and Survey commitments are assigned, tracked, completed, and scored correctly.
+- [x] Odd/even priority and Priority Permit overrides resolve correctly.
+- [x] Limited undo safely restores all affected construction state.
+- [x] Existing Engineering objectives show live private completion.
+- [x] Rules, persisted-state version, automated behavior tests, and project memory are updated.
+- [x] Subway build, lint, rules tests, and desktop/mobile playtests pass.
 
 ---
 
@@ -177,21 +177,37 @@ Lengths are measured in physical peg spaces with a small tolerance for diagonals
 
 ## Implementation State
 
-**Spec ready; implementation not started.** The approved behavior is expanded in [`docs/build-specs/WS-002-subway-route-engineering.md`](../build-specs/WS-002-subway-route-engineering.md).
+**Built and validated; awaiting independent review.** The complete Build Spec is implemented on the WS-002 branch and handed off in PR [#141](https://github.com/50thycal/party-games/pull/141).
+
+What exists now:
+
+- `LineContract.recipe` is the authoritative shape of every contract; `nodes` is gone and node count, build periods, Gantt block length, completion, progress, and tests all derive from the recipe. All six approved recipes are proven buildable on the 27 × 9 board by the rules harness.
+- Segment length is physical Euclidean peg distance within ±0.5; turns are capped at 90° inclusive from the second segment onward. Station docks are named explicitly, and a dock's offset position is what both the drawing and the geometry use.
+- Every contract has a permanent distinct color, a letter code, and a dash pattern; company ownership moved to peg rings, badges, and labels.
+- Odd/even period priority is randomised at start; the schedule board shows the leader for every period, with Priority Permit overrides marked.
+- `ENGINEERING` has substeps `PLAN` → `SURVEY`. One lock action commits three objectives, any Destination assignments (max two per line), and a 0–5 Survey Pin purchase charged exactly once. Purchased pins are then placed publicly in alternating order, odd-period company first.
+- Long Segment is deleted; Network Link (+3 VP, one completed line connecting two distinct stations) replaces it.
+- A client-local Route Planner sketches a whole recipe during Engineering and Scheduling without dispatching, reserving, or persisting anything.
+- `UNDO_PLACEMENT` walks back the latest starter, Survey Pin, or construction node from a single bounded pre-placement snapshot, surviving the phase change it caused and expiring on any later accepted action.
+- `SUBWAY_STATE_VERSION` is 6; v5 rooms restart per `DEC-008`.
+
+Validation: `./scripts/test-subway.sh`, `npm run build`, and `npm run lint` all pass, plus a scripted two-player desktop (1440px) and phone (390px) playthrough from Procurement to Results covering a fulfilled Destination, a fulfilled and a blocked Survey Pin, both docks of a station, a refused dock race, a Priority Permit override, and undo at both a starter and a build — with no console error and no horizontal overflow.
 
 ## Review State
 
-Not started. Independent review must compare the approved card, spec, implementation handoff, actual code, and tests.
+Ready for independent review. The reviewer should compare the approved Build Card, the Build Spec, the PR handoff, the code, and the tests — with particular attention to geometry consistency between the reducer and the view, exact-dock races, the Engineering substep transitions, Destination and Survey scoring, and undo restoration and expiry.
+
+Open for the owner's next playtest, not for review: the recipes, +3 Destinations, and $1M/+1 Survey Pins are unbalanced starting values by design, and the ordered recipe plus the 90° cap strands lines noticeably more often than v0.3 did.
 
 ## Related Decisions
 
 - Existing: `DEC-008` (Subway state versioning), `DEC-010` (forced 3/3 ownership), `DEC-011` (shelved lines receive no starter), `DEC-012` (Build OS v0.4).
-- Expected from implementation: a decision entry for ordered contract geometry/line identity and one for the paid Destination/Survey planning layer, if the implementation confirms those as the durable boundaries described here.
+- Added by this implementation: `DEC-013` (a contract is its ordered recipe; permanent line identity), `DEC-014` (Destinations and Survey Pins as paid commitments beside the three Engineering cards), `DEC-015` (one-placement-deep undo via a pre-placement snapshot).
 
 ## Related PRs
 
-[#141](https://github.com/50thycal/party-games/pull/141) is the draft design checkpoint and implementation handoff. Claude continues on that same branch and PR; no second implementation PR is needed.
+[#141](https://github.com/50thycal/party-games/pull/141) — the WS-002 branch, now carrying the implementation and the full Build OS Implementation Handoff. No second implementation PR was opened.
 
 ## Next Step
 
-Claude implements the approved Build Spec on the WS-002 branch, validates it, and turns the draft handoff PR into the authoritative implementation handoff.
+Independent design review of PR #141 against the approved Build Card and Build Spec, then an owner playtest to settle the balance of the recipes, Destination VP, and Survey Pin pricing.
