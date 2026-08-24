@@ -208,7 +208,7 @@ Open for the owner's next playtest, not for review: the recipes, +3 Destinations
 
 ## Related PRs
 
-[#141](https://github.com/50thycal/party-games/pull/141) — merged WS-002 implementation and Build OS Implementation Handoff. A focused follow-up PR for the review finding will be linked after it is opened.
+[#141](https://github.com/50thycal/party-games/pull/141) — merged WS-002 implementation and Build OS Implementation Handoff. [#142](https://github.com/50thycal/party-games/pull/142) — draft follow-up for the no-op schedule/Undo review finding; Claude continues on that branch and PR.
 
 ## Next Step
 
