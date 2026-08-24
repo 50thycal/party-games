@@ -1814,12 +1814,18 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
       const lineIndex = action.payload?.lineIndex ?? -1;
       const line = me.lines[lineIndex];
       if (!line) return state;
+      // Null and undefined both mean "shelved", so normalise before comparing.
       const start = action.payload?.start;
-      if (start === null || start === undefined) {
+      const requested = start === null ? undefined : start;
+      // Re-selecting what is already selected changes nothing. It has to return
+      // the original state rather than the cleared clone, or it would silently
+      // consume an outstanding Undo window (OD-15, R-26).
+      if (requested === line.start) return state;
+      if (requested === undefined) {
         line.start = undefined; // shelved: it will score its incomplete penalty
       } else {
-        if (!blockFits(line, start)) return state;
-        line.start = start;
+        if (!blockFits(line, requested)) return state;
+        line.start = requested;
       }
       return s;
     }

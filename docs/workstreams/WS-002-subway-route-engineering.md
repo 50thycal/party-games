@@ -195,9 +195,11 @@ Validation: `./scripts/test-subway.sh`, `npm run build`, and `npm run lint` all 
 
 ## Review State
 
-**Changes requested after independent review on 2026-08-24.** The implementation substantially matches the approved Build Card and Build Spec, and the rules harness, production build, and lint all pass independently. One medium-severity correctness defect remains: `SET_SCHEDULE` returns the cloned state even when the requested start is identical to the current value. Because the reducer clears `undo` on that clone before the switch, re-selecting an unchanged schedule position—or selecting an already-shelved line again—incorrectly expires the final Survey Pin's cross-phase undo window. This violates OD-15 and R-23/R-26, which require no-op actions to preserve undo.
+**Changes requested after independent review on 2026-08-24, and fixed.** The implementation substantially matches the approved Build Card and Build Spec, and the rules harness, production build, and lint all pass independently. The review found one medium-severity correctness defect: `SET_SCHEDULE` returned the cloned state even when the requested start was identical to the current value. Because the reducer clears `undo` on that clone before the switch, re-selecting an unchanged schedule position — or selecting an already-shelved line again — incorrectly expired the final Survey Pin's cross-phase undo window, violating OD-15 and R-23/R-26.
 
-The fix must return the original state for semantically unchanged schedule selections before consuming `undo`, and add regression coverage proving that (a) selecting the same start preserves undo, (b) selecting shelved again preserves undo, and (c) an actual schedule change expires undo. No broader undo redesign is requested.
+Fixed in [#142](https://github.com/50thycal/party-games/pull/142): `SET_SCHEDULE` normalises the requested value and returns the original state when it equals the line's current start, so the window survives. Regression coverage proves an unchanged numeric start, an unfitting start, and re-shelving a shelved line all preserve `undo`, while moving or shelving a scheduled block still expires it. The rest of the reducer was audited for the same shape and no other action returns the cleared clone without changing state.
+
+Awaiting re-review of that fix.
 
 Open for the owner's next playtest, not for review: the recipes, +3 Destinations, and $1M/+1 Survey Pins are unbalanced starting values by design, and the ordered recipe plus the 90° cap strands lines noticeably more often than v0.3 did.
 
