@@ -2,20 +2,26 @@ import { defineGame } from "@/engine/defineGame";
 import type { BaseAction, GameContext, Player } from "@/engine/types";
 
 // ============================================================================
-// Subway v0.3 — two-player competitive subway-network construction.
+// Subway v0.4 — two-player competitive subway-network construction.
 //
 // This module holds all data, rules, and the reducer. The view lives in
 // GameView.tsx. Balancing knobs are collected in SUBWAY_CONFIG and the card /
 // contract / station tables below (see RULES.md for the rulings made).
 //
-// v0.3 reshapes the game loop into a single pass:
+// v0.3 reshaped the loop into a single pass:
 //   SETUP → PROCUREMENT → ENGINEERING → SCHEDULING → STARTER_PLACEMENT
 //         → CONSTRUCTION → SCORING → RESULTS
-// All scheduling happens once, before construction, on a shared Gantt board.
+//
+// v0.4 (WS-002) turns freehand routes into engineered ones. Every contract owns
+// an ordered recipe of segment lengths and a permanent line color; construction
+// must hit the next length within half a peg and may not turn more than 90°;
+// station docks are chosen explicitly; Engineering splits into a planning step
+// (three objectives + line-bound Destinations + purchased Survey Pins) and a
+// public Survey placement step; and the latest physical placement may be undone.
 // ============================================================================
 
 /** Bumped when the state shape changes; older rooms must restart. */
-export const SUBWAY_STATE_VERSION = 5;
+export const SUBWAY_STATE_VERSION = 6;
 
 // ----------------------------------------------------------------------------
 // Tunable configuration
@@ -25,7 +31,7 @@ export const SUBWAY_CONFIG = {
   /**
    * Starting capital. The six contracts total $50M, so an even 3/3 split costs
    * about $25M — roughly 74% of this, which is the intended squeeze (see
-   * RULES.md). Only contracts, mobilization, and crew consume money.
+   * RULES.md). Contracts, mobilization, crew, and Survey Pins consume money.
    */
   startingMoney: 34,
   timelinePeriods: 16,
@@ -54,15 +60,32 @@ export const SUBWAY_CONFIG = {
     parallelHeading: 15, // degrees: headings that count as parallel
     parallelMaxDistance: 2.5, // pegs: max midpoint distance for Parallel Corridor
   },
-  // Pegs for Long Segment. Raised from 3 with the 27-wide board: on a long
-  // corridor a 3-peg reach happens by accident, which made the card free.
-  longSegmentDistance: 5,
+  /** Ordered-recipe geometry (WS-002). */
+  geometry: {
+    /** A segment satisfies length L when |distance − L| is within this. */
+    lengthTolerance: 0.5,
+    /** Maximum heading change between consecutive segments, inclusive. */
+    maxTurnDegrees: 90,
+  },
+  survey: {
+    /** $M per Survey Pin. */
+    cost: 1,
+    /** Most pins one company may buy in a game. */
+    max: 5,
+    /** VP for a pin the assigned line actually builds through. */
+    vp: 1,
+  },
+  /** VP for a fulfilled Destination card. */
+  destinationVp: 3,
   startingHands: {
-    engineering: ["straight", "bend", "long-segment", "terminal", "crossing"],
+    engineering: ["straight", "bend", "network", "terminal", "crossing"],
     scheduling: ["early", "float", "priority"],
     construction: ["overtime", "surge"],
   },
 } as const;
+
+/** Float slack so a boundary case (exactly ±0.5, exactly 90°) reads as legal. */
+const EPS = 1e-6;
 
 // ----------------------------------------------------------------------------
 // Board data
@@ -99,6 +122,22 @@ export const stationAt = (p: Point): Station | undefined =>
 
 export const stationById = (id: string): Station | undefined => STATION_BY_ID.get(id);
 
+/**
+ * Where a docking slot physically sits inside its station tile, in peg spaces.
+ * Docks are offset sideways so two lines never share a point, and dropped
+ * slightly below the hole so the tile label stays readable. These offsets are
+ * real geometry: they are what the route is drawn through and what segment
+ * lengths and turn angles are measured against.
+ */
+export const STATION_SLOT_SPACING = 0.32;
+export const STATION_SLOT_DROP = 0.18;
+
+/** Physical position of one station dock. */
+export const slotPoint = (station: Station, slot: number): Point => ({
+  x: station.x + (slot - (station.capacity - 1) / 2) * STATION_SLOT_SPACING,
+  y: station.y + STATION_SLOT_DROP,
+});
+
 // ----------------------------------------------------------------------------
 // Line contracts — six per game, all of which must find an owner.
 // ----------------------------------------------------------------------------
@@ -106,7 +145,14 @@ export const stationById = (id: string): Station | undefined => STATION_BY_ID.ge
 export type LineContract = {
   id: string;
   name: string;
-  nodes: number; // total nodes including the free starter peg
+  /** Short label used wherever color alone would not identify the line. */
+  code: string;
+  /** Permanent, globally distinct route color. */
+  color: string;
+  /** SVG dash pattern, so lines stay distinguishable without color. */
+  dash?: string;
+  /** Ordered segment lengths, in peg spaces, built in this order. */
+  recipe: number[];
   cost: number; // $M list price
   completionVp: number;
   stationBonus: number; // once per contract, if that line connects a Major Station
@@ -115,28 +161,86 @@ export type LineContract = {
 };
 
 export const LINE_CONTRACTS: LineContract[] = [
-  { id: "short", name: "Short Line", nodes: 5, cost: 5, completionVp: 4, stationBonus: 3, incompletePenalty: -4 },
-  { id: "branch", name: "Branch Line", nodes: 6, cost: 6, completionVp: 5, stationBonus: 3, incompletePenalty: -5 },
-  { id: "medium", name: "Medium Line", nodes: 7, cost: 8, completionVp: 6, stationBonus: 4, incompletePenalty: -6 },
+  {
+    id: "short",
+    name: "Short Line",
+    code: "S",
+    color: "#d4380d",
+    recipe: [3, 4, 3, 4],
+    cost: 5,
+    completionVp: 4,
+    stationBonus: 3,
+    incompletePenalty: -4,
+  },
+  {
+    id: "branch",
+    name: "Branch Line",
+    code: "B",
+    color: "#c2410c",
+    dash: "20 10",
+    recipe: [5, 5, 3, 4, 4],
+    cost: 6,
+    completionVp: 5,
+    stationBonus: 3,
+    incompletePenalty: -5,
+  },
+  {
+    id: "medium",
+    name: "Medium Line",
+    code: "M",
+    color: "#15803d",
+    recipe: [3, 4, 3, 4, 3, 4],
+    cost: 8,
+    completionVp: 6,
+    stationBonus: 4,
+    incompletePenalty: -6,
+  },
   {
     id: "express",
     name: "Express Line",
-    nodes: 7,
+    code: "E",
+    color: "#1d4ed8",
+    dash: "26 8 6 8",
+    recipe: [5, 4, 5, 4, 5, 4],
     cost: 9,
     completionVp: 6,
     stationBonus: 5,
     incompletePenalty: -7,
     special: "+3 VP if this completed line connects two Major Stations.",
   },
-  { id: "crosstown", name: "Crosstown Line", nodes: 8, cost: 10, completionVp: 7, stationBonus: 4, incompletePenalty: -7 },
-  { id: "long", name: "Long Line", nodes: 9, cost: 12, completionVp: 9, stationBonus: 4, incompletePenalty: -8 },
+  {
+    id: "crosstown",
+    name: "Crosstown Line",
+    code: "C",
+    color: "#7e22ce",
+    dash: "6 9",
+    recipe: [4, 3, 4, 3, 4, 3, 4],
+    cost: 10,
+    completionVp: 7,
+    stationBonus: 4,
+    incompletePenalty: -7,
+  },
+  {
+    id: "long",
+    name: "Long Line",
+    code: "L",
+    color: "#0f766e",
+    recipe: [4, 5, 4, 4, 5, 4, 4, 5],
+    cost: 12,
+    completionVp: 9,
+    stationBonus: 4,
+    incompletePenalty: -8,
+  },
 ];
 
 export const contractById = (id: string): LineContract | undefined =>
   LINE_CONTRACTS.find((c) => c.id === id);
 
 /** Construction actions a contract needs after its free starter peg. */
-export const contractActions = (c: LineContract): number => c.nodes - 1;
+export const contractActions = (c: LineContract): number => c.recipe.length;
+
+/** Total nodes on a finished contract, starter peg included. */
+export const contractNodes = (c: LineContract): number => c.recipe.length + 1;
 
 // ----------------------------------------------------------------------------
 // Cards
@@ -194,10 +298,10 @@ export const ENGINEERING_CARDS: EngineeringCard[] = [
     kind: "objective",
   },
   {
-    id: "long-segment",
-    name: "Long Segment",
-    description: "Span real distance in a single reach.",
-    requirement: "One segment spans at least 5 peg widths.",
+    id: "network",
+    name: "Network Link",
+    description: "Tie two parts of the city together on one finished line.",
+    requirement: "One completed line connects at least two different stations.",
     vp: 3,
     kind: "objective",
   },
@@ -238,6 +342,35 @@ export const ENGINEERING_CARDS: EngineeringCard[] = [
 export const engineeringById = (id: string): EngineeringCard | undefined =>
   ENGINEERING_CARDS.find((c) => c.id === id);
 
+/**
+ * Destination cards — one per station. They share the face-up Engineering
+ * market but are a separate commitment: each is assigned to one owned line and
+ * pays out when that line connects the named station, complete or not.
+ */
+export type DestinationCard = {
+  id: string;
+  stationId: string;
+  name: string;
+  description: string;
+  requirement: string;
+  vp: number;
+};
+
+export const DESTINATION_CARDS: DestinationCard[] = STATIONS.map((s) => ({
+  id: `dest-${s.id}`,
+  stationId: s.id,
+  name: `Destination: ${s.name}`,
+  description: `Serve ${s.name} with the line you assign this card to.`,
+  requirement: `The assigned line connects ${s.name}, complete or not.`,
+  vp: SUBWAY_CONFIG.destinationVp,
+}));
+
+const DESTINATION_BY_ID = new Map(DESTINATION_CARDS.map((c) => [c.id, c]));
+
+export const destinationById = (id: string): DestinationCard | undefined => DESTINATION_BY_ID.get(id);
+
+export const isDestinationCard = (id: string): boolean => DESTINATION_BY_ID.has(id);
+
 export type SchedulingCardId = "early" | "float" | "priority";
 
 export const SCHEDULING_CARDS: { id: SchedulingCardId; name: string; description: string }[] = [
@@ -271,12 +404,27 @@ export const CONSTRUCTION_CARDS: { id: ConstructionCardId; name: string; descrip
 export const constructionById = (id: ConstructionCardId) => CONSTRUCTION_CARDS.find((c) => c.id === id);
 
 /**
+ * The Engineering market interleaves objectives and Destinations so a company
+ * that passes on a contract can realistically draft either kind.
+ */
+const engineeringMarketOrder = (): string[] => {
+  const normals = ENGINEERING_CARDS.map((c) => c.id);
+  const destinations = DESTINATION_CARDS.map((c) => c.id);
+  const out: string[] = [];
+  for (let i = 0; i < Math.max(normals.length, destinations.length); i++) {
+    if (i < normals.length) out.push(normals[i]);
+    if (i < destinations.length) out.push(destinations[i]);
+  }
+  return out;
+};
+
+/**
  * Face-up card market decks, cycled deterministically by the indexes in
  * SubwayState.market. Line Contracts are not part of this market — they come
  * off their own shuffled deck one at a time.
  */
 export const MARKET_DECKS = {
-  engineering: ENGINEERING_CARDS.map((c) => c.id),
+  engineering: engineeringMarketOrder(),
   scheduling: SCHEDULING_CARDS.map((c) => c.id),
   construction: CONSTRUCTION_CARDS.map((c) => c.id),
 } as const;
@@ -296,6 +444,9 @@ export type SubwayPhase =
   | "CONSTRUCTION"
   | "SCORING"
   | "RESULTS";
+
+/** Within ENGINEERING: lock the private plan, then place bought Survey Pins. */
+export type EngineeringStep = "PLAN" | "SURVEY";
 
 /** Within SCHEDULING: plan privately, then reveal and adjust once. */
 export type SchedulingStep = "PLANNING" | "RESOLUTION";
@@ -317,6 +468,21 @@ export type PlayerLine = {
   mobilizationWaived?: number;
 };
 
+/** A Destination card assigned to one of this company's lines. */
+export type DestinationCommitment = {
+  cardId: string;
+  stationId: string;
+  lineIndex: number;
+};
+
+/** A bought, publicly placed Survey Pin. Pins never occupy a hole. */
+export type SurveyPin = {
+  playerId: string;
+  lineIndex: number;
+  x: number;
+  y: number;
+};
+
 export type ScoreItem = { label: string; points: number; met?: boolean };
 
 export type SubwayPlayer = {
@@ -327,6 +493,12 @@ export type SubwayPlayer = {
   engineeringHand: string[];
   committedEngineering: string[];
   engineeringLocked: boolean;
+  /** Destination cards drafted but not yet assigned; they score nothing. */
+  destinationHand: string[];
+  /** Destination cards locked to a line at Engineering plan lock. */
+  destinationCommitments: DestinationCommitment[];
+  /** Survey Pins bought at plan lock; paid for once, placed publicly after. */
+  surveysPurchased: number;
   schedulingHand: SchedulingCardId[];
   constructionHand: ConstructionCardId[];
   lines: PlayerLine[];
@@ -377,21 +549,39 @@ export type Market = {
   constructionIndex: number;
 };
 
+/** What the last physical placement was, so exactly that one can be undone. */
+export type UndoRecord = {
+  playerId: string;
+  kind: "survey" | "starter" | "build";
+  /** Human-readable name of the placement, for the undo affordance. */
+  label: string;
+  /** The complete pre-placement state. Never itself carries an undo record. */
+  state: SubwayState;
+};
+
 export interface SubwayState {
   version: number;
   phase: SubwayPhase;
   playerOrder: string[];
   players: Record<string, SubwayPlayer>;
-  /** Default company priority; overridden per period by Priority Permit. */
-  priorityPlayerId: string;
+  /**
+   * The company holding priority in odd calendar periods; the opposition holds
+   * it in even periods. Priority Permit overrides one contested period.
+   */
+  oddPriorityId: string;
   /** period → playerId that builds first in that period. */
   priorityOverrides: Record<number, string>;
   procurement: Procurement;
   market: Market;
+  engineeringStep: EngineeringStep;
   schedulingStep: SchedulingStep;
+  /** Public Survey Pins, in placement order. */
+  surveyPins: SurveyPin[];
   currentPeriod: number;
   /** Companies still to build this period, in resolution order. */
   resolveQueue: string[];
+  /** The one placement that may still be taken back, if any. */
+  undo?: UndoRecord;
   winnerIds: string[];
   message: string;
 }
@@ -399,7 +589,8 @@ export interface SubwayState {
 export type SubwayActionType =
   | "START_GAME"
   | "PROCURE"
-  | "COMMIT_ENGINEERING"
+  | "LOCK_ENGINEERING_PLAN"
+  | "PLACE_SURVEY"
   | "SET_SCHEDULE"
   | "SUBMIT_SCHEDULE"
   | "PLAY_SCHEDULING_CARD"
@@ -408,6 +599,7 @@ export type SubwayActionType =
   | "PLAY_CONSTRUCTION_CARD"
   | "BUILD"
   | "SKIP_ACTION"
+  | "UNDO_PLACEMENT"
   | "ADVANCE_SCORING";
 
 export interface SubwayAction extends BaseAction {
@@ -417,12 +609,15 @@ export interface SubwayAction extends BaseAction {
     deck?: CardDeckId;
     cardIds?: string[];
     cardId?: string;
+    destinations?: { cardId: string; lineIndex: number }[];
+    surveys?: number;
     lineIndex?: number;
     start?: number | null;
     direction?: number;
     period?: number;
     x?: number;
     y?: number;
+    slot?: number;
   };
 }
 
@@ -439,25 +634,50 @@ export const contractOf = (line: PlayerLine): LineContract | undefined => contra
 
 export const lineComplete = (line: PlayerLine): boolean => {
   const contract = contractOf(line);
-  return !!contract && line.route.length >= contract.nodes;
+  return !!contract && line.route.length >= contractNodes(contract);
 };
 
 export const allLinesComplete = (p: SubwayPlayer): boolean =>
   p.lines.length > 0 && p.lines.every(lineComplete);
 
+/** How many recipe segments this line has actually built. */
+export const segmentsBuilt = (line: PlayerLine): number => Math.max(0, line.route.length - 1);
+
+/** The length the next construction action on this line must hit, if any. */
+export function nextSegmentLength(line: PlayerLine): number | undefined {
+  const contract = contractOf(line);
+  if (!contract || !line.route.length) return undefined;
+  return contract.recipe[segmentsBuilt(line)];
+}
+
 /** Build actions still owed on one contract (the starter peg is free). */
 export const lineActionsRemaining = (line: PlayerLine): number => {
   const contract = contractOf(line);
   if (!contract) return 0;
-  return Math.max(0, contract.nodes - Math.max(1, line.route.length));
+  return Math.max(0, contract.recipe.length - segmentsBuilt(line));
 };
 
 /** Build actions still owed across the contracts this company scheduled. */
 export const actionsRemaining = (p: SubwayPlayer): number =>
   p.lines.reduce((sum, line) => sum + (line.start === undefined ? 0 : lineActionsRemaining(line)), 0);
 
-export const marketEngineering = (m: Market): EngineeringCard =>
-  engineeringById(MARKET_DECKS.engineering[m.engineeringIndex % MARKET_DECKS.engineering.length])!;
+/** The face-up Engineering card id, which may be an objective or a Destination. */
+export const marketEngineeringId = (m: Market): string =>
+  MARKET_DECKS.engineering[m.engineeringIndex % MARKET_DECKS.engineering.length];
+
+/** Name/description/kind of whatever is face up on the Engineering market. */
+export function marketEngineering(m: Market): {
+  id: string;
+  name: string;
+  description: string;
+  destination: boolean;
+} {
+  const id = marketEngineeringId(m);
+  const dest = destinationById(id);
+  if (dest) return { id, name: dest.name, description: dest.description, destination: true };
+  const card = engineeringById(id)!;
+  return { id, name: card.name, description: card.description, destination: false };
+}
 
 export const marketScheduling = (m: Market) =>
   schedulingById(MARKET_DECKS.scheduling[m.schedulingIndex % MARKET_DECKS.scheduling.length])!;
@@ -569,9 +789,15 @@ export function contestedPeriods(s: SubwayState): number[] {
   return periods;
 }
 
+/** The company whose calendar turn it is to build first, ignoring permits. */
+export function basePriorityId(s: SubwayState, period: number): string {
+  const other = s.playerOrder.find((id) => id !== s.oddPriorityId);
+  return period % 2 === 1 ? s.oddPriorityId : other ?? s.oddPriorityId;
+}
+
 /** Which company builds first in a period, honouring any Priority Permit. */
 export const periodPriorityId = (s: SubwayState, period: number): string =>
-  s.priorityOverrides[period] ?? s.priorityPlayerId;
+  s.priorityOverrides[period] ?? basePriorityId(s, period);
 
 // ----------------------------------------------------------------------------
 // Procurement helpers
@@ -584,8 +810,8 @@ export const contractsOutstanding = (s: SubwayState): number =>
   s.procurement.deck.length + s.procurement.yard.length + (s.procurement.offer ? 1 : 0);
 
 /**
- * Whether the 2–4 ownership range can still be met. Because every contract is
- * bought and the cap is 4 of 6, holding the cap is what guarantees the
+ * Whether the 2–3 ownership range can still be met. Because every contract is
+ * bought and the cap is 3 of 6, holding the cap is what guarantees the
  * opponent's minimum — so this reduces to a capacity check.
  */
 export function ownershipFeasible(s: SubwayState, counts: Record<string, number>): boolean {
@@ -623,9 +849,41 @@ export function buyBlocker(s: SubwayState, playerId: string): string | undefined
 
 // ----------------------------------------------------------------------------
 // Geometry
+//
+// Two coordinate ideas live side by side, and the difference matters:
+//   * the *hole* a node occupies — always integer, and what the occupancy,
+//     spacing, overlap, and crossing rules are written against; and
+//   * its *physical* position — the hole itself for a normal peg, or the exact
+//     station dock for a station connection. Recipe lengths, turn angles, and
+//     everything drawn on the board use this one.
 // ----------------------------------------------------------------------------
 
 const samePoint = (a: Point, b: Point) => a.x === b.x && a.y === b.y;
+
+/** Physical position of a placed route node. */
+export function nodePoint(n: RouteNode): Point {
+  if (n.stationId) {
+    const station = stationById(n.stationId);
+    if (station) return slotPoint(station, n.stationSlot ?? 0);
+  }
+  return { x: n.x, y: n.y };
+}
+
+/** Physical position of a candidate placement at a hole, with a chosen dock. */
+export function targetPoint(p: Point, slot?: number): Point {
+  const station = stationAt(p);
+  if (station && slot !== undefined) return slotPoint(station, slot);
+  return { x: p.x, y: p.y };
+}
+
+/** A line's route as physical positions, in build order. */
+export const routePoints = (line: PlayerLine): Point[] => line.route.map(nodePoint);
+
+export const distanceBetween = (a: Point, b: Point): number => Math.hypot(b.x - a.x, b.y - a.y);
+
+/** True when a physical distance satisfies a required whole-peg length. */
+export const lengthMatches = (distance: number, required: number): boolean =>
+  Math.abs(distance - required) <= SUBWAY_CONFIG.geometry.lengthTolerance + EPS;
 
 /** Absolute direction change at b when travelling a → b → c, in degrees. */
 export const angleChange = (a: Point, b: Point, c: Point): number => {
@@ -695,24 +953,42 @@ export function stationCompanies(state: SubwayState, stationId: string): string[
   return Array.from(new Set(stationConnections(state, stationId).map((c) => c.playerId)));
 }
 
+/** Which line, if any, already occupies a specific dock of a station. */
+export function slotOccupant(state: SubwayState, stationId: string, slot: number): LineRef | undefined {
+  return allLines(state).find(({ line }) =>
+    line.route.some((n) => n.stationId === stationId && (n.stationSlot ?? 0) === slot)
+  );
+}
+
+/** Docks of this station nobody has taken yet. */
+export function openSlots(state: SubwayState, station: Station): number[] {
+  return Array.from({ length: station.capacity }, (_, i) => i).filter(
+    (slot) => !slotOccupant(state, station.id, slot)
+  );
+}
+
 /**
  * Validates extending `lineIndex` of `playerId` to `p`. Returns a
  * human-readable reason when the placement is illegal, or null when allowed.
  *
- * Station holes are docks: each holds one connection per line, up to the
- * station's capacity, so companies race for slots. Normal holes hold one peg.
+ * Station holes are docks: each dock holds exactly one connection, so a company
+ * must name the open dock it wants and companies race for specific slots.
+ * Normal holes hold one peg.
  */
 export function validateNode(
   state: SubwayState,
   playerId: string,
   lineIndex: number,
   p: Point,
-  starter = false
+  starter = false,
+  slot?: number
 ): string | null {
   const me = state.players[playerId];
   if (!me) return "You are not part of this game.";
   const myLine = me.lines[lineIndex];
   if (!myLine) return "That line is not under contract.";
+  const contract = contractOf(myLine);
+  if (!contract) return "That line is not under contract.";
   if (
     !Number.isInteger(p.x) || !Number.isInteger(p.y) ||
     p.x < 0 || p.y < 0 ||
@@ -723,11 +999,19 @@ export function validateNode(
 
   const station = stationAt(p);
   if (starter && station) return "Starter pegs must use a normal hole.";
+  if (!starter && myLine.route.length && lineComplete(myLine)) {
+    return `${contract.name} is already finished.`;
+  }
 
   if (station) {
+    if (slot === undefined) return "Choose which dock of the station to use.";
+    if (!Number.isInteger(slot) || slot < 0 || slot >= station.capacity) {
+      return `${station.name} has no such dock.`;
+    }
     if (myLine.route.some((n) => n.stationId === station.id)) {
       return "This line already connects that station.";
     }
+    if (slotOccupant(state, station.id, slot)) return "That dock is already taken.";
     if (stationConnections(state, station.id).length >= station.capacity) {
       return `${station.name} is at capacity.`;
     }
@@ -753,8 +1037,24 @@ export function validateNode(
 
   if (starter || !myLine.route.length) return null;
 
-  // Segment checks for the new segment from this line's current endpoint.
-  const from = myLine.route[myLine.route.length - 1];
+  // ---- Ordered recipe geometry ---------------------------------------------
+  const required = contract.recipe[segmentsBuilt(myLine)];
+  const fromNode = myLine.route[myLine.route.length - 1];
+  const fromPos = nodePoint(fromNode);
+  const toPos = targetPoint(p, slot);
+  const span = distanceBetween(fromPos, toPos);
+  if (!lengthMatches(span, required)) {
+    return `Segment ${segmentsBuilt(myLine) + 1} must span ${required} pegs (this one spans ${span.toFixed(1)}).`;
+  }
+  if (myLine.route.length >= 2) {
+    const turn = angleChange(nodePoint(myLine.route[myLine.route.length - 2]), fromPos, toPos);
+    if (turn > SUBWAY_CONFIG.geometry.maxTurnDegrees + EPS) {
+      return `A line may turn at most ${SUBWAY_CONFIG.geometry.maxTurnDegrees}° (this turns ${Math.round(turn)}°).`;
+    }
+  }
+
+  // ---- Retained spatial rules, written against pegboard holes ---------------
+  const from = fromNode;
 
   for (const { playerId: owner, line } of allLines(state)) {
     for (let i = 1; i < line.route.length; i++) {
@@ -794,17 +1094,38 @@ export function validateNode(
   return null;
 }
 
+/** A place a line may legally go next: a normal hole, or one station dock. */
+export type PlacementTarget = Point & { slot?: number };
+
+/** Every legal next placement for this line, docks enumerated individually. */
+export function legalTargets(
+  state: SubwayState,
+  playerId: string,
+  lineIndex: number,
+  starter = false
+): PlacementTarget[] {
+  const out: PlacementTarget[] = [];
+  for (let y = 0; y < SUBWAY_CONFIG.board.rows; y++) {
+    for (let x = 0; x < SUBWAY_CONFIG.board.columns; x++) {
+      const station = stationAt({ x, y });
+      if (station) {
+        if (starter) continue; // starters may not use a station
+        for (let slot = 0; slot < station.capacity; slot++) {
+          if (!validateNode(state, playerId, lineIndex, { x, y }, false, slot)) out.push({ x, y, slot });
+        }
+      } else if (!validateNode(state, playerId, lineIndex, { x, y }, starter)) {
+        out.push({ x, y });
+      }
+    }
+  }
+  return out;
+}
+
 /** True when this line has at least one legal placement anywhere. */
 export function hasLegalMove(state: SubwayState, playerId: string, lineIndex: number): boolean {
   const line = state.players[playerId]?.lines[lineIndex];
   if (!line || lineComplete(line)) return false;
-  const starter = line.route.length === 0;
-  for (let y = 0; y < SUBWAY_CONFIG.board.rows; y++) {
-    for (let x = 0; x < SUBWAY_CONFIG.board.columns; x++) {
-      if (!validateNode(state, playerId, lineIndex, { x, y }, starter)) return true;
-    }
-  }
-  return false;
+  return legalTargets(state, playerId, lineIndex, line.route.length === 0).length > 0;
 }
 
 /** Lines this company could still legally build on this period. */
@@ -816,8 +1137,102 @@ export function buildableLines(state: SubwayState, playerId: string): number[] {
     .filter((i) => !lineComplete(me.lines[i]) && hasLegalMove(state, playerId, i));
 }
 
-const canAct = (state: SubwayState, playerId: string): boolean =>
-  buildableLines(state, playerId).length > 0;
+// ----------------------------------------------------------------------------
+// Survey Pins
+// ----------------------------------------------------------------------------
+
+export const surveysPlaced = (s: SubwayState, playerId: string): number =>
+  s.surveyPins.filter((pin) => pin.playerId === playerId).length;
+
+export const surveysPending = (s: SubwayState, playerId: string): number =>
+  Math.max(0, (s.players[playerId]?.surveysPurchased ?? 0) - surveysPlaced(s, playerId));
+
+/** Why this company cannot pin that hole, if it cannot. */
+export function surveyBlocker(s: SubwayState, playerId: string, p: Point): string | null {
+  if (
+    !Number.isInteger(p.x) || !Number.isInteger(p.y) ||
+    p.x < 0 || p.y < 0 ||
+    p.x >= SUBWAY_CONFIG.board.columns || p.y >= SUBWAY_CONFIG.board.rows
+  ) {
+    return "Outside the pegboard.";
+  }
+  if (stationAt(p)) return "Survey Pins cannot be placed on a station.";
+  if (s.surveyPins.some((pin) => pin.playerId === playerId && pin.x === p.x && pin.y === p.y)) {
+    return "You already surveyed that hole.";
+  }
+  return null;
+}
+
+/**
+ * Whose turn it is to place a Survey Pin. Companies alternate, the odd-priority
+ * company goes first, and whoever has placed fewer goes next — so unequal
+ * purchases simply finish with the remaining company placing its balance.
+ */
+export function surveyTurnId(s: SubwayState): string | undefined {
+  const waiting = s.playerOrder.filter((id) => surveysPending(s, id) > 0);
+  if (!waiting.length) return undefined;
+  if (waiting.length === 1) return waiting[0];
+  const [a, b] = waiting;
+  const placedA = surveysPlaced(s, a);
+  const placedB = surveysPlaced(s, b);
+  if (placedA !== placedB) return placedA < placedB ? a : b;
+  return s.oddPriorityId === b ? b : a;
+}
+
+/** True when the pin's own line has actually built through its hole. */
+export function surveyFulfilled(p: SubwayPlayer, pin: SurveyPin): boolean {
+  const line = p.lines[pin.lineIndex];
+  return !!line && line.route.some((n) => !n.stationId && n.x === pin.x && n.y === pin.y);
+}
+
+// ----------------------------------------------------------------------------
+// Destinations
+// ----------------------------------------------------------------------------
+
+/** True when the assigned line connects the card's station, complete or not. */
+export function destinationMet(p: SubwayPlayer, commitment: DestinationCommitment): boolean {
+  const line = p.lines[commitment.lineIndex];
+  return !!line && line.route.some((n) => n.stationId === commitment.stationId);
+}
+
+/** Why this set of Destination assignments cannot be locked, if it cannot. */
+export function destinationProblems(
+  p: SubwayPlayer,
+  assignments: { cardId: string; lineIndex: number }[]
+): string[] {
+  const problems: string[] = [];
+  let hand = [...p.destinationHand];
+  const perLine = new Map<number, string[]>();
+
+  for (const a of assignments) {
+    const card = destinationById(a.cardId);
+    if (!card) {
+      problems.push("That is not a Destination card.");
+      continue;
+    }
+    if (!hand.includes(a.cardId)) {
+      problems.push(`${card.name} is not in your hand.`);
+      continue;
+    }
+    hand = removeOne(hand, a.cardId);
+    if (!Number.isInteger(a.lineIndex) || !p.lines[a.lineIndex]) {
+      problems.push(`${card.name} must be assigned to a line you own.`);
+      continue;
+    }
+    const stations = perLine.get(a.lineIndex) ?? [];
+    if (stations.length >= 2) {
+      problems.push(`${contractOf(p.lines[a.lineIndex])?.name ?? "That line"} may carry only two Destinations.`);
+      continue;
+    }
+    if (stations.includes(card.stationId)) {
+      problems.push(`${card.name} is already assigned to that line.`);
+      continue;
+    }
+    stations.push(card.stationId);
+    perLine.set(a.lineIndex, stations);
+  }
+  return problems;
+}
 
 // ----------------------------------------------------------------------------
 // Engineering objective evaluation (approximate geometry, see RULES.md)
@@ -826,9 +1241,10 @@ const canAct = (state: SubwayState, playerId: string): boolean =>
 function lineMeets(id: string, line: PlayerLine, me: SubwayPlayer, opponents: SubwayPlayer[]): boolean {
   const tol = SUBWAY_CONFIG.tolerances;
   const r = line.route;
+  const pts = routePoints(line);
   const complete = lineComplete(line);
   // angles[i] is the direction change between segment i and segment i+1.
-  const angles = r.slice(2).map((_, i) => angleChange(r[i], r[i + 1], r[i + 2]));
+  const angles = pts.slice(2).map((_, i) => angleChange(pts[i], pts[i + 1], pts[i + 2]));
   const runOfTwo = (max: number) =>
     angles.some((_, i) => i + 1 < angles.length && angles[i] <= max && angles[i + 1] <= max);
 
@@ -845,35 +1261,37 @@ function lineMeets(id: string, line: PlayerLine, me: SubwayPlayer, opponents: Su
           i >= 2 &&
           n.stationId !== undefined &&
           stationById(n.stationId)?.kind === "major" &&
-          angleChange(r[i - 2], r[i - 1], n) <= tol.straight
+          angleChange(pts[i - 2], pts[i - 1], pts[i]) <= tol.straight
       );
     case "through":
       return r.some(
         (n, i) =>
           i > 0 && i < r.length - 1 && n.stationId !== undefined &&
-          angleChange(r[i - 1], n, r[i + 1]) <= tol.gentleCurve
+          angleChange(pts[i - 1], pts[i], pts[i + 1]) <= tol.gentleCurve
       );
-    case "long-segment":
-      return r.some(
-        (n, i) => i > 0 && Math.hypot(n.x - r[i - 1].x, n.y - r[i - 1].y) >= SUBWAY_CONFIG.longSegmentDistance
-      );
+    case "network": {
+      if (!complete) return false;
+      const stations = new Set(r.filter((n) => n.stationId).map((n) => n.stationId));
+      return stations.size >= 2;
+    }
     case "parallel":
       // Approximation: one of my segments runs nearly parallel to an opposing
       // segment and close to it (midpoint distance within the configured pegs).
-      return r.some((n, i) => {
+      return pts.some((n, i) => {
         if (i === 0) return false;
-        const m1 = { x: (n.x + r[i - 1].x) / 2, y: (n.y + r[i - 1].y) / 2 };
+        const m1 = { x: (n.x + pts[i - 1].x) / 2, y: (n.y + pts[i - 1].y) / 2 };
         return opponents.some((o) =>
-          o.lines.some((ol) =>
-            ol.route.some((q, j) => {
+          o.lines.some((ol) => {
+            const opts = routePoints(ol);
+            return opts.some((q, j) => {
               if (j === 0) return false;
-              const m2 = { x: (q.x + ol.route[j - 1].x) / 2, y: (q.y + ol.route[j - 1].y) / 2 };
+              const m2 = { x: (q.x + opts[j - 1].x) / 2, y: (q.y + opts[j - 1].y) / 2 };
               return (
-                headingDiff(r[i - 1], n, ol.route[j - 1], q) <= tol.parallelHeading &&
+                headingDiff(pts[i - 1], n, opts[j - 1], q) <= tol.parallelHeading &&
                 Math.hypot(m1.x - m2.x, m1.y - m2.y) <= tol.parallelMaxDistance
               );
-            })
-          )
+            });
+          })
         );
       });
     case "terminal":
@@ -890,6 +1308,14 @@ export function objectiveMet(id: string, me: SubwayPlayer, opponents: SubwayPlay
   if (id === "minimal") return allLinesComplete(me);
   if (id === "crossing") return me.crossingsUsed > 0;
   return me.lines.some((line) => lineMeets(id, line, me, opponents));
+}
+
+/** Live private status of one company's committed cards, for its own UI. */
+export function committedStatus(s: SubwayState, playerId: string): { cardId: string; met: boolean }[] {
+  const me = s.players[playerId];
+  if (!me) return [];
+  const opponents = seats(s).filter((p) => p.id !== playerId);
+  return me.committedEngineering.map((cardId) => ({ cardId, met: objectiveMet(cardId, me, opponents) }));
 }
 
 // ----------------------------------------------------------------------------
@@ -923,7 +1349,7 @@ export function scoreGame(state: SubwayState): SubwayState {
       items.push({
         label: complete
           ? `${contract.name} completed`
-          : `${contract.name} incomplete (${line.route.length}/${contract.nodes})`,
+          : `${contract.name} incomplete (${line.route.length}/${contractNodes(contract)})`,
         points: complete ? contract.completionVp : contract.incompletePenalty,
         met: complete,
       });
@@ -944,6 +1370,30 @@ export function scoreGame(state: SubwayState): SubwayState {
       items.push({ label: card.name, points: met ? card.vp : 0, met });
     }
 
+    for (const commitment of p.destinationCommitments) {
+      const card = destinationById(commitment.cardId);
+      if (!card) continue;
+      const assigned = p.lines[commitment.lineIndex];
+      const lineName = assigned ? contractOf(assigned)?.name : undefined;
+      const met = destinationMet(p, commitment);
+      items.push({
+        label: `${card.name}${lineName ? ` · ${lineName}` : ""}`,
+        points: met ? card.vp : 0,
+        met,
+      });
+    }
+
+    for (const pin of state.surveyPins.filter((entry) => entry.playerId === p.id)) {
+      const assigned = p.lines[pin.lineIndex];
+      const lineName = assigned ? contractOf(assigned)?.name : undefined;
+      const met = surveyFulfilled(p, pin);
+      items.push({
+        label: `Survey Pin ${pin.x + 1},${pin.y + 1}${lineName ? ` · ${lineName}` : ""}`,
+        points: met ? SUBWAY_CONFIG.survey.vp : 0,
+        met,
+      });
+    }
+
     p.scoreBreakdown = items;
     p.score = items.reduce((sum, i) => sum + i.points, 0);
   }
@@ -960,6 +1410,7 @@ export function scoreGame(state: SubwayState): SubwayState {
   return {
     ...state,
     players,
+    undo: undefined,
     winnerIds: winners,
     phase: "RESULTS",
     message: winners.length > 1 ? "Shared victory!" : `${top.name} wins!`,
@@ -979,6 +1430,9 @@ function makePlayer(p: Player, index: number): SubwayPlayer {
     engineeringHand: [...SUBWAY_CONFIG.startingHands.engineering],
     committedEngineering: [],
     engineeringLocked: false,
+    destinationHand: [],
+    destinationCommitments: [],
+    surveysPurchased: 0,
     schedulingHand: [...SUBWAY_CONFIG.startingHands.scheduling],
     constructionHand: [...SUBWAY_CONFIG.startingHands.construction],
     lines: [],
@@ -1004,11 +1458,13 @@ function initialState(players: Player[]): SubwayState {
     phase: "SETUP",
     playerOrder: order,
     players: playersById,
-    priorityPlayerId: order[0] ?? "",
+    oddPriorityId: order[0] ?? "",
     priorityOverrides: {},
     procurement: { deck: [], yard: [], offerIndex: 0, cleanup: false },
     market: { engineeringIndex: 0, schedulingIndex: 0, constructionIndex: 0 },
+    engineeringStep: "PLAN",
     schedulingStep: "PLANNING",
+    surveyPins: [],
     currentPeriod: 1,
     resolveQueue: [],
     winnerIds: [],
@@ -1033,7 +1489,7 @@ function shuffle<T>(items: T[], random: () => number): T[] {
 /** Hands the contract to the only company that can still legally own it. */
 function forceSale(s: SubwayState, entry: YardEntry): SubwayState {
   const eligible = seats(s).filter(canHoldMore);
-  if (!eligible.length) return s; // unreachable: 4+4 > 6 contracts
+  if (!eligible.length) return s; // unreachable: two caps of three cover six contracts
   const buyer = [...eligible].sort((a, b) => b.money - a.money)[0];
   // Distressed price: a forced buyer never pays more than it holds.
   const price = Math.min(entry.price, buyer.money);
@@ -1061,7 +1517,8 @@ function nextOffer(s: SubwayState): SubwayState {
 
   if (!entry) {
     s.phase = "ENGINEERING";
-    s.message = "Every contract is signed. Commit exactly three Engineering cards.";
+    s.engineeringStep = "PLAN";
+    s.message = "Every contract is signed. Lock your Engineering plan.";
     return s;
   }
 
@@ -1094,6 +1551,15 @@ function autoSchedule(p: SubwayPlayer): void {
       line.start = undefined; // does not fit end to end; the player must compress or shelve it
     }
   }
+}
+
+/** Closes Engineering once every purchased Survey Pin is on the board. */
+function toScheduling(s: SubwayState): SubwayState {
+  s.phase = "SCHEDULING";
+  s.schedulingStep = "PLANNING";
+  for (const p of seats(s)) autoSchedule(p);
+  s.message = "Plan your whole construction programme, then submit it.";
+  return s;
 }
 
 // ----------------------------------------------------------------------------
@@ -1167,6 +1633,21 @@ function prunePendingActions(s: SubwayState, playerId: string): void {
 }
 
 // ----------------------------------------------------------------------------
+// Undo — exactly one placement deep
+// ----------------------------------------------------------------------------
+
+/**
+ * Snapshots the state a placement is about to change. The snapshot never
+ * carries an undo record of its own, so undoing can only ever walk back one
+ * placement and room state cannot grow without bound.
+ */
+function undoRecord(before: SubwayState, playerId: string, kind: UndoRecord["kind"], label: string): UndoRecord {
+  const snapshot = structuredClone(before);
+  snapshot.undo = undefined;
+  return { playerId, kind, label, state: snapshot };
+}
+
+// ----------------------------------------------------------------------------
 // Reducer
 // ----------------------------------------------------------------------------
 
@@ -1175,7 +1656,12 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
   const legacy = state.version !== SUBWAY_STATE_VERSION;
   if (action.type !== "START_GAME" && (legacy || !state.players[action.playerId])) return state;
 
+  // Undo is the only action that reads the outstanding undo record. Every other
+  // accepted action consumes it: `s` is what an accepted action returns, and it
+  // starts with the record cleared, while a rejected action returns `state`
+  // untouched and leaves the record standing.
   const s = structuredClone(state);
+  s.undo = undefined;
   const me = s.players[action.playerId];
 
   switch (action.type) {
@@ -1187,7 +1673,7 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
       // strand a player outside the game. First two joiners become companies.
       const fresh = initialState(ctx.room.players);
       fresh.phase = "PROCUREMENT";
-      fresh.priorityPlayerId = fresh.playerOrder[Math.floor(ctx.random() * fresh.playerOrder.length)];
+      fresh.oddPriorityId = fresh.playerOrder[Math.floor(ctx.random() * fresh.playerOrder.length)];
       fresh.procurement.deck = shuffle(
         LINE_CONTRACTS.map((c) => c.id),
         ctx.random
@@ -1222,7 +1708,9 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
         // First refusal is paid for with a free face-up card.
         const deck = action.payload?.deck;
         if (deck === "engineering") {
-          me.engineeringHand.push(marketEngineering(s.market).id);
+          const drafted = marketEngineeringId(s.market);
+          if (isDestinationCard(drafted)) me.destinationHand.push(drafted);
+          else me.engineeringHand.push(drafted);
           s.market.engineeringIndex++;
         } else if (deck === "scheduling") {
           me.schedulingHand.push(marketScheduling(s.market).id);
@@ -1254,24 +1742,68 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
       return nextOffer(s);
     }
 
-    case "COMMIT_ENGINEERING": {
-      if (state.phase !== "ENGINEERING" || !me || me.engineeringLocked) return state;
+    case "LOCK_ENGINEERING_PLAN": {
+      if (state.phase !== "ENGINEERING" || state.engineeringStep !== "PLAN") return state;
+      if (!me || me.engineeringLocked) return state;
+
+      // Exactly three distinct normal Engineering cards from hand.
       const ids = action.payload?.cardIds ?? [];
       if (ids.length !== 3 || new Set(ids).size !== 3) return state;
+      if (ids.some(isDestinationCard)) return state;
       let hand = [...me.engineeringHand];
       for (const id of ids) {
-        if (!hand.includes(id)) return state;
+        if (!engineeringById(id) || !hand.includes(id)) return state;
         hand = removeOne(hand, id);
       }
+
+      // Zero or more Destination cards, each bound to an owned line.
+      const assignments = action.payload?.destinations ?? [];
+      if (!Array.isArray(assignments)) return state;
+      if (destinationProblems(me, assignments).length) return state;
+
+      // Zero to five Survey Pins at $1M each, paid for exactly once.
+      const surveys = action.payload?.surveys ?? 0;
+      if (!Number.isInteger(surveys) || surveys < 0 || surveys > SUBWAY_CONFIG.survey.max) return state;
+      const surveyCost = surveys * SUBWAY_CONFIG.survey.cost;
+      if (surveyCost > me.money) return state;
+
       me.engineeringHand = hand;
       me.committedEngineering = [...ids];
+      let destHand = [...me.destinationHand];
+      me.destinationCommitments = assignments.map((a) => {
+        destHand = removeOne(destHand, a.cardId);
+        return { cardId: a.cardId, stationId: destinationById(a.cardId)!.stationId, lineIndex: a.lineIndex };
+      });
+      me.destinationHand = destHand;
+      me.surveysPurchased = surveys;
+      me.money -= surveyCost;
       me.engineeringLocked = true;
-      s.message = `${me.name} committed their Engineering cards.`;
+      s.message = `${me.name} locked their Engineering plan${surveys ? ` and bought ${surveys} Survey Pin${surveys === 1 ? "" : "s"}` : ""}.`;
+
       if (seats(s).every((p) => p.engineeringLocked)) {
-        s.phase = "SCHEDULING";
-        s.schedulingStep = "PLANNING";
-        for (const p of seats(s)) autoSchedule(p);
-        s.message = "Plan your whole construction programme, then submit it.";
+        s.engineeringStep = "SURVEY";
+        const first = surveyTurnId(s);
+        if (!first) return toScheduling(s);
+        s.message = `Engineering is locked. ${s.players[first].name} places the first Survey Pin.`;
+      }
+      return s;
+    }
+
+    case "PLACE_SURVEY": {
+      if (state.phase !== "ENGINEERING" || state.engineeringStep !== "SURVEY" || !me) return state;
+      if (surveyTurnId(state) !== me.id) return state;
+      const lineIndex = action.payload?.lineIndex ?? -1;
+      if (!Number.isInteger(lineIndex) || !me.lines[lineIndex]) return state;
+      const pt = { x: action.payload?.x ?? -1, y: action.payload?.y ?? -1 };
+      if (surveyBlocker(state, me.id, pt)) return state;
+
+      s.surveyPins.push({ playerId: me.id, lineIndex, x: pt.x, y: pt.y });
+      s.message = `${me.name} surveyed ${pt.x + 1},${pt.y + 1} for the ${contractOf(me.lines[lineIndex])!.name}.`;
+      s.undo = undoRecord(state, me.id, "survey", "Survey Pin");
+      if (!surveyTurnId(s)) {
+        const next = toScheduling(s);
+        next.undo = s.undo; // the placement is still the last thing that happened
+        return next;
       }
       return s;
     }
@@ -1357,7 +1889,7 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
 
     case "PLACE_STARTER": {
       if (state.phase !== "STARTER_PLACEMENT" || !me) return state;
-      if (starterTurnId(s) !== me.id) return state;
+      if (starterTurnId(state) !== me.id) return state;
       const lineIndex = action.payload?.lineIndex ?? -1;
       const line = me.lines[lineIndex];
       if (!line || line.route.length) return state;
@@ -1366,11 +1898,14 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
       const pt = { x: action.payload?.x ?? -1, y: action.payload?.y ?? -1 };
       if (validateNode(s, me.id, lineIndex, pt, true)) return state;
       line.route = [pt];
-      s.message = `${me.name} placed a starter peg.`;
+      s.message = `${me.name} placed the ${contractOf(line)!.name} starter peg.`;
+      s.undo = undoRecord(state, me.id, "starter", "starter peg");
       if (!starterTurnId(s)) {
         s.phase = "CONSTRUCTION";
         s.currentPeriod = 1;
-        return beginConstructionPeriod(s);
+        const opened = beginConstructionPeriod(s);
+        opened.undo = s.undo; // the placement is still the last thing that happened
+        return opened;
       }
       return s;
     }
@@ -1418,14 +1953,15 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
       if (!line || lineComplete(line)) return state;
 
       const pt = { x: action.payload?.x ?? -1, y: action.payload?.y ?? -1 };
-      if (validateNode(s, me.id, lineIndex, pt)) return state;
+      const slot = action.payload?.slot;
+      if (validateNode(s, me.id, lineIndex, pt, false, slot)) return state;
 
       const from = line.route[line.route.length - 1];
       me.crossingsUsed += countCrossings(s, me.id, from, pt);
       const station = stationAt(pt);
       line.route.push({
         ...pt,
-        ...(station ? { stationId: station.id, stationSlot: stationConnections(s, station.id).length } : {}),
+        ...(station ? { stationId: station.id, stationSlot: slot! } : {}),
       });
 
       me.pendingActions = removeOne(me.pendingActions, lineIndex);
@@ -1433,10 +1969,12 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
       s.message = lineComplete(line)
         ? `${me.name} completed the ${contract.name}!`
         : `${me.name} extended the ${contract.name}.`;
+      const record = undoRecord(state, me.id, "build", `${contract.name} node`);
 
       prunePendingActions(s, me.id);
-      if (!me.pendingActions.length) return endPlayerTurn(s, me.id);
-      return s;
+      const next = me.pendingActions.length ? s : endPlayerTurn(s, me.id);
+      next.undo = record; // survives a period or phase advance until someone else acts
+      return next;
     }
 
     case "SKIP_ACTION": {
@@ -1453,6 +1991,15 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
       s.message = `${me.name} gave up a construction action.`;
       if (!me.pendingActions.length) return endPlayerTurn(s, me.id);
       return s;
+    }
+
+    case "UNDO_PLACEMENT": {
+      const record = state.undo;
+      if (!record || record.playerId !== action.playerId) return state;
+      const restored = structuredClone(record.state);
+      restored.undo = undefined;
+      restored.message = `${state.players[action.playerId]?.name ?? "A company"} took back their ${record.label}.`;
+      return restored;
     }
 
     case "ADVANCE_SCORING": {
@@ -1483,7 +2030,7 @@ export function starterTurnId(s: SubwayState): string | undefined {
   const placed = (p: SubwayPlayer) => starterLines(p).length - pendingStarters(p).length;
   const [a, b] = waiting;
   if (placed(a) !== placed(b)) return placed(a) < placed(b) ? a.id : b.id;
-  return s.priorityPlayerId === b.id ? b.id : a.id;
+  return s.oddPriorityId === b.id ? b.id : a.id;
 }
 
 // ----------------------------------------------------------------------------
@@ -1502,8 +2049,6 @@ export const subwayGame = defineGame<SubwayState, SubwayAction>({
 });
 
 // TODO (future design pins, intentionally not implemented — see RULES.md):
-// - Survey Markers: 2–3 non-reserving, stackable intent markers per player
-//   placed during Engineering, with bonus VP for building through them.
 // - Company Cards: asymmetric starting money / hands / abilities.
 // - Multiple project cycles per company.
 // - Server-controlled bot as an optional third company.
