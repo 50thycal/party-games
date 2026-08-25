@@ -180,7 +180,8 @@ opponent's peg when needed, and finish construction in debt while paying a serio
 
 ## Implementation State
 
-Approved Build Card and issued Build Spec are published for implementation on the related draft PR.
+Approved Build Card and issued Build Spec are published for implementation on draft PR
+[#143](https://github.com/50thycal/party-games/pull/143).
 Implementation is blocked until Party Games' separately owned Build OS v0.5 adoption lands and this
 branch is rebased onto it. Opening this Design Handoff PR does not start `BUILDING`.
 
@@ -202,7 +203,8 @@ Design handoff only; implementation review has not started.
 
 ## Related PRs
 
-Design Handoff PR to be added immediately after creation.
+[#143](https://github.com/50thycal/party-games/pull/143) — draft Design Handoff PR; the single branch
+and PR Claude continues after the framework dependency lands.
 
 ## Next Step
 
