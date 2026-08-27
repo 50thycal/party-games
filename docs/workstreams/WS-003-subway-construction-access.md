@@ -211,7 +211,7 @@ Destinations.
 
 PR [#143](https://github.com/50thycal/party-games/pull/143) merged the first approved design packet
 without gameplay implementation. The amended design packet is published on a new draft continuation
-PR (`CONTINUATION_PR`). Implementation remains blocked until Party Games adopts Build OS v0.5 or
+PR [#144](https://github.com/50thycal/party-games/pull/144). Implementation remains blocked until Party Games adopts Build OS v0.5 or
 records an owner-approved deferral; opening the continuation PR does not start `BUILDING`.
 
 ## Review State
@@ -219,7 +219,7 @@ records an owner-approved deferral; opening the continuation PR does not start `
 | PR | Verdict | Reviewed head | Finalization |
 |---|---|---|---|
 | [#143](https://github.com/50thycal/party-games/pull/143) | Not started | — | — |
-| `CONTINUATION_PR` | Not started | — | — |
+| [#144](https://github.com/50thycal/party-games/pull/144) | Not started | — | — |
 
 #143 was a documentation-only handoff merged before implementation and makes no independent-review
 claim. The continuation PR is the review unit for the amended spec and eventual implementation.
@@ -235,7 +235,8 @@ claim. The continuation PR is the review unit for the amended spec and eventual 
 
 - [#143](https://github.com/50thycal/party-games/pull/143) — merged documentation-only Design
   Handoff; no gameplay implementation.
-- `CONTINUATION_PR` — draft continuation PR for the amended spec and eventual implementation.
+- [#144](https://github.com/50thycal/party-games/pull/144) — draft continuation PR for the amended
+  spec and eventual implementation.
 
 ## Next Step
 

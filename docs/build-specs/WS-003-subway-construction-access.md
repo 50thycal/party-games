@@ -402,8 +402,8 @@ The implementation PR must update these to the truth of the delivered code:
 
 ## 14. Handoff requirements
 
-- Continue on the new draft continuation PR (`CONTINUATION_PR`); do not reopen #143 or create a
-  second implementation PR.
+- Continue on draft continuation PR [#144](https://github.com/50thycal/party-games/pull/144); do not
+  reopen #143 or create a second implementation PR.
 - First rebase after Party Games' Build OS v0.5 adoption lands, or stop for an owner-approved
   recorded deferral. Resolve protocol-document conflicts in favor of the adopted framework.
 - When code work actually starts, checkpoint WS-003 from `READY_TO_BUILD/Blocked` to
