@@ -779,3 +779,77 @@ debt keeps payments received meaningful and makes the rule readable from the fin
 - Negative cash becomes a valid Construction/Results state and remains the last existing tiebreak
   after its VP penalty is applied.
 - The $1M toll and -2 VP rate are approved starting values, not final balance certification.
+
+---
+
+### DEC-020 — Adopt Build OS v0.5 and put significant PRs behind a reviewed-head merge gate
+
+**Date:** 2026-08-27
+
+**Status:** Accepted
+
+**Context**
+Party Games adopted Build OS v0.4 on 2026-08-23 (`DEC-012`). Canonical reached v0.5 on 2026-08-24,
+one minor version ahead. WS-003's design package was written under v0.5 and declared itself blocked:
+the v0.4 → v0.5 migration notes require an adopting project either to adopt or to record an explicit
+deferral, and neither had happened, so the workstream could not legitimately start `BUILDING`.
+
+The gap was not academic. In the three weeks before it, this project merged two significant Subway
+PRs — #141, the whole WS-002 implementation, and #142 — with no independent review recorded against
+either, and #143 merged a design packet whose review row still reads `Not started`. Every one of
+those was written and merged through the same account. v0.5 exists because that pattern is the
+normal failure, not an unusual one.
+
+**Decision**
+Adopt v0.5. Four protocol behaviors move into `AGENTS.md` and the Design Room's ChatGPT Project
+instructions:
+
+- **Capture Only** — a named mode for playtest notes and feedback dumps in which the design agent
+  records and does nothing else, ended by a consolidation that keeps observations, interpretations,
+  proposed rules, and approved decisions separate.
+- **The Design Handoff PR** — a design agent may open the draft implementation PR itself once the
+  card is approved and the spec issued; that is the single PR for the implementation, and opening
+  it does not start `BUILDING`.
+- **The reviewed-head merge gate** — a significant PR does not merge until an independent verdict
+  approves its current head, named as a full 40-character SHA, with no Blocking or Should-fix
+  finding outstanding. The agent that wrote the code may neither approve nor merge it.
+- **Merge finalization** — the last commit before merge is documentation only, setting the
+  workstream, `ACTIVE.md`, and `Review State` to what becomes true when the PR lands.
+
+Local template copies are refreshed from canonical, and `REVIEW_SUMMARY.template.md` is added
+because the project now records verdicts. Migrated history is not reopened: #141, #142, and #143
+merged under v0.4 and stay merged, and their review rows keep saying what actually happened.
+Active workstreams gain the `**Build OS:** v0.5` header and review fields at their next review
+checkpoint rather than in a bulk edit, so nothing records a review that never took place.
+
+**Rationale**
+The alternative on offer was a recorded deferral, which the migration notes explicitly permit. It
+was rejected because there is no cost to adopting: v0.5 is enforceable by people reading and writing
+Markdown, and needs no CI, branch protection, or GitHub App this project does not have. Deferring
+would have meant recording that we knew about the gate and chose to keep merging significant
+gameplay changes without one — while WS-003, the largest Subway change yet specified, was queued
+behind it.
+
+The gate is worth its friction here specifically because this is a single-account repository where
+the same actor designs, implements, and merges. That is the case v0.5's comment-verdict provision
+is written for, and it is the case where an unreviewed merge is likeliest.
+
+**Alternatives considered**
+- **Record a deferral and implement WS-003 under v0.4.** Rejected: adopting costs a documentation
+  pass, and the deferral would have to name a revisit trigger that was already satisfied.
+- **Adopt only the merge gate.** Rejected as partial adoption that leaves the project claiming a
+  version it does not follow; the migration notes are read as a unit.
+- **Retrofit review fields onto WS-001 and WS-002.** Rejected by the migration notes and on the
+  merits — backfilling a `Reviewed head` for a review nobody performed is exactly the dishonesty
+  the field exists to prevent.
+- **Fold the adoption into the WS-003 implementation PR.** Rejected: a framework migration inside a
+  large gameplay diff is hard to review, and the approved WS-003 spec calls for a separate adoption.
+
+**Consequences**
+- WS-003 is unblocked and may proceed to `BUILDING` once this lands.
+- Significant PRs now need an independent verdict naming their current head before merge, and this
+  session's own implementation work cannot self-approve. Where GitHub refuses a same-account review,
+  the verdict is a PR comment naming both the review actor and the implementation actor reviewed.
+- Every significant PR gains a documentation-only finalization commit before merge.
+- `AGENTS.md`'s `Project-specific:` rules are untouched; the v0.5 behaviors are merged alongside
+  them, not over them.

@@ -1,8 +1,5 @@
 # Build Card — <feature name>
 
-<!-- Copied from 50thycal/build-os templates/ at Build OS v0.4. Re-copy from canonical
-     when Build OS changes it; do not edit it into a local variant. -->
-
 <!-- Owner-facing. Should be understandable in 30–60 seconds. If it takes longer,
      the feature is too big or this card is doing the Build Spec's job. -->
 
@@ -38,29 +35,29 @@
 
 <!-- The handful of rules that must hold. Behavioral, not technical. -->
 
-- 
-- 
+-
+-
 
 ## Decisions made
 
 <!-- The owner's answers from the Decide stage, with one line of reasoning each. -->
 
 - **<Question?>** → <Answer>. <Why.>
-- 
+-
 
 ## Non-goals
 
 <!-- What this deliberately does not do. -->
 
-- 
-- 
+-
+-
 
 ## Definition of done
 
 <!-- Observable conditions, checkable without reading code. -->
 
-- [ ] 
-- [ ] 
+- [ ]
+- [ ]
 
 ---
 
