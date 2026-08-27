@@ -552,7 +552,7 @@ reasoning from the picture would be reasoning from a lie.
 ### DEC-014 — Destinations and Survey Pins are paid commitments made beside the three Engineering cards, not among them
 
 **Date:** 2026-08-24
-**Status:** Accepted
+**Status:** Superseded by DEC-016
 
 **Context**
 WS-002 activated two systems Subway had been carrying as future design pins: Destination cards
@@ -666,3 +666,116 @@ boundary because the snapshot predates the advance.
   undo window standing. The rules harness asserts the accept/reject behaviour directly.
 - Derived status — objective completion, Destination fulfilment, Survey fulfilment — reverts with an
   undo automatically, because none of it is stored.
+
+---
+
+### DEC-016 — Destinations remain line-bound; Survey Pins become company-wide commitments
+
+**Date:** 2026-08-25
+**Status:** Accepted · **Supersedes:** DEC-014
+
+**Context**
+DEC-014 deliberately separated Destinations and paid Survey Pins from the three normal Engineering
+commitments, but bound both kinds of planning marker to a particular line. The next owner playtest
+found that a Survey Pin's line assignment adds fragility without creating a useful choice: a player
+has already paid for and publicly placed the exact point, and still has to route one of their lines
+through it. Which owned line eventually reaches that point does not need to be predicted during
+Engineering.
+
+**Decision**
+Retain DEC-014's Engineering structure and economics: Destinations share the market but remain
+separate from the three normal commitments, stay assigned to one line with a maximum of two per
+line, and score +3 VP when that line reaches the named station. Survey Pins still cost $1M each,
+remain capped at five, are charged at plan lock, and are publicly placed in alternating order during
+the SURVEY substep. They reserve nothing and score +1 VP.
+
+Remove only the Survey-to-line binding. A Survey Pin belongs to its buying company and scores once
+when any line owned by that company places a normal route node on its exact hole. An opponent's line
+never fulfils it. Network Link continues to replace Long Segment exactly as DEC-014 specified.
+
+**Rationale**
+The public coordinate and purchase cost already express a commitment. Making the player also guess
+which line will fulfil it compounds the risk of ordered recipes, the 90° turn cap, and station
+competition without adding another meaningful decision at placement time. Company-wide fulfilment
+keeps the marker useful as network planning while retaining every financial and spatial constraint.
+
+Destinations stay line-bound because their central decision is different: assigning a named station
+to a specific contract creates a route objective. Making them company-wide would turn that plan back
+into a general wish.
+
+**Alternatives considered**
+- **Keep line-assigned Surveys.** Rejected after playtest: the assignment can invalidate a paid marker
+  even when another owned line uses the exact planned point.
+- **Allow either company to fulfil a pin.** Rejected: that would award the buyer for an opponent's
+  construction and disconnect the point from the buyer's network.
+- **Make Destinations company-wide too.** Rejected: line assignment is the meaningful planning choice
+  for a named station card.
+
+**Consequences**
+- Survey Pin persisted state no longer needs `lineIndex`, so Subway's state version must bump and old
+  rooms restart per DEC-008.
+- Survey rendering uses company identity rather than line identity.
+- A single pin still scores at most once even if several owned lines could satisfy it.
+- Existing purchase, stacking, turn-order, non-reservation, Undo, and +1 VP rules do not change.
+
+---
+
+### DEC-017 — Opposing Subway pegs are paid shared infrastructure, with construction-only debt
+
+**Date:** 2026-08-25
+**Status:** Accepted
+
+**Context**
+Ordered segment recipes and the 90° turn limit made the one-empty-hole exclusion around opposing
+pegs much stronger than it was under freeform routes. In the owner playtest it could eliminate every
+legal move. Simply removing all occupation rules would erase competition; keeping exclusive pegs
+would leave exact holes as absolute blockers. Charging for shared access preserves obstruction as an
+economic decision.
+
+All current costs are paid before Construction. A player who reaches the board with no cash could
+therefore be unable to buy the newly introduced access even when it is the only useful route. The
+owner chose to allow Construction debt, paired with a large VP consequence rather than a hard stop.
+
+**Decision**
+Opposing normal pegs no longer project a one-hole spacing exclusion. During Construction, a line may
+use an opponent's exact normal peg as its next node for an immediate $1M transfer to that peg's
+owner. The acting line owns its route node independently; payment does not transfer the original
+node or create joint route ownership. Sharing is unavailable for starters, station docks, or another
+line owned by the acting player, and every other route/string rule remains.
+
+This $1M Construction payment may take cash below $0. No earlier phase may overspend. Final debt is
+the amount ending cash is below zero and scores -2 VP per $1M; later access payments received reduce
+that ending debt. The existing placement Undo reverses the node and transfer together.
+
+**Rationale**
+A $1M toll is material but smaller than any contract or crew commitment. It turns a blocker into
+negotiated infrastructure without asking the opponent for a synchronous decision in a polling game.
+Removing only adjacency gives routes room to coexist; pricing the exact occupied hole preserves the
+value of getting there first.
+
+At -2 VP per $1M, borrowing $3M costs 6 VP, approximately the completion value of a medium contract.
+Debt can rescue a route, but routine borrowing is not free money. Using ending rather than cumulative
+debt keeps payments received meaningful and makes the rule readable from the final balance.
+
+**Alternatives considered**
+- **Keep the spacing rule.** Rejected by playtest because constrained recipes can leave no legal
+  placement at all.
+- **Remove spacing but keep every peg exclusive.** Rejected: exact holes remain absolute blockers and
+  the proposed player-to-player payment never occurs.
+- **Require available cash.** Rejected: a $0 company could lose access to the relief rule precisely
+  when it needs it.
+- **Allow debt in every phase.** Rejected: it would undo Procurement, Survey, and Scheduling budget
+  constraints rather than solve Construction access.
+- **Track cumulative borrowing or charge interest.** Rejected as unnecessary accounting for a short
+  prototype game.
+
+**Consequences**
+- Normal route coordinates may now appear in two opposing route arrays and need an accessible shared
+  rendering while remaining independently scored.
+- Placement, payment, and both balances are one reducer transition so optimistic retries cannot
+  separate them.
+- Shared endpoints do not consume Crossing Design, but overlapping strings, pass-through, self-
+  crossing, exact station docks, recipes, and turn rules still apply.
+- Negative cash becomes a valid Construction/Results state and remains the last existing tiebreak
+  after its VP penalty is applied.
+- The $1M toll and -2 VP rate are approved starting values, not final balance certification.

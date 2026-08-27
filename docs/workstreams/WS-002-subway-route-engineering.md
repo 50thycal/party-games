@@ -3,7 +3,7 @@
 **Phase:** REVIEW
 **Status:** Active
 **Created:** 2026-08-23
-**Updated:** 2026-08-24
+**Updated:** 2026-08-25
 
 ## Goal
 
@@ -177,7 +177,7 @@ Lengths are measured in physical peg spaces with a small tolerance for diagonals
 
 ## Implementation State
 
-**Built and validated; awaiting independent review.** The complete Build Spec is implemented on the WS-002 branch and handed off in PR [#141](https://github.com/50thycal/party-games/pull/141).
+**Merged and playtested.** The complete Build Spec landed in PR [#141](https://github.com/50thycal/party-games/pull/141), followed by the independently re-reviewed no-op Undo correction in PR [#142](https://github.com/50thycal/party-games/pull/142).
 
 What exists now:
 
@@ -199,9 +199,9 @@ Validation: `./scripts/test-subway.sh`, `npm run build`, and `npm run lint` all 
 
 Fixed in [#142](https://github.com/50thycal/party-games/pull/142): `SET_SCHEDULE` normalises the requested value and returns the original state when it equals the line's current start, so the window survives. Regression coverage proves an unchanged numeric start, an unfitting start, and re-shelving a shelved line all preserve `undo`, while moving or shelving a scheduled block still expires it. The rest of the reducer was audited for the same shape and no other action returns the cleared clone without changing state.
 
-**Independent re-review passed on 2026-08-24.** The focused fix matches the requested behavior, its positive and negative regression cases pass, and the Subway rules harness, production build, lint, and Vercel preview are green. No code findings remain for #142.
+**Independent re-review passed on 2026-08-24.** The focused fix matches the requested behavior, its positive and negative regression cases pass, and the Subway rules harness, production build, lint, and Vercel preview are green. No code findings remain for #142, which has since merged.
 
-Open for the owner's next playtest, not for review: the recipes, +3 Destinations, and $1M/+1 Survey Pins are unbalanced starting values by design, and the ordered recipe plus the 90° cap strands lines noticeably more often than v0.3 did.
+The owner's next playtest is complete. Its newly approved follow-up behavior is isolated in WS-003 rather than rewriting WS-002's finished Build Card.
 
 ## Related Decisions
 
@@ -210,8 +210,8 @@ Open for the owner's next playtest, not for review: the recipes, +3 Destinations
 
 ## Related PRs
 
-[#141](https://github.com/50thycal/party-games/pull/141) — merged WS-002 implementation and Build OS Implementation Handoff. [#142](https://github.com/50thycal/party-games/pull/142) — focused no-op schedule/Undo fix, independently re-reviewed and ready to merge.
+[#141](https://github.com/50thycal/party-games/pull/141) — merged WS-002 implementation and Build OS Implementation Handoff. [#142](https://github.com/50thycal/party-games/pull/142) — merged focused no-op schedule/Undo fix after independent re-review.
 
 ## Next Step
 
-Merge #142, then the owner runs the next balance playtest for recipes, Destination VP, Survey Pin pricing, and the risk of ordered recipes plus the 90° turn cap stranding lines.
+Record the final WS-002 merge checkpoint under the adopted Build OS v0.5 process; continue the owner's approved playtest follow-ups in WS-003.
