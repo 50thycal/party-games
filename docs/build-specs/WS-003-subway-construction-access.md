@@ -1,467 +1,419 @@
-# Build Spec — Subway Construction Access & Route Lookahead
+# Build Spec — Subway Open Routing, Destinations & Lookahead
 
-**Workstream:** WS-003  
-**Build Card:** [Approved card](../workstreams/WS-003-subway-construction-access.md#build-card)  
-**Build OS:** v0.5  
-**Issued:** 2026-08-25  
-**Implementation state:** Blocked pending the separately owned Party Games Build OS v0.5 adoption
+**Workstream:** WS-003
+**Build Card:** [Approved card](../workstreams/WS-003-subway-construction-access.md#build-card)
+**Build OS:** v0.5
+**Issued:** 2026-08-27
+**Supersedes:** the WS-003 spec issued 2026-08-25
+**Implementation state:** Blocked pending Party Games' separately owned Build OS v0.5 adoption or
+an owner-approved deferral
 
 ## 1. Objective
 
-Implement the approved WS-003 follow-up so ordered routes provide two-placement lookahead, Survey
-Pins can be fulfilled by any owned line, opposing pegs stop creating broad exclusion zones and may
-be shared for payment, construction can run into explicitly penalised debt, and Early Mobilization's
-incremental waiver is correct and visible. This spec was issued after checking canonical Build OS
-v0.5; Party Games still declares v0.4, so implementation must not begin until the separate adoption
-lands and this Design Handoff PR is rebased onto it.
+Implement the complete approved WS-003 behavior: two-placement lookahead; permissive normal-route
+geometry with per-contact opponent tolls; Construction-only debt; company-wide Survey Pins; a
+dedicated two-card-per-player Destination draft; objective-only Crossing Design; shorter Express,
+Crosstown, and Long recipes; and a correct, visible Early Mobilization waiver.
+
+PR #143 merged only the earlier design artifacts. No listed behavior is present on `main`, so the
+implementation must treat this replacement spec as one coherent change rather than assuming the
+first packet was built. Canonical Build OS is v0.5 while Party Games still declares v0.4; do not
+begin implementation until the separate adoption lands or the owner records the framework deferral
+required by v0.5 migration guidance.
 
 ## 2. Owner-approved behavior
 
-> After this change, the system should let players see where a route can go next, buy access to an
-> opponent's peg when needed, and finish construction in debt while paying a serious scoring
-> penalty.
+> After this change, the system should let players plan ahead and keep building through a crowded
+> network by paying for opponent infrastructure, while reliably drafting meaningful line-specific
+> Destinations.
 
 ### Owner decisions
 
-- **OD-1.** All current legal starter/construction targets glow green. Selecting one is a local,
-  non-binding preview that shows that candidate's legal following targets in yellow; selecting the
-  green candidate again confirms the current placement.
-- **OD-2.** Starter placement uses the same interaction: select a green starter hole, see in yellow
-  where the recipe's first segment could end, then select the starter again to confirm.
-- **OD-3.** Survey Pins are bought and placed during Engineering exactly as today, but are not
-  assigned to a line. A pin scores +1 VP once when any line owned by its buyer places a normal node
-  on its exact hole.
-- **OD-4.** Remove the rule requiring one empty hole beside opposing normal pegs. Adjacency alone is
-  legal.
-- **OD-5.** During Construction, a player may use an opponent's existing normal route peg as their
-  own line's next node by immediately paying that opponent $1M.
-- **OD-6.** Paid sharing does not apply to starter placement, station docks, or a hole already used
-  by another line owned by the acting player.
-- **OD-7.** Only a payment made during Construction may take a company's cash below $0. Procurement,
-  Engineering, Scheduling, and starter placement continue to reject unaffordable spending.
-- **OD-8.** At scoring, ending cash below $0 scores -2 VP per $1M of debt. Money received later in
-  Construction reduces the ending debt and therefore the penalty.
-- **OD-9.** Early Mobilization waives only the increase in mobilization surcharge caused by moving
-  its selected block one period earlier. Any second-crew cost change remains payable, and the UI
-  itemizes the waiver so the player can verify the charge.
-- **OD-10.** The existing one-placement Undo reverses a paid shared-node placement completely,
-  including both companies' cash balances.
+- **OD-1 — Lookahead.** All current legal starter/construction targets glow green. Selecting one is
+  a local preview: that target stays green and its legal following targets glow yellow. Selecting
+  the green target again confirms the current placement.
+- **OD-2 — Starter planning.** Starter placement uses the same interaction and previews where the
+  first ordered recipe segment can end.
+- **OD-3 — Core geometry only.** Preserve ordered segment length, the maximum 90° turn, board
+  bounds, exact station dock choice/capacity, and the ban on exact string-over-string overlap.
+  Remove normal-hole exclusivity, opposing-node spacing, peg-on-string, string-through-peg,
+  own-route crossing, and opponent-crossing prohibitions.
+- **OD-4 — Normal route contacts.** A normal node may be placed on an existing normal peg or on the
+  interior of an existing string. A new string may cross existing strings or pass through existing
+  normal pegs. Adjacency is unrestricted. These permissions apply to the actor's and opponent's
+  routes; station-specific rules remain.
+- **OD-5 — Opponent toll.** During Construction, pay the opponent $1M for every distinct geometric
+  contact the new node/string makes with the opponent's normal route. Own-route contacts cost $0.
+- **OD-6 — Contact counting.** A proper string crossing, an endpoint on an opposing string interior,
+  and an opposing normal peg touched by the segment or endpoint are contacts. Count each geometric
+  event once; landing on an opposing peg is one contact, not one charge per incident string.
+  Exact collinear string overlap remains illegal.
+- **OD-7 — Toll confirmation.** Before the second confirmation, show contact count, total cost,
+  recipient, cash after, and projected debt penalty. The reducer recomputes all of it and performs
+  route placement plus the full transfer atomically.
+- **OD-8 — Crossing Design.** Crossing Design is an ordinary +2 VP Engineering objective completed
+  by at least one proper crossing of an opposing string. It never grants permission or limits the
+  number of crossings. Endpoint touches, shared nodes, and pass-through at an existing peg are not
+  proper crossings for this objective.
+- **OD-9 — Construction debt.** Only Construction interaction payments may take cash below $0. At
+  scoring, ending debt costs -2 VP per $1M. Later Construction receipts reduce ending debt.
+- **OD-10 — Undo.** The existing one-placement Undo reverses the placed route geometry, all contacts,
+  the complete multi-contact transfer, both balances, queue/phase effects, and derived status.
+- **OD-11 — Survey Pins.** Pins cost $1M each, 0–5 per player, and are bought/placed publicly during
+  Engineering. They are company-wide, non-reserving, and stackable. A pin scores +1 VP once when any
+  line owned by its buyer places a normal node at its exact hole.
+- **OD-12 — Destination draft.** Engineering starts with three face-up Destination cards. Players
+  alternate free picks, starting with the odd-period-priority company, refilling to three while
+  possible, until each has exactly two. Destinations are removed from the Procurement Engineering
+  market.
+- **OD-13 — Destination assignment.** Destinations do not count among the three committed normal
+  Engineering objectives. Each is assigned during Engineering to an owned line, maximum two per
+  line, and scores +3 VP if that line reaches the named station whether or not the line completes.
+- **OD-14 — Recipe trim.** Express becomes `[5,4,5,4,5]`, Crosstown becomes `[4,3,4,3,4,3]`, and
+  Long becomes `[4,5,4,4,5,4,4]`. Prices, completion VP, shelving penalties, and all other contract
+  recipes remain unchanged.
+- **OD-15 — Early Mobilization.** Waive only the increase in mobilization surcharge caused by moving
+  the selected block one period earlier. Any second-crew cost change remains payable. Itemize base
+  mobilization, waived incremental surcharge, crew cost, total, and cash after.
 
 ### Implementation discretion
 
-Yours to decide: internal helper/type names, how local preview state is represented, whether second
-step targets are derived through a cloned hypothetical state or a behavior-equivalent pure helper,
-how shared pegs combine line/company patterns accessibly, the exact compact layout of toll/debt and
-waiver disclosures, and behavior-preserving refactors. Do not change the owner-visible rules above.
+Yours to decide: helper/type names; local preview representation; pure hypothetical-state versus
+behavior-equivalent derivation for yellow endpoints; accessible rendering for shared nodes and
+contacts; exact responsive layout; Destination deck shuffle/refill implementation; and
+behavior-preserving refactors. The odd-period company starts the Destination draft to reuse an
+existing deterministic priority rule rather than introduce another random decision.
 
 ### Stop / escalation conditions
 
-Stop and raise the conflict if implementation would require any of the following:
+Stop if implementation would require any of the following:
 
-- charging a toll other than $1M, penalising debt at another rate, or imposing a debt floor/cap;
-- allowing shared starters, station docks, or same-company route nodes;
-- making yellow previews persistent, reserving, or authoritative;
-- weakening a spatial invariant other than opposing-node adjacency and the explicit paid exception
-  for an opposing node;
-- waiving second-crew cost through Early Mobilization;
-- changing Subway phases, contract recipes, action counts, other prices/VP, or general undo scope;
-- proceeding before Party Games adopts Build OS v0.5 on `main` or explicitly records a framework
-  deferral approved by the owner.
+- changing the $1M/contact toll, -2 VP/$1M debt penalty, +2 Crossing award, +3 Destination award, or
+  $1M/+1 Survey economics;
+- reinstating a removed spatial prohibition, allowing exact collinear string overlap, weakening the
+  90° cap/ordered lengths/bounds/station capacity, or treating a station dock as a normal shared peg;
+- charging own-route contacts, charging the same geometric event more than once, or asking the
+  opponent to approve access synchronously;
+- making yellow previews reserving or authoritative, or allowing debt outside Construction tolls;
+- putting Destinations back in the Procurement draw, counting them among the three normal objective
+  commitments, or giving either player fewer/more than two;
+- changing unrelated contract prices/VP/penalties, phases outside the specified Engineering
+  substep, or general Undo scope;
+- proceeding before Build OS v0.5 adoption or an owner-approved recorded deferral.
 
 ## 3. Repository context
 
-- Subway's pure state, reducer, geometry, construction queue, scoring, and card economics live in
-  `src/games/subway/config.ts`. Rules must remain authoritative there.
-- `src/games/subway/GameView.tsx` renders the pegboard, legal targets, Scheduling totals, Engineering
-  survey controls, scoring, and the existing client-local Route Planner. WS-003's two-step preview is
-  also client-local until confirmation.
-- `scripts/subway-rules-test.ts` drives the reducer directly and is the required automated behavior
-  harness. Existing coverage already proves one Early Mobilization tier-boundary waiver.
-- `src/games/subway/RULES.md` is the player/rules reference and currently documents line-assigned
-  Surveys, opposing-node spacing, exclusive normal pegs, and non-negative scheduling.
-- `SUBWAY_STATE_VERSION` is 6. WS-003 changes persisted Survey Pin shape and must bump it.
-- The room engine polls shared state and applies reducer actions through optimistic locking. A
-  concurrent confirmed placement is re-run against current state, so previews can become stale and
-  must never be trusted by the reducer.
+- `src/games/subway/config.ts` owns Subway state, reducer, geometry, queue, markets, cards,
+  contracts, scoring, view redaction, and rules text.
+- `src/games/subway/SubwayGame.tsx` owns board interaction, local preview state, planning panels,
+  schedule display, scoring display, and responsive behavior.
+- `src/games/subway/config.rules.test.ts` plus `scripts/test-subway.sh` are the focused reducer/rules
+  harness. There is no CI; repository instructions also require build, lint, and manual desktop and
+  phone playtests.
+- `SUBWAY_STATE_VERSION` is currently 6. The Destination phase/deck and Survey state changes require
+  a bump so old rooms restart per DEC-008.
+- Full room state reaches every client. Keep objective and Destination secrecy in `view()` as today;
+  do not introduce a server-secrecy assumption.
 
 ## 4. Architecture constraints
 
-- Keep the game plugin boundary intact; no engine, API, database, registry, or polling changes.
-- Reducer state remains pure and JSON-serialisable. All payments and placements are one accepted
-  reducer transition so optimistic retry cannot expose a half-payment.
-- The reducer revalidates all confirmed placements. UI highlighting is guidance, never enforcement.
-- Preserve ordered recipes, ±0.5 length tolerance, the 90° turn cap, exact station slots, station
-  capacity, one connection per line per station, string overlap/pass-through rules, self-crossing,
-  Crossing Design, queue/action timing, and one-placement Undo except where explicitly changed.
-- Preserve the existing view-only secrecy model. Preview state is genuinely local and is never
-  dispatched or persisted.
-- Desktop and phone interaction must not rely on hover. Color cannot be the only distinction among
-  current targets, selected targets, following targets, paid targets, lines, and ownership.
-- Do not edit Party Games' Build OS adoption surfaces in this PR unless resolving a rebase conflict
-  after the separately owned adoption lands.
+- Reducer legality is authoritative. Green and yellow UI derivations must use the same pure rules or
+  be proven equivalent; never enforce a rule only in React.
+- Reducers remain pure and JSON-serialisable. Random Destination order comes from `ctx.random()`.
+- Rejected actions return the original state and preserve the existing Undo record. Accepted
+  non-placement actions expire Undo under DEC-015.
+- One accepted construction placement is one atomic transition even when it creates several
+  contacts, transfers several million, completes objectives, advances the queue, or ends the game.
+- Derived action counts and schedule blocks come from recipe length; do not add parallel node-count
+  constants when trimming recipes.
 
 ## 5. Implementation requirements
 
-### Placement lookahead
+### 5.1 Placement lookahead
 
-- **R-1 (OD-1).** When the acting player has a starter or construction placement, render every target
-  currently accepted by the authoritative rules as a green current target. Exact station docks are
-  distinct targets even when they share station coordinates.
-- **R-2 (OD-1).** The first activation of a green target selects it locally and dispatches no game
-  action. Mark it as the selected current target using shape/pattern or label as well as green.
-- **R-3 (OD-1).** For construction, derive yellow following targets as if the selected green target
-  had been legally appended to the active line. Apply the next ordered recipe length, turn cap,
-  effective station-slot geometry, occupancy/sharing, string, crossing-permit, and completion rules.
-- **R-4 (OD-2).** For starter placement, derive yellow targets as if the selected green normal hole
-  were the line's starter and the next placement were the first recipe segment. A starter with no
-  legal yellow continuation remains confirmable, but the empty preview must be explicit rather than
-  silently implying a continuation exists.
-- **R-5 (OD-1, OD-2).** Activating the selected green target a second time dispatches the existing
-  appropriate placement intent. Activating a different green target moves the local selection and
-  recomputes yellow targets instead of placing either target.
-- **R-6.** Yellow targets are informational only: they cannot be activated to skip the green step,
-  consume no action, reserve nothing, and are recalculated only for the currently selected green
-  candidate.
-- **R-7.** Clear local selection when the active player, line, action, period, phase, recipe step, or
-  authoritative target set changes. If a confirmation races with another action, the reducer's
-  current validation wins and no payment/placement occurs on rejection.
-- **R-8.** A green or yellow target that is an opponent's shareable peg carries a non-color-only
-  `$1M` access indicator. Before confirming a selected paid green target, show recipient, projected
-  cash, and projected debt penalty if the game ended at that balance.
-- **R-9.** Retain precise pan/zoom/tap behavior on the pegboard. A gesture must not select or confirm
-  a target, and a single accidental tap cannot place because confirmation requires the second
-  activation.
+1. Derive every legal current target with full reducer geometry and phase/action eligibility.
+2. First tap/click selects one current target without dispatching an action.
+3. Keep that current target green and visually stronger than other green choices. Derive yellow
+   targets by hypothetically accepting it, then applying the next ordered segment and turn rules.
+4. Second tap/click on the selected green target dispatches the existing placement action.
+5. Tapping another green target changes preview. Tapping background, changing active line/phase,
+   receiving newer room state, or losing legality clears preview.
+6. Yellow targets are informational and not clickable commitments. An empty yellow set is a valid
+   warning, not a reason to hide the current legal green choice.
+7. For a starter, the hypothetical current placement is the starter and yellow represents the
+   first recipe segment. For a final segment, no yellow endpoints are expected.
+8. Yellow derivation ignores whether the player could afford its future toll because Construction
+   debt is allowed; it still applies all geometry.
 
-### Survey Pins
+### 5.2 Contact legality and counting
 
-- **R-10 (OD-3).** Remove line assignment from Survey placement state, action requirements, UI, and
-  rules. A persisted pin identifies its buyer and normal-hole coordinate only.
-- **R-11 (OD-3).** Engineering still purchases 0–5 pins at $1M each during plan lock, then publicly
-  places them in the existing alternating SURVEY substep. Purchase affordability, turn order,
-  stacking between opponents, no personal duplicate, non-reservation, no stations, and Survey Undo
-  remain unchanged.
-- **R-12 (OD-3).** A pin is fulfilled if at least one route owned by its buyer contains a normal node
-  at the pin coordinate. An opponent route never fulfils it; a station node at the same board
-  coordinate does not substitute for the normal hole.
-- **R-13 (OD-3).** Each pin scores at most +1 VP even if multiple owned routes could satisfy it. Live
-  status and Results no longer name an assigned line and revert automatically if the fulfilling
-  placement is undone.
-- **R-14.** Render Survey ownership by company identity rather than line identity, retaining an
-  accessible label/pattern so stacked opposing pins remain distinguishable.
+Replace the current collection of spatial early exits with one explicit model:
 
-### Spatial access and paid shared nodes
+- Continue rejecting out-of-bounds targets, wrong recipe lengths, turns over 90°, invalid/full
+  station docks, unavailable actions, completed/shelved lines, and exact collinear overlap of the
+  new string with any existing route string.
+- Do not reject a normal target because its coordinate is already a route node, is adjacent to a
+  route node, lies on a route string, makes a proper crossing, or causes the new string to pass
+  through normal nodes.
+- Permit the same rules for routes owned by the actor, including another owned line or the same line.
+- Enumerate opponent contacts deterministically. Deduplicate by geometric event, not merely by
+  segment pair, so an endpoint on an opponent node does not also charge for every incident segment.
+- A proper interior/interior string crossing is one contact. An endpoint lying strictly inside an
+  opposing segment is one contact. Every distinct opposing normal peg lying on the new segment,
+  including its endpoint, is one contact.
+- If one coordinate qualifies as both a peg contact and one or more string contacts, the peg event
+  wins at that coordinate. Proper crossings elsewhere still count.
+- Existing geometry tolerance must be used consistently by legality, contact count, render, tests,
+  objective completion, and Undo.
 
-- **R-15 (OD-4).** Delete the Chebyshev/one-empty-hole exclusion projected by opposing normal route
-  nodes. A placement one hole away is not rejected for adjacency.
-- **R-16.** Removing adjacency does not remove occupation. An unshared normal hole remains exclusive,
-  stations retain exact docks/capacity, and strings still cannot pass through occupied holes.
-- **R-17 (OD-5, OD-6).** During a normal `BUILD`, an exact coordinate occupied by one opponent normal
-  route node is a candidate paid shared node. It is legal only if every other rule for the acting
-  line and proposed segment passes.
-- **R-18 (OD-6).** Reject paid sharing during starter placement, at any station coordinate/dock, at a
-  node belonging to another line owned by the acting player, or where the acting line already used
-  that station/hole as prohibited by existing rules.
-- **R-19 (OD-5).** On accepted shared placement, append the coordinate to the acting line as its own
-  normal route node, subtract $1M from the actor, and add $1M to the owner of the existing node in the
-  same reducer result. The physical hole is shared; line ownership, completion, objectives, Surveys,
-  and scoring remain independent.
-- **R-20.** Sharing an endpoint is not a Crossing Design crossing and does not consume the permit.
-  A new segment may leave that shared endpoint normally, but may not overlap an opponent string,
-  travel through another occupied peg, or violate other crossing/self-crossing rules.
-- **R-21.** `legalTargets`, no-legal-move detection, target pruning, construction-card legality, local
-  Route Planner legality, immediate green targets, and yellow lookahead all agree on the paid-sharing
-  exception and the removed adjacency rule.
-- **R-22.** A rejected or stale shared-node confirmation changes neither route nor either balance.
-  Optimistic retry re-resolves the node owner and legality from current state.
-- **R-23.** Render a shared physical peg so both participating lines and both companies remain
-  identifiable without relying on color alone; do not render two misleading offset holes.
+### 5.3 Toll, debt, and confirmation
 
-### Construction debt and scoring
+- `cost = distinctOpponentContacts * $1M`; two-player Subway has one recipient.
+- The first selection computes and displays contact count, total, recipient, acting cash after, and
+  projected `max(0, -cashAfter) * 2` VP penalty.
+- The reducer recomputes contacts from authoritative state on confirm. It ignores client-provided
+  prices/counts and accepts negative cash only for this Construction payment path.
+- Apply geometry, acting-company debit, opponent credit, queue advancement, objective status, and
+  Undo snapshot in one accepted action.
+- Final scoring subtracts 2 VP per $1M of ending negative cash. Preserve cash as the last existing
+  tiebreak after the VP penalty.
+- Show negative cash and projected/final debt penalty anywhere cash or scoring is summarized.
 
-- **R-24 (OD-7).** An accepted $1M shared-node payment may make the actor's `money` negative. No
-  lower bound or borrowing cap applies during Construction.
-- **R-25 (OD-7).** Do not relax any affordability check in Procurement, Engineering, Scheduling, or
-  starter placement. A company entering Construction at $0 may borrow only by making an accepted
-  in-scope Construction payment.
-- **R-26 (OD-8).** Debt is derived from ending cash: `debt = max(0, -money)`. At scoring, add a clear
-  score-breakdown item worth `-2 * debt` VP. No penalty applies at $0 or above.
-- **R-27 (OD-8).** Money received from an opponent is ordinary cash and immediately reduces a
-  negative balance. The final penalty uses the resulting ending balance, not cumulative borrowed
-  dollars or the lowest balance reached.
-- **R-28.** Display negative cash consistently anywhere a player can see their company balance. During
-  Construction, show the current projected debt penalty beside a negative balance; Results show both
-  ending debt and its VP deduction.
-- **R-29.** Existing tie breaks remain score, major connections, then remaining money. The debt VP
-  deduction is applied before that comparison; negative remaining money remains a valid final
-  tiebreak value.
+### 5.4 Crossing Design objective
 
-### Early Mobilization visibility and correctness
+- Change Crossing Design from permission-kind behavior to a normal committable objective worth +2.
+- Complete it live for its owner after that player has at least one proper interior/interior crossing
+  with an opposing segment.
+- Remove permit checks, crossing consumption, and one-crossing caps from reducer and UI copy.
+- Keep committed-card secrecy: owner sees live `COMPLETE`; opponent sees no hidden card detail before
+  scoring.
+- Unlimited paid crossings are legal without drawing or committing the card.
 
-- **R-30 (OD-9).** Preserve the rule `waiver = max(0, mobilization(newStart) -
-  mobilization(oldStart))` when Early Mobilization moves one legal block one period earlier.
-- **R-31 (OD-9).** The selected line's charged mobilization after Early Mobilization equals its
-  pre-card mobilization charge. A move inside the same tier creates a $0 waiver.
-- **R-32 (OD-9).** Recompute second-crew overlaps after the move and charge any resulting change.
-  Early Mobilization never waives crew cost.
-- **R-33.** In Scheduling resolution, itemize base/current mobilization, Early Mobilization waiver,
-  final mobilization, second crew, schedule total, and cash after. The confirmation amount and actual
-  deduction must use those same derived values.
-- **R-34.** After the card is accepted, give immediate player-facing confirmation naming the moved
-  line and waiver amount. If total cost changed solely because of second-crew overlap, make that
-  distinction visible.
-- **R-35.** Reproduce the owner's reported failure if possible. If the existing reducer is already
-  correct for that scenario, record that honestly in the Implementation Handoff and treat the fix as
-  cost transparency plus expanded regression coverage; do not invent a code defect.
+### 5.5 Destination draft and assignment
 
-### Undo and persisted state
+1. Remove Destination cards from the Procurement Engineering market/deck. That market contains only
+   normal Engineering objectives.
+2. On entering Engineering, create a shuffled Destination deck using reducer randomness and expose
+   three face-up cards.
+3. Add a `DESTINATION_DRAFT` substep before objective commitment/assignment and Survey purchase.
+4. Odd-period-priority company picks first; alternate accepted picks. Refill the row to three while
+   cards remain. A player who already has two is skipped automatically.
+5. End the substep only when both players have exactly two. With six cards total, two remain unused;
+   preserve them only if useful for state clarity, never expose them as choices.
+6. Picks are free and cannot create Undo. Rejected stale/not-in-row/wrong-turn picks do not mutate.
+7. In the planning substep, assign each owned Destination to one owned line. Maximum two per line.
+   Lock requires all two assigned and exactly three normal Engineering objectives committed.
+8. Destination assignments remain hidden from the opponent in `view()` until scoring. Owner sees
+   line assignment and live achieved status throughout play.
+9. Score +3 if the assigned line reaches the named station, complete or not. Undo must revert
+   derived achievement naturally.
 
-- **R-36 (OD-10).** The current one-placement snapshot Undo for a shared build restores the exact
-  pre-placement route, both balances, queue/turn/period/phase, objective/Survey status, and crossing
-  count. It retains the existing actor/expiry/no-op behavior.
-- **R-37.** Bump `SUBWAY_STATE_VERSION` because Survey Pin persisted shape changes. Older rooms follow
-  the existing restart path rather than being read as line-agnostic pins.
+### 5.6 Survey Pins
+
+- Preserve Engineering purchase (0–5 at $1M each), alternating public placement, stacking,
+  non-reservation, and exact-hole +1 VP scoring.
+- Remove line assignment from persisted pin/purchase state and plan UI.
+- Any owned line's normal node fulfils the pin. Opponent lines and strings passing through do not.
+- One pin scores once even if several owned lines occupy the coordinate; stacked pins score
+  independently.
+
+### 5.7 Contract recipes
+
+Set exactly:
+
+| Contract | Previous | New |
+|---|---:|---:|
+| Express | 6 segments | 5: `[5,4,5,4,5]` |
+| Crosstown | 7 segments | 6: `[4,3,4,3,4,3]` |
+| Long | 8 segments | 7: `[4,5,4,4,5,4,4]` |
+
+Do not change Short, Branch, or Medium. Recompute all node/action/schedule display from recipe length.
+Prove all six recipes and every permitted station-dock approach remain buildable on the board.
+
+### 5.8 Early Mobilization
+
+- Reproduce both a no-overlap and changed-second-crew-overlap move.
+- Compute baseline schedule cost and edited cost as explicit mobilization and second-crew components.
+- Waive only the positive mobilization delta created by the one-period-earlier move. Do not waive a
+  pre-existing surcharge or any crew delta.
+- Show: mobilization before/after, waived amount, second crew before/after, total due, and cash after.
+- Add focused reducer tests so the display cannot mask incorrect charging.
+
+### 5.9 Undo and state version
+
+- Keep DEC-015's one-snapshot model and scope. A confirmed starter, Survey, or construction
+  placement is undoable; preview selection and Destination picks/assignment are not newly undoable.
+- A paid construction Undo restores all route/contact/cash/queue/phase/objective changes exactly.
+- Bump state version and update initial/restart behavior for the Destination draft and company-wide
+  Survey shape.
 
 ## 6. State transitions
 
 ```text
-Local placement UI
-unselected --activate green--> previewing candidate
-previewing --activate another green--> previewing new candidate
-previewing --activate selected green--> dispatch confirmation
-previewing --authoritative context changes--> unselected
-
-Accepted paid BUILD (server reducer)
-validate route + shared-node exception
-        |
-        +--invalid/stale--> return original state; no payment
-        |
-        +--valid--> append node + actor cash -= 1 + owner cash += 1
-                         |
-                         +--> normal queue/period/phase advancement
-                         +--> snapshot Undo remains available per existing rule
-
-Scoring
-ending money >= 0 --> no debt item
-ending money < 0  --> debt item = money * 2 VP (a negative number)
+PROCUREMENT complete
+  -> ENGINEERING / DESTINATION_DRAFT
+       PICK_DESTINATION (alternating, free, exactly 2 each)
+  -> ENGINEERING / PLAN
+       commit exactly 3 objectives
+       assign 2 Destinations to owned lines (max 2/line)
+       buy 0–5 company-wide Survey Pins
+  -> ENGINEERING / SURVEY (skip if both bought 0)
+       PLACE_SURVEY_PIN (alternating)
+  -> SCHEDULING
+       submit, reveal, optionally play one Scheduling card, confirm and pay
+  -> STARTERS
+       select preview -> confirm PLACE_STARTER
+  -> CONSTRUCTION
+       select preview -> confirm BUILD_NODE
+          validate core geometry
+          enumerate opposing contacts
+          transfer contacts × $1M (debt allowed)
+          advance derived state
+       UNDO_PLACEMENT -> restore full pre-placement snapshot
+  -> SCORING
+       subtract ending debt × 2 VP
 ```
 
-The game phase order does not change. `ENGINEERING/PLAN -> ENGINEERING/SURVEY` remains the only Survey
-placement window; overdraft is possible only inside an accepted `CONSTRUCTION/BUILD` payment.
+The phase order remains Procurement → Engineering → Scheduling → Starters → Construction → Scoring;
+only the new Engineering substep is inserted.
 
-## 7. Interfaces
+## 7. Interfaces and failure behavior
 
-- Keep the existing game-action endpoint and action names.
-- `PLACE_SURVEY` no longer requires or persists `lineIndex`; its meaningful payload is the acting
-  player plus `x`,`y` normal-hole coordinate.
-- `BUILD` does not need a user-supplied owner, price, or payment flag. The reducer derives whether the
-  exact coordinate is an opposing normal node and applies the fixed $1M rule, preventing a client
-  from choosing the recipient or price.
-- Starter/build first activation is local view state. Only confirmation dispatches the existing
-  reducer action.
-- Any internal legal-target representation may add derived metadata such as exact dock, paid owner,
-  or toll for rendering, but persisted state remains authoritative.
+- Prefer existing action names when compatible. New Destination action/state types must be explicit
+  and serialisable.
+- `legalTargets` (or equivalent) must expose enough data for current target legality, following
+  targets, contact count, toll, and projected debt without trusting the client on dispatch.
+- Every rejected reducer action is a no-op: stale target, wrong draft turn, card absent from row,
+  third Destination pick, invalid assignment, geometry failure, or exact overlap.
+- If a preview becomes stale, clear it and show refreshed choices; do not dispatch a fallback target.
+- A valid build can never fail only because cash is insufficient for its Construction contact toll.
+- No new network/API/database interface is required.
 
-## 8. Persistence changes
+## 8. Persistence, concurrency, and privacy
 
-- Change Survey Pin persisted data from `{playerId, lineIndex, x, y}` to `{playerId, x, y}`.
-- No separate debt field is required or preferred; debt and penalty derive from `money`.
-- No payment ledger is required. The authoritative balances and existing pre-placement Undo snapshot
-  are sufficient for current rules.
-- Shared ownership is represented by the same coordinate appearing in two independently owned route
-  arrays. Do not collapse the routes into a jointly owned node entity.
-- Bump the Subway state version per R-37.
+- Bump `SUBWAY_STATE_VERSION`; old rooms restart rather than migrate in place.
+- Keep state bounded: six Destinations, at most ten Survey Pins, six finite recipes, one Undo snapshot.
+- All randomness enters through reducer context. Replaying a committed room action remains
+  deterministic under the engine's current state/version control.
+- Optimistic room versioning serializes simultaneous picks/builds. The loser recomputes from the new
+  state and receives a no-op for a stale action.
+- `view()` hides opponents' Destination hands/assignments and normal committed objectives before
+  scoring, while the public Destination row, draft turn, Surveys, routes, toll transfers reflected in
+  cash, and debt are public.
 
-## 9. Migration requirements
+## 9. Edge cases
 
-No in-place migration. Rooms with the previous Subway version display the existing restart path.
-Do not guess a line-agnostic meaning for old line-assigned Survey Pins.
+- Current target is legal but has zero yellow continuations.
+- Selected target becomes occupied/contact-rich before confirmation; reducer recomputes the new
+  legal result and price rather than using preview data.
+- One segment passes through two opponent pegs and crosses another opponent string: three contacts.
+- Endpoint lands on an opponent peg incident to two strings: one contact at that coordinate.
+- Endpoint lands inside an opponent string away from a peg: one contact.
+- Proper crossing occurs exactly at an existing opponent peg: peg contact only; not Crossing Design.
+- A segment crosses two own routes and one opponent route: only the opponent crossing costs $1M.
+- A route loops back to an earlier own node while satisfying ordered length and ≤90° turn: legal.
+- Exact reverse/collinear overlap of any existing string: illegal even when endpoints differ.
+- A Destination row empties near the end; both players still end with exactly two and unused cards
+  cannot be drafted.
+- Both Destinations are assigned to one owned line: legal. A line may later be shelved and still
+  score if it reached the station.
+- Zero Survey purchases skips SURVEY; asymmetric counts automatically skip exhausted players.
+- Undo after a multi-contact build reverts negative cash and opponent income even if it crossed a
+  period/phase boundary.
+- Early Mobilization changes both mobilization and crew overlap; only mobilization delta is waived.
 
-## 10. Failure behavior
+## 10. Tests
 
-- A stale preview confirmed after another accepted action is rejected by current reducer validation
-  and changes no state. The next poll clears/recomputes the preview.
-- A shared-node action is atomic: route plus both balances all change, or none do.
-- If a selected starter has no yellow continuation, display `No legal first segment from this peg`;
-  confirmation remains allowed because deliberate risky starters were not prohibited by the owner.
-- A card move that creates an unaffordable schedule after legitimate crew recomputation remains
-  rejected under existing rules; no Scheduling debt is allowed.
-- Rendering failures must not weaken reducer enforcement. The user may lose preview guidance but
-  cannot place an illegal node or avoid payment.
+### Reducer / geometry
 
-## 11. Concurrency / idempotency
+- Current/next target parity tests for starter, middle, final, dead-end, station dock, and stale
+  confirmation cases.
+- Legal adjacency, same-coordinate normal node, node-on-string, string-through-node, own crossing,
+  opponent crossing, and loopback cases.
+- Rejections for wrong ordered length, >90° turn, out of bounds, invalid/full dock, and exact overlap.
+- Contact-count table covering single/multiple crossings, pass-through pegs, endpoint-on-string,
+  endpoint-on-peg with incident segments, own contacts, and mixed contacts.
+- Atomic multi-contact transfer, construction debt, later receipts, scoring penalty, tie break, and
+  exact Undo restoration.
+- Crossing Design completes only on a proper opposing crossing and is never required for legality.
 
-- Preserve the existing CAS retry model. On retry, re-run shared-node detection, recipient lookup,
-  route legality, payment, and balance mutation from the newly read state.
-- Do not trust local preview metadata in the dispatched payload.
-- A rejected/no-op confirmation returns the original state, preserving an existing Undo window.
-- Duplicate network delivery follows current platform behavior; do not add a room-level idempotency
-  system in this game change. The current turn/action queue should make a repeated BUILD invalid after
-  the first accepted placement; add a reducer regression for the paid case.
+### Engineering
 
-## 12. Observability
+- Destination shuffle/three-card row, odd-priority first pick, alternation, refill, exactly two each,
+  stale/wrong-turn rejection, and removal from Procurement market.
+- Assignment ownership/max-two/lock requirements, hidden opponent view, live owner status, +3 scoring,
+  and shelved-but-reached behavior.
+- Survey company-wide fulfillment, opponent non-fulfillment, stack scoring, zero/asymmetric purchase,
+  and Undo.
 
-No new production telemetry system. Player-facing state and the PR's manual playtest evidence are
-proportional for this prototype. The UI must expose enough information to diagnose a playtest:
-selected line/recipe step, green candidate, yellow continuation count, paid recipient/toll, current
-cash/debt penalty, and Scheduling waiver/crew breakdown.
+### Recipes / scheduling / costs
 
-## 13. Backwards compatibility
+- Exact new recipes and derived actions/schedule blocks; all contracts and station docks buildable.
+- Early Mobilization no-overlap, new-overlap, removed-overlap, and pre-existing-surcharge cases with
+  itemized expected totals.
 
-- Existing rooms restart through `DEC-008`/the Subway version guard.
-- No engine or client API compatibility change beyond the versioned Subway payload.
-- Existing saved Route Planner sketches are client-local and may be cleared if their legality model
-  changes; they are not authoritative data.
-- All unrelated games and room modes remain unchanged.
+### Regression and validation
 
-## 14. Security / privacy constraints
+- Existing Procurement, objective commitment, scheduling priority, period advancement, line
+  completion/shelving, scoring, and view-redaction tests remain green unless intentionally updated.
+- Run `./scripts/test-subway.sh`, `npm run build`, and `npm run lint`.
+- Manual desktop and phone-width playtest: complete a Destination draft, assign cards, buy/place a
+  Survey, use starter/mid-route lookahead, make free own contacts, make a debt-causing multi-contact
+  opponent build, Undo it, rebuild, use Crossing Design without a permit gate, and verify scoring.
 
-No new sensitive information or authority surface. The reducer derives recipient and amount; clients
-cannot direct arbitrary transfers. Preview state stays local. Existing shared-state/view-concealment
-limitations remain unchanged.
+## 11. Acceptance criteria
 
-## 15. Edge cases
+- [ ] Green/yellow two-placement preview works for starters and construction and matches reducer
+      legality on desktop and phone.
+- [ ] Normal pegs/strings may interact without spatial blockers except the documented core rules.
+- [ ] Every distinct opponent contact costs exactly $1M; own contacts are free; preview, reducer,
+      balances, debt, and Undo agree.
+- [ ] Crossing Design is an optional +2 VP proper-crossing objective and never a permit.
+- [ ] Only Construction contact tolls create debt; final debt scores -2 VP/$1M.
+- [ ] Engineering drafts exactly two Destinations per player from a three-card row and removes them
+      from Procurement; assignment/scoring/secrecy work separately from three objectives.
+- [ ] Survey Pins are company-wide and preserve approved purchase/placement/scoring rules.
+- [ ] Express/Crosstown/Long have 5/6/7 segments with exact approved arrays and derived scheduling.
+- [ ] Early Mobilization waives and itemizes only the incremental mobilization surcharge.
+- [ ] State version, rules copy, tests, project memory, build, lint, and manual playtests agree.
 
-| Case | Required behavior |
-|---|---|
-| Green candidate has zero yellow continuations | Shows an explicit dead-end preview; may still be confirmed |
-| Green candidate would complete the line | No yellow continuations; show `Line completes here` |
-| Yellow continuation is an exact station dock | Each legal dock is individually highlighted |
-| Green/Yellow target is an opposing normal peg | Mark `$1M`; only a confirmed green target pays |
-| Opposing peg is adjacent but not the selected coordinate | No spacing rejection and no payment |
-| Starter selected on an occupied opposing peg | Rejected; paid sharing is Construction-only |
-| Target is a station coordinate with an opposing dock occupant | Existing exact dock/capacity rules; no paid sharing |
-| Target is occupied by another owned line | Rejected; no same-company sharing |
-| Shared endpoint would cause string overlap | Rejected despite the shareable node |
-| Shared endpoint merely touches opposing strings at that endpoint | Legal without Crossing Design if every other rule passes |
-| Actor has $0 and confirms a paid peg | Actor becomes -$1M; owner gains $1M; projected penalty is -2 VP |
-| Actor already has negative cash | May pay again during Construction; debt/penalty increase |
-| Debtor later receives a $1M toll | Cash rises by $1M and projected/final penalty decreases by 2 VP |
-| Undo paid placement immediately | Route and both balances restore exactly |
-| Opponent acts before Undo | Existing Undo expires; the transfer and node remain |
-| Duplicate paid BUILD delivery | Exactly one accepted route/payment under current queue state |
-| One owned line reaches company Survey | Pin becomes fulfilled once |
-| Two owned lines share/reach same Survey coordinate | Pin still scores only +1 VP |
-| Only opponent reaches Survey | Pin remains unfulfilled |
-| Fulfilling Survey build is undone | Pin returns to unfulfilled |
-| Early move crosses a mobilization tier only | Mobilization component unchanged after waiver |
-| Early move stays inside a tier | $0 waiver; mobilization component unchanged |
-| Early move also creates crew overlap | Mobilization increment waived; crew increment remains in total |
-| Final cash is $0 | No debt penalty |
-| Final cash is -$3M | Score item is -6 VP; money remains -$3M for final tiebreak |
-| Phone pan begins on a glowing target | Gesture neither selects nor confirms |
+## 12. Non-goals
 
-## 16. Tests
+- General route planning beyond one following placement, route reservation, negotiation UI, or
+  opponent consent.
+- Debt interest, loans, borrowing outside Construction contacts, or final balance certification.
+- Changing station rules, contract prices/VP, Destination/Survey awards, other objective awards, or
+  every contract recipe.
+- More than one-placement Undo or changing the engine's polling/persistence model.
 
-Extend reducer-level coverage to prove:
+## 13. Required documentation updates
 
-- opposing adjacency at every neighboring offset is legal when other geometry passes;
-- exact opposing normal-node sharing succeeds, transfers $1M, appends an independently owned node,
-  and does not consume Crossing Design merely for the shared endpoint;
-- starter, station, same-company, overlap, pass-through, recipe, turn, and self-crossing cases remain
-  rejected as applicable;
-- `legalTargets`, `hasLegalMove`, target pruning, construction cards, and Route Planner legality see
-  the same shareable targets;
-- payments from positive, zero, and already-negative balances; reciprocal later receipts; no debt
-  in earlier phases; scoring at $0/-$1M/-$3M; negative-money tiebreak behavior;
-- paid-placement Undo, phase/period-advancing Undo, expiry, invalid/no-op persistence, and duplicate
-  delivery;
-- Survey purchase/placement without line assignment, any-owned-line fulfilment, opponent failure,
-  score-once, Undo reversion, stacking, and affordability limits;
-- Early Mobilization at every tier boundary, inside each tier, with and without changed crew overlap,
-  confirmation deduction, and unaffordable rejection;
-- persisted-state version/restart behavior.
+The implementation PR must update these to the truth of the delivered code:
 
-UI/manual validation must cover:
+- `src/games/subway/config.ts` rules text and card/contract descriptions.
+- `docs/PROJECT_MODEL.md` for Engineering substeps, permissive contact geometry, toll/debt flow,
+  lookahead, and state version.
+- `docs/DECISIONS.md` only if implementation requires another consequential decision; DEC-018 and
+  DEC-019 already record the approved model and supersede DEC-017/016.
+- This workstream and `docs/workstreams/ACTIVE.md` at implementation start, review, and merge
+  finalization.
+- PR body: complete Build OS v0.5 Implementation Handoff with actual validation, deviations,
+  framework state, and reviewed-head gate.
 
-- desktop and phone selection/confirmation for starters, normal holes, paid shared pegs, and exact
-  station docks;
-- yellow continuation accuracy for a straight route, 90° turn, dead end, line completion, paid
-  follow-up, and station follow-up;
-- pan/zoom gesture safety and stale-preview clearing after a poll changes legal state;
-- Survey purchase/placement without a line selector and live fulfilment by two different owned lines;
-- a paid placement from $0, Undo, another paid placement left in debt, later toll receipt, and Results
-  showing the correct penalty;
-- Early Mobilization with a tier change plus a separate crew-overlap change, with the displayed
-  breakdown matching the cash deducted.
+## 14. Handoff requirements
 
-Tests must assert behavior rather than helper calls or component structure.
-
-## 17. Acceptance criteria
-
-- [ ] **AC-1.** Every actual starter/build target is green; selecting one shows only that candidate's
-      legal next endpoints in yellow, and selecting it again confirms.
-- [ ] **AC-2.** Starter lookahead applies the first recipe segment, construction lookahead applies the
-      next segment, and both use exact reducer-equivalent geometry including docks and paid nodes.
-- [ ] **AC-3.** Preview is local/non-reserving, gestures do not trigger it, stale selections clear,
-      and the reducer revalidates confirmation.
-- [ ] **AC-4.** Survey Pins have no line assignment and score once when any owned line reaches them.
-- [ ] **AC-5.** Opposing normal pegs no longer exclude adjacent holes.
-- [ ] **AC-6.** An exact opposing normal peg can be used during Construction for an atomic $1M
-      transfer, while starter/station/same-company sharing stays prohibited.
-- [ ] **AC-7.** Paid shared endpoints do not consume Crossing Design, but all other spatial and route
-      rules remain enforced.
-- [ ] **AC-8.** Only Construction payments can create debt; ending debt scores -2 VP per $1M and later
-      receipts reduce the penalty.
-- [ ] **AC-9.** Paid-placement Undo restores route, payment, queue, phase, period, and derived statuses.
-- [ ] **AC-10.** Early Mobilization's incremental mobilization waiver affects the actual confirmation
-      charge and is visibly separated from second-crew cost.
-- [ ] **AC-11.** Shared pegs, paid targets, negative cash, debt penalty, Surveys, and lookahead remain
-      understandable without color alone on desktop and phone.
-- [ ] **AC-12.** `SUBWAY_STATE_VERSION` is bumped and stale rooms use the restart path.
-- [ ] **AC-13.** `./scripts/test-subway.sh`, `npm run build`, and `npm run lint` pass.
-- [ ] **AC-14.** Full desktop and phone playtests cover the scenario in §16 with no console error or
-      horizontal overflow.
-- [ ] **AC-15.** Rules, project memory, decisions, WS-003, ACTIVE, and the PR Implementation Handoff
-      describe the behavior actually built.
-- [ ] **AC-16.** Party Games' Build OS v0.5 adoption is present on the branch before implementation is
-      marked `BUILDING` or the PR is marked ready for review.
-
-## 18. Non-goals
-
-- Rebalancing contracts, recipes, card VP, station VP/capacity, Survey price/VP, mobilization tiers,
-  second-crew cost, starting money, procurement, or schedule length.
-- Borrowing outside Construction, interest, repayment actions, credit limits, bankruptcy, loans, or
-  voluntary cash transfers.
-- Sharing starters, stations, same-company nodes, strings, whole routes, or ownership.
-- Persistent/reserving lookahead, automatic route choice, a third preview step, or changes to the
-  private Route Planner's purpose.
-- A general action ledger or broader Undo.
-- Engine/API/database changes, true server-side secrecy, WebSockets, or idempotency infrastructure.
-- Final balance certification. The $1M access toll and -2 VP debt rate require owner playtesting.
-- Performing the separately owned Build OS v0.5 project adoption in this gameplay PR.
-
-## 19. Required documentation updates
-
-- [ ] `src/games/subway/RULES.md` — document two-step preview, company-wide Surveys, removed adjacency,
-      paid normal-node sharing, construction-only debt/penalty, Early Mobilization itemization, and
-      unchanged spatial boundaries.
-- [ ] `docs/PROJECT_MODEL.md` — after implementation, update the Subway workflow/rules-harness scope,
-      persisted version, and important financial/spatial invariants; do not describe unmerged design
-      as current behavior.
-- [ ] `docs/DECISIONS.md` — supersede only DEC-014's pin-to-line binding with company-wide Survey
-      fulfilment and append the consequential paid-shared-node/construction-debt decision. Preserve
-      the rest of DEC-014 and all historical rationale.
-- [ ] `docs/workstreams/WS-003-subway-construction-access.md` — checkpoint implementation start, PR
-      readiness, review findings/verdict, and merge finalization with v0.5 per-PR review fields.
-- [ ] `docs/workstreams/ACTIVE.md` — keep WS-003 synchronized; move WS-002 to completed when the
-      separately owned framework/closeout work establishes the truthful checkpoint.
-- [ ] PR body — replace the design-stage handoff with the complete v0.5 Implementation Handoff,
-      including actual validation, exhaustive deviations, framework state, and reviewed-head gate.
-
-## 20. Handoff requirements
-
-- Continue on this Design Handoff branch and draft PR; do not open a second implementation PR.
-- First rebase after the separate Party Games Build OS v0.5 adoption lands. Resolve protocol/document
-  conflicts in favor of the merged adoption and record the real framework state.
-- When implementation actually starts, change WS-003 from `READY_TO_BUILD/Blocked` to
-  `BUILDING/Active`; opening this PR alone is not implementation.
-- Bump Subway's state version for the Survey shape change.
-- Run `./scripts/test-subway.sh`, `npm run build`, and `npm run lint`; then perform the desktop/phone
-  manual scenario in §16.
-- Recommended independent review focus: reducer/UI legality parity for second-step previews, atomic
-  shared-node transfers under retry/Undo, spatial invariants at shared endpoints, debt scoring and
-  tie breaks, Survey shape/versioning, and mobilization-versus-crew cost display.
-- Any owner-visible behavior that departs from OD-1 through OD-10 is a Spec Deviation and a stop
-  condition, not implementation discretion.
-- Do not self-approve or merge. Once ready, independent review must name the current full head SHA;
-  follow Build OS v0.5 merge finalization before owner merge.
+- Continue on the new draft continuation PR (`CONTINUATION_PR`); do not reopen #143 or create a
+  second implementation PR.
+- First rebase after Party Games' Build OS v0.5 adoption lands, or stop for an owner-approved
+  recorded deferral. Resolve protocol-document conflicts in favor of the adopted framework.
+- When code work actually starts, checkpoint WS-003 from `READY_TO_BUILD/Blocked` to
+  `BUILDING/Active`. Publishing this design handoff alone is not implementation.
+- Bump Subway state version and update every derived rule/UI/test surface.
+- Validate with the focused harness, build, lint, and desktop/phone scenario above.
+- Independent review should focus on preview/reducer parity, geometric contact deduplication,
+  atomic multi-contact transfers and Undo, Destination draft secrecy/turn order, state versioning,
+  and cost/scoring correctness.
+- Any departure from OD-1 through OD-15 is a Spec Deviation and stop condition, not implementation
+  discretion.
+- Do not self-approve or merge. Independent review must name the current full head SHA and the PR
+  must use Build OS v0.5 merge finalization before owner merge.

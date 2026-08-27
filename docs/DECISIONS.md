@@ -672,7 +672,7 @@ boundary because the snapshot predates the advance.
 ### DEC-016 — Destinations remain line-bound; Survey Pins become company-wide commitments
 
 **Date:** 2026-08-25
-**Status:** Accepted · **Supersedes:** DEC-014
+**Status:** Superseded by DEC-019 · **Supersedes:** DEC-014
 
 **Context**
 DEC-014 deliberately separated Destinations and paid Survey Pins from the three normal Engineering
@@ -723,7 +723,7 @@ into a general wish.
 ### DEC-017 — Opposing Subway pegs are paid shared infrastructure, with construction-only debt
 
 **Date:** 2026-08-25
-**Status:** Accepted
+**Status:** Superseded by DEC-018
 
 **Context**
 Ordered segment recipes and the 90° turn limit made the one-empty-hole exclusion around opposing
@@ -779,3 +779,121 @@ debt keeps payments received meaningful and makes the rule readable from the fin
 - Negative cash becomes a valid Construction/Results state and remains the last existing tiebreak
   after its VP penalty is applied.
 - The $1M toll and -2 VP rate are approved starting values, not final balance certification.
+
+---
+
+### DEC-018 — Normal Subway routes may interact freely; opposing contacts are paid
+
+**Date:** 2026-08-27
+**Status:** Accepted · **Supersedes:** DEC-017
+
+**Context**
+DEC-017 removed the opposing-node spacing rule and priced reuse of an opponent's exact peg, while
+preserving every other string and occupancy prohibition. The following playtest showed that those
+remaining prohibitions still make ordered recipes fail for reasons that are hard to plan around:
+players cannot land on strings, pass through pegs, cross their own network, or cross an opponent
+without first committing a permission card. A relief rule aimed at one peg did not solve the larger
+crowded-board problem.
+
+**Decision**
+Keep only the spatial constraints that define the route puzzle: board bounds, the next ordered
+segment length, a maximum 90° turn, exact station docks and capacity, and no exact collinear
+string-over-string overlap. Normal route nodes may otherwise occupy existing normal nodes or string
+interiors; strings may cross routes and pass through normal nodes; adjacency is unrestricted. These
+permissions apply to the acting company's own routes and the opponent's routes.
+
+Own-route interactions are free. During Construction, every distinct contact with the opposing
+normal network costs $1M, transferred atomically to the opponent. A contact is a proper string
+crossing, an endpoint on a string interior, or an opposing normal peg touched by the new segment or
+endpoint. Count a geometric event once: landing on an opposing peg is one contact rather than one
+charge for every incident string. Exact overlapping strings remain illegal because their contact
+count is not finite or legible.
+
+Crossing Design stops being permission and becomes an ordinary +2 VP objective for making at least
+one proper opposing-string crossing. Crossings are unlimited. DEC-017's Construction-only debt,
+-2 VP per $1M ending debt, later-receipt reduction, and full one-placement Undo remain in force for
+the summed multi-contact payment.
+
+**Rationale**
+The competitive value of existing infrastructure comes from its price, not from silently deleting
+legal endpoints. A per-contact toll scales with how heavily a player leans on the opposing network
+and keeps an opponent's placement economically relevant without requiring a synchronous permission
+decision. Free self-interaction lets a company build a network rather than treating its earlier
+lines as accidental walls.
+
+The short list of retained constraints is visible and planable: recipe, angle, board, station, and
+exact overlap. Removing a Crossing permit also ensures a basic board action is never dependent on a
+random card draw; the card still rewards the intended achievement.
+
+**Alternatives considered**
+- **Extend only exact-peg sharing.** Rejected after playtest because strings and self-routes still
+  create hard, non-economic blockers.
+- **One flat toll per placement.** Rejected because crossing one feature and exploiting several
+  opposing features should not cost the same.
+- **Charge own interactions too.** Rejected because no player receives that transfer and it would
+  punish network connectivity without creating competition.
+- **Allow exact overlapping strings.** Rejected because there is no clear finite contact count and
+  coincident routes are difficult to read and select.
+- **Delete Crossing Design.** Rejected because crossing remains a meaningful +2 VP achievement once
+  separated from permission.
+
+**Consequences**
+- Geometry code needs one explicit contact enumerator shared by preview, reducer, scoring, and tests.
+- A placement may transfer several million and create debt in one reducer transition; Undo must
+  restore every route and balance effect.
+- Route rendering must distinguish coincident nodes and visible crossings accessibly, while company
+  identity remains separate from permanent line color.
+- Proper crossings for Crossing Design exclude endpoint touches and contacts at existing pegs.
+- The $1M/contact toll and -2 VP debt rate remain approved starting values for further playtest.
+
+---
+
+### DEC-019 — Destinations use a dedicated Engineering draft; Surveys remain company-wide
+
+**Date:** 2026-08-27
+**Status:** Accepted · **Supersedes:** DEC-016
+
+**Context**
+DEC-016 preserved Destinations in the mixed Engineering market reached through Procurement. In
+practice, players could complete Procurement without seeing a Destination, so a designed planning
+system was absent from the playtest. The owner wants Destinations to be an additional Engineering
+choice, not a substitute for the three committed objectives or an occasional reward for passing on
+a contract.
+
+**Decision**
+Remove Destinations from the Procurement Engineering market. At the start of Engineering, reveal
+three Destination cards and let players alternate free picks, starting with the company that owns
+odd-period priority and refilling the row while possible, until each player has exactly two.
+
+Destinations remain separate from the three normal Engineering commitments. Every Destination is
+assigned to one owned line during Engineering, with a maximum of two assigned to a line, and scores
++3 VP if that line reaches the named station whether or not it completes. Assignments remain hidden
+from the opponent until scoring and visible with live status to their owner.
+
+Retain DEC-016's Survey rule unchanged: each company may buy 0–5 Pins for $1M each and place them
+publicly during Engineering; they are company-wide, stackable, and non-reserving, and each scores
++1 VP once when any owned line places a normal node at its exact hole.
+
+**Rationale**
+Exactly two cards guarantees the Destination system matters in every game while line assignment
+still creates the intended route commitment. A three-card row gives a real choice at each pick;
+alternation and existing priority avoid a new bidding or random-first-player subsystem. Keeping the
+cards outside the three-objective cap preserves them as a separate planning layer rather than making
+them ordinary objectives with station names.
+
+**Alternatives considered**
+- **Leave Destinations in Procurement.** Rejected by playtest because neither player is guaranteed
+  to see one.
+- **Draft two or three at player choice.** Rejected in favor of exactly two each, which is easier to
+  balance, teach, and validate while meeting the owner's “at least two” goal.
+- **Make Destinations company-wide like Surveys.** Rejected because assigning a named station to a
+  particular contract is the Destination's meaningful planning choice.
+- **Count Destinations among the three objective commitments.** Rejected by the owner in WS-002 and
+  retained here.
+
+**Consequences**
+- Engineering gains a `DESTINATION_DRAFT` substep before planning and Survey placement.
+- The Destination row, turn, deck, hands, assignments, view redaction, and state version require
+  explicit reducer/test coverage.
+- Six station cards produce four drafted cards and two unused cards each game.
+- Procurement's Engineering market becomes normal objective cards only.

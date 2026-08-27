@@ -3,13 +3,13 @@
 <!-- The project's active-work control board. What are we working on and where is each
      effort? One line per workstream; anything needing a paragraph belongs in its file. -->
 
-**Updated:** 2026-08-25 · **Build OS v0.4**
+**Updated:** 2026-08-27 · **Build OS v0.4**
 
 | ID | Workstream | Phase | Status | Current Next Step | Related PR |
 |---|---|---|---|---|---|
 | [WS-001](WS-001-subway-v0-3-redesign.md) | Subway v0.3 gameplay redesign | REVIEW | Active | Independent design review of merged v0.3 against the reconstructed Build Card; owner to rule on D1–D4 | [#137](https://github.com/50thycal/party-games/pull/137), [#139](https://github.com/50thycal/party-games/pull/139) (both merged) |
 | [WS-002](WS-002-subway-route-engineering.md) | Subway route engineering and playtest UX | REVIEW | Active | Record the merged closeout; playtest follow-ups moved to WS-003 | [#141](https://github.com/50thycal/party-games/pull/141), [#142](https://github.com/50thycal/party-games/pull/142) (merged) |
-| [WS-003](WS-003-subway-construction-access.md) | Subway construction access and route lookahead | READY_TO_BUILD | Blocked | Merge Build OS v0.5 adoption, rebase the Design Handoff PR, then implement | [#143](https://github.com/50thycal/party-games/pull/143) (draft Design Handoff) |
+| [WS-003](WS-003-subway-construction-access.md) | Subway construction access and route lookahead | READY_TO_BUILD | Blocked | Merge Build OS v0.5 adoption, rebase the continuation PR, then implement the amended card | [#143](https://github.com/50thycal/party-games/pull/143) (merged design-only), `CONTINUATION_PR` (draft continuation) |
 
 <!-- Phase: IDEA · EXPLORE · MODEL · DECIDE · BUILD_CARD · READY_TO_BUILD · BUILDING · REVIEW
      Status: Active · Paused · Blocked · Abandoned
