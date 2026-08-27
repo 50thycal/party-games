@@ -174,7 +174,11 @@ ending cash below $0 -> -2 VP per $1M debt
 - **Destination availability** -> three face-up, alternate picks, exactly two each. This guarantees
   the mechanic appears every game without competing with the three objective commitments.
 - **Contract trim** -> Express 6→5, Crosstown 7→6, Long 8→7. The three largest spatial footprints
-  lose one segment while their existing ordered pattern and economics remain recognizable.
+  lose one segment while their existing ordered pattern and economics remain recognizable. It also
+  moves the schedule: total construction demand falls from 36 placements to 33 against an unchanged
+  2 × 16 = 32 base capacity, so the most balanced 3/3 split goes from 18/18 to 16/17. Forced
+  shelving (`DEC-011`) becomes a one-placement squeeze on one company instead of a routine cost for
+  both, and is not eliminated — 33 > 32 keeps a both-sides-fit split impossible.
 - **Crossing card** -> objective only, +2 VP. Crossings are ordinary paid route interactions, not a
   capability hidden behind a draw.
 
@@ -187,7 +191,8 @@ ending cash below $0 -> -2 VP per $1M debt
 ### Definition of done
 
 - [ ] Starter and construction placement clearly show a selected green target and its yellow legal
-      continuations on desktop and phone.
+      continuations on desktop and phone, distinguished by more than colour, and a routine one-second
+      poll does not cancel a selection in progress.
 - [ ] Every normal-node/string interaction described above is legal, while core geometry and exact
       overlap stay enforced by the reducer and preview.
 - [ ] Multi-contact tolls, projected debt, atomic transfers, final -2 VP/$1M scoring, later receipts,
@@ -211,18 +216,34 @@ Destinations.
 
 PR [#143](https://github.com/50thycal/party-games/pull/143) merged the first approved design packet
 without gameplay implementation. The amended design packet is published on a new draft continuation
-PR [#144](https://github.com/50thycal/party-games/pull/144). Implementation remains blocked until Party Games adopts Build OS v0.5 or
-records an owner-approved deferral; opening the continuation PR does not start `BUILDING`.
+PR [#144](https://github.com/50thycal/party-games/pull/144), and the review findings against head
+`c833cab` are now corrected on that same branch.
+
+Implementation has **not** started and remains blocked on the framework gate. As of 2026-08-27
+`AGENTS.md` still declares adopted Build OS v0.4, no v0.5 adoption PR is open or merged, and no
+owner-approved deferral `DEC-n` is recorded. Canonical `VERSION.md` is v0.5 and its migration notes
+require one or the other before this work proceeds. Opening the continuation PR and correcting the
+design package do not start `BUILDING`.
 
 ## Review State
 
 | PR | Verdict | Reviewed head | Finalization |
 |---|---|---|---|
 | [#143](https://github.com/50thycal/party-games/pull/143) | Not started | — | — |
-| [#144](https://github.com/50thycal/party-games/pull/144) | Not started | — | — |
+| [#144](https://github.com/50thycal/party-games/pull/144) | Changes required | `c833cab1bb94fc1e5f163ba2888ac4b58601d28f` | Not started |
 
 #143 was a documentation-only handoff merged before implementation and makes no independent-review
 claim. The continuation PR is the review unit for the amended spec and eventual implementation.
+
+The design-package review of head `c833cab` returned **Changes required** with seven findings: a
+`view()` secrecy mechanism that does not exist in this engine, two repository paths that do not
+exist, preview invalidation incompatible with the one-second poll, colour as the only cue between
+the two preview steps, the undisclosed scheduling effect of the recipe trim, the unstated survival
+of the dead-end/skip path, and unstated per-placement tolling for Overtime and Surge. All seven are
+corrected in the Build Spec and this card; the owner approved correcting them and then implementing
+on this same PR. The contact-counting model and the DEC-018/019 supersession handling were approved
+as written. Implementation still awaits the framework gate below, then independent re-review against
+the new head.
 
 ## Related Decisions
 
@@ -240,5 +261,7 @@ claim. The continuation PR is the review unit for the amended spec and eventual 
 
 ## Next Step
 
-Merge Party Games' separate Build OS v0.5 adoption (or record an owner-approved deferral), rebase the
-continuation PR, then Claude begins implementation on that same branch and draft PR.
+Unblock the framework gate: merge Party Games' Build OS v0.5 adoption, or record an owner-approved
+deferral `DEC-n` naming the reason and the revisit trigger, per the canonical v0.4 → v0.5 migration
+notes. Then rebase the continuation PR and Claude implements OD-1 through OD-15 on that same branch
+and draft PR, followed by independent re-review against the new head.

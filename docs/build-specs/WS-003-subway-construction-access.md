@@ -105,15 +105,20 @@ Stop if implementation would require any of the following:
 
 - `src/games/subway/config.ts` owns Subway state, reducer, geometry, queue, markets, cards,
   contracts, scoring, view redaction, and rules text.
-- `src/games/subway/SubwayGame.tsx` owns board interaction, local preview state, planning panels,
+- `src/games/subway/GameView.tsx` owns board interaction, local preview state, planning panels,
   schedule display, scoring display, and responsive behavior.
-- `src/games/subway/config.rules.test.ts` plus `scripts/test-subway.sh` are the focused reducer/rules
-  harness. There is no CI; repository instructions also require build, lint, and manual desktop and
+- `src/games/subway/CardArt.tsx` owns Engineering and Destination card faces. The three-card
+  Destination draft row and the drafted/assigned hands render through it.
+- `scripts/subway-rules-test.ts`, compiled and run by `scripts/test-subway.sh`, is the focused
+  reducer/rules harness. There is no CI; repository instructions also require build, lint, and manual desktop and
   phone playtests.
 - `SUBWAY_STATE_VERSION` is currently 6. The Destination phase/deck and Survey state changes require
   a bump so old rooms restart per DEC-008.
-- Full room state reaches every client. Keep objective and Destination secrecy in `view()` as today;
-  do not introduce a server-secrecy assumption.
+- **There is no per-player `view()` or server-side redaction anywhere in this project.**
+  `GameTemplate` (`src/engine/types.ts`) exposes only `initialState`, `reducer`, `getPhase`, and
+  `isActionAllowed`, and `GET /api/get-room` returns the entire room payload to every client
+  (`PROJECT_MODEL.md` invariant 11). Secrecy is the React client declining to draw something.
+  Keep it that way: do not assume, and do not add, server secrecy in this workstream.
 
 ## 4. Architecture constraints
 
@@ -136,10 +141,21 @@ Stop if implementation would require any of the following:
 3. Keep that current target green and visually stronger than other green choices. Derive yellow
    targets by hypothetically accepting it, then applying the next ordered segment and turn rules.
 4. Second tap/click on the selected green target dispatches the existing placement action.
-5. Tapping another green target changes preview. Tapping background, changing active line/phase,
-   receiving newer room state, or losing legality clears preview.
+5. Tapping another green target changes preview. Tapping the background, or changing active
+   line/phase, clears it.
+   **A routine poll must not clear it.** The room refetches every second
+   (`src/app/rooms/[roomCode]/page.tsx`), so "newer room state" cannot be the trigger — a
+   behaviorally equivalent poll would destroy the first tap about once a second and the two-tap
+   confirmation could never complete. Clear on an authoritative change that actually affects the
+   preview: phase, turn, active line, or current endpoint changed; the selected target is no longer
+   legal; its following targets changed; or its contact count/toll changed. Otherwise preserve it.
 6. Yellow targets are informational and not clickable commitments. An empty yellow set is a valid
    warning, not a reason to hide the current legal green choice.
+6a. **Colour is never the only cue** (DEC-013, and green/yellow is a weak pair under the common
+   colour-vision deficiencies). Carry the same distinction non-chromatically: the current
+   legal/selected step gets a solid ring plus a visible `1`/`NOW` marker, the following preview a
+   dashed ring plus a visible `2`/`NEXT` marker. Colour may remain supportive. The distinction must
+   survive at phone width, and it is a test and playtest assertion, not styling discretion.
 7. For a starter, the hypothetical current placement is the starter and yellow represents the
    first recipe segment. For a final segment, no yellow endpoints are expected.
 8. Yellow derivation ignores whether the player could afford its future toll because Construction
@@ -165,6 +181,12 @@ Replace the current collection of spatial early exits with one explicit model:
   wins at that coordinate. Proper crossings elsewhere still count.
 - Existing geometry tolerance must be used consistently by legality, contact count, render, tests,
   objective completion, and Undo.
+- **Keep the dead-end path.** Removing the spatial early exits makes a stranded line rare, not
+  impossible: bounds, ordered length, the 90° cap, and station capacity can still leave no legal
+  endpoint. `hasLegalMove`, queued-action pruning, the give-up-the-action path, period/queue
+  advancement, and the "no legal target" message all survive this rewrite unchanged. Cover it with
+  regression tests — this is the requirement most easily deleted by accident while replacing "the
+  current collection of spatial early exits".
 
 ### 5.3 Toll, debt, and confirmation
 
@@ -178,6 +200,10 @@ Replace the current collection of spatial early exits with one explicit model:
 - Final scoring subtracts 2 VP per $1M of ending negative cash. Preserve cash as the last existing
   tiebreak after the VP penalty.
 - Show negative cash and projected/final debt penalty anywhere cash or scoring is summarized.
+- **Extra actions are tolled independently.** Overtime and Surge Crew grant additional placements in
+  one period; each is priced on its own contacts, with no per-period cap or discount. Several paid
+  placements in a single period may therefore create several $M of Construction debt. This is the
+  cheapest route into debt in the game and is intended.
 
 ### 5.4 Crossing Design objective
 
@@ -203,8 +229,10 @@ Replace the current collection of spatial early exits with one explicit model:
 6. Picks are free and cannot create Undo. Rejected stale/not-in-row/wrong-turn picks do not mutate.
 7. In the planning substep, assign each owned Destination to one owned line. Maximum two per line.
    Lock requires all two assigned and exactly three normal Engineering objectives committed.
-8. Destination assignments remain hidden from the opponent in `view()` until scoring. Owner sees
-   line assignment and live achieved status throughout play.
+8. The client must not render an opponent's Destination hand or assignments before scoring; the
+   owner sees line assignment and live achieved status throughout play. This is a presentation
+   convention, not server secrecy — a technically capable client can read both from the room
+   payload, exactly as it can already read committed objectives.
 9. Score +3 if the assigned line reaches the named station, complete or not. Undo must revert
    derived achievement naturally.
 
@@ -229,6 +257,22 @@ Set exactly:
 
 Do not change Short, Branch, or Medium. Recompute all node/action/schedule display from recipe length.
 Prove all six recipes and every permitted station-dock approach remain buildable on the board.
+
+**Owner-visible consequence: this is also the largest change to the scheduling economy in the
+packet.** Because a schedule block is exactly one period per recipe segment, the trim cuts total
+construction demand from 36 placements to 33, against an unchanged base capacity of 2 companies ×
+16 periods = 32. The forced 3/3 ownership split (DEC-010) therefore shifts as follows:
+
+| | Total demand | Most balanced 3/3 split | Overrun at best |
+|---|---:|---|---:|
+| Merged today | 36 | 18 / 18 | both companies, by 2 |
+| After the trim | 33 | 16 / 17 | one company, by 1 |
+
+Shelving (DEC-011) goes from something both companies routinely face to a marginal, one-placement
+squeeze on one of them. It is not eliminated: 33 > 32, so a split where both sides fit inside 16
+periods stays arithmetically impossible. Keep the approved 5/6/7 segment counts — this is
+disclosure and test coverage, not a request to reverse them — and assert the new derived block
+lengths and the surviving shelving pressure in the harness.
 
 ### 5.8 Early Mobilization
 
@@ -297,9 +341,15 @@ only the new Engineering substep is inserted.
   deterministic under the engine's current state/version control.
 - Optimistic room versioning serializes simultaneous picks/builds. The loser recomputes from the new
   state and receives a no-op for a stale action.
-- `view()` hides opponents' Destination hands/assignments and normal committed objectives before
-  scoring, while the public Destination row, draft turn, Surveys, routes, toll transfers reflected in
-  cash, and debt are public.
+- The client does not draw opponents' Destination hands/assignments or normal committed objectives
+  before scoring, while the Destination row, draft turn, Surveys, routes, toll transfers reflected
+  in cash, and debt are public by design.
+- **Accepted limitation, stated deliberately.** Because the whole room payload reaches every client,
+  a technically capable player can read the opponent's drafted Destinations. The live public draft
+  makes this sharper than it was under DEC-014: during the draft that knowledge changes the next
+  pick, where previously it only affected end-game scoring expectations. WS-003 accepts this rather
+  than resolving it. Per-player redaction is an engine change and is out of scope unless the owner
+  separately approves it.
 
 ## 9. Edge cases
 
@@ -331,10 +381,13 @@ only the new Engineering substep is inserted.
 - Legal adjacency, same-coordinate normal node, node-on-string, string-through-node, own crossing,
   opponent crossing, and loopback cases.
 - Rejections for wrong ordered length, >90° turn, out of bounds, invalid/full dock, and exact overlap.
+- A boxed-in line still reports no legal move, prunes its queued action, and advances the period
+  rather than deadlocking.
 - Contact-count table covering single/multiple crossings, pass-through pegs, endpoint-on-string,
   endpoint-on-peg with incident segments, own contacts, and mixed contacts.
 - Atomic multi-contact transfer, construction debt, later receipts, scoring penalty, tie break, and
   exact Undo restoration.
+- Overtime and Surge placements in one period are tolled separately and can compound into debt.
 - Crossing Design completes only on a proper opposing crossing and is never required for legality.
 
 ### Engineering
@@ -349,6 +402,8 @@ only the new Engineering substep is inserted.
 ### Recipes / scheduling / costs
 
 - Exact new recipes and derived actions/schedule blocks; all contracts and station docks buildable.
+- Derived schedule demand totals 33 placements and the auto-schedule still shelves the overrun for
+  the company that cannot fit 16 periods.
 - Early Mobilization no-overlap, new-overlap, removed-overlap, and pre-existing-surcharge cases with
   itemized expected totals.
 
@@ -364,7 +419,8 @@ only the new Engineering substep is inserted.
 ## 11. Acceptance criteria
 
 - [ ] Green/yellow two-placement preview works for starters and construction and matches reducer
-      legality on desktop and phone.
+      legality on desktop and phone, survives an unchanged poll, and distinguishes the two steps
+      without relying on colour.
 - [ ] Normal pegs/strings may interact without spatial blockers except the documented core rules.
 - [ ] Every distinct opponent contact costs exactly $1M; own contacts are free; preview, reducer,
       balances, debt, and Undo agree.
@@ -373,7 +429,8 @@ only the new Engineering substep is inserted.
 - [ ] Engineering drafts exactly two Destinations per player from a three-card row and removes them
       from Procurement; assignment/scoring/secrecy work separately from three objectives.
 - [ ] Survey Pins are company-wide and preserve approved purchase/placement/scoring rules.
-- [ ] Express/Crosstown/Long have 5/6/7 segments with exact approved arrays and derived scheduling.
+- [ ] Express/Crosstown/Long have 5/6/7 segments with exact approved arrays and derived scheduling,
+      with the 36→33 demand change and its remaining shelving pressure documented.
 - [ ] Early Mobilization waives and itemizes only the incremental mobilization surcharge.
 - [ ] State version, rules copy, tests, project memory, build, lint, and manual playtests agree.
 
