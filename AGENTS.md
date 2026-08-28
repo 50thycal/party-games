@@ -3,8 +3,8 @@
 ## Build OS
 
 - Canonical framework: [50thycal/build-os](https://github.com/50thycal/build-os)
-- Adopted version: v0.4
-- Last compatibility check: v0.4 on 2026-08-23
+- Adopted version: v0.5
+- Last compatibility check: v0.5 on 2026-08-27
 
 Before substantial design or architectural work, compare the adopted version against
 `VERSION.md` in the canonical repository and act on the delta — see `framework/FRAMEWORK_SYNC.md`.
@@ -56,12 +56,44 @@ silently picking either.
    significant. Memory updates ship in the same PR.
 9. **Keep the final chat response short** — a PR reference, completion status, headline
    validation result, and whether there were deviations. The PR carries the detail.
-10. **Never silently override an owner-approved product decision.** If a requirement is awkward
+10. **A significant PR does not merge until an independent reviewer approves its current head.**
+    "Significant" means anything that runs through a Build Card, including a small PR that claims
+    to complete one. The verdict is `Approved` or `Approved with follow-ups`, it names the PR's
+    **current head as a full 40-character SHA**, and no Blocking or Should-fix finding is left
+    open. Any executable, test, dependency, configuration, or behavior-documentation change after
+    the reviewed head invalidates the approval. Record the verdict in the workstream's
+    `Review State`, one row per PR.
+11. **The agent that wrote the code neither approves nor merges it.** Not "should not" — may not.
+    Independent means no memory of writing it: a human, or a separate agent session. The single
+    exception is explicit owner direction to merge *and* an existing independent approval of the
+    current head; owner direction replaces the merger, never the reviewer. Where GitHub refuses a
+    review on a PR the account authored, a verdict may instead be a PR comment carrying
+    `Build OS review verdict:`, `Reviewed head:` with a full SHA, `Review actor:`, and
+    `Implementation actor reviewed:` — and it clears the gate only when those two actors differ.
+    An edited comment never clears it.
+12. **Finish a significant PR with a merge-finalization commit.** The last commit before merge is
+    documentation only: the workstream's Phase, Status, Implementation State, Review State,
+    Related PRs, and Next Step, plus the `ACTIVE.md` row, all set to what becomes true *when the
+    PR lands* — so `main` never carries a workstream describing a state that ended at merge. It
+    may touch only the workstream file, `ACTIVE.md`, `PROJECT_MODEL.md` and `DECISIONS.md` where
+    completion requires it, and the PR description. Anything else in that commit reopens full
+    review.
+13. **A design agent may open the implementation PR itself, as a draft,** once the Build Card is
+    approved and the spec issued. That is the single PR for that implementation: the implementing
+    agent continues it rather than opening a second one. Opening it does not start `BUILDING`.
+14. **Capture Only** is a named session mode for playtest notes and feedback dumps. While it is
+    active, record and do nothing else — no analysis, no recommendations, no decisions, no
+    repository writes. Ending it requires a consolidation that keeps observations, interpretations,
+    proposed rules, and approved decisions separate; only approved decisions travel onward. Keep
+    conclusions, never transcripts.
+15. **Never silently override an owner-approved product decision.** If a requirement is awkward
     or looks wrong, say so and ask; do not quietly implement something else. Technical choices
     with no owner-facing behavior change are yours to make.
 
-Templates live in [`docs/templates/`](docs/templates); the PR body template is wired up as
-`.github/pull_request_template.md`. The Design Room's ChatGPT Project instructions are in
+Templates live in [`docs/templates/`](docs/templates) — Build Card, Workstream, and Review
+Summary — and the PR body template is wired up as `.github/pull_request_template.md`. They are
+local copies of the canonical Build OS templates: refresh them from canonical when the framework
+moves rather than editing them into a local variant. The Design Room's ChatGPT Project instructions are in
 [`docs/CHATGPT_PROJECT_INSTRUCTIONS.md`](docs/CHATGPT_PROJECT_INSTRUCTIONS.md).
 
 ## Project-specific: Party Games engineering notes

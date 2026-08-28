@@ -1,8 +1,5 @@
 # WS-### — <Title>
 
-<!-- Copied from 50thycal/build-os templates/ at Build OS v0.4. Re-copy from canonical
-     when Build OS changes it; do not edit it into a local variant. -->
-
 <!-- One meaningful design/build thread. Readable in two minutes at any phase.
      Update the changed sections at meaningful checkpoints — not after every exchange. -->
 
@@ -12,6 +9,10 @@
 <!-- Active · Paused · Blocked · Abandoned -->
 **Created:** YYYY-MM-DD
 **Updated:** YYYY-MM-DD
+**Build OS:** v0.5
+<!-- The protocol this workstream runs under. Omit to inherit the project's adopted version.
+     From v0.5 this is what puts the workstream under the merge gate — never the presence of the
+     review fields below, which would make the gate escapable by deleting them. -->
 
 ## Goal
 
@@ -35,7 +36,7 @@
 
 <!-- Owner-level decisions already resolved, with one line of reasoning each. -->
 
-- 
+-
 
 ## Open Decisions
 
@@ -49,13 +50,13 @@
 <!-- Re-read these at every checkpoint. A falsified assumption is usually why a design
      stopped making sense. -->
 
-- 
+-
 
 ## Non-Goals
 
 <What this effort deliberately does not cover.>
 
-- 
+-
 
 ## Build Card
 
@@ -72,9 +73,38 @@ None.
 
 ## Review State
 
-Not started.
+**Verdict:** Not started
+**Reviewed head:** —
+**Reviewed PR:** —
+**Finalization:** —
 
-<!-- Review status and important findings. -->
+<!--
+Verdict: Not started | In review | Changes required | Approved | Approved with follow-ups
+Reviewed head: the full 40-character SHA of the last commit reviewed IN FULL, or — if none.
+An abbreviation is not accepted: it cannot prove which commit was reviewed.
+Reviewed PR: which PR this verdict is about. Omit when the workstream has one PR.
+Finalization: `pushed` once the documentation-only merge-finalization commit is on the PR.
+
+Approved without a reviewed head does not clear the merge gate.
+If the PR head moves after approval and finalization is not declared, the approval is stale —
+re-review the new head.
+
+A finalization commit cannot contain its own SHA, so Reviewed head never names it. Keep the
+last fully-reviewed head here, set Finalization: pushed, and let the reviewer record the final
+head on the PR itself.
+
+A workstream spanning several PRs uses one row per PR instead of the fields above — a verdict
+never applies to a PR it does not name:
+
+| PR | Verdict | Reviewed head | Finalization |
+|---|---|---|---|
+| #84 | Approved | <40-char SHA> | pushed |
+| #91 | In review | — | — |
+
+Findings and follow-ups go below, in prose.
+-->
+
+Not started.
 
 ## Related Decisions
 
