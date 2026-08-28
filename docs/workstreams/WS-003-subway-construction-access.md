@@ -1,7 +1,7 @@
 # WS-003 — Subway construction access and route lookahead
 
-**Phase:** READY_TO_BUILD
-**Status:** Blocked
+**Phase:** BUILDING
+**Status:** Active
 **Created:** 2026-08-25
 **Updated:** 2026-08-27
 **Build OS:** v0.5
@@ -214,16 +214,37 @@ Destinations.
 
 ## Implementation State
 
-PR [#143](https://github.com/50thycal/party-games/pull/143) merged the first approved design packet
-without gameplay implementation. The amended design packet is published on a new draft continuation
-PR [#144](https://github.com/50thycal/party-games/pull/144), and the review findings against head
-`c833cab` are now corrected on that same branch.
+**Implemented on [#144](https://github.com/50thycal/party-games/pull/144).** OD-1 through OD-15 are
+built. The framework gate was cleared by the Build OS v0.5 adoption in
+[#145](https://github.com/50thycal/party-games/pull/145), which the owner authorised on 2026-08-27.
 
-Implementation has **not** started and remains blocked on the framework gate. As of 2026-08-27
-`AGENTS.md` still declares adopted Build OS v0.4, no v0.5 adoption PR is open or merged, and no
-owner-approved deferral `DEC-n` is recorded. Canonical `VERSION.md` is v0.5 and its migration notes
-require one or the other before this work proceeds. Opening the continuation PR and correcting the
-design package do not start `BUILDING`.
+What exists now:
+
+- **Open routing.** Normal holes are shared, adjacency is unrestricted, pegs may sit on strings, and
+  strings may pass through pegs and cross each other. The only surviving route prohibition is a
+  string lying on top of another string. Bounds, ordered lengths, the 90° cap, and station
+  docks/capacity are unchanged.
+- **Priced contacts.** Every distinct contact with the opposing normal network costs $1M, paid to
+  its owner in the same reducer action as the placement. Contacts are keyed by coordinate, so a peg
+  is one charge however many strings meet there, and a peg always beats a crossing at its own
+  coordinate. Own contacts are free.
+- **Construction debt.** Only a contact toll may take a company below $0; ending there costs -2 VP
+  per $1M, and receipts reduce it. Every earlier phase still refuses what it cannot afford.
+- **Crossing Design** is an ordinary +2 VP objective for one proper crossing. It grants no
+  permission and caps nothing.
+- **Two-step placement.** The first tap selects and previews where the line could go next; the
+  second confirms. Current-step markers carry a solid ring and a `1`, following-step markers a
+  dashed ring and a `2`, so the two never depend on green versus yellow. A routine poll does not
+  cancel a selection.
+- **Destination draft.** Three face up, alternating free picks from the odd-period company, exactly
+  two each, removed from the Procurement market. Both must be assigned before the plan locks.
+- **Company-wide Survey Pins**, fulfilled by any line their buyer owns.
+- **Recipes trimmed** to Express 5, Crosstown 6, Long 7.
+- **Early Mobilization** waives only the mobilization increment and itemises it beside the crew cost
+  it does not waive.
+- `SUBWAY_STATE_VERSION` is 7; v6 rooms restart per `DEC-008`.
+
+Validation: `./scripts/test-subway.sh`, `npm run build`, and `npm run lint` all pass.
 
 ## Review State
 
@@ -242,8 +263,8 @@ the two preview steps, the undisclosed scheduling effect of the recipe trim, the
 of the dead-end/skip path, and unstated per-placement tolling for Overtime and Surge. All seven are
 corrected in the Build Spec and this card; the owner approved correcting them and then implementing
 on this same PR. The contact-counting model and the DEC-018/019 supersession handling were approved
-as written. Implementation still awaits the framework gate below, then independent re-review against
-the new head.
+as written. The corrections landed, the framework gate cleared, and the implementation followed on
+the same PR — so the review unit is now the implementation head, not `c833cab`.
 
 ## Related Decisions
 
@@ -261,7 +282,6 @@ the new head.
 
 ## Next Step
 
-Unblock the framework gate: merge Party Games' Build OS v0.5 adoption, or record an owner-approved
-deferral `DEC-n` naming the reason and the revisit trigger, per the canonical v0.4 → v0.5 migration
-notes. Then rebase the continuation PR and Claude implements OD-1 through OD-15 on that same branch
-and draft PR, followed by independent re-review against the new head.
+Independent review of #144 against the approved Build Card and Build Spec, naming the current full
+head SHA. #145 (Build OS v0.5 adoption) should land first. Then the owner's balance playtest of the
+$1M contact toll, the -2 VP debt rate, and the trimmed recipes.

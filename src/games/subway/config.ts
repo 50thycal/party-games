@@ -21,7 +21,7 @@ import type { BaseAction, GameContext, Player } from "@/engine/types";
 // ============================================================================
 
 /** Bumped when the state shape changes; older rooms must restart. */
-export const SUBWAY_STATE_VERSION = 6;
+export const SUBWAY_STATE_VERSION = 7;
 
 // ----------------------------------------------------------------------------
 // Tunable configuration
@@ -77,6 +77,17 @@ export const SUBWAY_CONFIG = {
   },
   /** VP for a fulfilled Destination card. */
   destinationVp: 3,
+  /** Construction interaction with the opposing network (WS-003, DEC-018). */
+  contact: {
+    /** $M paid to the opponent per distinct contact with their normal route. */
+    toll: 1,
+    /** VP lost per $1M of cash still owed at scoring. */
+    debtVpPerMillion: 2,
+  },
+  /** Destination cards face up at the start of the Engineering draft. */
+  destinationRow: 3,
+  /** Destination cards each company drafts. */
+  destinationsPerPlayer: 2,
   startingHands: {
     engineering: ["straight", "bend", "network", "terminal", "crossing"],
     scheduling: ["early", "float", "priority"],
@@ -201,7 +212,7 @@ export const LINE_CONTRACTS: LineContract[] = [
     code: "E",
     color: "#1d4ed8",
     dash: "26 8 6 8",
-    recipe: [5, 4, 5, 4, 5, 4],
+    recipe: [5, 4, 5, 4, 5],
     cost: 9,
     completionVp: 6,
     stationBonus: 5,
@@ -214,7 +225,7 @@ export const LINE_CONTRACTS: LineContract[] = [
     code: "C",
     color: "#7e22ce",
     dash: "6 9",
-    recipe: [4, 3, 4, 3, 4, 3, 4],
+    recipe: [4, 3, 4, 3, 4, 3],
     cost: 10,
     completionVp: 7,
     stationBonus: 4,
@@ -225,7 +236,7 @@ export const LINE_CONTRACTS: LineContract[] = [
     name: "Long Line",
     code: "L",
     color: "#0f766e",
-    recipe: [4, 5, 4, 4, 5, 4, 4, 5],
+    recipe: [4, 5, 4, 4, 5, 4, 4],
     cost: 12,
     completionVp: 9,
     stationBonus: 4,
@@ -332,10 +343,10 @@ export const ENGINEERING_CARDS: EngineeringCard[] = [
   {
     id: "crossing",
     name: "Crossing Design",
-    description: "Permit to bridge the competition's alignment.",
-    requirement: "Permits one crossing of an opposing line. +2 VP if you use it.",
+    description: "Take your alignment straight over the competition's.",
+    requirement: "One of your segments properly crosses an opposing segment.",
     vp: 2,
-    kind: "permission",
+    kind: "objective",
   },
 ];
 
@@ -404,27 +415,13 @@ export const CONSTRUCTION_CARDS: { id: ConstructionCardId; name: string; descrip
 export const constructionById = (id: ConstructionCardId) => CONSTRUCTION_CARDS.find((c) => c.id === id);
 
 /**
- * The Engineering market interleaves objectives and Destinations so a company
- * that passes on a contract can realistically draft either kind.
- */
-const engineeringMarketOrder = (): string[] => {
-  const normals = ENGINEERING_CARDS.map((c) => c.id);
-  const destinations = DESTINATION_CARDS.map((c) => c.id);
-  const out: string[] = [];
-  for (let i = 0; i < Math.max(normals.length, destinations.length); i++) {
-    if (i < normals.length) out.push(normals[i]);
-    if (i < destinations.length) out.push(destinations[i]);
-  }
-  return out;
-};
-
-/**
  * Face-up card market decks, cycled deterministically by the indexes in
  * SubwayState.market. Line Contracts are not part of this market — they come
  * off their own shuffled deck one at a time.
  */
 export const MARKET_DECKS = {
-  engineering: engineeringMarketOrder(),
+  // Objectives only. Destinations have their own Engineering draft (DEC-019).
+  engineering: ENGINEERING_CARDS.map((c) => c.id),
   scheduling: SCHEDULING_CARDS.map((c) => c.id),
   construction: CONSTRUCTION_CARDS.map((c) => c.id),
 } as const;
@@ -445,8 +442,11 @@ export type SubwayPhase =
   | "SCORING"
   | "RESULTS";
 
-/** Within ENGINEERING: lock the private plan, then place bought Survey Pins. */
-export type EngineeringStep = "PLAN" | "SURVEY";
+/**
+ * Within ENGINEERING: draft Destinations from a public row, lock the private
+ * plan, then place the Survey Pins that plan bought.
+ */
+export type EngineeringStep = "DESTINATION_DRAFT" | "PLAN" | "SURVEY";
 
 /** Within SCHEDULING: plan privately, then reveal and adjust once. */
 export type SchedulingStep = "PLANNING" | "RESOLUTION";
@@ -475,10 +475,12 @@ export type DestinationCommitment = {
   lineIndex: number;
 };
 
-/** A bought, publicly placed Survey Pin. Pins never occupy a hole. */
+/**
+ * A bought, publicly placed Survey Pin. Pins never occupy a hole, and they are
+ * company-wide: any line the buyer owns fulfils one.
+ */
 export type SurveyPin = {
   playerId: string;
-  lineIndex: number;
   x: number;
   y: number;
 };
@@ -513,7 +515,14 @@ export type SubwayPlayer = {
   pendingActions: number[];
   actedThisPeriod: boolean;
   constructionCardThisPeriod: boolean;
-  crossingsUsed: number;
+  /**
+   * Proper interior-to-interior crossings this company has made of an opposing
+   * segment. Crossing needs no permit (DEC-018); this only drives the Crossing
+   * Design objective, so contacts at an existing peg deliberately do not count.
+   */
+  properCrossings: number;
+  /** $M paid to the opposition for route contacts, for the results breakdown. */
+  tollsPaid: number;
   score?: number;
   scoreBreakdown?: ScoreItem[];
 };
@@ -574,6 +583,10 @@ export interface SubwayState {
   procurement: Procurement;
   market: Market;
   engineeringStep: EngineeringStep;
+  /** Face-down Destination cards left to refill the draft row from. */
+  destinationDeck: string[];
+  /** The public face-up Destination row players draft from. */
+  destinationRow: string[];
   schedulingStep: SchedulingStep;
   /** Public Survey Pins, in placement order. */
   surveyPins: SurveyPin[];
@@ -589,6 +602,7 @@ export interface SubwayState {
 export type SubwayActionType =
   | "START_GAME"
   | "PROCURE"
+  | "PICK_DESTINATION"
   | "LOCK_ENGINEERING_PLAN"
   | "PLACE_SURVEY"
   | "SET_SCHEDULE"
@@ -611,6 +625,7 @@ export interface SubwayAction extends BaseAction {
     cardId?: string;
     destinations?: { cardId: string; lineIndex: number }[];
     surveys?: number;
+    destinationCardId?: string;
     lineIndex?: number;
     start?: number | null;
     direction?: number;
@@ -939,6 +954,98 @@ export function countCrossings(state: SubwayState, playerId: string, from: Point
   return crossings;
 }
 
+const cross2 = (o: Point, a: Point, b: Point) =>
+  (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+
+/**
+ * True when two segments lie on the same line *and* share more than a single
+ * point. This is the one route-on-route interaction that stays illegal: a
+ * coincident string has no finite contact count and cannot be picked apart on
+ * the board (DEC-018).
+ */
+export function segmentsOverlap(a: Point, b: Point, c: Point, d: Point): boolean {
+  if (cross2(a, b, c) !== 0 || cross2(a, b, d) !== 0) return false;
+  const horizontal = Math.abs(b.x - a.x) >= Math.abs(b.y - a.y);
+  const axis = (p: Point) => (horizontal ? p.x : p.y);
+  const lo = Math.max(Math.min(axis(a), axis(b)), Math.min(axis(c), axis(d)));
+  const hi = Math.min(Math.max(axis(a), axis(b)), Math.max(axis(c), axis(d)));
+  return hi - lo > 0;
+}
+
+/** Where two properly crossing segments meet. */
+function intersectionOf(a: Point, b: Point, c: Point, d: Point): Point {
+  const denominator = (b.x - a.x) * (d.y - c.y) - (b.y - a.y) * (d.x - c.x);
+  if (!denominator) return { x: a.x, y: a.y };
+  const t = ((c.x - a.x) * (d.y - c.y) - (c.y - a.y) * (d.x - c.x)) / denominator;
+  return { x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y) };
+}
+
+/** One priced interaction between a new segment and the opposing network. */
+export type RouteContact = {
+  /** Coordinate key. One key is one charge, however many strings meet there. */
+  key: string;
+  kind: "peg" | "crossing" | "endpoint";
+  x: number;
+  y: number;
+};
+
+const contactKey = (x: number, y: number) => `${x.toFixed(4)},${y.toFixed(4)}`;
+
+/**
+ * Every distinct contact the segment from→to makes with the *opposing* normal
+ * network. Contacts are counted per geometric event, keyed by coordinate, so
+ * landing on an opposing peg is one charge rather than one per incident string.
+ * A peg always wins its coordinate: a crossing that happens exactly at an
+ * existing peg is a peg contact, and is not a proper crossing.
+ *
+ * The company's own routes are deliberately absent — self-interaction is free.
+ */
+export function routeContacts(
+  state: SubwayState,
+  playerId: string,
+  from: Point,
+  to: Point
+): RouteContact[] {
+  const found = new Map<string, RouteContact>();
+  const opposing = allLines(state).filter(({ playerId: owner }) => owner !== playerId);
+
+  // Pegs first, so they own their coordinate before any crossing claims it.
+  for (const { line } of opposing) {
+    for (const n of line.route) {
+      if (n.stationId) continue; // stations keep their own exclusive rules
+      if (samePoint(n, from)) continue; // already ours, and already paid for
+      if (!pointOnSegment(n, from, to)) continue;
+      const key = contactKey(n.x, n.y);
+      found.set(key, { key, kind: "peg", x: n.x, y: n.y });
+    }
+  }
+
+  for (const { line } of opposing) {
+    for (let i = 1; i < line.route.length; i++) {
+      const a = line.route[i - 1];
+      const b = line.route[i];
+      if (segmentsCross(from, to, a, b)) {
+        const at = intersectionOf(from, to, a, b);
+        const key = contactKey(at.x, at.y);
+        if (!found.has(key)) found.set(key, { key, kind: "crossing", x: at.x, y: at.y });
+      } else if (!samePoint(to, a) && !samePoint(to, b) && pointOnSegment(to, a, b)) {
+        const key = contactKey(to.x, to.y);
+        if (!found.has(key)) found.set(key, { key, kind: "endpoint", x: to.x, y: to.y });
+      }
+    }
+  }
+
+  return Array.from(found.values());
+}
+
+/** $M owed to the opposition for a candidate segment. */
+export const contactToll = (contacts: RouteContact[]): number =>
+  contacts.length * SUBWAY_CONFIG.contact.toll;
+
+/** Contacts that count towards the Crossing Design objective. */
+export const properCrossingCount = (contacts: RouteContact[]): number =>
+  contacts.filter((c) => c.kind === "crossing").length;
+
 // ----------------------------------------------------------------------------
 // Placement validation
 // ----------------------------------------------------------------------------
@@ -1015,25 +1122,10 @@ export function validateNode(
     if (stationConnections(state, station.id).length >= station.capacity) {
       return `${station.name} is at capacity.`;
     }
-  } else {
-    for (const { line } of allLines(state)) {
-      if (line.route.some((n) => samePoint(n, p))) return "That peg hole is occupied.";
-    }
   }
-
-  // Node spacing: keep one empty hole between opposing *normal* nodes. Stations
-  // are exempt in both directions so they never become walls, and a company's
-  // own lines may run side by side.
-  if (!station) {
-    for (const { playerId: owner, line } of allLines(state)) {
-      if (owner === playerId) continue;
-      for (const n of line.route) {
-        if (!n.stationId && Math.max(Math.abs(n.x - p.x), Math.abs(n.y - p.y)) <= 1) {
-          return "Leave one empty hole beside opposing pegs.";
-        }
-      }
-    }
-  }
+  // A normal hole is no longer exclusive, and nothing is excluded for being
+  // beside, on, or through an existing route (DEC-018). What that costs during
+  // Construction is priced by routeContacts(), not forbidden here.
 
   if (starter || !myLine.route.length) return null;
 
@@ -1053,41 +1145,16 @@ export function validateNode(
     }
   }
 
-  // ---- Retained spatial rules, written against pegboard holes ---------------
+  // ---- The one route-on-route prohibition that survives ---------------------
+  // Coincident strings have no finite contact count and cannot be told apart on
+  // the board, so an exact collinear overlap stays illegal — for anyone's route,
+  // including this company's own.
   const from = fromNode;
-
-  for (const { playerId: owner, line } of allLines(state)) {
+  for (const { line } of allLines(state)) {
     for (let i = 1; i < line.route.length; i++) {
-      const a = line.route[i - 1];
-      const b = line.route[i];
-      if ((samePoint(from, a) && samePoint(p, b)) || (samePoint(from, b) && samePoint(p, a))) {
-        return "Segments cannot overlap.";
+      if (segmentsOverlap(from, p, line.route[i - 1], line.route[i])) {
+        return "A string cannot lie on top of an existing string.";
       }
-      if (!samePoint(p, a) && !samePoint(p, b) && pointOnSegment(p, a, b)) {
-        return "A peg cannot sit on an existing line.";
-      }
-      // Your own string may never cross itself or your other line; the permit
-      // below only covers the opposition. Segments sharing the growing
-      // endpoint are not crossings, so they never trip this.
-      if (owner === playerId && segmentsCross(from, p, a, b)) {
-        return "Your own lines cannot cross.";
-      }
-    }
-    for (const n of line.route) {
-      if (samePoint(n, from) || samePoint(n, p)) continue;
-      if (pointOnSegment(n, from, p)) return "The line would run through an occupied peg.";
-    }
-  }
-
-  // Crossing the opposing line needs the committed Crossing Design permission,
-  // which allows exactly one crossing in total.
-  const crossings = countCrossings(state, playerId, from, p);
-  if (crossings > 0) {
-    if (!me.committedEngineering.includes("crossing")) {
-      return "Crossing Design is required to cross the opposing line.";
-    }
-    if (me.crossingsUsed + crossings > 1) {
-      return "Crossing Design permits only one crossing.";
     }
   }
 
@@ -1179,10 +1246,11 @@ export function surveyTurnId(s: SubwayState): string | undefined {
   return s.oddPriorityId === b ? b : a;
 }
 
-/** True when the pin's own line has actually built through its hole. */
+/** True when any line this company owns has built through the pin's hole. */
 export function surveyFulfilled(p: SubwayPlayer, pin: SurveyPin): boolean {
-  const line = p.lines[pin.lineIndex];
-  return !!line && line.route.some((n) => !n.stationId && n.x === pin.x && n.y === pin.y);
+  return p.lines.some((line) =>
+    line.route.some((n) => !n.stationId && n.x === pin.x && n.y === pin.y)
+  );
 }
 
 // ----------------------------------------------------------------------------
@@ -1193,6 +1261,28 @@ export function surveyFulfilled(p: SubwayPlayer, pin: SurveyPin): boolean {
 export function destinationMet(p: SubwayPlayer, commitment: DestinationCommitment): boolean {
   const line = p.lines[commitment.lineIndex];
   return !!line && line.route.some((n) => n.stationId === commitment.stationId);
+}
+
+/** Destination cards this company has drafted, assigned or not. */
+export const destinationsHeld = (p: SubwayPlayer): number =>
+  p.destinationHand.length + p.destinationCommitments.length;
+
+/**
+ * Whose Destination pick it is. Derived rather than stored, so an undo or a
+ * replayed action can never leave the draft pointing at the wrong company:
+ * whoever holds fewer picks next, the odd-period company breaking the tie —
+ * which is exactly "alternate, odd-priority first".
+ */
+export function destinationTurnId(s: SubwayState): string | undefined {
+  const waiting = s.playerOrder.filter(
+    (id) => s.players[id] && destinationsHeld(s.players[id]) < SUBWAY_CONFIG.destinationsPerPlayer
+  );
+  if (!waiting.length) return undefined;
+  if (waiting.length === 1) return waiting[0];
+  const [a, b] = waiting;
+  const held = (id: string) => destinationsHeld(s.players[id]);
+  if (held(a) !== held(b)) return held(a) < held(b) ? a : b;
+  return s.oddPriorityId === b ? b : a;
 }
 
 /** Why this set of Destination assignments cannot be locked, if it cannot. */
@@ -1297,7 +1387,7 @@ function lineMeets(id: string, line: PlayerLine, me: SubwayPlayer, opponents: Su
     case "terminal":
       return complete && r[r.length - 1]?.stationId !== undefined;
     case "crossing":
-      return me.crossingsUsed > 0;
+      return me.properCrossings > 0;
     default:
       return false;
   }
@@ -1306,7 +1396,7 @@ function lineMeets(id: string, line: PlayerLine, me: SubwayPlayer, opponents: Su
 export function objectiveMet(id: string, me: SubwayPlayer, opponents: SubwayPlayer[]): boolean {
   // Minimal Footprint is judged across the whole portfolio, not per line.
   if (id === "minimal") return allLinesComplete(me);
-  if (id === "crossing") return me.crossingsUsed > 0;
+  if (id === "crossing") return me.properCrossings > 0;
   return me.lines.some((line) => lineMeets(id, line, me, opponents));
 }
 
@@ -1384,13 +1474,21 @@ export function scoreGame(state: SubwayState): SubwayState {
     }
 
     for (const pin of state.surveyPins.filter((entry) => entry.playerId === p.id)) {
-      const assigned = p.lines[pin.lineIndex];
-      const lineName = assigned ? contractOf(assigned)?.name : undefined;
       const met = surveyFulfilled(p, pin);
       items.push({
-        label: `Survey Pin ${pin.x + 1},${pin.y + 1}${lineName ? ` · ${lineName}` : ""}`,
+        label: `Survey Pin ${pin.x + 1},${pin.y + 1}`,
         points: met ? SUBWAY_CONFIG.survey.vp : 0,
         met,
+      });
+    }
+
+    // Construction debt. Only route contacts can push a company below zero, and
+    // money received from the opposition pays it back down (DEC-018).
+    if (p.money < 0) {
+      items.push({
+        label: `Construction debt ($${-p.money}M owed)`,
+        points: p.money * SUBWAY_CONFIG.contact.debtVpPerMillion,
+        met: false,
       });
     }
 
@@ -1442,7 +1540,8 @@ function makePlayer(p: Player, index: number): SubwayPlayer {
     pendingActions: [],
     actedThisPeriod: false,
     constructionCardThisPeriod: false,
-    crossingsUsed: 0,
+    properCrossings: 0,
+    tollsPaid: 0,
   };
 }
 
@@ -1462,7 +1561,9 @@ function initialState(players: Player[]): SubwayState {
     priorityOverrides: {},
     procurement: { deck: [], yard: [], offerIndex: 0, cleanup: false },
     market: { engineeringIndex: 0, schedulingIndex: 0, constructionIndex: 0 },
-    engineeringStep: "PLAN",
+    engineeringStep: "DESTINATION_DRAFT",
+    destinationDeck: [],
+    destinationRow: [],
     schedulingStep: "PLANNING",
     surveyPins: [],
     currentPeriod: 1,
@@ -1517,8 +1618,13 @@ function nextOffer(s: SubwayState): SubwayState {
 
   if (!entry) {
     s.phase = "ENGINEERING";
-    s.engineeringStep = "PLAN";
-    s.message = "Every contract is signed. Lock your Engineering plan.";
+    s.engineeringStep = "DESTINATION_DRAFT";
+    s.destinationRow = s.destinationDeck.splice(0, SUBWAY_CONFIG.destinationRow);
+    const first = destinationTurnId(s);
+    s.message = first
+      ? `Every contract is signed. ${s.players[first].name} drafts the first Destination.`
+      : "Every contract is signed. Lock your Engineering plan.";
+    if (!first) s.engineeringStep = "PLAN";
     return s;
   }
 
@@ -1678,6 +1784,12 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
         LINE_CONTRACTS.map((c) => c.id),
         ctx.random
       );
+      // Shuffled now, dealt when Engineering opens: this is the only point in
+      // the flow with a random source, and the reducer must stay pure.
+      fresh.destinationDeck = shuffle(
+        DESTINATION_CARDS.map((c) => c.id),
+        ctx.random
+      );
       return nextOffer(fresh);
     }
 
@@ -1708,9 +1820,7 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
         // First refusal is paid for with a free face-up card.
         const deck = action.payload?.deck;
         if (deck === "engineering") {
-          const drafted = marketEngineeringId(s.market);
-          if (isDestinationCard(drafted)) me.destinationHand.push(drafted);
-          else me.engineeringHand.push(drafted);
+          me.engineeringHand.push(marketEngineeringId(s.market));
           s.market.engineeringIndex++;
         } else if (deck === "scheduling") {
           me.schedulingHand.push(marketScheduling(s.market).id);
@@ -1742,6 +1852,27 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
       return nextOffer(s);
     }
 
+    case "PICK_DESTINATION": {
+      if (state.phase !== "ENGINEERING" || state.engineeringStep !== "DESTINATION_DRAFT") return state;
+      if (!me || destinationTurnId(state) !== me.id) return state;
+      const cardId = action.payload?.destinationCardId;
+      if (!cardId || !s.destinationRow.includes(cardId)) return state;
+
+      s.destinationRow = removeOne(s.destinationRow, cardId);
+      me.destinationHand.push(cardId);
+      while (s.destinationRow.length < SUBWAY_CONFIG.destinationRow && s.destinationDeck.length) {
+        s.destinationRow.push(s.destinationDeck.shift()!);
+      }
+      s.message = `${me.name} drafted ${destinationById(cardId)!.name}.`;
+
+      const next = destinationTurnId(s);
+      if (!next) {
+        s.engineeringStep = "PLAN";
+        s.message = "Destinations are drafted. Lock your Engineering plan.";
+      }
+      return s;
+    }
+
     case "LOCK_ENGINEERING_PLAN": {
       if (state.phase !== "ENGINEERING" || state.engineeringStep !== "PLAN") return state;
       if (!me || me.engineeringLocked) return state;
@@ -1759,6 +1890,8 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
       // Zero or more Destination cards, each bound to an owned line.
       const assignments = action.payload?.destinations ?? [];
       if (!Array.isArray(assignments)) return state;
+      // Every drafted Destination is assigned; there is no holding one back.
+      if (assignments.length !== me.destinationHand.length) return state;
       if (destinationProblems(me, assignments).length) return state;
 
       // Zero to five Survey Pins at $1M each, paid for exactly once.
@@ -1792,13 +1925,11 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
     case "PLACE_SURVEY": {
       if (state.phase !== "ENGINEERING" || state.engineeringStep !== "SURVEY" || !me) return state;
       if (surveyTurnId(state) !== me.id) return state;
-      const lineIndex = action.payload?.lineIndex ?? -1;
-      if (!Number.isInteger(lineIndex) || !me.lines[lineIndex]) return state;
       const pt = { x: action.payload?.x ?? -1, y: action.payload?.y ?? -1 };
       if (surveyBlocker(state, me.id, pt)) return state;
 
-      s.surveyPins.push({ playerId: me.id, lineIndex, x: pt.x, y: pt.y });
-      s.message = `${me.name} surveyed ${pt.x + 1},${pt.y + 1} for the ${contractOf(me.lines[lineIndex])!.name}.`;
+      s.surveyPins.push({ playerId: me.id, x: pt.x, y: pt.y });
+      s.message = `${me.name} surveyed ${pt.x + 1},${pt.y + 1}.`;
       s.undo = undoRecord(state, me.id, "survey", "Survey Pin");
       if (!surveyTurnId(s)) {
         const next = toScheduling(s);
@@ -1963,7 +2094,20 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
       if (validateNode(s, me.id, lineIndex, pt, false, slot)) return state;
 
       const from = line.route[line.route.length - 1];
-      me.crossingsUsed += countCrossings(s, me.id, from, pt);
+
+      // Price the opposing network before the route changes under us. Own
+      // contacts are free; each distinct opposing contact is $1M to its owner,
+      // and Construction is the one phase allowed to go into debt (DEC-018).
+      const contacts = routeContacts(s, me.id, from, pt);
+      const toll = contactToll(contacts);
+      const opponentId = s.playerOrder.find((id) => id !== me.id);
+      if (toll > 0 && opponentId) {
+        me.money -= toll;
+        me.tollsPaid += toll;
+        s.players[opponentId].money += toll;
+      }
+      me.properCrossings += properCrossingCount(contacts);
+
       const station = stationAt(pt);
       line.route.push({
         ...pt,
@@ -1972,9 +2116,12 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
 
       me.pendingActions = removeOne(me.pendingActions, lineIndex);
       const contract = contractOf(line)!;
-      s.message = lineComplete(line)
+      const tollNote = toll > 0
+        ? ` ${contacts.length} contact${contacts.length === 1 ? "" : "s"} with ${s.players[opponentId!].name}: $${toll}M.`
+        : "";
+      s.message = (lineComplete(line)
         ? `${me.name} completed the ${contract.name}!`
-        : `${me.name} extended the ${contract.name}.`;
+        : `${me.name} extended the ${contract.name}.`) + tollNote;
       const record = undoRecord(state, me.id, "build", `${contract.name} node`);
 
       prunePendingActions(s, me.id);

@@ -9,7 +9,7 @@
 |---|---|---|---|---|---|
 | [WS-001](WS-001-subway-v0-3-redesign.md) | Subway v0.3 gameplay redesign | REVIEW | Active | Independent design review of merged v0.3 against the reconstructed Build Card; owner to rule on D1–D4 | [#137](https://github.com/50thycal/party-games/pull/137), [#139](https://github.com/50thycal/party-games/pull/139) (both merged) |
 | [WS-002](WS-002-subway-route-engineering.md) | Subway route engineering and playtest UX | REVIEW | Active | Record the merged closeout; playtest follow-ups moved to WS-003 | [#141](https://github.com/50thycal/party-games/pull/141), [#142](https://github.com/50thycal/party-games/pull/142) (merged) |
-| [WS-003](WS-003-subway-construction-access.md) | Subway construction access and route lookahead | READY_TO_BUILD | Blocked | Design review returned Changes required and the findings are corrected; still blocked on Build OS v0.5 adoption or a recorded deferral before implementation | [#143](https://github.com/50thycal/party-games/pull/143) (merged design-only), [#144](https://github.com/50thycal/party-games/pull/144) (draft continuation, changes required) |
+| [WS-003](WS-003-subway-construction-access.md) | Subway construction access and route lookahead | BUILDING | Active | Independent review of the #144 implementation head, then the owner's balance playtest | [#143](https://github.com/50thycal/party-games/pull/143) (merged design-only), [#144](https://github.com/50thycal/party-games/pull/144) (implementation), [#145](https://github.com/50thycal/party-games/pull/145) (Build OS v0.5) |
 
 <!-- Phase: IDEA · EXPLORE · MODEL · DECIDE · BUILD_CARD · READY_TO_BUILD · BUILDING · REVIEW
      Status: Active · Paused · Blocked · Abandoned

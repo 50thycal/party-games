@@ -1,4 +1,4 @@
-# Subway v0.4 rules and design pins
+# Subway v0.5 rules and design pins
 
 Subway is a two-player prototype played as a single pass:
 
@@ -52,9 +52,9 @@ capacity, and Survey Pins.
 | Short Line | S | 3–4–3–4 | 5 | 4 | $5M | +4 | +3 | −4 |
 | Branch Line | B | 5–5–3–4–4 | 6 | 5 | $6M | +5 | +3 | −5 |
 | Medium Line | M | 3–4–3–4–3–4 | 7 | 6 | $8M | +6 | +4 | −6 |
-| Express Line | E | 5–4–5–4–5–4 | 7 | 6 | $9M | +6 | +5 | −7 (+3 VP for two Majors) |
-| Crosstown Line | C | 4–3–4–3–4–3–4 | 8 | 7 | $10M | +7 | +4 | −7 |
-| Long Line | L | 4–5–4–4–5–4–4–5 | 9 | 8 | $12M | +9 | +4 | −8 |
+| Express Line | E | 5–4–5–4–5 | 6 | 5 | $9M | +6 | +5 | −7 (+3 VP for two Majors) |
+| Crosstown Line | C | 4–3–4–3–4–3 | 7 | 6 | $10M | +7 | +4 | −7 |
+| Long Line | L | 4–5–4–4–5–4–4 | 8 | 7 | $12M | +9 | +4 | −8 |
 
 The recipe is the contract. Node count, build-period count, schedule-block length, and completion
 all derive from it, so they can never drift apart.
@@ -74,21 +74,30 @@ company ownership is carried by the peg's outer ring, the company badge on every
 odd/even priority tag, and the labels. Each line also draws with its own dash pattern, so nothing
 depends on color alone.
 
-## Engineering — plan, then survey
+## Engineering — draft, plan, then survey
 
-Engineering runs in two steps.
+Engineering runs in three steps.
 
-### 1. Lock the plan
+### 1. Draft Destinations
+
+Three Destination cards are dealt face up. Companies take turns picking one, the **odd-period
+company first**, and the row refills while cards remain, until each company holds exactly **two**.
+Picks are free. Six cards exist, so two are never drafted.
+
+Destinations are no longer in the Procurement market — that market is objectives only. This is what
+makes them appear in every game rather than only when somebody happened to pass on a contract.
+
+### 2. Lock the plan
 
 One action commits three things at once, and only once:
 
 - **Exactly three Engineering objectives**, face down, hidden from the opposition until scoring.
-  These are objectives and permissions, not a drawn route. Crossing Design is still required to
-  cross an opposing line, once.
-- **Destination cards**, each assigned to one line you own. Destinations are drafted from the same
-  face-up Engineering market as the objectives but are a **separate commitment** — they do not count
-  toward the three. A line may carry at most **two**, the same station may not be assigned twice to
-  the same line, and a Destination left unassigned simply stays in hand and scores nothing.
+  These are objectives, not a drawn route — including Crossing Design, which since v0.5 rewards a
+  crossing rather than permitting one.
+- **Both Destinations you drafted**, each assigned to one line you own. They are a **separate
+  commitment** — they do not count toward the three. A line may carry at most **two**, and the same
+  station may not be assigned twice to the same line. You cannot hold one back: the plan does not
+  lock until both are assigned.
 - **0–5 Survey Pins at $1M each.** The cost leaves your account the moment the plan locks and cannot
   be undone. You cannot buy more pins than you can pay for.
 
@@ -96,18 +105,19 @@ Your own committed objectives and Destinations show **live `COMPLETE` status** f
 conditions are met — including reverting if the placement that met them is undone. The opposition
 sees neither identity nor status until scoring.
 
-### 2. Place the Survey Pins
+### 3. Place the Survey Pins
 
 Once both plans are locked, every purchased pin goes on the board publicly, companies alternating,
 the **odd-period company first**. If one company has placed all of its pins the other simply finishes
 its remainder; a company that bought none never places.
 
-- A pin names one **normal hole** and one line you own. Stations may not be pinned.
+- A pin names one **normal hole**. Stations may not be pinned. Pins are **company-wide**: any line
+  you own fulfils one.
 - Pins **reserve nothing**: they occupy no hole, take no part in peg spacing, crossing, or station
   capacity, and either company may still build through them.
 - Two companies may pin the same hole. One company may not stack two of its own pins on one hole.
-- A pin scores **+1 VP** only if *the exact line it names* later places a node on that hole. Another
-  of your own lines running through it does not count.
+- A pin scores **+1 VP** when **any** line you own later places a normal node on that hole. The
+  opposition running through it does not count.
 
 Scheduling opens once the last purchased pin is down.
 
@@ -212,6 +222,50 @@ vertically; the two Major Stations sit 17 columns apart, which makes connecting 
 and puts the Express Line's two-major bonus genuinely in reach only for a deliberate run. The board
 pans and zooms, and on a phone it is meant to be zoomed into rather than read whole.
 
+## Route interaction — priced, not prohibited
+
+Since v0.5 the board is open. The only things that stop a placement are the ones that define the
+puzzle: board bounds, the next ordered segment length, the 90° turn cap, exact station docks and
+capacity, and one prohibition — **a string may not lie on top of an existing string**. Coincident
+strings have no countable interaction and cannot be told apart on the board.
+
+Everything else is legal and, against the opposition, costs money:
+
+- A normal node may sit on an existing normal peg, beside one, or on the interior of a string.
+- A string may cross other strings and pass through normal pegs.
+- Adjacency is unrestricted. Your own network never blocks you.
+
+**During Construction you pay the opposition $1M for every distinct contact** your new node and
+string make with their normal route. Contacts with your own routes are free.
+
+A contact is one *geometric event*, counted once per coordinate:
+
+- a proper crossing of an opposing string;
+- your endpoint landing inside an opposing string;
+- any opposing normal peg your segment passes through or ends on.
+
+Landing on an opposing peg is one contact however many of their strings meet there, and where a
+crossing happens exactly at an existing peg, the peg wins — one contact, and not a "proper crossing".
+Station docks keep their own exclusive rules and are not part of this.
+
+The board shows the count, the total, who gets paid, and your cash afterwards before you confirm.
+
+### Construction debt
+
+Construction is the **only** phase that may take you below $0. Every earlier phase still refuses
+what you cannot afford. Ending the game in debt costs **-2 VP per $1M** owed, and money the
+opposition pays *you* for their own contacts reduces it. Remaining cash is still the last tiebreak,
+after that penalty.
+
+## Placing: look one step ahead
+
+Placement takes two taps. The first selects a target — it stays marked and the board shows, in
+dashed markers, where that line could go *next*. The second tap on the same target confirms it.
+
+Current-step targets carry a solid ring marked **1**; following-step targets a dashed ring marked
+**2**. The following markers are a preview, not a reservation: the opposition may build first, and
+prices are recomputed when you actually confirm. Starter placement works the same way.
+
 ## Route geometry — ordered lengths, and no hairpins
 
 A line is built as the **ordered recipe** in the table above: segment 1 must be the first length,
@@ -238,12 +292,10 @@ before: occupancy, spacing, string overlap, and crossings.
   docks a given station once. Station VP scores once per company however many of its lines dock there,
   so a second dock is purely defensive. A full station blocks further connections but never blocks
   strings passing over it.
-- **Node spacing** — one empty hole between opposing *normal* nodes. Stations neither project nor
-  receive spacing, and a company's own lines may run side by side.
-- **Strings** — a peg may not sit on an existing string, a string may not run through an occupied hole,
-  two strings may not share a path, and a company's own lines may never cross each other or themselves.
-- **Crossing** the opposition needs the committed Crossing Design permit, and is limited to one crossing
-  in total.
+- **Node spacing, shared holes, pegs on strings, strings through pegs, and crossings** are all legal
+  now — see *Route interaction* above for what they cost.
+- **Strings** may not lie on top of one another. That is the only surviving string prohibition.
+- **Crossing** the opposition needs no permit and is unlimited; it costs $1M like any other contact.
 
 ## Scoring
 
@@ -251,13 +303,15 @@ Every purchased contract scores: completion VP if delivered, its incomplete pena
 major-station bonus if that line reached a Major Station. Stations score once per company.
 
 Engineering cards reveal and score; Terminal Approach needs a completed line, Minimal Footprint needs
-every contract delivered, and **Network Link** (+3 VP) needs one *completed* line that connects at
-least two *different* stations. **Network Link replaces Long Segment**, which is gone: on a 27-wide
+every contract delivered, **Network Link** (+3 VP) needs one *completed* line that connects at least
+two *different* stations, and **Crossing Design** (+2 VP) is now an ordinary objective for making at
+least one proper crossing of an opposing string — it grants no permission and caps nothing. **Network Link replaces Long Segment**, which is gone: on a 27-wide
 corridor a long reach happened by accident, and the ordered recipes now decide segment length anyway.
 
 Committed **Destinations** reveal and score **+3 VP** each when their assigned line connects the named
 station — whether or not that line was ever completed, and nothing if it never got there. Placed
-**Survey Pins** score **+1 VP** each when their own assigned line has a node on the pinned hole.
+**Survey Pins** score **+1 VP** each when any line their buyer owns has a node on the pinned hole.
+**Construction debt** costs **-2 VP per $1M** still owed.
 
 Ties break on major connections, then remaining money, then a shared victory.
 
