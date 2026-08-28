@@ -2,7 +2,7 @@
 
 <!-- How does this system work TODAY? Present tense. Not a roadmap, not a history. -->
 
-**Last updated:** 2026-08-24 · **Build OS v0.4** (see [50thycal/build-os](https://github.com/50thycal/build-os))
+**Last updated:** 2026-08-27 · **Build OS v0.5** (see [50thycal/build-os](https://github.com/50thycal/build-os))
 
 Project memory has three layers: this file (how the system works today),
 [`DECISIONS.md`](DECISIONS.md) (why), and [`workstreams/`](workstreams/ACTIVE.md) (what is being
@@ -213,7 +213,7 @@ the room shell reads `state.phase` directly.
 | Open House | `real-estate` | `lobby → playing → round_results → … → results` |
 | HR Investigation | `performance-review` | `lobby → intro → accusation → reframing → interview → case_prep → editing → reveal → voting → round_over → … → game_over` |
 | The Desk | `the-desk` | `lobby → briefing → quote → trading → settlement → briefing … → final` |
-| Subway | `subway` | `SETUP → PROCUREMENT → ENGINEERING → SCHEDULING → STARTER_PLACEMENT → CONSTRUCTION → SCORING → RESULTS`, with `engineeringStep: PLAN → SURVEY` inside `ENGINEERING` and `schedulingStep: PLANNING → RESOLUTION` inside `SCHEDULING`. One `UNDO_PLACEMENT` action can walk the latest physical placement back across a phase boundary. |
+| Subway | `subway` | `SETUP → PROCUREMENT → ENGINEERING → SCHEDULING → STARTER_PLACEMENT → CONSTRUCTION → SCORING → RESULTS`, with `engineeringStep: DESTINATION_DRAFT → PLAN → SURVEY` inside `ENGINEERING` and `schedulingStep: PLANNING → RESOLUTION` inside `SCHEDULING`. One `UNDO_PLACEMENT` action can walk the latest physical placement back across a phase boundary. |
 
 **The string `"lobby"` is load-bearing in the shell.** The room page shows the room-code header,
 the player list, and the leave link only while `gameState` is null or `state.phase === "lobby"`;
@@ -313,7 +313,7 @@ These should remain true across implementations:
 11. **Hidden information is a rendering convention, not a guarantee.** `GET /api/get-room`
     returns the entire room state to every client, so a game's "secret" values — The Desk's
     `trueValue` and the Market Maker's position band, Subway's unrevealed schedules, committed
-    Engineering cards and Destination assignments, HR Investigation's unsealed filings — are
+    Engineering cards and drafted Destinations, HR Investigation's unsealed filings — are
     concealed only by the view that
     chooses not to draw them. Any player reading the poll response can see them. Games may rely
     on this for social play; they must not rely on it for anything where a determined player's

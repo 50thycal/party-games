@@ -25,9 +25,12 @@ import {
   contractsOutstanding,
   crewCost,
   destinationById,
+  destinationTurnId,
+  destinationsHeld,
   destinationMet,
   destinationProblems,
   engineeringById,
+  contactToll,
   legalTargets,
   lineComplete,
   lineMobilization,
@@ -39,6 +42,7 @@ import {
   mustBuyOffer,
   nextSegmentLength,
   nodePoint,
+  routeContacts,
   pendingStarters,
   periodPriorityId,
   scheduleCost,
@@ -59,6 +63,7 @@ import {
   type ConstructionCardId,
   type LineContract,
   type PlacementTarget,
+  type RouteContact,
   type PlayerLine,
   type Point,
   type RouteNode,
@@ -138,6 +143,20 @@ function statusFor(game: SubwayState, me: SubwayPlayer | undefined, isHost: bool
           };
     }
     case "ENGINEERING": {
+      if (game.engineeringStep === "DESTINATION_DRAFT") {
+        const turn = destinationTurnId(game);
+        const owed = SUBWAY_CONFIG.destinationsPerPlayer - destinationsHeld(me);
+        return turn === me.id
+          ? {
+              headline: `Draft a Destination — ${owed} to go.`,
+              tone: "act",
+              detail: "Three are face up. Picks are free; you assign them to lines next.",
+            }
+          : {
+              headline: `${game.players[turn ?? ""]?.name ?? oppName} is drafting a Destination.`,
+              tone: "wait",
+            };
+      }
       if (game.engineeringStep === "PLAN") {
         return me.engineeringLocked
           ? { headline: `Plan locked — waiting for ${oppName}.`, tone: "wait" }
@@ -453,12 +472,17 @@ type DrawnLine = {
 function Board({
   game,
   targets,
+  following,
+  selected,
   canAct,
   drawn,
   onTapHole,
 }: {
   game: SubwayState;
   targets: PlacementTarget[];
+  /** Where the line could go *after* the selected target. Informational only. */
+  following: PlacementTarget[];
+  selected?: PlacementTarget;
   canAct: boolean;
   drawn: DrawnLine[];
   onTapHole: (p: Point, slot?: number) => void;
@@ -609,6 +633,7 @@ function Board({
   };
 
   const targetSet = new Set(targets.map(targetKey));
+  const followingSet = new Set(following.map(targetKey));
   const targetCells = new Set(targets.map((t) => `${t.x},${t.y}`));
 
   const cells: Point[] = [];
@@ -671,18 +696,16 @@ function Board({
               left of it and stay small enough not to hide a peg or string. */}
           {game.surveyPins.map((pin, i) => {
             const owner = game.players[pin.playerId];
-            const line = owner?.lines[pin.lineIndex];
-            const contract = line ? contractOf(line) : undefined;
             const p = holePos(pin);
             const cx = p.x - 21;
             const cy = p.y - 21;
-            const done = !!owner && !!line && surveyFulfilled(owner, pin);
+            const done = !!owner && surveyFulfilled(owner, pin);
             return (
               <g key={`pin-${i}`}>
                 <path
                   d={`M ${cx} ${cy - 11} L ${cx + 9} ${cy} L ${cx} ${cy + 11} L ${cx - 9} ${cy} Z`}
-                  fill={done ? contract?.color ?? "#78716c" : "#fdf6e3"}
-                  stroke={contract?.color ?? "#78716c"}
+                  fill={done ? owner?.color ?? "#78716c" : "#fdf6e3"}
+                  stroke={owner?.color ?? "#78716c"}
                   strokeWidth="3"
                 />
                 <text
@@ -691,9 +714,9 @@ function Board({
                   textAnchor="middle"
                   fontSize="10"
                   fontWeight="800"
-                  fill={done ? "#ffffff" : contract?.color ?? "#78716c"}
+                  fill={done ? "#ffffff" : owner?.color ?? "#78716c"}
                 >
-                  {contract?.code ?? "?"}
+                  {done ? "\u2713" : "S"}
                 </text>
                 <circle cx={cx} cy={cy} r="14.5" fill="none" stroke={owner?.color ?? "#000"} strokeWidth="2" opacity="0.85" />
               </g>
@@ -745,11 +768,41 @@ function Board({
                   const dy = c.y - p.y;
                   const docked = dockedIn(s.id, slot);
                   const open = targetSet.has(`${s.x},${s.y},${slot}`);
+                  const nextOpen = followingSet.has(`${s.x},${s.y},${slot}`);
+                  const isSelected =
+                    !!selected && selected.x === s.x && selected.y === s.y && selected.slot === slot;
                   return (
                     <g key={slot}>
+                      {nextOpen && !open && (
+                        <circle
+                          cx={dx}
+                          cy={dy}
+                          r="12"
+                          fill="#facc15"
+                          opacity="0.2"
+                          stroke="#ca8a04"
+                          strokeWidth="2.5"
+                          strokeDasharray="5 4"
+                          data-target={`${s.x},${s.y},${slot}`}
+                          data-step="2"
+                        />
+                      )}
                       {open && (
-                        <circle cx={dx} cy={dy} r="13" fill="#4ade80" opacity="0.35" data-target={`${s.x},${s.y},${slot}`}>
-                          <animate attributeName="opacity" values="0.65;0.2;0.65" dur="1.6s" repeatCount="indefinite" />
+                        <circle
+                          cx={dx}
+                          cy={dy}
+                          r={isSelected ? 15 : 13}
+                          fill="#4ade80"
+                          opacity={isSelected ? 0.55 : 0.35}
+                          stroke={isSelected ? "#15803d" : undefined}
+                          strokeWidth={isSelected ? 4 : undefined}
+                          data-target={`${s.x},${s.y},${slot}`}
+                          data-step="1"
+                          data-selected={isSelected ? "true" : undefined}
+                        >
+                          {!isSelected && (
+                            <animate attributeName="opacity" values="0.65;0.2;0.65" dur="1.6s" repeatCount="indefinite" />
+                          )}
                         </circle>
                       )}
                       <circle
@@ -771,20 +824,84 @@ function Board({
             );
           })}
 
-          {/* Legal placement targets on normal holes (docks glow on the tile).
-              data-target is the board coordinate the glow stands for, so a
-              playtest driver can tap exactly what the rules say is legal. */}
+          {/* Where this placement may go, and — once one is selected — where the
+              one after it could go. Colour is never the only cue (DEC-013): the
+              current step is a solid ring marked 1, the following step a dashed
+              ring marked 2, so the two read apart without relying on green
+              versus yellow. data-target/data-step name what each marker means,
+              so a playtest driver taps exactly what the rules allow. */}
+          {canAct &&
+            following
+              .filter((t) => t.slot === undefined)
+              .map((c) => {
+                const p = holePos(c);
+                return (
+                  <g key={`f-${c.x}-${c.y}`}>
+                    <circle
+                      cx={p.x}
+                      cy={p.y}
+                      r="12"
+                      fill="#facc15"
+                      opacity="0.18"
+                      data-target={`${c.x},${c.y}`}
+                      data-step="2"
+                    />
+                    <circle
+                      cx={p.x}
+                      cy={p.y}
+                      r="12"
+                      fill="none"
+                      stroke="#ca8a04"
+                      strokeWidth="2.5"
+                      strokeDasharray="5 4"
+                    />
+                    <text x={p.x} y={p.y + 4} textAnchor="middle" fontSize="11" fontWeight="800" fill="#854d0e">
+                      2
+                    </text>
+                  </g>
+                );
+              })}
           {canAct &&
             targets
               .filter((t) => t.slot === undefined)
               .map((c) => {
                 const p = holePos(c);
+                const isSelected =
+                  !!selected && selected.slot === undefined && selected.x === c.x && selected.y === c.y;
                 return (
                   <g key={`t-${c.x}-${c.y}`}>
-                    <circle cx={p.x} cy={p.y} r="13" fill="#4ade80" opacity="0.28" data-target={`${c.x},${c.y}`} />
-                    <circle cx={p.x} cy={p.y} r="13" fill="none" stroke="#4ade80" strokeWidth="2.5">
-                      <animate attributeName="opacity" values="0.9;0.35;0.9" dur="1.6s" repeatCount="indefinite" />
+                    <circle
+                      cx={p.x}
+                      cy={p.y}
+                      r={isSelected ? 15 : 13}
+                      fill="#4ade80"
+                      opacity={isSelected ? 0.55 : 0.28}
+                      data-target={`${c.x},${c.y}`}
+                      data-step="1"
+                      data-selected={isSelected ? "true" : undefined}
+                    />
+                    <circle
+                      cx={p.x}
+                      cy={p.y}
+                      r={isSelected ? 15 : 13}
+                      fill="none"
+                      stroke={isSelected ? "#15803d" : "#4ade80"}
+                      strokeWidth={isSelected ? 4 : 2.5}
+                    >
+                      {!isSelected && (
+                        <animate attributeName="opacity" values="0.9;0.35;0.9" dur="1.6s" repeatCount="indefinite" />
+                      )}
                     </circle>
+                    <text
+                      x={p.x}
+                      y={p.y + 4}
+                      textAnchor="middle"
+                      fontSize={isSelected ? 12 : 11}
+                      fontWeight="800"
+                      fill="#14532d"
+                    >
+                      {isSelected ? "\u2713" : "1"}
+                    </text>
                   </g>
                 );
               })}
@@ -1255,6 +1372,82 @@ function ProcurementPanel({
 }
 
 /**
+ * The Destination draft. Three cards face up, companies alternate free picks
+ * starting with the odd-period company, and each ends with exactly two. This
+ * is why every game now contains Destinations at all (DEC-019).
+ */
+function DestinationDraftPanel({
+  game,
+  me,
+  busy,
+  act,
+}: {
+  game: SubwayState;
+  me: SubwayPlayer;
+  busy: boolean;
+  act: (type: string, payload?: Record<string, unknown>) => void;
+}) {
+  const turn = destinationTurnId(game);
+  const mine = turn === me.id;
+  const owed = SUBWAY_CONFIG.destinationsPerPlayer - destinationsHeld(me);
+  const opponent = opponentOf(game, me);
+
+  return (
+    <Panel title="Destination draft">
+      <p className="mt-1 text-sm text-stone-600">
+        Take turns picking from the three face-up cards until each company holds{" "}
+        {SUBWAY_CONFIG.destinationsPerPlayer}. Picks are free. You assign each one to a line you own
+        in the next step, and it pays +{SUBWAY_CONFIG.destinationVp} VP if that line reaches the
+        station — finished or not.
+      </p>
+      <p className="mt-2 text-sm font-semibold">
+        {mine
+          ? `Your pick — ${owed} to go.`
+          : turn
+            ? `${game.players[turn]?.name ?? "The opposition"} is picking.`
+            : "Both companies are done drafting."}
+      </p>
+
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {game.destinationRow.map((id) => (
+          <DestinationCardFace
+            key={id}
+            card={id}
+            color={me.color}
+            compact
+            onClick={mine && !busy ? () => act("PICK_DESTINATION", { destinationCardId: id }) : undefined}
+            disabled={!mine || busy}
+          />
+        ))}
+        {!game.destinationRow.length && (
+          <p className="col-span-full text-[11px] italic text-stone-400">The row is empty.</p>
+        )}
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+        <div>
+          <b className="uppercase text-stone-500">Yours ({destinationsHeld(me)})</b>
+          <ul className="mt-1 space-y-0.5 text-stone-600">
+            {me.destinationHand.map((id, i) => (
+              <li key={i}>{destinationById(id)?.name ?? id}</li>
+            ))}
+            {!me.destinationHand.length && <li className="italic text-stone-400">None yet.</li>}
+          </ul>
+        </div>
+        <div>
+          <b className="uppercase text-stone-500">
+            {opponent?.name ?? "Opposition"} ({opponent ? destinationsHeld(opponent) : 0})
+          </b>
+          <p className="mt-1 italic text-stone-400">
+            Picked from the same public row — the count is open, the cards are theirs to reveal.
+          </p>
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
+/**
  * The Engineering plan: three objectives, any Destination assignments, and a
  * Survey Pin purchase. It all locks in one action, and the money leaves once.
  */
@@ -1302,9 +1495,10 @@ function EngineeringPlanPanel({
     .filter(([, lineIndex]) => lineIndex >= 0)
     .map(([cardId, lineIndex]) => ({ cardId, lineIndex }));
   const problems = destinationProblems(me, list);
+  const allAssigned = list.length === me.destinationHand.length;
   const surveyCost = surveys * SUBWAY_CONFIG.survey.cost;
   const affordable = surveyCost <= me.money;
-  const ready = chosen.length === 3 && !problems.length && affordable;
+  const ready = chosen.length === 3 && allAssigned && !problems.length && affordable;
 
   return (
     <Panel title={`Engineering plan — ${chosen.length}/3 objectives`}>
@@ -1329,7 +1523,7 @@ function EngineeringPlanPanel({
         <b className="text-xs uppercase text-stone-500">Destination cards ({me.destinationHand.length})</b>
         {me.destinationHand.length === 0 ? (
           <p className="mt-1 text-[11px] italic text-stone-500">
-            None in hand. They share the face-up Engineering market during Procurement.
+            None in hand.
           </p>
         ) : (
           <div className="mt-1.5 grid grid-cols-2 gap-2">
@@ -1361,8 +1555,9 @@ function EngineeringPlanPanel({
             })}
           </div>
         )}
-        {problems.length > 0 && (
+        {(problems.length > 0 || !allAssigned) && (
           <ul className="mt-1.5 space-y-0.5 text-xs font-semibold text-red-800">
+            {!allAssigned && <li>• Every Destination you drafted must be assigned to a line.</li>}
             {problems.map((p, i) => (
               <li key={i}>• {p}</li>
             ))}
@@ -1419,17 +1614,7 @@ function EngineeringPlanPanel({
 }
 
 /** Placing the pins already bought. Public, alternating, non-reserving. */
-function SurveyPanel({
-  game,
-  me,
-  surveyLine,
-  setSurveyLine,
-}: {
-  game: SubwayState;
-  me: SubwayPlayer;
-  surveyLine: number;
-  setSurveyLine: (n: number) => void;
-}) {
+function SurveyPanel({ game, me }: { game: SubwayState; me: SubwayPlayer }) {
   const turn = surveyTurnId(game);
   const mine = turn === me.id;
   const left = surveysPending(game, me.id);
@@ -1438,46 +1623,23 @@ function SurveyPanel({
     <Panel title="Survey Pins">
       <p className="mt-1 text-sm text-stone-600">
         Companies alternate, starting with the odd-period company. A pin marks intent only: it
-        never reserves the hole, and either company may still build there.
+        never reserves the hole, and either company may still build there. Pins are company-wide —
+        <b> any</b> line you own fulfils one by placing a normal node on its exact hole.
       </p>
       <p className="mt-2 text-sm">
         You have <b>{left}</b> pin{left === 1 ? "" : "s"} left to place.{" "}
         {mine ? "Pick the line it serves, then tap a normal hole." : `Waiting for ${game.players[turn ?? ""]?.name ?? "the opposition"}…`}
       </p>
-      {mine && left > 0 && (
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-          <span className="font-bold uppercase text-stone-500">Line</span>
-          <select
-            value={surveyLine}
-            onChange={(e) => setSurveyLine(Number(e.target.value))}
-            className="rounded border border-stone-400 bg-white px-2 py-1"
-          >
-            {me.lines.map((line, i) => (
-              <option key={i} value={i}>
-                {lineLabel(line)}
-              </option>
-            ))}
-          </select>
-          {me.lines[surveyLine] && (
-            <span
-              className="rounded px-2 py-1 text-[11px] font-black text-white"
-              style={{ background: lineColor(me.lines[surveyLine]) }}
-            >
-              {lineCode(me.lines[surveyLine])} · {lineLabel(me.lines[surveyLine])}
-            </span>
-          )}
-        </div>
-      )}
+
       <ul className="mt-3 space-y-1 text-xs">
         {game.surveyPins.map((pin, i) => {
           const owner = game.players[pin.playerId];
-          const line = owner?.lines[pin.lineIndex];
           return (
             <li key={i} className="flex items-center gap-2">
               <span className="h-2.5 w-2.5 rounded-full" style={{ background: owner?.color }} />
               <span className="font-semibold">{owner?.name}</span>
               <span className="text-stone-500">
-                {line ? lineLabel(line) : "line"} at {pin.x + 1},{pin.y + 1}
+                pinned {pin.x + 1},{pin.y + 1}
               </span>
             </li>
           );
@@ -1600,6 +1762,7 @@ function SchedulingPanel({
   const [period, setPeriod] = useState(1);
 
   const planning = game.schedulingStep === "PLANNING";
+  const waived = me.lines.reduce((sum, l) => sum + (l.mobilizationWaived ?? 0), 0);
   const problems = scheduleProblems(me);
   const cost = scheduleCost(me);
   const contested = contestedPeriods(game);
@@ -1624,6 +1787,15 @@ function SchedulingPanel({
         <span className="text-stone-500">Cash after</span>
         <b className={cost > me.money ? "text-red-700" : ""}>{money(me.money - cost)}</b>
       </div>
+      {waived > 0 && (
+        <p className="mt-1 text-xs text-emerald-800">
+          Early Mobilization waived <b>{money(waived)}</b> of mobilization surcharge — the increase
+          the earlier start caused, and nothing else. Base mobilization{" "}
+          <b>{money(mobilizationCost(me) + waived)}</b> → <b>{money(mobilizationCost(me))}</b>. Any
+          second-crew change from the move stays payable, and is included in the{" "}
+          <b>{money(crewCost(me))}</b> above.
+        </p>
+      )}
 
       {problems.length > 0 && (
         <ul className="mt-2 space-y-0.5 text-xs font-semibold text-red-800">
@@ -2107,11 +2279,26 @@ function PrivatePanel({
     <aside className="rounded-2xl bg-[#fffaf0] p-4 text-stone-900 shadow">
       <div className="flex items-center justify-between gap-2">
         <h3 className="font-black">Your company</h3>
-        <span className="rounded-full px-3 py-1 text-sm font-bold text-white" style={{ background: me.color }}>
-          {me.name} · {money(me.money)}
+        <span
+          className="rounded-full px-3 py-1 text-sm font-bold text-white"
+          style={{ background: me.money < 0 ? "#b91c1c" : me.color }}
+        >
+          {me.name} · {me.money < 0 ? `−${money(-me.money)}` : money(me.money)}
         </span>
       </div>
 
+      {me.money < 0 && (
+        <p className="mt-1 rounded-lg bg-red-100 px-2 py-1 text-xs font-semibold text-red-900">
+          In debt {money(-me.money)} from route contacts. If you finish here it costs{" "}
+          {me.money * SUBWAY_CONFIG.contact.debtVpPerMillion} VP. Contacts the opposition pays you
+          reduce it.
+        </p>
+      )}
+      {me.tollsPaid > 0 && (
+        <p className="mt-1 text-xs text-stone-600">
+          Paid {money(me.tollsPaid)} in route contacts so far.
+        </p>
+      )}
       <p className="mt-1 text-xs text-stone-600">
         You build first in <b>{me.id === game.oddPriorityId ? "odd" : "even"}</b> periods.
         {game.phase === "CONSTRUCTION" &&
@@ -2206,13 +2393,11 @@ function PrivatePanel({
           <b className="text-xs uppercase text-stone-500">Survey Pins (public)</b>
           <ul className="mt-1 space-y-0.5 text-xs">
             {myPins.map((pin, i) => {
-              const line = me.lines[pin.lineIndex];
               const done = surveyFulfilled(me, pin);
               return (
                 <li key={i} className="flex items-center gap-2">
-                  {line && contractOf(line) && <LineChip contract={contractOf(line)!} />}
                   <span className="text-stone-600">
-                    {pin.x + 1},{pin.y + 1} · {line ? lineLabel(line) : "line"}
+                    {pin.x + 1},{pin.y + 1} · any of your lines
                   </span>
                   <span className={`ml-auto font-black ${done ? "text-emerald-700" : "text-stone-400"}`}>
                     {done ? `✓ +${SUBWAY_CONFIG.survey.vp}` : "pending"}
@@ -2284,8 +2469,8 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
   const [chosen, setChosen] = useState<string[]>([]);
   const [assignments, setAssignments] = useState<Record<string, number>>({});
   const [surveys, setSurveys] = useState(0);
-  const [surveyLine, setSurveyLine] = useState(0);
   const [selectedLine, setSelectedLine] = useState(0);
+  const [preview, setPreview] = useState<PlacementTarget | null>(null);
   const [plannerLine, setPlannerLine] = useState<number | null>(null);
   const [ghost, setGhost] = useState<RouteNode[]>([]);
   const [busy, setBusy] = useState(false);
@@ -2369,6 +2554,46 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
     return [];
   }, [game, me, mode, activeLineIndex, placingStarter, plannerState, plannerLine, ghost]);
 
+  // The board as it would be if the selected target were confirmed. Yellow is
+  // derived from this by the reducer's own rules, so a following target is
+  // legal by exactly the rules the next placement will use.
+  const previewState = useMemo(() => {
+    if (!game || !me || !preview || activeLineIndex < 0 || mode !== "place") return undefined;
+    const clone = cloneState(game);
+    const line = clone.players[me.id]?.lines[activeLineIndex];
+    if (!line) return undefined;
+    const station = stationAt(preview);
+    line.route.push({
+      x: preview.x,
+      y: preview.y,
+      ...(station ? { stationId: station.id, stationSlot: preview.slot ?? 0 } : {}),
+    });
+    return clone;
+  }, [game, me, preview, activeLineIndex, mode]);
+
+  const following = useMemo<PlacementTarget[]>(() => {
+    if (!previewState || !me || activeLineIndex < 0) return [];
+    return legalTargets(previewState, me.id, activeLineIndex, false);
+  }, [previewState, me, activeLineIndex]);
+
+  // What the selected step would cost in contacts with the opposing network.
+  const previewContacts = useMemo<RouteContact[]>(() => {
+    if (!game || !me || !preview || activeLineIndex < 0 || placingStarter) return [];
+    const route = me.lines[activeLineIndex]?.route ?? [];
+    const from = route[route.length - 1];
+    if (!from) return [];
+    return routeContacts(game, me.id, from, { x: preview.x, y: preview.y });
+  }, [game, me, preview, activeLineIndex, placingStarter]);
+
+  // A routine poll must never cancel a selection in progress: the room refetches
+  // every second, so only a change that actually affects this preview clears it.
+  const previewKey = preview ? targetKey(preview) : "";
+  const targetKeys = targets.map(targetKey).join("|");
+  useEffect(() => {
+    if (!preview) return;
+    if (mode !== "place" || !targets.some((t) => targetKey(t) === previewKey)) setPreview(null);
+  }, [mode, activeLineIndex, previewKey, targetKeys, preview, targets]);
+
   const drawn = useMemo(() => {
     if (!game) return [];
     const out: {
@@ -2435,7 +2660,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
         return;
       }
       setNotice(null);
-      act("PLACE_SURVEY", { lineIndex: surveyLine, x: p.x, y: p.y });
+      act("PLACE_SURVEY", { x: p.x, y: p.y });
       return;
     }
 
@@ -2446,6 +2671,13 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
         return;
       }
       setNotice(null);
+      const target: PlacementTarget = { x: p.x, y: p.y, ...(stationAt(p) ? { slot } : {}) };
+      // First tap selects and previews. Second tap on the same target commits.
+      if (!preview || targetKey(preview) !== targetKey(target)) {
+        setPreview(target);
+        return;
+      }
+      setPreview(null);
       act(placingStarter ? "PLACE_STARTER" : "BUILD", {
         lineIndex: activeLineIndex,
         x: p.x,
@@ -2543,14 +2775,22 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
           {mode === "place" && activeLine && (
             <ActiveLineBanner line={activeLine} starter={placingStarter} targetCount={targets.length} />
           )}
-          <Board game={game} targets={targets} canAct={canAct} drawn={drawn} onTapHole={onTapHole} />
+          <Board
+            game={game}
+            targets={targets}
+            following={mode === "place" ? following : []}
+            selected={preview ?? undefined}
+            canAct={canAct}
+            drawn={drawn}
+            onTapHole={onTapHole}
+          />
           {notice && (
             <p className="rounded-xl bg-red-100 px-3 py-2 text-center text-sm font-bold text-red-900">{notice}</p>
           )}
           {!notice && canAct && me && mode === "survey" && (
             <p className="rounded-xl bg-emerald-100 px-3 py-2 text-center text-sm font-semibold text-emerald-900">
               Tap a glowing hole to pin a survey for your{" "}
-              {me.lines[surveyLine] ? lineLabel(me.lines[surveyLine]) : "line"}.
+              company — any of your lines can fulfil it.
             </p>
           )}
           {!notice && canAct && me && mode === "planner" && (
@@ -2564,6 +2804,57 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
                 ? `Tap a glowing hole to start your ${lineLabel(me.lines[activeLineIndex])} (stations not allowed).`
                 : `Tap a glowing hole, or a glowing station dock, to extend your ${lineLabel(me.lines[activeLineIndex])}.`}
             </p>
+          )}
+          {mode === "place" && preview && me && (
+            <div className="rounded-xl border-2 border-emerald-600 bg-emerald-50 px-4 py-3 text-sm text-stone-900">
+              <p className="font-bold">
+                Selected {preview.slot !== undefined
+                  ? `${stationById(stationAt(preview)?.id ?? "")?.name ?? "station"} dock ${preview.slot + 1}`
+                  : `hole ${preview.x + 1},${preview.y + 1}`}
+                . Tap it again to confirm.
+              </p>
+              <p className="mt-0.5 text-xs text-stone-600">
+                Dashed <b>2</b> markers show where this line could go after it. They are a preview,
+                not a commitment — the opposition may build first.
+              </p>
+              {!placingStarter && (
+                <div className="mt-2 border-t border-emerald-200 pt-2 text-xs">
+                  {previewContacts.length === 0 ? (
+                    <p>
+                      No contact with {opponentOf(game, me)?.name ?? "the opposition"}&apos;s network —{" "}
+                      <b>free</b>. Your own routes never charge you.
+                    </p>
+                  ) : (
+                    <>
+                      <p>
+                        <b>
+                          {previewContacts.length} contact{previewContacts.length === 1 ? "" : "s"}
+                        </b>{" "}
+                        with {opponentOf(game, me)?.name ?? "the opposition"}&apos;s network ·{" "}
+                        <b>{money(contactToll(previewContacts))}</b> paid to them.
+                      </p>
+                      <p className="mt-0.5 text-stone-600">
+                        {previewContacts.map((c) => c.kind).join(", ")} · cash after{" "}
+                        <b className={me.money - contactToll(previewContacts) < 0 ? "text-red-700" : ""}>
+                          {money(me.money - contactToll(previewContacts))}
+                        </b>
+                        {me.money - contactToll(previewContacts) < 0 && (
+                          <>
+                            {" "}
+                            · projected debt penalty{" "}
+                            <b className="text-red-700">
+                              {(me.money - contactToll(previewContacts)) *
+                                SUBWAY_CONFIG.contact.debtVpPerMillion}{" "}
+                              VP
+                            </b>
+                          </>
+                        )}
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           )}
           {canUndo && (
             <div className="flex items-center justify-center gap-3 rounded-xl bg-amber-100 px-3 py-2 text-sm">
@@ -2607,6 +2898,9 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
 
         <div className="min-w-0 space-y-4">
           {game.phase === "PROCUREMENT" && me && <ProcurementPanel game={game} me={me} busy={busy} act={act} />}
+          {game.phase === "ENGINEERING" && game.engineeringStep === "DESTINATION_DRAFT" && me && (
+            <DestinationDraftPanel game={game} me={me} busy={busy} act={act} />
+          )}
           {game.phase === "ENGINEERING" && game.engineeringStep === "PLAN" && me && (
             <EngineeringPlanPanel
               me={me}
@@ -2621,7 +2915,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
             />
           )}
           {game.phase === "ENGINEERING" && game.engineeringStep === "SURVEY" && me && (
-            <SurveyPanel game={game} me={me} surveyLine={surveyLine} setSurveyLine={setSurveyLine} />
+            <SurveyPanel game={game} me={me} />
           )}
           {game.phase === "SCHEDULING" && me && <SchedulingPanel game={game} me={me} busy={busy} act={act} />}
           {game.phase === "STARTER_PLACEMENT" && me && <StarterPanel game={game} me={me} />}
