@@ -3,7 +3,7 @@
 **Phase:** BUILDING
 **Status:** Active
 **Created:** 2026-08-25
-**Updated:** 2026-08-27
+**Updated:** 2026-08-28
 **Build OS:** v0.5
 
 ## Goal
@@ -216,7 +216,8 @@ Destinations.
 
 **Implemented on [#144](https://github.com/50thycal/party-games/pull/144).** OD-1 through OD-15 are
 built. The framework gate was cleared by the Build OS v0.5 adoption in
-[#145](https://github.com/50thycal/party-games/pull/145), which the owner authorised on 2026-08-27.
+[#145](https://github.com/50thycal/party-games/pull/145), which the owner authorised and which
+merged on 2026-08-27; `main` has since been merged into the implementation branch.
 
 What exists now:
 
@@ -251,7 +252,8 @@ Validation: `./scripts/test-subway.sh`, `npm run build`, and `npm run lint` all 
 | PR | Verdict | Reviewed head | Finalization |
 |---|---|---|---|
 | [#143](https://github.com/50thycal/party-games/pull/143) | Not started | — | — |
-| [#144](https://github.com/50thycal/party-games/pull/144) | Changes required | `c833cab1bb94fc1e5f163ba2888ac4b58601d28f` | Not started |
+| [#144](https://github.com/50thycal/party-games/pull/144) | Changes required (design package; corrected in `513aaf2`) | `c833cab1bb94fc1e5f163ba2888ac4b58601d28f` | Not started |
+| [#145](https://github.com/50thycal/party-games/pull/145) | Approved — merged 2026-08-27 | — | Complete |
 
 #143 was a documentation-only handoff merged before implementation and makes no independent-review
 claim. The continuation PR is the review unit for the amended spec and eventual implementation.
@@ -283,5 +285,5 @@ the same PR — so the review unit is now the implementation head, not `c833cab`
 ## Next Step
 
 Independent review of #144 against the approved Build Card and Build Spec, naming the current full
-head SHA. #145 (Build OS v0.5 adoption) should land first. Then the owner's balance playtest of the
-$1M contact toll, the -2 VP debt rate, and the trimmed recipes.
+head SHA. The #145 framework gate is cleared. Then the owner's balance playtest of the $1M contact
+toll, the -2 VP debt rate, and the trimmed recipes.

@@ -3,7 +3,7 @@
 <!-- The project's active-work control board. What are we working on and where is each
      effort? One line per workstream; anything needing a paragraph belongs in its file. -->
 
-**Updated:** 2026-08-27 · **Build OS v0.4**
+**Updated:** 2026-08-28 · **Build OS v0.5**
 
 | ID | Workstream | Phase | Status | Current Next Step | Related PR |
 |---|---|---|---|---|---|
