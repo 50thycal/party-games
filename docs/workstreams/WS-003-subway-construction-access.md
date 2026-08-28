@@ -1,6 +1,6 @@
 # WS-003 — Subway construction access and route lookahead
 
-**Phase:** BUILDING
+**Phase:** REVIEW
 **Status:** Active
 **Created:** 2026-08-25
 **Updated:** 2026-08-28
@@ -217,7 +217,8 @@ Destinations.
 **Implemented on [#144](https://github.com/50thycal/party-games/pull/144).** OD-1 through OD-15 are
 built. The framework gate was cleared by the Build OS v0.5 adoption in
 [#145](https://github.com/50thycal/party-games/pull/145), which the owner authorised and which
-merged on 2026-08-27; `main` has since been merged into the implementation branch.
+merged on 2026-08-27. #144 merged to `main` on 2026-08-28 at
+`9c3e851989a2c15c3784bc7ebf1e70e7ab55fdb3`.
 
 What exists now:
 
@@ -252,11 +253,21 @@ Validation: `./scripts/test-subway.sh`, `npm run build`, and `npm run lint` all 
 | PR | Verdict | Reviewed head | Finalization |
 |---|---|---|---|
 | [#143](https://github.com/50thycal/party-games/pull/143) | Not started | — | — |
-| [#144](https://github.com/50thycal/party-games/pull/144) | Changes required (design package; corrected in `513aaf2`) | `c833cab1bb94fc1e5f163ba2888ac4b58601d28f` | Not started |
+| [#144](https://github.com/50thycal/party-games/pull/144) | Changes required (design package; corrected in `513aaf2`). **No verdict recorded against the implementation head** | `c833cab1bb94fc1e5f163ba2888ac4b58601d28f` | Not started at merge |
 | [#145](https://github.com/50thycal/party-games/pull/145) | Approved — merged 2026-08-27 | — | Complete |
 
 #143 was a documentation-only handoff merged before implementation and makes no independent-review
 claim. The continuation PR is the review unit for the amended spec and eventual implementation.
+
+**Recorded honestly:** #144 was merged by the owner on 2026-08-28 with no independent verdict against
+its implementation head. The only verdict on that PR is the design-package one above, against
+`c833cab`, which the implementation superseded. The implementing agent did not approve or merge it.
+This is an owner decision, noted here so `main` does not imply a review that did not happen; per
+`AGENTS.md` rule 11, owner direction replaces the merger, not the reviewer. A retrospective
+independent review of the merged implementation remains available if the owner wants one, and would
+be recorded as a new row rather than backfilled into this one. The merge also landed without the
+documentation-only finalization commit rule 12 calls for; this workstream update is that
+reconciliation, applied after the fact.
 
 The design-package review of head `c833cab` returned **Changes required** with seven findings: a
 `view()` secrecy mechanism that does not exist in this engine, two repository paths that do not
@@ -284,6 +295,9 @@ the same PR — so the review unit is now the implementation head, not `c833cab`
 
 ## Next Step
 
-Independent review of #144 against the approved Build Card and Build Spec, naming the current full
-head SHA. The #145 framework gate is cleared. Then the owner's balance playtest of the $1M contact
-toll, the -2 VP debt rate, and the trimmed recipes.
+The owner's balance playtest of the merged behaviour: the $1M contact toll, the -2 VP debt rate, the
+trimmed recipes, and whether an open board with paid contacts plays better than blockers did. Two
+gaps from the implementation PR are still open and belong to that pass or a follow-up: debt has never
+been reached in a browser session, only in reducer tests, and hotseat mode was not exercised. An
+independent review of the merged implementation was never performed and is optional now that the
+change has landed — see `Review State`.
