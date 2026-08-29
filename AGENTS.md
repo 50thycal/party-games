@@ -4,7 +4,7 @@
 
 - Canonical framework: [50thycal/build-os](https://github.com/50thycal/build-os)
 - Adopted version: v0.5
-- Last compatibility check: v0.5 on 2026-08-27
+- Last compatibility check: v0.5 on 2026-08-29
 
 Before substantial design or architectural work, compare the adopted version against
 `VERSION.md` in the canonical repository and act on the delta — see `framework/FRAMEWORK_SYNC.md`.
