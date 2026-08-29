@@ -205,16 +205,17 @@ move, and immediately understand what changed without scrolling away from the bo
 
 ## Implementation State
 
-Implemented 2026-08-29 by Claude and delivered as PR
-[#148](https://github.com/50thycal/party-games/pull/148), stacked onto the head branch of Design
-Handoff PR [#147](https://github.com/50thycal/party-games/pull/147) (the executing session could
-push only to its designated branch; merging #148 lands every commit on #147, which remains the
-single implementation PR toward `main`). Shipped: board-centred tabletop console with opponent
-public mat, private player mat, event rail, and minimap; saved Plan Mode through Construction in
-versioned client storage with stale marking; select/reposition/Confirm placement; reducer-enforced
-border-only starters with NOW/NEXT marker precedence; bounded privacy-safe public event stream with
-pegboard narration (state version 8); phone bottom-sheet tabs with a height-filling board; hotseat
-handoff veil. Card expansion stays excluded per OD-12. Validation: focused reducer harness
+Merged. Implemented 2026-08-29 by Claude, delivered as PR
+[#148](https://github.com/50thycal/party-games/pull/148) stacked onto Design Handoff PR
+[#147](https://github.com/50thycal/party-games/pull/147)'s branch; the owner merged #148 into that
+branch (`33202316234b60d016e0decd2b50e1eb0bbfc209`) and then #147 to `main`
+(`ff4627dd1fdf959bb1eba5ac37fa099fb87796ab`) on 2026-08-29. The production Vercel deployment of
+that head is READY. Shipped: board-centred tabletop console with opponent public mat, private
+player mat, event rail, and minimap; saved Plan Mode through Construction in versioned client
+storage with stale marking; select/reposition/Confirm placement; reducer-enforced border-only
+starters with NOW/NEXT marker precedence; bounded privacy-safe public event stream with pegboard
+narration (state version 8); phone bottom-sheet tabs with a height-filling board; hotseat handoff
+veil. Card expansion stays excluded per OD-12. Validation before merge: focused reducer harness
 (extended for WS-004), production build, lint, `git diff --check`, and a scripted Chromium playtest
 covering desktop 1440×980, phone 390×844 touch, and hotseat veiling.
 
@@ -222,8 +223,12 @@ covering desktop 1440×980, phone 390×844 touch, and hotseat veiling.
 
 | PR | Verdict | Reviewed head | Finalization |
 |---|---|---|---|
-| [#148](https://github.com/50thycal/party-games/pull/148) (implementation, stacks into #147) | Not started | — | — |
-| [#147](https://github.com/50thycal/party-games/pull/147) | Not started | — | — |
+| [#148](https://github.com/50thycal/party-games/pull/148) (implementation, stacked into #147) | Merged by owner 2026-08-29 with no recorded verdict | — | — |
+| [#147](https://github.com/50thycal/party-games/pull/147) | Merged to `main` by owner 2026-08-29 with no recorded verdict | — | Not pushed; superseded by this post-merge reconciliation |
+
+Recorded rather than backfilled so `main` does not imply a review that did not happen: no
+independent verdict was posted on either PR before the owner merged them (owner direction replaces
+the merger under protocol rule 11; it does not replace the reviewer, so the gap is recorded here).
 
 ## Related Decisions
 
@@ -237,14 +242,15 @@ covering desktop 1440×980, phone 390×844 touch, and hotseat veiling.
 - [#144](https://github.com/50thycal/party-games/pull/144) — merged WS-003 implementation this
   playtest evaluates.
 - [#147](https://github.com/50thycal/party-games/pull/147) — WS-004 Design Handoff and
-  implementation PR.
+  implementation PR (merged to `main` 2026-08-29; carries the Implementation Handoff).
 - [#148](https://github.com/50thycal/party-games/pull/148) — WS-004 implementation, stacked onto
-  #147's head branch; carries the Implementation Handoff.
+  #147's head branch (merged into it 2026-08-29).
 
 ## Next Step
 
-Independent review of PR [#148](https://github.com/50thycal/party-games/pull/148) against its
-current full head SHA (the implementation actor may not approve or merge). After #148 lands on
-#147's branch, adopt the Implementation Handoff as #147's body and run the v0.5 review gate and
-merge finalization on #147. Card expansion stays untouched until the owner reviews the audit and
-approves a follow-up card.
+Owner playtest of the merged tabletop console in production — desktop, phone, and hotseat, with
+particular attention to saved plans surviving refresh, the Confirm flow under real two-device play,
+and narration pacing. Separately, owner review of
+[the card audit](../subway-card-audit.md): any Scheduling/Construction card expansion needs
+explicit owner selections, economics, copy, availability, and tests under an amended Build Card or
+a follow-up workstream (OD-12).
