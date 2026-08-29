@@ -4,17 +4,25 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { GameViewProps } from "@/games/views";
 import { DestinationCardFace, EngineeringCardFace } from "./CardArt";
+import { CardShell, ContractCard, LineChip, RecipeStrip, money } from "./cards";
 import {
-  DESTINATION_CARDS,
+  EventRail,
+  HandoffVeil,
+  NarrationOverlay,
+  OpponentMat,
+  PlayerMat,
+  useNarration,
+  type PlanChip,
+} from "./tabletop";
+import { clearPlan, loadPlan, reconcilePlan, savePlan, type PlanStatus, type SavedPlan } from "./plans";
+import {
   STATIONS,
   SUBWAY_CONFIG,
   SUBWAY_STATE_VERSION,
-  actionsRemaining,
   basePriorityId,
   blockFits,
   blockPeriods,
   buyBlocker,
-  committedStatus,
   concurrentBlocks,
   constructionById,
   contestedPeriods,
@@ -25,9 +33,9 @@ import {
   contractsOutstanding,
   crewCost,
   destinationById,
+  destinationMet,
   destinationTurnId,
   destinationsHeld,
-  destinationMet,
   destinationProblems,
   engineeringById,
   contactToll,
@@ -38,7 +46,6 @@ import {
   marketEngineering,
   marketScheduling,
   mobilizationCost,
-  mobilizationFor,
   mustBuyOffer,
   nextSegmentLength,
   nodePoint,
@@ -47,7 +54,6 @@ import {
   periodPriorityId,
   scheduleCost,
   scheduleProblems,
-  scheduledLines,
   schedulingById,
   segmentsBuilt,
   slotPoint,
@@ -77,8 +83,6 @@ import {
 // Small helpers
 // ============================================================================
 
-const money = (n: number) => `$${n}M`;
-
 const PHASE_LABELS: Record<string, string> = {
   SETUP: "Setup",
   PROCUREMENT: "Procurement",
@@ -91,8 +95,6 @@ const PHASE_LABELS: Record<string, string> = {
 };
 
 const lineLabel = (line: PlayerLine): string => contractOf(line)?.name ?? "Line";
-const lineColor = (line: PlayerLine): string => contractOf(line)?.color ?? "#78716c";
-const lineCode = (line: PlayerLine): string => contractOf(line)?.code ?? "?";
 
 const opponentOf = (game: SubwayState, me: SubwayPlayer): SubwayPlayer | undefined =>
   game.playerOrder.map((id) => game.players[id]).find((p) => p && p.id !== me.id);
@@ -176,7 +178,7 @@ function statusFor(game: SubwayState, me: SubwayPlayer | undefined, isHost: bool
       return {
         headline: `Place a Survey Pin — ${surveysPending(game, me.id)} left.`,
         tone: "act",
-        detail: "Pick the line it serves, then tap a normal hole. Pins are public and reserve nothing.",
+        detail: "Tap a normal hole. Pins are public and reserve nothing.",
       };
     }
     case "SCHEDULING":
@@ -206,7 +208,7 @@ function statusFor(game: SubwayState, me: SubwayPlayer | undefined, isHost: bool
       return {
         headline: `Place the free starter peg for your ${lineLabel(me.lines[pending[0]])}.`,
         tone: "act",
-        detail: pending.length > 1 ? `${pending.length} of your scheduled contracts still need one.` : undefined,
+        detail: "Starters enter from the edge: only border holes glow.",
       };
     }
     case "CONSTRUCTION": {
@@ -218,7 +220,7 @@ function statusFor(game: SubwayState, me: SubwayPlayer | undefined, isHost: bool
           detail:
             me.pendingActions.length > 1
               ? `${me.pendingActions.length} actions scheduled this period.`
-              : "Tap a highlighted hole or station dock to extend the active line.",
+              : "Tap a highlighted target to select it, then Confirm.",
         };
       }
       return {
@@ -236,194 +238,6 @@ function statusFor(game: SubwayState, me: SubwayPlayer | undefined, isHost: bool
     default:
       return { headline: game.message, tone: "info" };
   }
-}
-
-// ============================================================================
-// Card primitives
-// ============================================================================
-
-function CardShell({
-  title,
-  tag,
-  children,
-  selected,
-  disabled,
-  disabledReason,
-  onClick,
-}: {
-  title: string;
-  tag?: string;
-  children?: React.ReactNode;
-  selected?: boolean;
-  disabled?: boolean;
-  disabledReason?: string;
-  onClick?: () => void;
-}) {
-  const interactive = !!onClick && !disabled;
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={!interactive}
-      className={`w-44 shrink-0 rounded-xl border-2 p-3 text-left shadow-sm transition ${
-        selected ? "border-amber-500 bg-amber-100 ring-2 ring-amber-300" : "border-stone-300 bg-[#fffaf0]"
-      } ${disabled ? "opacity-45" : interactive ? "hover:-translate-y-0.5 hover:border-stone-400" : ""}`}
-    >
-      <div className="flex items-start justify-between gap-1">
-        <strong className="text-sm leading-tight text-stone-900">{title}</strong>
-        {tag && (
-          <span className="rounded bg-stone-800 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-100">
-            {tag}
-          </span>
-        )}
-      </div>
-      {children && <p className="mt-1 text-xs leading-snug text-stone-600">{children}</p>}
-      {disabled && disabledReason && (
-        <p className="mt-1 text-[11px] font-semibold text-red-800">{disabledReason}</p>
-      )}
-    </button>
-  );
-}
-
-/** The line's badge: color plus its letter code, so color is never the only cue. */
-function LineChip({ contract, subdued }: { contract: LineContract; subdued?: boolean }) {
-  return (
-    <span
-      className={`inline-flex h-5 w-5 items-center justify-center rounded text-[11px] font-black text-white ${
-        subdued ? "opacity-50" : ""
-      }`}
-      style={{ background: contract.color }}
-      title={contract.name}
-    >
-      {contract.code}
-    </span>
-  );
-}
-
-/**
- * The ordered recipe as chips: what is built, what is being built now, and
- * what is still to come. This is the player's copy of the contract's shape.
- */
-function RecipeStrip({
-  contract,
-  built,
-  highlightCurrent = true,
-}: {
-  contract: LineContract;
-  built: number;
-  highlightCurrent?: boolean;
-}) {
-  return (
-    <div className="flex flex-wrap items-center gap-1">
-      {contract.recipe.map((length, i) => {
-        const done = i < built;
-        const current = highlightCurrent && i === built;
-        return (
-          <span
-            key={i}
-            className={`inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded px-1 text-[11px] font-black tabular-nums ${
-              done
-                ? "text-white"
-                : current
-                  ? "ring-2 ring-offset-1"
-                  : "bg-stone-200 text-stone-500"
-            }`}
-            style={
-              done
-                ? { background: contract.color }
-                : current
-                  ? { color: contract.color, background: "#fff" }
-                  : undefined
-            }
-            title={
-              done ? `Segment ${i + 1}: ${length} pegs — built` : `Segment ${i + 1}: ${length} pegs`
-            }
-          >
-            {done ? "✓" : length}
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
-function ContractCard({
-  contract,
-  /** Price actually being asked, when it differs from the list price. */
-  price,
-  progress,
-  status,
-  owner,
-  children,
-}: {
-  contract: LineContract;
-  price?: number;
-  progress?: { built: number; total: number };
-  status?: string;
-  owner?: SubwayPlayer;
-  children?: React.ReactNode;
-}) {
-  const discounted = price !== undefined && price < contract.cost;
-  return (
-    <div
-      className="w-full rounded-xl border-2 bg-[#fffaf0] p-3 text-left text-stone-900 shadow-sm"
-      style={{ borderColor: contract.color }}
-    >
-      <div className="flex items-baseline justify-between gap-2">
-        <strong className="flex items-center gap-1.5 text-sm">
-          <LineChip contract={contract} />
-          {contract.name}
-        </strong>
-        {status ? (
-          <span className="rounded bg-stone-800 px-1.5 py-0.5 text-[10px] font-black uppercase text-amber-100">
-            {status}
-          </span>
-        ) : progress ? (
-          <span className="text-sm font-black">
-            {progress.built}/{progress.total}
-          </span>
-        ) : (
-          <span className="text-sm font-black">
-            {discounted && <span className="mr-1 font-normal text-stone-400 line-through">{money(contract.cost)}</span>}
-            {money(price ?? contract.cost)}
-          </span>
-        )}
-      </div>
-      {owner && (
-        <p className="mt-0.5 flex items-center gap-1 text-[11px] font-bold text-stone-500">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: owner.color }} />
-          {owner.name}
-        </p>
-      )}
-      <div className="mt-1.5">
-        <RecipeStrip
-          contract={contract}
-          built={progress ? Math.max(0, progress.built - 1) : 0}
-          highlightCurrent={!!progress && progress.built > 0}
-        />
-        <p className="mt-0.5 text-[10px] uppercase tracking-wide text-stone-400">
-          ordered segment lengths (pegs)
-        </p>
-      </div>
-      <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] text-stone-600">
-        <span>{contractNodes(contract)} nodes</span>
-        <span>{contractActions(contract)} build periods</span>
-        <span>Complete +{contract.completionVp} VP</span>
-        <span>Major +{contract.stationBonus} VP</span>
-        <span className="col-span-2">Incomplete {contract.incompletePenalty} VP</span>
-      </div>
-      {contract.special && <p className="mt-1 text-[11px] font-semibold text-amber-800">{contract.special}</p>}
-      {progress && (
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-200">
-          <div
-            className="h-full rounded-full"
-            style={{ width: `${(progress.built / progress.total) * 100}%`, background: contract.color }}
-          />
-        </div>
-      )}
-      {children}
-    </div>
-  );
 }
 
 // ============================================================================
@@ -458,7 +272,7 @@ const clampView = (v: ViewTransform): ViewTransform => {
   return { scale, x: bound(VB_W, v.x), y: bound(VB_H, v.y) };
 };
 
-/** A line drawn on the board — a real route, or the planner's ghost. */
+/** A line drawn on the board — a real route, or a phantom plan/sketch. */
 type DrawnLine = {
   key: string;
   route: RouteNode[];
@@ -467,7 +281,95 @@ type DrawnLine = {
   active: boolean;
   growing: boolean;
   ghost?: boolean;
+  /** A saved plan that no longer matches reality; drawn extra-faint. */
+  stale?: boolean;
+  /** route[0] is a real node used only to anchor the first phantom segment. */
+  anchored?: boolean;
+  /** Index of route[0] within the full intended route, for peg numbering. */
+  numberOffset?: number;
 };
+
+/**
+ * How the svg element maps viewBox units to CSS pixels. The board fills the
+ * element (`slice`), so on a phone the corridor is taller than aspect-fit
+ * would allow and the sides pan into view; on desktop the element keeps the
+ * board's own aspect ratio and this degenerates to the plain width fit.
+ */
+const frameMetrics = (w: number, h: number) => {
+  const scaleF = Math.max(w / VB_W, h / VB_H);
+  return { scaleF, ox: (w - VB_W * scaleF) / 2, oy: (h - VB_H * scaleF) / 2 };
+};
+
+/** Compact overview with the current viewport, so a zoomed-in phone never
+ *  loses the rest of the corridor. Indicator only — panning stays on the board. */
+function Minimap({
+  drawn,
+  view,
+  svgSize,
+}: {
+  drawn: DrawnLine[];
+  view: ViewTransform;
+  svgSize: { w: number; h: number } | null;
+}) {
+  const m = svgSize ? frameMetrics(svgSize.w, svgSize.h) : undefined;
+  const vp = m
+    ? {
+        x: ((0 - m.ox) / m.scaleF - view.x) / view.scale,
+        y: ((0 - m.oy) / m.scaleF - view.y) / view.scale,
+        w: (svgSize!.w / m.scaleF) / view.scale,
+        h: (svgSize!.h / m.scaleF) / view.scale,
+      }
+    : { x: (0 - view.x) / view.scale, y: (0 - view.y) / view.scale, w: VB_W / view.scale, h: VB_H / view.scale };
+  return (
+    <svg
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      className="block w-36 rounded-md sm:w-44"
+      style={{ background: "#43301f" }}
+      aria-hidden
+    >
+      <rect x="16" y="16" width={VB_W - 32} height={VB_H - 32} rx="26" fill="#b98a58" opacity="0.7" />
+      {STATIONS.map((s) => {
+        const p = holePos(s);
+        return (
+          <rect
+            key={s.id}
+            x={p.x - 34}
+            y={p.y - 26}
+            width="68"
+            height="52"
+            rx="10"
+            fill={s.kind === "major" ? "#24384c" : "#4f6357"}
+          />
+        );
+      })}
+      {drawn.map((d) =>
+        d.route.length > 1 ? (
+          <polyline
+            key={`mm-${d.key}`}
+            points={d.route.map((n) => `${nodePx(n).x},${nodePx(n).y}`).join(" ")}
+            fill="none"
+            stroke={d.contract.color}
+            strokeWidth="16"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeDasharray={d.ghost ? "24 24" : undefined}
+            opacity={d.ghost ? 0.5 : 1}
+          />
+        ) : null
+      )}
+      <rect
+        x={vp.x}
+        y={vp.y}
+        width={vp.w}
+        height={vp.h}
+        fill="none"
+        stroke="#fdf6e3"
+        strokeWidth="18"
+        rx="20"
+      />
+    </svg>
+  );
+}
 
 function Board({
   game,
@@ -477,6 +379,7 @@ function Board({
   canAct,
   drawn,
   onTapHole,
+  overlay,
 }: {
   game: SubwayState;
   targets: PlacementTarget[];
@@ -486,9 +389,13 @@ function Board({
   canAct: boolean;
   drawn: DrawnLine[];
   onTapHole: (p: Point, slot?: number) => void;
+  /** Narration and other decorations layered over the board. */
+  overlay?: React.ReactNode;
 }) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [view, setView] = useState<ViewTransform>({ scale: 1, x: 0, y: 0 });
+  const [showMini, setShowMini] = useState(true);
+  const [svgSize, setSvgSize] = useState<{ w: number; h: number } | null>(null);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const gesture = useRef<{
     moved: boolean;
@@ -496,16 +403,29 @@ function Board({
     pinch: { dist: number; view: ViewTransform } | null;
   }>({ moved: false, last: null, pinch: null });
 
+  // Track the element size so tap mapping and the minimap viewport stay exact
+  // under the phone's height-filling crop.
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const ro = new ResizeObserver((entries) => {
+      const r = entries[0].contentRect;
+      setSvgSize({ w: r.width, h: r.height });
+    });
+    ro.observe(svg);
+    return () => ro.disconnect();
+  }, []);
+
   const pxToVb = () => {
     const rect = svgRef.current?.getBoundingClientRect();
-    return rect && rect.width > 0 ? VB_W / rect.width : 1;
+    return rect && rect.width > 0 ? 1 / frameMetrics(rect.width, rect.height).scaleF : 1;
   };
 
   const clientToBoard = (clientX: number, clientY: number) => {
     const rect = svgRef.current!.getBoundingClientRect();
-    const f = pxToVb();
-    const vx = (clientX - rect.left) * f;
-    const vy = (clientY - rect.top) * f;
+    const m = frameMetrics(rect.width, rect.height);
+    const vx = (clientX - rect.left - m.ox) / m.scaleF;
+    const vy = (clientY - rect.top - m.oy) / m.scaleF;
     return { x: (vx - view.x) / view.scale, y: (vy - view.y) / view.scale };
   };
 
@@ -525,9 +445,9 @@ function Board({
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const rect = svg.getBoundingClientRect();
-      const f = VB_W / rect.width;
-      const vx = (e.clientX - rect.left) * f;
-      const vy = (e.clientY - rect.top) * f;
+      const m = frameMetrics(rect.width, rect.height);
+      const vx = (e.clientX - rect.left - m.ox) / m.scaleF;
+      const vy = (e.clientY - rect.top - m.oy) / m.scaleF;
       setView((v) => {
         const scale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v.scale * (e.deltaY < 0 ? 1.15 : 1 / 1.15)));
         const ax = (vx - v.x) / v.scale;
@@ -561,9 +481,9 @@ function Board({
       if (dist > 0 && gesture.current.pinch.dist > 0) {
         const start = gesture.current.pinch.view;
         const rect = svgRef.current!.getBoundingClientRect();
-        const f = VB_W / rect.width;
-        const midX = ((a.x + b.x) / 2 - rect.left) * f;
-        const midY = ((a.y + b.y) / 2 - rect.top) * f;
+        const m = frameMetrics(rect.width, rect.height);
+        const midX = ((a.x + b.x) / 2 - rect.left - m.ox) / m.scaleF;
+        const midY = ((a.y + b.y) / 2 - rect.top - m.oy) / m.scaleF;
         const scale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, start.scale * (dist / gesture.current.pinch.dist)));
         const ax = (midX - start.x) / start.scale;
         const ay = (midY - start.y) / start.scale;
@@ -601,7 +521,8 @@ function Board({
 
     // Snap the tap to the nearest peg hole. Station tiles get a wider radius so
     // tapping anywhere on the tile docks the line — but the *dock* is whichever
-    // one the tap actually landed nearest, never an automatic choice.
+    // one the tap actually landed nearest, never an automatic choice. A pan is
+    // never a tap, so panning can never select — let alone confirm — a peg.
     const board = clientToBoard(e.clientX, e.clientY);
     const cell = { x: Math.round((board.x - PAD) / STEP), y: Math.round((board.y - PAD) / STEP) };
     if (
@@ -635,6 +556,7 @@ function Board({
   const targetSet = new Set(targets.map(targetKey));
   const followingSet = new Set(following.map(targetKey));
   const targetCells = new Set(targets.map((t) => `${t.x},${t.y}`));
+  const hasSelection = !!selected;
 
   const cells: Point[] = [];
   for (let y = 0; y < SUBWAY_CONFIG.board.rows; y++) {
@@ -648,7 +570,7 @@ function Board({
     );
 
   return (
-    <section className="overflow-hidden rounded-3xl border-4 border-[#5d4127] bg-[#8a6844] shadow-2xl">
+    <section className="relative overflow-hidden rounded-3xl border-4 border-[#5d4127] bg-[#8a6844] shadow-2xl">
       <div className="flex items-center justify-between gap-2 bg-[#43301f] px-3 py-2 text-amber-50">
         <strong className="text-xs tracking-widest sm:text-sm">METROPOLITAN PEGBOARD</strong>
         <div className="flex items-center gap-1.5 text-sm">
@@ -662,14 +584,29 @@ function Board({
           <button onClick={() => setView({ scale: 1, x: 0, y: 0 })} className="rounded-md bg-white/15 px-2 py-0.5 text-xs hover:bg-white/25">
             Reset
           </button>
+          <button
+            onClick={() => setShowMini(!showMini)}
+            className="rounded-md bg-white/15 px-2 py-0.5 text-xs hover:bg-white/25"
+            aria-pressed={showMini}
+          >
+            Map
+          </button>
         </div>
       </div>
+
+      {overlay}
+
+      {showMini && (
+        <div className="pointer-events-none absolute bottom-2 right-2 z-10 rounded-lg border border-[#43301f]/70 shadow-lg">
+          <Minimap drawn={drawn} view={view} svgSize={svgSize} />
+        </div>
+      )}
 
       <svg
         ref={svgRef}
         viewBox={`0 0 ${VB_W} ${VB_H}`}
-        style={{ aspectRatio: `${VB_W} / ${VB_H}` }}
-        className={`w-full touch-none select-none ${canAct ? "cursor-crosshair" : "cursor-grab"}`}
+        preserveAspectRatio="xMidYMid slice"
+        className={`block h-[46vh] min-h-[240px] w-full touch-none select-none lg:aspect-[2256/780] lg:h-auto lg:min-h-0 ${canAct ? "cursor-crosshair" : "cursor-grab"}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -716,20 +653,24 @@ function Board({
                   fontWeight="800"
                   fill={done ? "#ffffff" : owner?.color ?? "#78716c"}
                 >
-                  {done ? "\u2713" : "S"}
+                  {done ? "✓" : "S"}
                 </text>
                 <circle cx={cx} cy={cy} r="14.5" fill="none" stroke={owner?.color ?? "#000"} strokeWidth="2" opacity="0.85" />
               </g>
             );
           })}
 
-          {/* Station tiles with one docking slot per unit of capacity */}
+          {/* Station tiles with one docking slot per unit of capacity.
+              Marker precedence inside a tile (OD-7 / R 5.4): unselected current
+              targets dim once anything is selected, a NEXT marker wins over an
+              unselected current target on the same dock, and the selected NOW
+              ring renders on top of everything. */}
           {STATIONS.map((s) => {
             const p = holePos(s);
             const major = s.kind === "major";
             const w = major ? 76 : 64;
             const h = 56;
-            const highlight = targetCells.has(`${s.x},${s.y}`);
+            const highlight = targetCells.has(`${s.x},${s.y}`) && !hasSelection;
             const openDocks = Array.from({ length: s.capacity }, (_, i) => i).filter((i) => !dockedIn(s.id, i));
             const full = openDocks.length === 0;
             // Two-word names wrap so they never spill outside the tile.
@@ -767,56 +708,75 @@ function Board({
                   const dx = c.x - p.x;
                   const dy = c.y - p.y;
                   const docked = dockedIn(s.id, slot);
-                  const open = targetSet.has(`${s.x},${s.y},${slot}`);
-                  const nextOpen = followingSet.has(`${s.x},${s.y},${slot}`);
+                  const key = `${s.x},${s.y},${slot}`;
+                  const open = targetSet.has(key);
+                  const nextOpen = followingSet.has(key);
                   const isSelected =
                     !!selected && selected.x === s.x && selected.y === s.y && selected.slot === slot;
                   return (
                     <g key={slot}>
-                      {nextOpen && !open && (
+                      {open && !isSelected && (
+                        <circle
+                          cx={dx}
+                          cy={dy}
+                          r="13"
+                          fill="#4ade80"
+                          opacity={hasSelection ? 0.12 : 0.35}
+                          data-target={key}
+                          data-step="1"
+                        >
+                          {!hasSelection && (
+                            <animate attributeName="opacity" values="0.65;0.2;0.65" dur="1.6s" repeatCount="indefinite" />
+                          )}
+                        </circle>
+                      )}
+                      {nextOpen && (!open || hasSelection) && (
                         <circle
                           cx={dx}
                           cy={dy}
                           r="12"
                           fill="#facc15"
-                          opacity="0.2"
+                          opacity="0.25"
                           stroke="#ca8a04"
                           strokeWidth="2.5"
                           strokeDasharray="5 4"
-                          data-target={`${s.x},${s.y},${slot}`}
+                          data-target={key}
                           data-step="2"
                         />
-                      )}
-                      {open && (
-                        <circle
-                          cx={dx}
-                          cy={dy}
-                          r={isSelected ? 15 : 13}
-                          fill="#4ade80"
-                          opacity={isSelected ? 0.55 : 0.35}
-                          stroke={isSelected ? "#15803d" : undefined}
-                          strokeWidth={isSelected ? 4 : undefined}
-                          data-target={`${s.x},${s.y},${slot}`}
-                          data-step="1"
-                          data-selected={isSelected ? "true" : undefined}
-                        >
-                          {!isSelected && (
-                            <animate attributeName="opacity" values="0.65;0.2;0.65" dur="1.6s" repeatCount="indefinite" />
-                          )}
-                        </circle>
                       )}
                       <circle
                         cx={dx}
                         cy={dy}
                         r="9"
                         fill={docked ? docked.contract.color : "#00000055"}
-                        stroke={open ? "#4ade80" : docked ? "#ffffff" : "#f5d98a"}
-                        strokeWidth={open ? 3 : 2}
+                        stroke={open && !hasSelection ? "#4ade80" : docked ? "#ffffff" : "#f5d98a"}
+                        strokeWidth={open && !hasSelection ? 3 : 2}
                         strokeDasharray={docked || open ? "0" : "3 3"}
                       />
                       <text y={dy - 13} x={dx} textAnchor="middle" fontSize="8" fontWeight="800" fill="#f5d98a">
                         {slot + 1}
                       </text>
+                      {isSelected && (
+                        <>
+                          <circle
+                            cx={dx}
+                            cy={dy}
+                            r="15"
+                            fill="#4ade80"
+                            opacity="0.5"
+                            data-target={key}
+                            data-step="1"
+                            data-selected="true"
+                          />
+                          <circle cx={dx} cy={dy} r="15" fill="none" stroke="#15803d" strokeWidth="4" />
+                          <text x={dx} y={dy + 3.5} textAnchor="middle" fontSize="11" fontWeight="800" fill="#14532d">
+                            1
+                          </text>
+                          <text x={dx} y={dy + 27} textAnchor="middle" fontSize="9" fontWeight="800" fill="#14532d">
+                            NOW
+                          </text>
+                        </>
+                      )}
                     </g>
                   );
                 })}
@@ -824,12 +784,46 @@ function Board({
             );
           })}
 
-          {/* Where this placement may go, and — once one is selected — where the
-              one after it could go. Colour is never the only cue (DEC-013): the
-              current step is a solid ring marked 1, the following step a dashed
-              ring marked 2, so the two read apart without relying on green
-              versus yellow. data-target/data-step name what each marker means,
-              so a playtest driver taps exactly what the rules allow. */}
+          {/* Normal-hole markers, in explicit precedence order (R 5.4):
+              1. unselected current targets — dimmed once anything is selected,
+                 and fully ceded where a following marker shares the hole;
+              2. following `2 / NEXT` markers, dashed;
+              3. the selected `1 / NOW` marker, drawn last further below.
+              Colour is never the only cue (DEC-013): the current step is a
+              solid ring marked 1, the following step a dashed ring marked 2.
+              data-target/data-step name what each marker means, so a playtest
+              driver taps exactly what the rules allow. */}
+          {canAct &&
+            targets
+              .filter((t) => t.slot === undefined)
+              .filter((t) => !(hasSelection && followingSet.has(targetKey(t))))
+              .map((c) => {
+                const isSelected =
+                  !!selected && selected.slot === undefined && selected.x === c.x && selected.y === c.y;
+                if (isSelected) return null;
+                const p = holePos(c);
+                return (
+                  <g key={`t-${c.x}-${c.y}`} opacity={hasSelection ? 0.35 : 1}>
+                    <circle
+                      cx={p.x}
+                      cy={p.y}
+                      r="13"
+                      fill="#4ade80"
+                      opacity={hasSelection ? 0.15 : 0.28}
+                      data-target={`${c.x},${c.y}`}
+                      data-step="1"
+                    />
+                    <circle cx={p.x} cy={p.y} r="13" fill="none" stroke="#4ade80" strokeWidth="2.5">
+                      {!hasSelection && (
+                        <animate attributeName="opacity" values="0.9;0.35;0.9" dur="1.6s" repeatCount="indefinite" />
+                      )}
+                    </circle>
+                    <text x={p.x} y={p.y + 4} textAnchor="middle" fontSize="11" fontWeight="800" fill="#14532d">
+                      1
+                    </text>
+                  </g>
+                );
+              })}
           {canAct &&
             following
               .filter((t) => t.slot === undefined)
@@ -861,53 +855,52 @@ function Board({
                   </g>
                 );
               })}
-          {canAct &&
-            targets
-              .filter((t) => t.slot === undefined)
-              .map((c) => {
-                const p = holePos(c);
-                const isSelected =
-                  !!selected && selected.slot === undefined && selected.x === c.x && selected.y === c.y;
-                return (
-                  <g key={`t-${c.x}-${c.y}`}>
-                    <circle
-                      cx={p.x}
-                      cy={p.y}
-                      r={isSelected ? 15 : 13}
-                      fill="#4ade80"
-                      opacity={isSelected ? 0.55 : 0.28}
-                      data-target={`${c.x},${c.y}`}
-                      data-step="1"
-                      data-selected={isSelected ? "true" : undefined}
-                    />
-                    <circle
-                      cx={p.x}
-                      cy={p.y}
-                      r={isSelected ? 15 : 13}
-                      fill="none"
-                      stroke={isSelected ? "#15803d" : "#4ade80"}
-                      strokeWidth={isSelected ? 4 : 2.5}
-                    >
-                      {!isSelected && (
-                        <animate attributeName="opacity" values="0.9;0.35;0.9" dur="1.6s" repeatCount="indefinite" />
-                      )}
-                    </circle>
-                    <text
-                      x={p.x}
-                      y={p.y + 4}
-                      textAnchor="middle"
-                      fontSize={isSelected ? 12 : 11}
-                      fontWeight="800"
-                      fill="#14532d"
-                    >
-                      {isSelected ? "\u2713" : "1"}
-                    </text>
-                  </g>
-                );
-              })}
+          {canAct && selected && selected.slot === undefined && (
+            <g key="selected-now">
+              <circle
+                cx={holePos(selected).x}
+                cy={holePos(selected).y}
+                r="15"
+                fill="#4ade80"
+                opacity="0.55"
+                data-target={`${selected.x},${selected.y}`}
+                data-step="1"
+                data-selected="true"
+              />
+              <circle
+                cx={holePos(selected).x}
+                cy={holePos(selected).y}
+                r="15"
+                fill="none"
+                stroke="#15803d"
+                strokeWidth="4"
+              />
+              <text
+                x={holePos(selected).x}
+                y={holePos(selected).y + 4}
+                textAnchor="middle"
+                fontSize="12"
+                fontWeight="800"
+                fill="#14532d"
+              >
+                1
+              </text>
+              <text
+                x={holePos(selected).x}
+                y={holePos(selected).y - 22}
+                textAnchor="middle"
+                fontSize="10"
+                fontWeight="800"
+                fill="#14532d"
+              >
+                NOW
+              </text>
+            </g>
+          )}
 
           {/* Strings: pale casing pass, then the line's own color. Each contract
-              carries a distinct dash pattern so color is never the only cue. */}
+              carries a distinct dash pattern so color is never the only cue.
+              Phantom plans draw dashed and translucent; stale ones fainter still. */}
           {drawn.flatMap((d) =>
             d.route.slice(1).map((n, i) => {
               const a = nodePx(d.route[i]);
@@ -922,7 +915,7 @@ function Board({
                   stroke="#fdf6e3"
                   strokeWidth="13"
                   strokeLinecap="round"
-                  opacity={d.ghost ? 0.35 : 1}
+                  opacity={d.ghost ? (d.stale ? 0.15 : 0.35) : 1}
                 />
               );
             })
@@ -942,7 +935,7 @@ function Board({
                   strokeWidth={d.ghost ? 6 : 8}
                   strokeLinecap="round"
                   strokeDasharray={d.ghost ? "10 12" : d.contract.dash}
-                  opacity={d.ghost ? 0.7 : 1}
+                  opacity={d.ghost ? (d.stale ? 0.35 : 0.7) : 1}
                 />
               );
             })
@@ -951,11 +944,12 @@ function Board({
           {/* Pegs: the line's color inside, the owning company's color around. */}
           {drawn.flatMap((d) =>
             d.route.map((n, i) => {
+              if (d.anchored && i === 0) return null; // a real peg already sits there
               const p = nodePx(n);
               const isEndpoint = i === d.route.length - 1;
               const r = n.stationId ? 7.5 : 11;
               return (
-                <g key={`n-${d.key}-${i}`} opacity={d.ghost ? 0.75 : 1}>
+                <g key={`n-${d.key}-${i}`} opacity={d.ghost ? (d.stale ? 0.45 : 0.75) : 1}>
                   {isEndpoint && d.growing && !d.ghost && (
                     <circle
                       cx={p.x}
@@ -989,7 +983,7 @@ function Board({
                       fontWeight="800"
                       fill={d.ghost ? d.contract.color : "#ffffff"}
                     >
-                      {d.ghost ? i : d.contract.code}
+                      {d.ghost ? (d.numberOffset ?? 0) + i : d.contract.code}
                     </text>
                   )}
                 </g>
@@ -1479,8 +1473,8 @@ function EngineeringPlanPanel({
           Three objectives and {me.destinationCommitments.length} Destination
           {me.destinationCommitments.length === 1 ? "" : "s"} are committed face down, and{" "}
           {me.surveysPurchased} Survey Pin{me.surveysPurchased === 1 ? "" : "s"} are paid for. The
-          opposition cannot see any of it until scoring; your own copies stay visible below with
-          live status.
+          opposition cannot see any of it until scoring; your own copies stay visible on your mat
+          with live status.
         </p>
       </Panel>
     );
@@ -1568,9 +1562,9 @@ function EngineeringPlanPanel({
       <div className="mt-4 rounded-xl border border-stone-300 bg-white/70 p-3">
         <b className="text-xs uppercase text-stone-500">Survey Pins</b>
         <p className="mt-1 text-[11px] text-stone-600">
-          {money(SUBWAY_CONFIG.survey.cost)} each, up to {SUBWAY_CONFIG.survey.max}. Each pin is
-          assigned to one line and scores +{SUBWAY_CONFIG.survey.vp} VP if that exact line later
-          builds through its hole. Pins are public and reserve nothing.
+          {money(SUBWAY_CONFIG.survey.cost)} each, up to {SUBWAY_CONFIG.survey.max}. Each pin scores
+          +{SUBWAY_CONFIG.survey.vp} VP if any line you own later builds through its hole. Pins are
+          public and reserve nothing.
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <button
@@ -1628,7 +1622,7 @@ function SurveyPanel({ game, me }: { game: SubwayState; me: SubwayPlayer }) {
       </p>
       <p className="mt-2 text-sm">
         You have <b>{left}</b> pin{left === 1 ? "" : "s"} left to place.{" "}
-        {mine ? "Pick the line it serves, then tap a normal hole." : `Waiting for ${game.players[turn ?? ""]?.name ?? "the opposition"}…`}
+        {mine ? "Tap a glowing normal hole to pin it." : `Waiting for ${game.players[turn ?? ""]?.name ?? "the opposition"}…`}
       </p>
 
       <ul className="mt-3 space-y-1 text-xs">
@@ -1646,101 +1640,6 @@ function SurveyPanel({ game, me }: { game: SubwayState; me: SubwayPlayer }) {
         })}
         {!game.surveyPins.length && <li className="italic text-stone-400">No pins on the board yet.</li>}
       </ul>
-    </Panel>
-  );
-}
-
-/**
- * The private Route Planner. Entirely client-local: it dispatches nothing,
- * reserves nothing, and is gone on reload. It reuses the reducer's own legality
- * helpers, so a ghost step is legal by exactly the rules construction will use —
- * against the board as it stands right now.
- */
-function RoutePlannerPanel({
-  me,
-  plannerLine,
-  setPlannerLine,
-  ghost,
-  setGhost,
-}: {
-  me: SubwayPlayer;
-  plannerLine: number | null;
-  setPlannerLine: (n: number | null) => void;
-  ghost: RouteNode[];
-  setGhost: (r: RouteNode[]) => void;
-}) {
-  const line = plannerLine === null ? undefined : me.lines[plannerLine];
-  const contract = line ? contractOf(line) : undefined;
-  const built = Math.max(0, ghost.length - 1);
-
-  return (
-    <Panel title="Route Planner — private sketch">
-      <p className="mt-1 text-sm text-stone-600">
-        Try a whole alignment before you commit to anything. This is a{" "}
-        <b>non-binding preview</b>: nothing is dispatched, no hole is reserved, no money is spent,
-        and the opposition can build wherever it likes. It disappears if you reload.
-      </p>
-
-      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-        <span className="font-bold uppercase text-stone-500">Line</span>
-        <select
-          value={plannerLine ?? -1}
-          onChange={(e) => {
-            const v = Number(e.target.value);
-            setPlannerLine(v < 0 ? null : v);
-            setGhost([]);
-          }}
-          className="rounded border border-stone-400 bg-white px-2 py-1"
-        >
-          <option value={-1}>Planner off</option>
-          {me.lines.map((l, i) => (
-            <option key={i} value={i}>
-              {lineLabel(l)}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {contract && (
-        <>
-          <div className="mt-3 rounded-xl border-2 p-2" style={{ borderColor: contract.color }}>
-            <div className="flex flex-wrap items-center gap-2">
-              <LineChip contract={contract} />
-              <b className="text-sm">{contract.name}</b>
-              <span className="text-xs text-stone-500">
-                {built}/{contract.recipe.length} segments sketched
-              </span>
-            </div>
-            <div className="mt-1.5">
-              <RecipeStrip contract={contract} built={built} />
-            </div>
-            <p className="mt-1.5 text-xs font-semibold text-stone-700">
-              {ghost.length === 0
-                ? "Tap any glowing hole to try a starter peg."
-                : built >= contract.recipe.length
-                  ? "The whole recipe fits — this alignment works against the board as it stands."
-                  : `Next: a ${contract.recipe[built]}-peg segment, turning no more than ${SUBWAY_CONFIG.geometry.maxTurnDegrees}°.`}
-            </p>
-          </div>
-
-          <div className="mt-2 flex flex-wrap gap-2">
-            <button
-              disabled={!ghost.length}
-              onClick={() => setGhost(ghost.slice(0, -1))}
-              className="rounded-lg border border-stone-400 px-3 py-1.5 text-sm font-bold text-stone-700 disabled:opacity-35"
-            >
-              Undo step
-            </button>
-            <button
-              disabled={!ghost.length}
-              onClick={() => setGhost([])}
-              className="rounded-lg border border-stone-400 px-3 py-1.5 text-sm font-bold text-stone-700 disabled:opacity-35"
-            >
-              Clear sketch
-            </button>
-          </div>
-        </>
-      )}
     </Panel>
   );
 }
@@ -1931,8 +1830,10 @@ function StarterPanel({ game, me }: { game: SubwayState; me: SubwayPlayer }) {
     <Panel title="Starter pegs">
       <p className="mt-1 text-sm text-stone-600">
         Every <strong>scheduled</strong> contract gets one free starter peg — it counts as node 1 and
-        costs no scheduled action. Shelved contracts get none, since they are never built. The
-        odd-period company places first, then companies alternate.
+        costs no scheduled action. Starters enter from the edge of the map: only normal holes on the
+        board&apos;s <strong>outer border</strong> are legal, and stations never are. Shelved
+        contracts get none, since they are never built. The odd-period company places first, then
+        companies alternate. Tap a border hole to select it, reposition freely, then Confirm.
       </p>
       <ul className="mt-2 space-y-1 text-sm">
         {me.lines.map((line, i) => {
@@ -2003,7 +1904,7 @@ function ActiveLineBanner({
 
       <p className="mt-2 text-sm font-semibold">
         {starter ? (
-          <>Place the free starter peg on any normal hole — stations are not allowed.</>
+          <>Select a starter hole on the outer border — stations are not allowed. Confirm commits it.</>
         ) : next === undefined ? (
           <>This line is finished.</>
         ) : (
@@ -2168,7 +2069,935 @@ function ConstructionPanel({
   );
 }
 
-function ResultsPanel({ game }: { game: SubwayState }) {
+// ============================================================================
+// Main view
+// ============================================================================
+
+/** What the next tap on the board does. */
+type BoardMode = "none" | "place" | "survey" | "planner";
+
+type MobileTab = "mat" | "schedule" | "log";
+
+const PLAN_PHASES = new Set(["ENGINEERING", "SCHEDULING", "STARTER_PLACEMENT", "CONSTRUCTION"]);
+
+export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }: GameViewProps<SubwayState>) {
+  const raw = state as SubwayState | undefined;
+  const stale = !!raw && raw.version !== SUBWAY_STATE_VERSION;
+  const game = raw && !stale ? raw : undefined;
+  const me = game?.players[playerId];
+  const isHotseat = room.mode === "hotseat";
+
+  const [chosen, setChosen] = useState<string[]>([]);
+  const [assignments, setAssignments] = useState<Record<string, number>>({});
+  const [surveys, setSurveys] = useState(0);
+  const [selectedLine, setSelectedLine] = useState(0);
+  const [preview, setPreview] = useState<PlacementTarget | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [tab, setTab] = useState<MobileTab | null>(null);
+
+  // Saved Plan Mode (DEC-022): all client-local, keyed per room/player/line.
+  const [planMode, setPlanMode] = useState(false);
+  const [plannerLine, setPlannerLine] = useState<number | null>(null);
+  const [sketch, setSketch] = useState<RouteNode[]>([]);
+  const [plans, setPlans] = useState<Record<string, SavedPlan>>({});
+  const [planStorageOk, setPlanStorageOk] = useState(true);
+
+  // Hotseat handoff veil: in hotseat mode a changed controlling player keeps
+  // every private surface unrendered until the newcomer confirms who they are.
+  // The gate is derived during render, so nothing private can flash in between.
+  const [seatedId, setSeatedId] = useState(playerId);
+  const veiled = isHotseat && !!game && game.phase !== "SETUP" && playerId !== seatedId;
+  useEffect(() => {
+    if (!isHotseat) setSeatedId(playerId);
+  }, [isHotseat, playerId]);
+
+  const narration = useNarration(game, room.roomCode, playerId);
+
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 4000);
+    return () => clearTimeout(t);
+  }, [notice]);
+
+  const act = async (type: string, payload?: Record<string, unknown>) => {
+    setBusy(true);
+    try {
+      await dispatchAction(type, payload);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // ---- Saved plans: load for this room/player/contract set -----------------
+  const contractIds = me ? me.lines.map((l) => l.contractId).join(",") : "";
+  useEffect(() => {
+    if (!contractIds) {
+      setPlans({});
+      return;
+    }
+    const next: Record<string, SavedPlan> = {};
+    for (const id of contractIds.split(",")) {
+      const plan = loadPlan(room.roomCode, playerId, id);
+      if (plan) next[id] = plan;
+    }
+    setPlans(next);
+    // A different player (hotseat) or portfolio starts from a closed planner.
+    setPlanMode(false);
+    setPlannerLine(null);
+    setSketch([]);
+  }, [room.roomCode, playerId, contractIds]);
+
+  const planAvailable =
+    !!game && !!me && me.lines.length > 0 && PLAN_PHASES.has(game.phase) && !veiled;
+  useEffect(() => {
+    if (!planAvailable && planMode) {
+      setPlanMode(false);
+      setPlannerLine(null);
+      setSketch([]);
+    }
+  }, [planAvailable, planMode]);
+
+  // Where each saved plan stands against reality, refreshed with every poll.
+  const planStatuses = useMemo(() => {
+    const out: Record<string, PlanStatus & { nodes: RouteNode[] }> = {};
+    if (!game || !me || veiled) return out;
+    me.lines.forEach((line, i) => {
+      const saved = plans[line.contractId];
+      if (!saved) return;
+      out[line.contractId] = { ...reconcilePlan(game, playerId, i, saved.nodes), nodes: saved.nodes };
+    });
+    return out;
+  }, [game, me, plans, playerId, veiled]);
+
+  const planChips = useMemo(() => {
+    const out: Record<string, PlanChip> = {};
+    for (const [contractId, status] of Object.entries(planStatuses)) {
+      out[contractId] = { saved: true, stale: status.stale };
+    }
+    return out;
+  }, [planStatuses]);
+
+  const openPlanner = (lineIndex: number) => {
+    if (!game || !me) return;
+    const line = me.lines[lineIndex];
+    if (!line) return;
+    const saved = plans[line.contractId];
+    // A viable saved plan reopens for editing; a stale or missing one starts
+    // from the line's real route (its endpoint, or a fresh border starter).
+    let start = [...line.route];
+    if (saved) {
+      const status = reconcilePlan(game, playerId, lineIndex, saved.nodes);
+      if (!status.stale) start = [...saved.nodes];
+    }
+    setPlannerLine(lineIndex);
+    setSketch(start);
+    setPlanMode(true);
+    setNotice(null);
+  };
+
+  const exitPlanner = () => {
+    setPlanMode(false);
+    setPlannerLine(null);
+    setSketch([]);
+  };
+
+  const savePlanNow = () => {
+    if (!me || plannerLine === null) return;
+    const line = me.lines[plannerLine];
+    if (!line || !sketch.length) return;
+    const persisted = savePlan(room.roomCode, playerId, line.contractId, sketch);
+    setPlans({ ...plans, [line.contractId]: { nodes: sketch.map((n) => ({ ...n })), savedAt: Date.now() } });
+    setPlanStorageOk(persisted);
+  };
+
+  const clearPlanNow = () => {
+    if (!me || plannerLine === null) return;
+    const line = me.lines[plannerLine];
+    if (!line) return;
+    clearPlan(room.roomCode, playerId, line.contractId);
+    const next = { ...plans };
+    delete next[line.contractId];
+    setPlans(next);
+    setSketch([...line.route]);
+  };
+
+  // ---- What the board is for right now --------------------------------------
+  const myStarterTurn = !!game && game.phase === "STARTER_PLACEMENT" && starterTurnId(game) === playerId;
+  const starterLine = game && me ? pendingStarters(me)[0] ?? -1 : -1;
+  const placingStarter = myStarterTurn && starterLine >= 0;
+  const myBuild =
+    !!game && !!me && game.phase === "CONSTRUCTION" && game.resolveQueue[0] === me.id && me.pendingActions.length > 0;
+  const mySurvey =
+    !!game && !!me && game.phase === "ENGINEERING" && game.engineeringStep === "SURVEY" && surveyTurnId(game) === me.id;
+
+  const activeLineIndex = placingStarter
+    ? starterLine
+    : myBuild && me
+      ? me.pendingActions.includes(selectedLine)
+        ? selectedLine
+        : me.pendingActions[0]
+      : -1;
+
+  const plannerActive =
+    planMode && plannerLine !== null && !!game && !!me && planAvailable && !!me.lines[plannerLine];
+
+  // Plan Mode pauses live placement without surrendering it (R 5.2): leaving
+  // it restores the same legal choices, and any provisional selection that is
+  // still legal survives in `preview`.
+  const mode: BoardMode = plannerActive
+    ? "planner"
+    : placingStarter || myBuild
+      ? "place"
+      : mySurvey
+        ? "survey"
+        : "none";
+  const canAct = mode !== "none" && !busy && !veiled && (mode !== "place" || activeLineIndex >= 0);
+
+  // The planner works against a copy of the board with the sketch dropped into
+  // the chosen line, so legality comes from the reducer's own helpers.
+  const plannerState = useMemo(() => {
+    if (!game || !me || !plannerActive || plannerLine === null) return undefined;
+    const clone = cloneState(game);
+    const line = clone.players[me.id]?.lines[plannerLine];
+    if (!line) return undefined;
+    line.route = sketch;
+    return clone;
+  }, [game, me, plannerActive, plannerLine, sketch]);
+
+  const targets = useMemo<PlacementTarget[]>(() => {
+    if (!game || !me) return [];
+    if (mode === "place" && activeLineIndex >= 0) {
+      return legalTargets(game, me.id, activeLineIndex, placingStarter);
+    }
+    if (mode === "survey") {
+      const out: PlacementTarget[] = [];
+      for (let y = 0; y < SUBWAY_CONFIG.board.rows; y++) {
+        for (let x = 0; x < SUBWAY_CONFIG.board.columns; x++) {
+          if (!surveyBlocker(game, me.id, { x, y })) out.push({ x, y });
+        }
+      }
+      return out;
+    }
+    if (mode === "planner" && plannerState && plannerLine !== null) {
+      return legalTargets(plannerState, me.id, plannerLine, sketch.length === 0);
+    }
+    return [];
+  }, [game, me, mode, activeLineIndex, placingStarter, plannerState, plannerLine, sketch]);
+
+  // The board as it would be if the selected target were confirmed. Yellow is
+  // derived from this by the reducer's own rules, so a following target is
+  // legal by exactly the rules the next placement will use (OD-5).
+  const previewState = useMemo(() => {
+    if (!game || !me || !preview || activeLineIndex < 0 || mode !== "place") return undefined;
+    const clone = cloneState(game);
+    const line = clone.players[me.id]?.lines[activeLineIndex];
+    if (!line) return undefined;
+    const station = stationAt(preview);
+    line.route.push({
+      x: preview.x,
+      y: preview.y,
+      ...(station ? { stationId: station.id, stationSlot: preview.slot ?? 0 } : {}),
+    });
+    return clone;
+  }, [game, me, preview, activeLineIndex, mode]);
+
+  const following = useMemo<PlacementTarget[]>(() => {
+    if (!previewState || !me || activeLineIndex < 0) return [];
+    return legalTargets(previewState, me.id, activeLineIndex, false);
+  }, [previewState, me, activeLineIndex]);
+
+  // What the selected step would cost in contacts with the opposing network.
+  const previewContacts = useMemo<RouteContact[]>(() => {
+    if (!game || !me || !preview || activeLineIndex < 0 || placingStarter) return [];
+    const route = me.lines[activeLineIndex]?.route ?? [];
+    const from = route[route.length - 1];
+    if (!from) return [];
+    return routeContacts(game, me.id, from, { x: preview.x, y: preview.y });
+  }, [game, me, preview, activeLineIndex, placingStarter]);
+
+  // A routine poll must never cancel a selection in progress: the room refetches
+  // every second, so only a change that actually affects this selection clears
+  // it. A target that went stale (taken dock, changed geometry) drops out here,
+  // which is exactly the "refresh and reselect" the spec asks for (R 5.3).
+  const previewKey = preview ? targetKey(preview) : "";
+  const targetKeys = targets.map(targetKey).join("|");
+  useEffect(() => {
+    if (!preview) return;
+    if (mode === "planner") return; // paused, not surrendered
+    if (mode !== "place" || !targets.some((t) => targetKey(t) === previewKey)) setPreview(null);
+  }, [mode, activeLineIndex, previewKey, targetKeys, preview, targets]);
+
+  const privateVisible = !!me && !veiled;
+
+  const drawn = useMemo<DrawnLine[]>(() => {
+    if (!game) return [];
+    const out: DrawnLine[] = [];
+    for (const id of game.playerOrder) {
+      const p = game.players[id];
+      if (!p) continue;
+      p.lines.forEach((line, li) => {
+        const contract = contractOf(line);
+        if (!contract || !line.route.length) return;
+        out.push({
+          key: `${id}-${li}`,
+          route: line.route,
+          contract,
+          ownerColor: p.color,
+          active: id === playerId && li === activeLineIndex,
+          growing: !lineComplete(line),
+        });
+      });
+    }
+    // Phantom plans and the live sketch draw only on their owner's UI, and
+    // never while the hotseat veil is up.
+    if (privateVisible && me) {
+      me.lines.forEach((line, li) => {
+        const contract = contractOf(line);
+        if (!contract) return;
+        const editing = plannerActive && plannerLine === li;
+        if (editing) {
+          if (line.route.length === 0) {
+            if (sketch.length) {
+              out.push({
+                key: `sketch-${li}`,
+                route: sketch,
+                contract,
+                ownerColor: me.color,
+                active: true,
+                growing: true,
+                ghost: true,
+                numberOffset: 0,
+              });
+            }
+          } else if (sketch.length > line.route.length) {
+            const anchor = line.route.length - 1;
+            out.push({
+              key: `sketch-${li}`,
+              route: sketch.slice(anchor),
+              contract,
+              ownerColor: me.color,
+              active: true,
+              growing: true,
+              ghost: true,
+              anchored: true,
+              numberOffset: anchor,
+            });
+          }
+          return;
+        }
+        const status = planStatuses[line.contractId];
+        if (!status) return;
+        if (status.stale) {
+          // A diverged plan stays visible as sketched — faint, never rewritten.
+          out.push({
+            key: `plan-${li}`,
+            route: status.nodes,
+            contract,
+            ownerColor: me.color,
+            active: false,
+            growing: false,
+            ghost: true,
+            stale: true,
+            numberOffset: 0,
+          });
+        } else if (status.phantom.length) {
+          const anchored = line.route.length > 0;
+          out.push({
+            key: `plan-${li}`,
+            route: anchored
+              ? [line.route[line.route.length - 1], ...status.phantom]
+              : status.phantom,
+            contract,
+            ownerColor: me.color,
+            active: false,
+            growing: false,
+            ghost: true,
+            anchored,
+            numberOffset: anchored ? line.route.length - 1 : 0,
+          });
+        }
+      });
+    }
+    return out;
+  }, [game, playerId, activeLineIndex, privateVisible, me, plannerActive, plannerLine, sketch, planStatuses]);
+
+  const onTapHole = (p: Point, slot?: number) => {
+    if (!game || !me || !canAct) return;
+
+    if (mode === "planner" && plannerState && plannerLine !== null) {
+      const reason = validateNode(plannerState, me.id, plannerLine, p, sketch.length === 0, slot);
+      if (reason) {
+        setNotice(reason);
+        return;
+      }
+      const station = stationAt(p);
+      setNotice(null);
+      setSketch([...sketch, { ...p, ...(station ? { stationId: station.id, stationSlot: slot ?? 0 } : {}) }]);
+      return;
+    }
+
+    if (mode === "survey") {
+      const reason = surveyBlocker(game, me.id, p);
+      if (reason) {
+        setNotice(reason);
+        return;
+      }
+      setNotice(null);
+      act("PLACE_SURVEY", { x: p.x, y: p.y });
+      return;
+    }
+
+    if (mode === "place" && activeLineIndex >= 0) {
+      const reason = validateNode(game, me.id, activeLineIndex, p, placingStarter, slot);
+      if (reason) {
+        setNotice(reason);
+        return;
+      }
+      setNotice(null);
+      // Selection only — tapping never commits. Another legal tap simply moves
+      // the provisional marker; the Confirm button is the one way to commit
+      // (OD-3 / OD-4).
+      setPreview({ x: p.x, y: p.y, ...(stationAt(p) ? { slot } : {}) });
+    }
+  };
+
+  const confirmPlacement = () => {
+    if (!game || !me || !preview || activeLineIndex < 0 || mode !== "place") return;
+    // Revalidate the exact target against current state before dispatching; the
+    // reducer revalidates again and a rejection costs nothing (R 5.3).
+    const reason = validateNode(game, me.id, activeLineIndex, preview, placingStarter, preview.slot);
+    if (reason) {
+      setNotice(reason);
+      setPreview(null);
+      return;
+    }
+    const target = preview;
+    setPreview(null);
+    act(placingStarter ? "PLACE_STARTER" : "BUILD", {
+      lineIndex: activeLineIndex,
+      x: target.x,
+      y: target.y,
+      ...(target.slot !== undefined ? { slot: target.slot } : {}),
+    });
+  };
+
+  // Mobile tab handoffs on phase transitions only — a routine poll or an
+  // unrelated re-render never moves the player's chosen tab.
+  const phaseKey = game ? `${game.phase}:${game.engineeringStep}:${game.schedulingStep}` : "";
+  const prevPhaseKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (!phaseKey) return;
+    if (prevPhaseKey.current !== null && prevPhaseKey.current !== phaseKey) {
+      const phase = phaseKey.split(":")[0];
+      if (phase === "SCHEDULING") setTab("schedule");
+      else if (phase === "ENGINEERING" || phase === "PROCUREMENT") setTab("mat");
+      else setTab(null);
+    }
+    prevPhaseKey.current = phaseKey;
+  }, [phaseKey]);
+
+  // ---- Pre-game lobby -------------------------------------------------------
+  if (!game || game.phase === "SETUP") {
+    const enough = room.players.length >= 2;
+    return (
+      <section className="rounded-2xl bg-[#ede1c7] p-6 text-center text-stone-900 shadow-xl">
+        <p className="text-xs font-bold uppercase tracking-[.3em] text-amber-800">Two-company network contest</p>
+        <h2 className="mt-2 font-serif text-3xl font-black">Subway</h2>
+        <p className="mx-auto my-4 max-w-xl text-sm text-stone-600">
+          Six Line Contracts come up one at a time and all of them find an owner. Each carries an
+          ordered recipe of segment lengths and its own line color. Commit secret objectives and
+          Destinations, buy Survey Pins, plan the whole programme on a shared Gantt board, then
+          engineer the routes hole by hole.
+        </p>
+        {stale && (
+          <p className="mx-auto mb-4 max-w-md rounded-lg bg-amber-100 px-3 py-2 text-sm font-semibold text-amber-900">
+            This room is running an older version of Subway. Starting a new game will reset it to the
+            current rules.
+          </p>
+        )}
+        <p className="mb-4 text-sm font-semibold text-stone-700">
+          Companies: {room.players.slice(0, 2).map((p) => p.name).join(" vs ") || "waiting…"}
+          {room.players.length > 2 && ` · ${room.players.length - 2} spectating`}
+        </p>
+        {isHost ? (
+          <button
+            disabled={busy || !enough}
+            onClick={() => act("START_GAME")}
+            className="rounded-xl bg-emerald-700 px-6 py-3 font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {busy ? "Starting…" : enough ? "Start Subway" : "Waiting for a second player"}
+          </button>
+        ) : (
+          <p className="text-sm text-stone-600">Waiting for the host to start Subway…</p>
+        )}
+      </section>
+    );
+  }
+
+  const status = statusFor(game, me, isHost);
+  const schedulingRevealed = game.phase !== "SCHEDULING" || game.schedulingStep === "RESOLUTION";
+  // Kept on the results screen too: the final programme shows what was planned
+  // against what actually got built.
+  const showGantt = ["SCHEDULING", "STARTER_PLACEMENT", "CONSTRUCTION", "SCORING", "RESULTS"].includes(game.phase);
+  // The board is up during Engineering and Scheduling too, so Survey Pins and
+  // saved plans have somewhere to happen.
+  const showBoard = game.phase !== "PROCUREMENT";
+  const canUndo = game.undo?.playerId === playerId && !veiled;
+  const activeLine = activeLineIndex >= 0 && me ? me.lines[activeLineIndex] : undefined;
+  const opponent = me ? opponentOf(game, me) : undefined;
+  const plannerLineObj = plannerActive && me && plannerLine !== null ? me.lines[plannerLine] : undefined;
+  const plannerContract = plannerLineObj ? contractOf(plannerLineObj) : undefined;
+  const sketchedSegments = Math.max(0, sketch.length - 1);
+  const plannerSavedStatus =
+    plannerLineObj && plannerActive ? planStatuses[plannerLineObj.contractId] : undefined;
+  const minSketch = plannerLineObj ? plannerLineObj.route.length : 0;
+
+  // The sticky action strip attached to the board: what is selected, what it
+  // costs, and the only Confirm that commits anything. Rendered under the
+  // board on desktop and as the fixed bottom strip on the phone.
+  const actionStrip = (
+    <div className="rounded-2xl border border-stone-300 bg-[#fffaf0]/95 p-2.5 text-stone-900 shadow-lg">
+      {notice && (
+        <p className="mb-1.5 rounded-lg bg-red-100 px-2 py-1 text-center text-xs font-bold text-red-900">
+          {notice}
+        </p>
+      )}
+
+      {mode === "planner" && plannerContract && plannerLineObj && (
+        <div className="space-y-1.5">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="rounded bg-purple-700 px-1.5 py-0.5 text-[10px] font-black uppercase text-white">
+              Plan Mode
+            </span>
+            <LineChip contract={plannerContract} />
+            <b>{plannerContract.name}</b>
+            <select
+              value={plannerLine ?? -1}
+              onChange={(e) => openPlanner(Number(e.target.value))}
+              className="rounded border border-stone-400 bg-white px-1.5 py-0.5 text-xs"
+              aria-label="Plan a different line"
+            >
+              {me?.lines.map((l, i) => (
+                <option key={i} value={i}>
+                  {lineLabel(l)}
+                </option>
+              ))}
+            </select>
+            <span className="text-xs text-stone-500">
+              {sketchedSegments}/{plannerContract.recipe.length} segments sketched
+            </span>
+            {plannerSavedStatus && (
+              <span
+                className={`rounded px-1.5 py-0.5 text-[10px] font-black uppercase ${
+                  plannerSavedStatus.stale ? "bg-red-100 text-red-800" : "bg-purple-100 text-purple-800"
+                }`}
+              >
+                {plannerSavedStatus.stale ? "Saved plan stale" : "Saved"}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-stone-600">
+            Private, non-binding sketch — nothing is dispatched or reserved, and only you see it.{" "}
+            {sketch.length === 0
+              ? "Tap a border hole to start the phantom route."
+              : sketchedSegments >= plannerContract.recipe.length
+                ? "The whole recipe fits against the board as it stands."
+                : `Next: a ${plannerContract.recipe[sketchedSegments]}-peg segment, turning ≤ ${SUBWAY_CONFIG.geometry.maxTurnDegrees}°.`}
+            {!planStorageOk && (
+              <b className="text-red-800"> Storage unavailable — this plan lasts only this session.</b>
+            )}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              disabled={sketch.length <= minSketch}
+              onClick={() => setSketch(sketch.slice(0, -1))}
+              className="rounded-lg border border-stone-400 px-2.5 py-1.5 text-xs font-bold text-stone-700 disabled:opacity-35"
+            >
+              Undo step
+            </button>
+            <button
+              disabled={sketch.length <= minSketch}
+              onClick={() => setSketch(plannerLineObj ? [...plannerLineObj.route] : [])}
+              className="rounded-lg border border-stone-400 px-2.5 py-1.5 text-xs font-bold text-stone-700 disabled:opacity-35"
+            >
+              Restart sketch
+            </button>
+            <button
+              disabled={sketch.length <= Math.max(1, minSketch)}
+              onClick={savePlanNow}
+              className="rounded-lg bg-purple-700 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-35"
+            >
+              Save plan
+            </button>
+            {plannerSavedStatus && (
+              <button
+                onClick={clearPlanNow}
+                className="rounded-lg border border-red-300 px-2.5 py-1.5 text-xs font-bold text-red-800"
+              >
+                Clear saved
+              </button>
+            )}
+            <button
+              onClick={exitPlanner}
+              className="ml-auto rounded-lg bg-stone-900 px-3 py-1.5 text-xs font-bold text-white"
+            >
+              {mode === "planner" && (placingStarter || myBuild) ? "Back to placement" : "Close Plan Mode"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {mode === "place" && activeLine && me && (
+        <div className="space-y-1.5">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            {contractOf(activeLine) && <LineChip contract={contractOf(activeLine)!} />}
+            <b>{lineLabel(activeLine)}</b>
+            <span className="text-xs text-stone-500">
+              {placingStarter
+                ? "starter peg · border holes only"
+                : `segment ${segmentsBuilt(activeLine) + 1}/${contractOf(activeLine)?.recipe.length} · ${nextSegmentLength(activeLine) ?? "—"} pegs`}
+            </span>
+            <span className="ml-auto text-xs font-bold">
+              {preview
+                ? preview.slot !== undefined
+                  ? `Selected: ${stationAt(preview)?.name ?? "station"} dock ${preview.slot + 1}`
+                  : `Selected: hole ${preview.x + 1},${preview.y + 1}`
+                : targets.length
+                  ? "Tap a glowing target to select"
+                  : "No legal target"}
+            </span>
+          </div>
+          {preview && !placingStarter && (
+            <p className="text-xs text-stone-600">
+              {previewContacts.length === 0 ? (
+                <>
+                  No contact with {opponent?.name ?? "the opposition"}&apos;s network — <b>free</b>.
+                </>
+              ) : (
+                <>
+                  <b>
+                    {previewContacts.length} contact{previewContacts.length === 1 ? "" : "s"}
+                  </b>{" "}
+                  ({previewContacts.map((c) => c.kind).join(", ")}) ·{" "}
+                  <b>{money(contactToll(previewContacts))}</b> to {opponent?.name ?? "them"} · cash after{" "}
+                  <b className={me.money - contactToll(previewContacts) < 0 ? "text-red-700" : ""}>
+                    {money(me.money - contactToll(previewContacts))}
+                  </b>
+                  {me.money - contactToll(previewContacts) < 0 && (
+                    <>
+                      {" "}
+                      · projected debt penalty{" "}
+                      <b className="text-red-700">
+                        {(me.money - contactToll(previewContacts)) * SUBWAY_CONFIG.contact.debtVpPerMillion} VP
+                      </b>
+                    </>
+                  )}
+                </>
+              )}
+            </p>
+          )}
+          {preview && (
+            <p className="text-[11px] text-stone-500">
+              Dashed <b>2 / NEXT</b> markers preview where this line could go afterwards — a preview,
+              not a reservation. Tap another glowing target to move the selection.
+            </p>
+          )}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              disabled={busy || !preview}
+              onClick={() => setPreview(null)}
+              className="rounded-lg border border-stone-400 px-3 py-1.5 text-sm font-bold text-stone-700 disabled:opacity-35"
+            >
+              Cancel
+            </button>
+            <button
+              disabled={busy || !preview}
+              onClick={confirmPlacement}
+              className="rounded-lg bg-emerald-700 px-4 py-1.5 text-sm font-bold text-white disabled:opacity-35"
+              data-confirm-placement
+            >
+              Confirm placement
+            </button>
+            {planAvailable && (
+              <button
+                onClick={() => openPlanner(activeLineIndex >= 0 ? activeLineIndex : 0)}
+                className="rounded-lg border border-purple-400 px-3 py-1.5 text-sm font-bold text-purple-800"
+              >
+                Plan
+              </button>
+            )}
+            {canUndo && (
+              <button
+                disabled={busy}
+                onClick={() => act("UNDO_PLACEMENT")}
+                className="ml-auto rounded-lg bg-stone-900 px-3 py-1.5 text-sm font-bold text-white disabled:opacity-40"
+              >
+                Undo {game.undo?.label}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {mode === "survey" && me && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="rounded bg-emerald-700 px-1.5 py-0.5 text-[10px] font-black uppercase text-white">
+            Survey
+          </span>
+          <span className="text-xs text-stone-600">
+            Tap a glowing hole to place a pin — {surveysPending(game, me.id)} left. Pins are public
+            and reserve nothing.
+          </span>
+          {planAvailable && (
+            <button
+              onClick={() => openPlanner(0)}
+              className="ml-auto rounded-lg border border-purple-400 px-3 py-1.5 text-sm font-bold text-purple-800"
+            >
+              Plan
+            </button>
+          )}
+        </div>
+      )}
+
+      {mode === "none" && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span
+            className={`h-2 w-2 rounded-full ${status.tone === "act" ? "animate-pulse bg-emerald-600" : "bg-stone-400"}`}
+          />
+          <span className="text-xs font-bold text-stone-700">{status.headline}</span>
+          {planAvailable && (
+            <button
+              onClick={() => openPlanner(0)}
+              className="ml-auto rounded-lg border border-purple-400 px-3 py-1.5 text-sm font-bold text-purple-800"
+            >
+              Plan
+            </button>
+          )}
+          {canUndo && (
+            <button
+              disabled={busy}
+              onClick={() => act("UNDO_PLACEMENT")}
+              className={`${planAvailable ? "" : "ml-auto "}rounded-lg bg-stone-900 px-3 py-1.5 text-sm font-bold text-white disabled:opacity-40`}
+            >
+              Undo {game.undo?.label}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  // Phase-valid actions, shown near the board on desktop and inside the My Mat
+  // sheet on the phone.
+  const phasePanel = me ? (
+    <>
+      {game.phase === "PROCUREMENT" && <ProcurementPanel game={game} me={me} busy={busy} act={act} />}
+      {game.phase === "ENGINEERING" && game.engineeringStep === "DESTINATION_DRAFT" && (
+        <DestinationDraftPanel game={game} me={me} busy={busy} act={act} />
+      )}
+      {game.phase === "ENGINEERING" && game.engineeringStep === "PLAN" && (
+        <EngineeringPlanPanel
+          me={me}
+          chosen={chosen}
+          setChosen={setChosen}
+          assignments={assignments}
+          setAssignments={setAssignments}
+          surveys={surveys}
+          setSurveys={setSurveys}
+          busy={busy}
+          act={act}
+        />
+      )}
+      {game.phase === "ENGINEERING" && game.engineeringStep === "SURVEY" && <SurveyPanel game={game} me={me} />}
+      {game.phase === "SCHEDULING" && <SchedulingPanel game={game} me={me} busy={busy} act={act} />}
+      {game.phase === "STARTER_PLACEMENT" && <StarterPanel game={game} me={me} />}
+      {game.phase === "CONSTRUCTION" && (
+        <ConstructionPanel
+          game={game}
+          me={me}
+          busy={busy}
+          act={act}
+          selectedLine={activeLineIndex >= 0 ? activeLineIndex : 0}
+          setSelectedLine={setSelectedLine}
+        />
+      )}
+      {game.phase === "SCORING" && isHost && (
+        <button
+          disabled={busy}
+          onClick={() => act("ADVANCE_SCORING")}
+          className="w-full rounded-xl bg-stone-900 py-3 font-bold text-white disabled:opacity-40"
+        >
+          Reveal Engineering &amp; score
+        </button>
+      )}
+    </>
+  ) : null;
+
+  const playerMat = privateVisible ? (
+    <PlayerMat
+      game={game}
+      me={me!}
+      activeLineIndex={activeLineIndex}
+      planChips={planChips}
+      planAvailable={planAvailable}
+      onOpenPlanner={openPlanner}
+    />
+  ) : null;
+
+  return (
+    <div className="space-y-4 rounded-3xl bg-[#ede1c7] p-3 text-stone-900 sm:p-5">
+      {veiled && me && (
+        <HandoffVeil name={me.name} color={me.color} onConfirm={() => setSeatedId(playerId)} />
+      )}
+      {/* Screen readers hear every accepted public event, animation or not. */}
+      <div aria-live="polite" className="sr-only">
+        {narration.liveText}
+      </div>
+
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[.3em] text-amber-800">Two-company network contest</p>
+          <h2 className="font-serif text-2xl font-black sm:text-3xl">Subway</h2>
+        </div>
+        <span className="rounded-full bg-stone-900 px-4 py-1.5 text-xs font-bold text-amber-50 sm:text-sm">
+          {PHASE_LABELS[game.phase] ?? game.phase}
+          {game.phase === "ENGINEERING" && (game.engineeringStep === "PLAN" ? " · plan" : game.engineeringStep === "SURVEY" ? " · surveys" : " · draft")}
+          {game.phase === "CONSTRUCTION" &&
+            ` · Period ${Math.min(game.currentPeriod, SUBWAY_CONFIG.timelinePeriods)}/${SUBWAY_CONFIG.timelinePeriods}`}
+        </span>
+      </header>
+
+      <div
+        className={`rounded-xl border-l-4 px-4 py-2.5 ${
+          status.tone === "act"
+            ? "border-emerald-600 bg-emerald-50"
+            : status.tone === "wait"
+              ? "border-stone-400 bg-white/60"
+              : "border-amber-500 bg-amber-50"
+        }`}
+      >
+        <p className="flex items-center gap-2 text-sm font-bold">
+          {status.tone === "act" && <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-600" />}
+          {status.headline}
+        </p>
+        {status.detail && <p className="text-xs text-stone-600">{status.detail}</p>}
+      </div>
+
+      {/* Opponent public state sits across the table, above the board. */}
+      {opponent && <OpponentMat game={game} opponent={opponent} scheduleRevealed={schedulingRevealed} />}
+
+      {/* The pegboard is a 3:1 corridor, so it gets the full page width rather
+          than sharing a column with the panels. */}
+      {showBoard && (
+        <div className="space-y-2">
+          {mode === "place" && activeLine && (
+            <div className="hidden lg:block">
+              <ActiveLineBanner line={activeLine} starter={placingStarter} targetCount={targets.length} />
+            </div>
+          )}
+          <Board
+            game={game}
+            targets={canAct ? targets : []}
+            following={mode === "place" ? following : []}
+            selected={mode === "place" ? preview ?? undefined : undefined}
+            canAct={canAct}
+            drawn={drawn}
+            onTapHole={onTapHole}
+            overlay={<NarrationOverlay event={narration.overlay} onDismiss={narration.dismiss} />}
+          />
+          <div className="sticky bottom-2 z-20 hidden lg:block">{actionStrip}</div>
+        </div>
+      )}
+
+      {/* Desktop dashboard: actions and programme beside the public record. */}
+      <div className="hidden gap-4 lg:grid lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-start">
+        <div className="min-w-0 space-y-3">
+          {!veiled && phasePanel}
+          {showGantt && (
+            <GanttBoard
+              game={game}
+              viewerId={playerId}
+              revealed={schedulingRevealed}
+              editable={game.phase === "SCHEDULING" && game.schedulingStep === "PLANNING" && !me?.scheduleSubmitted && !veiled}
+              busy={busy}
+              act={act}
+            />
+          )}
+        </div>
+        <div className="min-w-0 space-y-3">
+          <EventRail game={game} />
+        </div>
+      </div>
+
+      {/* The viewer's private mat runs along their edge of the table. */}
+      {playerMat && <div className="hidden lg:block">{playerMat}</div>}
+
+      {game.phase === "RESULTS" && <ResultsScreen game={game} />}
+
+      {/* Phone: no board during Procurement, so the action panel takes over. */}
+      {!showBoard && !veiled && <div className="lg:hidden">{phasePanel}</div>}
+
+      {/* Phone: sticky action strip plus bottom-sheet tabs instead of the old
+          long panel stack. Board panning stays above; nothing here scrolls the
+          page sideways. */}
+      <div className="sticky bottom-0 z-30 -mx-3 border-t border-stone-300 bg-[#ede1c7]/95 px-3 pb-1.5 pt-1.5 backdrop-blur sm:-mx-5 sm:px-5 lg:hidden">
+        {tab && (
+          <div className="mb-1.5 max-h-[48vh] space-y-3 overflow-y-auto rounded-2xl border border-stone-300 bg-[#ede1c7] p-2 shadow-inner">
+            {tab === "mat" && (
+              <>
+                {!veiled && showBoard && phasePanel}
+                {playerMat}
+                {!privateVisible && <p className="p-3 text-sm text-stone-500">Private mat is covered.</p>}
+              </>
+            )}
+            {tab === "schedule" &&
+              (showGantt ? (
+                <GanttBoard
+                  game={game}
+                  viewerId={playerId}
+                  revealed={schedulingRevealed}
+                  editable={game.phase === "SCHEDULING" && game.schedulingStep === "PLANNING" && !me?.scheduleSubmitted && !veiled}
+                  busy={busy}
+                  act={act}
+                />
+              ) : (
+                <p className="p-3 text-sm text-stone-500">The programme appears once Scheduling opens.</p>
+              ))}
+            {tab === "log" && <EventRail game={game} />}
+          </div>
+        )}
+        {showBoard && actionStrip}
+        <div className="mt-1.5 grid grid-cols-3 gap-1">
+          {(["mat", "schedule", "log"] as MobileTab[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(tab === t ? null : t)}
+              className={`rounded-lg py-1.5 text-xs font-black uppercase tracking-wide ${
+                tab === t ? "bg-stone-900 text-amber-50" : "bg-white/70 text-stone-600"
+              }`}
+              aria-pressed={tab === t}
+            >
+              {t === "mat" ? "My Mat" : t === "schedule" ? "Schedule" : "Log"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <footer className="flex items-center justify-between border-t border-stone-300 pt-2 text-xs text-stone-500">
+        <span>
+          Room <code className="rounded bg-white/60 px-1.5 py-0.5 font-bold">{room.roomCode}</code>
+        </span>
+        <Link href="/" className="hover:text-stone-800">
+          Leave room
+        </Link>
+      </footer>
+    </div>
+  );
+}
+
+/** Results, with every company's revealed commitments laid out. */
+function ResultsScreen({ game }: { game: SubwayState }) {
   return (
     <section className="rounded-2xl bg-white/80 p-5 text-stone-900">
       <h3 className="text-center font-serif text-3xl font-black">{game.message}</h3>
@@ -2254,703 +3083,5 @@ function ResultsPanel({ game }: { game: SubwayState }) {
         })}
       </div>
     </section>
-  );
-}
-
-// ============================================================================
-// Private company panel
-// ============================================================================
-
-function PrivatePanel({
-  game,
-  me,
-  activeLineIndex,
-}: {
-  game: SubwayState;
-  me: SubwayPlayer;
-  activeLineIndex: number;
-}) {
-  const planning = game.phase === "ENGINEERING" && game.engineeringStep === "PLAN";
-  const owed = actionsRemaining(me);
-  const status = committedStatus(game, me.id);
-  const myPins = game.surveyPins.filter((pin) => pin.playerId === me.id);
-
-  return (
-    <aside className="rounded-2xl bg-[#fffaf0] p-4 text-stone-900 shadow">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="font-black">Your company</h3>
-        <span
-          className="rounded-full px-3 py-1 text-sm font-bold text-white"
-          style={{ background: me.money < 0 ? "#b91c1c" : me.color }}
-        >
-          {me.name} · {me.money < 0 ? `−${money(-me.money)}` : money(me.money)}
-        </span>
-      </div>
-
-      {me.money < 0 && (
-        <p className="mt-1 rounded-lg bg-red-100 px-2 py-1 text-xs font-semibold text-red-900">
-          In debt {money(-me.money)} from route contacts. If you finish here it costs{" "}
-          {me.money * SUBWAY_CONFIG.contact.debtVpPerMillion} VP. Contacts the opposition pays you
-          reduce it.
-        </p>
-      )}
-      {me.tollsPaid > 0 && (
-        <p className="mt-1 text-xs text-stone-600">
-          Paid {money(me.tollsPaid)} in route contacts so far.
-        </p>
-      )}
-      <p className="mt-1 text-xs text-stone-600">
-        You build first in <b>{me.id === game.oddPriorityId ? "odd" : "even"}</b> periods.
-        {game.phase === "CONSTRUCTION" &&
-          ` ${owed} action${owed === 1 ? "" : "s"} of work left across ${me.lines.length} contract${me.lines.length === 1 ? "" : "s"}.`}
-      </p>
-
-      <div className="mt-3 space-y-2">
-        {me.lines.length === 0 ? (
-          <p className="rounded-lg bg-stone-100 px-3 py-2 text-sm text-stone-500">No Line Contract yet.</p>
-        ) : (
-          me.lines.map((line, i) => {
-            const contract = contractOf(line);
-            if (!contract) return null;
-            const active = i === activeLineIndex;
-            return (
-              <div key={i} className={active ? "rounded-xl ring-2 ring-offset-2 ring-amber-400" : ""}>
-                <ContractCard
-                  contract={contract}
-                  progress={{ built: line.route.length, total: contractNodes(contract) }}
-                >
-                  <p className="mt-1 text-[11px] text-stone-500">
-                    Paid {money(line.paid)}
-                    {line.paid < contract.cost && " (Discount Yard)"}
-                    {line.start !== undefined
-                      ? ` · periods ${line.start}–${line.start + contractActions(contract) - 1}`
-                      : " · shelved"}
-                    {active && " · ACTIVE"}
-                  </p>
-                </ContractCard>
-              </div>
-            );
-          })
-        )}
-      </div>
-
-      {!planning && me.committedEngineering.length > 0 && (
-        <div className="mt-4">
-          <div className="flex items-center justify-between">
-            <b className="text-xs uppercase text-stone-500">Committed Engineering</b>
-            <span className="text-[10px] font-bold uppercase text-stone-400">Hidden from the opposition</span>
-          </div>
-          <div className="mt-1.5 grid grid-cols-2 gap-2">
-            {status.map(({ cardId, met }, i) => (
-              <EngineeringCardFace
-                key={`${cardId}-${i}`}
-                card={cardId}
-                color={me.color}
-                state={met ? "met" : "committed"}
-                compact
-                footer={
-                  <p className={`mt-1 text-[11px] font-black ${met ? "text-emerald-700" : "text-stone-400"}`}>
-                    {met ? "✓ COMPLETE" : "In progress"}
-                  </p>
-                }
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {!planning && me.destinationCommitments.length > 0 && (
-        <div className="mt-4">
-          <div className="flex items-center justify-between">
-            <b className="text-xs uppercase text-stone-500">Committed Destinations</b>
-            <span className="text-[10px] font-bold uppercase text-stone-400">Hidden from the opposition</span>
-          </div>
-          <div className="mt-1.5 grid grid-cols-2 gap-2">
-            {me.destinationCommitments.map((commitment, i) => {
-              const met = destinationMet(me, commitment);
-              const assigned = me.lines[commitment.lineIndex];
-              return (
-                <DestinationCardFace
-                  key={`${commitment.cardId}-${i}`}
-                  card={commitment.cardId}
-                  color={me.color}
-                  compact
-                  state={met ? "met" : "committed"}
-                  footer={
-                    <p className={`mt-1 text-[11px] font-black ${met ? "text-emerald-700" : "text-stone-400"}`}>
-                      {assigned ? lineLabel(assigned) : "unassigned"} · {met ? "✓ COMPLETE" : "In progress"}
-                    </p>
-                  }
-                />
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {myPins.length > 0 && (
-        <div className="mt-4">
-          <b className="text-xs uppercase text-stone-500">Survey Pins (public)</b>
-          <ul className="mt-1 space-y-0.5 text-xs">
-            {myPins.map((pin, i) => {
-              const done = surveyFulfilled(me, pin);
-              return (
-                <li key={i} className="flex items-center gap-2">
-                  <span className="text-stone-600">
-                    {pin.x + 1},{pin.y + 1} · any of your lines
-                  </span>
-                  <span className={`ml-auto font-black ${done ? "text-emerald-700" : "text-stone-400"}`}>
-                    {done ? `✓ +${SUBWAY_CONFIG.survey.vp}` : "pending"}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
-
-      {!planning && me.engineeringHand.length > 0 && (
-        <div className="mt-3">
-          <b className="text-xs uppercase text-stone-500">Engineering in hand (not scoring)</b>
-          <div className="mt-1.5 grid grid-cols-2 gap-2">
-            {me.engineeringHand.map((id, i) => (
-              <EngineeringCardFace key={`${id}-${i}`} card={id} color={me.color} compact />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {!planning && me.destinationHand.length > 0 && (
-        <div className="mt-3">
-          <b className="text-xs uppercase text-stone-500">Destinations in hand (unassigned, not scoring)</b>
-          <div className="mt-1.5 grid grid-cols-2 gap-2">
-            {me.destinationHand.map((id, i) => (
-              <DestinationCardFace key={`${id}-${i}`} card={id} color={me.color} compact />
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <div>
-          <b className="text-xs uppercase text-stone-500">Scheduling</b>
-          <p className="mt-1 text-xs text-stone-600">
-            {me.schedulingHand.length
-              ? me.schedulingHand.map((id) => schedulingById(id)?.name ?? id).join(", ")
-              : "None"}
-          </p>
-        </div>
-        <div>
-          <b className="text-xs uppercase text-stone-500">Construction</b>
-          <p className="mt-1 text-xs text-stone-600">
-            {me.constructionHand.length
-              ? me.constructionHand.map((id) => constructionById(id)?.name ?? id).join(", ")
-              : "None"}
-          </p>
-        </div>
-      </div>
-    </aside>
-  );
-}
-
-// ============================================================================
-// Main view
-// ============================================================================
-
-/** What the next tap on the board does. */
-type BoardMode = "none" | "place" | "survey" | "planner";
-
-export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }: GameViewProps<SubwayState>) {
-  const raw = state as SubwayState | undefined;
-  const stale = !!raw && raw.version !== SUBWAY_STATE_VERSION;
-  const game = raw && !stale ? raw : undefined;
-  const me = game?.players[playerId];
-
-  const [chosen, setChosen] = useState<string[]>([]);
-  const [assignments, setAssignments] = useState<Record<string, number>>({});
-  const [surveys, setSurveys] = useState(0);
-  const [selectedLine, setSelectedLine] = useState(0);
-  const [preview, setPreview] = useState<PlacementTarget | null>(null);
-  const [plannerLine, setPlannerLine] = useState<number | null>(null);
-  const [ghost, setGhost] = useState<RouteNode[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!notice) return;
-    const t = setTimeout(() => setNotice(null), 4000);
-    return () => clearTimeout(t);
-  }, [notice]);
-
-  // The ghost route is a sketch of a moment; once real placement begins it is
-  // no longer meaningful, so it is dropped rather than left to mislead.
-  const phase = game?.phase;
-  useEffect(() => {
-    if (phase !== "ENGINEERING" && phase !== "SCHEDULING") {
-      setPlannerLine(null);
-      setGhost([]);
-    }
-  }, [phase]);
-
-  const act = async (type: string, payload?: Record<string, unknown>) => {
-    setBusy(true);
-    try {
-      await dispatchAction(type, payload);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  // ---- What the board is for right now --------------------------------------
-  const myStarterTurn = !!game && game.phase === "STARTER_PLACEMENT" && starterTurnId(game) === playerId;
-  const starterLine = game && me ? pendingStarters(me)[0] ?? -1 : -1;
-  const placingStarter = myStarterTurn && starterLine >= 0;
-  const myBuild =
-    !!game && !!me && game.phase === "CONSTRUCTION" && game.resolveQueue[0] === me.id && me.pendingActions.length > 0;
-  const mySurvey =
-    !!game && !!me && game.phase === "ENGINEERING" && game.engineeringStep === "SURVEY" && surveyTurnId(game) === me.id;
-  const plannerOpen =
-    !!game && !!me && plannerLine !== null && (game.phase === "ENGINEERING" || game.phase === "SCHEDULING");
-
-  const activeLineIndex = placingStarter
-    ? starterLine
-    : myBuild && me
-      ? me.pendingActions.includes(selectedLine)
-        ? selectedLine
-        : me.pendingActions[0]
-      : -1;
-
-  const mode: BoardMode = placingStarter || myBuild ? "place" : mySurvey ? "survey" : plannerOpen ? "planner" : "none";
-  const canAct = mode !== "none" && !busy && (mode !== "place" || activeLineIndex >= 0);
-
-  // The planner works against a copy of the board with the ghost route dropped
-  // into the chosen line, so legality comes from the reducer's own helpers.
-  const plannerState = useMemo(() => {
-    if (!game || !me || plannerLine === null) return undefined;
-    const clone = cloneState(game);
-    const line = clone.players[me.id]?.lines[plannerLine];
-    if (!line) return undefined;
-    line.route = ghost;
-    return clone;
-  }, [game, me, plannerLine, ghost]);
-
-  const targets = useMemo<PlacementTarget[]>(() => {
-    if (!game || !me) return [];
-    if (mode === "place" && activeLineIndex >= 0) {
-      return legalTargets(game, me.id, activeLineIndex, placingStarter);
-    }
-    if (mode === "survey") {
-      const out: PlacementTarget[] = [];
-      for (let y = 0; y < SUBWAY_CONFIG.board.rows; y++) {
-        for (let x = 0; x < SUBWAY_CONFIG.board.columns; x++) {
-          if (!surveyBlocker(game, me.id, { x, y })) out.push({ x, y });
-        }
-      }
-      return out;
-    }
-    if (mode === "planner" && plannerState && plannerLine !== null) {
-      return legalTargets(plannerState, me.id, plannerLine, ghost.length === 0);
-    }
-    return [];
-  }, [game, me, mode, activeLineIndex, placingStarter, plannerState, plannerLine, ghost]);
-
-  // The board as it would be if the selected target were confirmed. Yellow is
-  // derived from this by the reducer's own rules, so a following target is
-  // legal by exactly the rules the next placement will use.
-  const previewState = useMemo(() => {
-    if (!game || !me || !preview || activeLineIndex < 0 || mode !== "place") return undefined;
-    const clone = cloneState(game);
-    const line = clone.players[me.id]?.lines[activeLineIndex];
-    if (!line) return undefined;
-    const station = stationAt(preview);
-    line.route.push({
-      x: preview.x,
-      y: preview.y,
-      ...(station ? { stationId: station.id, stationSlot: preview.slot ?? 0 } : {}),
-    });
-    return clone;
-  }, [game, me, preview, activeLineIndex, mode]);
-
-  const following = useMemo<PlacementTarget[]>(() => {
-    if (!previewState || !me || activeLineIndex < 0) return [];
-    return legalTargets(previewState, me.id, activeLineIndex, false);
-  }, [previewState, me, activeLineIndex]);
-
-  // What the selected step would cost in contacts with the opposing network.
-  const previewContacts = useMemo<RouteContact[]>(() => {
-    if (!game || !me || !preview || activeLineIndex < 0 || placingStarter) return [];
-    const route = me.lines[activeLineIndex]?.route ?? [];
-    const from = route[route.length - 1];
-    if (!from) return [];
-    return routeContacts(game, me.id, from, { x: preview.x, y: preview.y });
-  }, [game, me, preview, activeLineIndex, placingStarter]);
-
-  // A routine poll must never cancel a selection in progress: the room refetches
-  // every second, so only a change that actually affects this preview clears it.
-  const previewKey = preview ? targetKey(preview) : "";
-  const targetKeys = targets.map(targetKey).join("|");
-  useEffect(() => {
-    if (!preview) return;
-    if (mode !== "place" || !targets.some((t) => targetKey(t) === previewKey)) setPreview(null);
-  }, [mode, activeLineIndex, previewKey, targetKeys, preview, targets]);
-
-  const drawn = useMemo(() => {
-    if (!game) return [];
-    const out: {
-      key: string;
-      route: RouteNode[];
-      contract: LineContract;
-      ownerColor: string;
-      active: boolean;
-      growing: boolean;
-      ghost?: boolean;
-    }[] = [];
-    for (const id of game.playerOrder) {
-      const p = game.players[id];
-      if (!p) continue;
-      p.lines.forEach((line, li) => {
-        const contract = contractOf(line);
-        if (!contract || !line.route.length) return;
-        out.push({
-          key: `${id}-${li}`,
-          route: line.route,
-          contract,
-          ownerColor: p.color,
-          active: id === playerId && li === activeLineIndex,
-          growing: !lineComplete(line),
-        });
-      });
-    }
-    if (plannerOpen && me && plannerLine !== null && ghost.length) {
-      const contract = contractOf(me.lines[plannerLine]);
-      if (contract) {
-        out.push({
-          key: "ghost",
-          route: ghost,
-          contract,
-          ownerColor: me.color,
-          active: true,
-          growing: true,
-          ghost: true,
-        });
-      }
-    }
-    return out;
-  }, [game, playerId, activeLineIndex, plannerOpen, me, plannerLine, ghost]);
-
-  const onTapHole = (p: Point, slot?: number) => {
-    if (!game || !me || !canAct) return;
-
-    if (mode === "planner" && plannerState && plannerLine !== null) {
-      const reason = validateNode(plannerState, me.id, plannerLine, p, ghost.length === 0, slot);
-      if (reason) {
-        setNotice(reason);
-        return;
-      }
-      const station = stationAt(p);
-      setNotice(null);
-      setGhost([...ghost, { ...p, ...(station ? { stationId: station.id, stationSlot: slot ?? 0 } : {}) }]);
-      return;
-    }
-
-    if (mode === "survey") {
-      const reason = surveyBlocker(game, me.id, p);
-      if (reason) {
-        setNotice(reason);
-        return;
-      }
-      setNotice(null);
-      act("PLACE_SURVEY", { x: p.x, y: p.y });
-      return;
-    }
-
-    if (mode === "place" && activeLineIndex >= 0) {
-      const reason = validateNode(game, me.id, activeLineIndex, p, placingStarter, slot);
-      if (reason) {
-        setNotice(reason);
-        return;
-      }
-      setNotice(null);
-      const target: PlacementTarget = { x: p.x, y: p.y, ...(stationAt(p) ? { slot } : {}) };
-      // First tap selects and previews. Second tap on the same target commits.
-      if (!preview || targetKey(preview) !== targetKey(target)) {
-        setPreview(target);
-        return;
-      }
-      setPreview(null);
-      act(placingStarter ? "PLACE_STARTER" : "BUILD", {
-        lineIndex: activeLineIndex,
-        x: p.x,
-        y: p.y,
-        ...(slot !== undefined && stationAt(p) ? { slot } : {}),
-      });
-    }
-  };
-
-  // ---- Pre-game lobby -------------------------------------------------------
-  if (!game || game.phase === "SETUP") {
-    const enough = room.players.length >= 2;
-    return (
-      <section className="rounded-2xl bg-[#ede1c7] p-6 text-center text-stone-900 shadow-xl">
-        <p className="text-xs font-bold uppercase tracking-[.3em] text-amber-800">Two-company network contest</p>
-        <h2 className="mt-2 font-serif text-3xl font-black">Subway</h2>
-        <p className="mx-auto my-4 max-w-xl text-sm text-stone-600">
-          Six Line Contracts come up one at a time and all of them find an owner. Each carries an
-          ordered recipe of segment lengths and its own line color. Commit secret objectives and
-          Destinations, buy Survey Pins, plan the whole programme on a shared Gantt board, then
-          engineer the routes hole by hole.
-        </p>
-        {stale && (
-          <p className="mx-auto mb-4 max-w-md rounded-lg bg-amber-100 px-3 py-2 text-sm font-semibold text-amber-900">
-            This room is running an older version of Subway. Starting a new game will reset it to the
-            current rules.
-          </p>
-        )}
-        <p className="mb-4 text-sm font-semibold text-stone-700">
-          Companies: {room.players.slice(0, 2).map((p) => p.name).join(" vs ") || "waiting…"}
-          {room.players.length > 2 && ` · ${room.players.length - 2} spectating`}
-        </p>
-        {isHost ? (
-          <button
-            disabled={busy || !enough}
-            onClick={() => act("START_GAME")}
-            className="rounded-xl bg-emerald-700 px-6 py-3 font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {busy ? "Starting…" : enough ? "Start Subway" : "Waiting for a second player"}
-          </button>
-        ) : (
-          <p className="text-sm text-stone-600">Waiting for the host to start Subway…</p>
-        )}
-      </section>
-    );
-  }
-
-  const status = statusFor(game, me, isHost);
-  const schedulingRevealed = game.phase !== "SCHEDULING" || game.schedulingStep === "RESOLUTION";
-  // Kept on the results screen too: the final programme shows what was planned
-  // against what actually got built.
-  const showGantt = ["SCHEDULING", "STARTER_PLACEMENT", "CONSTRUCTION", "SCORING", "RESULTS"].includes(game.phase);
-  // The board is up during Engineering and Scheduling too, so Survey Pins and
-  // the Route Planner have somewhere to happen.
-  const showBoard = game.phase !== "PROCUREMENT";
-  const canUndo = game.undo?.playerId === playerId;
-  const activeLine = activeLineIndex >= 0 && me ? me.lines[activeLineIndex] : undefined;
-
-  return (
-    <div className="space-y-4 rounded-3xl bg-[#ede1c7] p-3 text-stone-900 sm:p-5">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-[.3em] text-amber-800">Two-company network contest</p>
-          <h2 className="font-serif text-2xl font-black sm:text-3xl">Subway</h2>
-        </div>
-        <span className="rounded-full bg-stone-900 px-4 py-1.5 text-xs font-bold text-amber-50 sm:text-sm">
-          {PHASE_LABELS[game.phase] ?? game.phase}
-          {game.phase === "ENGINEERING" && (game.engineeringStep === "PLAN" ? " · plan" : " · surveys")}
-          {game.phase === "CONSTRUCTION" &&
-            ` · Period ${Math.min(game.currentPeriod, SUBWAY_CONFIG.timelinePeriods)}/${SUBWAY_CONFIG.timelinePeriods}`}
-        </span>
-      </header>
-
-      <div
-        className={`rounded-xl border-l-4 px-4 py-2.5 ${
-          status.tone === "act"
-            ? "border-emerald-600 bg-emerald-50"
-            : status.tone === "wait"
-              ? "border-stone-400 bg-white/60"
-              : "border-amber-500 bg-amber-50"
-        }`}
-      >
-        <p className="flex items-center gap-2 text-sm font-bold">
-          {status.tone === "act" && <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-600" />}
-          {status.headline}
-        </p>
-        {status.detail && <p className="text-xs text-stone-600">{status.detail}</p>}
-        <p className="mt-0.5 text-[11px] italic text-stone-500">{game.message}</p>
-      </div>
-
-      {/* The pegboard is a 3:1 corridor, so it gets the full page width rather
-          than sharing a column with the panels. */}
-      {showBoard && (
-        <div className="space-y-2">
-          {mode === "place" && activeLine && (
-            <ActiveLineBanner line={activeLine} starter={placingStarter} targetCount={targets.length} />
-          )}
-          <Board
-            game={game}
-            targets={targets}
-            following={mode === "place" ? following : []}
-            selected={preview ?? undefined}
-            canAct={canAct}
-            drawn={drawn}
-            onTapHole={onTapHole}
-          />
-          {notice && (
-            <p className="rounded-xl bg-red-100 px-3 py-2 text-center text-sm font-bold text-red-900">{notice}</p>
-          )}
-          {!notice && canAct && me && mode === "survey" && (
-            <p className="rounded-xl bg-emerald-100 px-3 py-2 text-center text-sm font-semibold text-emerald-900">
-              Tap a glowing hole to pin a survey for your{" "}
-              company — any of your lines can fulfil it.
-            </p>
-          )}
-          {!notice && canAct && me && mode === "planner" && (
-            <p className="rounded-xl bg-purple-100 px-3 py-2 text-center text-sm font-semibold text-purple-900">
-              Sketching a private, non-binding route. Nothing here is dispatched or reserved.
-            </p>
-          )}
-          {!notice && canAct && me && mode === "place" && (
-            <p className="rounded-xl bg-emerald-100 px-3 py-2 text-center text-sm font-semibold text-emerald-900">
-              {placingStarter
-                ? `Tap a glowing hole to start your ${lineLabel(me.lines[activeLineIndex])} (stations not allowed).`
-                : `Tap a glowing hole, or a glowing station dock, to extend your ${lineLabel(me.lines[activeLineIndex])}.`}
-            </p>
-          )}
-          {mode === "place" && preview && me && (
-            <div className="rounded-xl border-2 border-emerald-600 bg-emerald-50 px-4 py-3 text-sm text-stone-900">
-              <p className="font-bold">
-                Selected {preview.slot !== undefined
-                  ? `${stationById(stationAt(preview)?.id ?? "")?.name ?? "station"} dock ${preview.slot + 1}`
-                  : `hole ${preview.x + 1},${preview.y + 1}`}
-                . Tap it again to confirm.
-              </p>
-              <p className="mt-0.5 text-xs text-stone-600">
-                Dashed <b>2</b> markers show where this line could go after it. They are a preview,
-                not a commitment — the opposition may build first.
-              </p>
-              {!placingStarter && (
-                <div className="mt-2 border-t border-emerald-200 pt-2 text-xs">
-                  {previewContacts.length === 0 ? (
-                    <p>
-                      No contact with {opponentOf(game, me)?.name ?? "the opposition"}&apos;s network —{" "}
-                      <b>free</b>. Your own routes never charge you.
-                    </p>
-                  ) : (
-                    <>
-                      <p>
-                        <b>
-                          {previewContacts.length} contact{previewContacts.length === 1 ? "" : "s"}
-                        </b>{" "}
-                        with {opponentOf(game, me)?.name ?? "the opposition"}&apos;s network ·{" "}
-                        <b>{money(contactToll(previewContacts))}</b> paid to them.
-                      </p>
-                      <p className="mt-0.5 text-stone-600">
-                        {previewContacts.map((c) => c.kind).join(", ")} · cash after{" "}
-                        <b className={me.money - contactToll(previewContacts) < 0 ? "text-red-700" : ""}>
-                          {money(me.money - contactToll(previewContacts))}
-                        </b>
-                        {me.money - contactToll(previewContacts) < 0 && (
-                          <>
-                            {" "}
-                            · projected debt penalty{" "}
-                            <b className="text-red-700">
-                              {(me.money - contactToll(previewContacts)) *
-                                SUBWAY_CONFIG.contact.debtVpPerMillion}{" "}
-                              VP
-                            </b>
-                          </>
-                        )}
-                      </p>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-          {canUndo && (
-            <div className="flex items-center justify-center gap-3 rounded-xl bg-amber-100 px-3 py-2 text-sm">
-              <span className="font-semibold text-amber-900">
-                Your {game.undo?.label} can still be taken back — until anything else happens.
-              </span>
-              <button
-                disabled={busy}
-                onClick={() => act("UNDO_PLACEMENT")}
-                className="rounded-lg bg-stone-900 px-3 py-1.5 font-bold text-white disabled:opacity-40"
-              >
-                Undo
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-start">
-        <div className="min-w-0 space-y-3">
-          {showGantt && (
-            <GanttBoard
-              game={game}
-              viewerId={playerId}
-              revealed={schedulingRevealed}
-              editable={game.phase === "SCHEDULING" && game.schedulingStep === "PLANNING" && !me?.scheduleSubmitted}
-              busy={busy}
-              act={act}
-            />
-          )}
-          {me && (game.phase === "ENGINEERING" || game.phase === "SCHEDULING") && me.lines.length > 0 && (
-            <RoutePlannerPanel
-              me={me}
-              plannerLine={plannerLine}
-              setPlannerLine={setPlannerLine}
-              ghost={ghost}
-              setGhost={setGhost}
-            />
-          )}
-        </div>
-
-        <div className="min-w-0 space-y-4">
-          {game.phase === "PROCUREMENT" && me && <ProcurementPanel game={game} me={me} busy={busy} act={act} />}
-          {game.phase === "ENGINEERING" && game.engineeringStep === "DESTINATION_DRAFT" && me && (
-            <DestinationDraftPanel game={game} me={me} busy={busy} act={act} />
-          )}
-          {game.phase === "ENGINEERING" && game.engineeringStep === "PLAN" && me && (
-            <EngineeringPlanPanel
-              me={me}
-              chosen={chosen}
-              setChosen={setChosen}
-              assignments={assignments}
-              setAssignments={setAssignments}
-              surveys={surveys}
-              setSurveys={setSurveys}
-              busy={busy}
-              act={act}
-            />
-          )}
-          {game.phase === "ENGINEERING" && game.engineeringStep === "SURVEY" && me && (
-            <SurveyPanel game={game} me={me} />
-          )}
-          {game.phase === "SCHEDULING" && me && <SchedulingPanel game={game} me={me} busy={busy} act={act} />}
-          {game.phase === "STARTER_PLACEMENT" && me && <StarterPanel game={game} me={me} />}
-          {game.phase === "CONSTRUCTION" && me && (
-            <ConstructionPanel
-              game={game}
-              me={me}
-              busy={busy}
-              act={act}
-              selectedLine={activeLineIndex >= 0 ? activeLineIndex : 0}
-              setSelectedLine={setSelectedLine}
-            />
-          )}
-          {game.phase === "SCORING" && isHost && (
-            <button
-              disabled={busy}
-              onClick={() => act("ADVANCE_SCORING")}
-              className="w-full rounded-xl bg-stone-900 py-3 font-bold text-white disabled:opacity-40"
-            >
-              Reveal Engineering &amp; score
-            </button>
-          )}
-          {game.phase === "RESULTS" && <ResultsPanel game={game} />}
-          {me && <PrivatePanel game={game} me={me} activeLineIndex={activeLineIndex} />}
-        </div>
-      </div>
-
-      <footer className="flex items-center justify-between border-t border-stone-300 pt-2 text-xs text-stone-500">
-        <span>
-          Room <code className="rounded bg-white/60 px-1.5 py-0.5 font-bold">{room.roomCode}</code>
-        </span>
-        <Link href="/" className="hover:text-stone-800">
-          Leave room
-        </Link>
-      </footer>
-    </div>
   );
 }
