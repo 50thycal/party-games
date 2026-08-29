@@ -1,6 +1,6 @@
 # WS-004 — Subway tabletop console and playtest clarity
 
-**Phase:** READY_TO_BUILD
+**Phase:** BUILDING
 **Status:** Active
 **Created:** 2026-08-29
 **Updated:** 2026-08-29
@@ -205,9 +205,12 @@ move, and immediately understand what changed without scrolling away from the bo
 
 ## Implementation State
 
-Approved Build Card and issued Build Spec are ready for Claude on draft Design Handoff PR
-[#147](https://github.com/50thycal/party-games/pull/147). Opening the PR does not start `BUILDING`;
-Claude checkpoints implementation start on the same branch.
+Implementation started 2026-08-29 by Claude against the approved Build Card and issued Build Spec
+for draft Design Handoff PR [#147](https://github.com/50thycal/party-games/pull/147). Scope in
+build: tabletop composition, saved Plan Mode, select/reposition/Confirm placement, border-only
+starters with marker precedence, structured public events with pegboard narration (state version 8),
+private/public mats, mobile tabs, and the hotseat handoff veil. Card expansion stays excluded per
+OD-12.
 
 ## Review State
 
@@ -231,5 +234,7 @@ Claude checkpoints implementation start on the same branch.
 
 ## Next Step
 
-Claude begins implementation on the Design Handoff PR, updates WS-004 to `BUILDING / Active`, and
-leaves card expansion untouched until the owner reviews the audit and approves a follow-up card.
+Claude implements the approved scope, runs the focused reducer harness, build, lint, and the
+desktop/phone/hotseat playtests, replaces the PR body with the implementation handoff, and requests
+independent review of the current full head SHA. Card expansion stays untouched until the owner
+reviews the audit and approves a follow-up card.
