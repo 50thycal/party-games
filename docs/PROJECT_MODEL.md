@@ -89,7 +89,7 @@ Two properties define the shape of everything else:
 | Entry pages | `src/app/page.tsx`, `create/`, `join/` | Home (with a "latest merged PR" banner), room creation (game + mode + players), room joining. |
 | AI narrator routes | `src/app/api/{host,desk,speak}/route.ts` | Stateless OpenAI calls serving one game each: HR Investigation narration, The Desk's Oracle round generation, and text-to-speech. |
 | Dev simulator | `src/app/test/`, `src/app/api/llm-bot/route.ts`, `src/games/cafe/bots.ts` | **Development-only.** Runs Comet Rush and Cafe reducers in the browser with scripted or LLM bots. Bypasses the API routes and the database entirely. |
-| Subway rules harness | `scripts/subway-rules-test.ts`, `scripts/test-subway.sh` | The only automated test in the repository: compiles the Subway reducer plus engine types and asserts rules by driving the reducer directly. Covers Subway's contract recipes and route geometry, station docks, priority, procurement, Engineering plan lock, Destinations, Survey Pins, placement undo, scheduling, spatial rules, scoring, and state versioning. |
+| Subway rules harness | `scripts/subway-rules-test.ts`, `scripts/test-subway.sh` | The only automated test in the repository: compiles the Subway reducer plus engine types and asserts rules by driving the reducer directly. Covers Subway's contract recipes and route geometry, station docks, priority, procurement, Engineering plan lock, Destinations, Survey Pins, placement undo, scheduling, spatial rules, scoring, border-only starters, one-Confirm-one-action queue semantics, stale-confirm rejection, the bounded privacy-safe public event stream (append-on-accept, 20-entry cap, monotonic sequence across Undo), and state versioning. |
 
 ### How they relate
 
@@ -213,7 +213,7 @@ the room shell reads `state.phase` directly.
 | Open House | `real-estate` | `lobby → playing → round_results → … → results` |
 | HR Investigation | `performance-review` | `lobby → intro → accusation → reframing → interview → case_prep → editing → reveal → voting → round_over → … → game_over` |
 | The Desk | `the-desk` | `lobby → briefing → quote → trading → settlement → briefing … → final` |
-| Subway | `subway` | `SETUP → PROCUREMENT → ENGINEERING → SCHEDULING → STARTER_PLACEMENT → CONSTRUCTION → SCORING → RESULTS`, with `engineeringStep: DESTINATION_DRAFT → PLAN → SURVEY` inside `ENGINEERING` and `schedulingStep: PLANNING → RESOLUTION` inside `SCHEDULING`. One `UNDO_PLACEMENT` action can walk the latest physical placement back across a phase boundary. |
+| Subway | `subway` | `SETUP → PROCUREMENT → ENGINEERING → SCHEDULING → STARTER_PLACEMENT → CONSTRUCTION → SCORING → RESULTS`, with `engineeringStep: DESTINATION_DRAFT → PLAN → SURVEY` inside `ENGINEERING` and `schedulingStep: PLANNING → RESOLUTION` inside `SCHEDULING`. One `UNDO_PLACEMENT` action can walk the latest physical placement back across a phase boundary. State v8 (WS-004) adds a bounded public event stream — `events` (latest 20) plus a monotonic `nextEventSeq` that is never rewound, Undo included — appended only by accepted actions and containing no hidden card identity; the view narrates it as pegboard overlays and a history rail. Starter pegs are reducer-legal only on non-station outer-border holes, and the view commits placements exclusively through an explicit Confirm dispatching `PLACE_STARTER`/`BUILD` with the one selected target. |
 
 **The string `"lobby"` is load-bearing in the shell.** The room page shows the room-code header,
 the player list, and the leave link only while `gameState` is null or `state.phase === "lobby"`;
@@ -262,9 +262,13 @@ rooms(
 |---|---|---|
 | `partyShellPlayer` | `{id, name}` player identity (UUID) | Multiplayer create/join and the room shell |
 | `hotseat-active-player-<ROOMCODE>` | Currently-controlled player id | Hotseat mode |
+| `subway-plan-v8:<ROOM>:<PLAYER>:<CONTRACT>` | One saved phantom route plan (`{v, nodes, savedAt}`), versioned by Subway state shape | Subway saved Plan Mode (`src/games/subway/plans.ts`); parsed defensively, fails closed to no plan |
+| `subway-seen-v8:<ROOM>:<PLAYER>` | Highest public event sequence this room/player pairing has seen | Subway pegboard narration dedupe across polls and reloads |
 
 Identity is a client-held UUID with no authentication. Any client that knows a room code and a
-player id can act as that player.
+player id can act as that player. Subway's saved plans are deliberately client-local (DEC-022):
+they are private sketches, never room state, and do not sync across devices; when storage is
+unavailable a plan lasts only for the session and the UI says so.
 
 ### Not persisted
 
@@ -386,9 +390,12 @@ observable in the code, not as plans.
   filtering in `get-room`; the design question is tracked in
   [WS-001](workstreams/WS-001-subway-v0-3-redesign.md) and
   [WS-002](workstreams/WS-002-subway-route-engineering.md) as a non-goal, not a plan. Subway's
-  Route Planner is the counter-example that shows the shape of the alternative: because it is a
-  client-local sketch that never enters an action payload or room state, it is genuinely private
-  in a way no committed card is.
+  saved phantom plans (WS-004/DEC-022) are the counter-example that shows the shape of the
+  alternative: because they are client-local sketches in versioned browser storage that never
+  enter an action payload or room state, they are genuinely private in a way no committed card
+  is. WS-004's tabletop presentation — opponent card backs/counts, the privacy-vetted public
+  event stream, the hotseat handoff veil — is deliberate *presentation* privacy on top of the
+  same shared payload, and is documented as such rather than as secrecy.
 - **Uncertain / not documented in the code:** whether `simulation` mode is intended to become a
   user-facing room mode (the shell supports it, the create page does not offer it), and whether
   the original `docs/history/` spec's WebSocket phase is still the intended upgrade path.

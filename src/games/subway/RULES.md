@@ -1,5 +1,8 @@
 # Subway v0.5 rules and design pins
 
+*(v0.5.1 — WS-004 adds the tabletop console, saved Plan Mode, border-only starters, explicit
+Confirm placement, and the public event stream; state version 8.)*
+
 Subway is a two-player prototype played as a single pass:
 
 ```
@@ -121,15 +124,26 @@ its remainder; a company that bought none never places.
 
 Scheduling opens once the last purchased pin is down.
 
-## Route Planner — a private, non-binding sketch
+## Plan Mode — private, saved, non-binding phantom routes
 
-During Engineering and Scheduling you can sketch a whole route for any line you own: pick a starter,
-then step through the ordered recipe, seeing only endpoints the real rules would allow. Undo a step
-or clear the sketch at any time.
+Whenever you own at least one line — through Engineering, Scheduling, Starter placement, and all of
+Construction, including while waiting for the opposition — you can open **Plan Mode** and sketch a
+whole route for that line: start from its real endpoint (or, before it exists, a legal border
+starter), then step through the ordered recipe, seeing only endpoints the real rules would allow.
 
-The planner is **client-local**. It dispatches no action, reserves no hole, spends no money, is never
-part of room state, and disappears on reload. It shows what is legal against the board *as it stands*
-— the opposition can still build wherever it likes before you get there.
+**Save** keeps one phantom route per owned line in this browser's storage, so the plan survives a
+refresh on the same device and stays visible, faint and dashed, while the real route is built. As
+real nodes land on the planned holes they simply merge with the plan; if reality diverges from the
+plan, or a later phantom segment stops being legal, the plan is marked **STALE** and stays exactly
+as you drew it until you *Edit* (which restarts from the real endpoint) or *Clear* it — it is never
+silently rewritten. Entering Plan Mode during your own placement only pauses the placement UI; the
+action is still yours when you come back.
+
+Plans are **client-local and non-binding**. They dispatch no action, reserve no hole, spend no
+money, never enter room state, and are drawn only on their owner's screen (in hotseat, only after
+the handoff veil). They do not follow you to another device, and if the browser refuses storage the
+plan simply lasts for the current session. The opposition can still build wherever it likes before
+you get there.
 
 ## Scheduling — one Gantt board, settled before any building
 
@@ -176,8 +190,12 @@ could have no legal schedule at all. Shelved contracts are labelled as such on t
 One free starter peg per **scheduled** contract, costing no scheduled action. A shelved contract gets
 no peg at all — it is never built, so a peg for it would only be a free blocker planting an exclusion
 zone on the board. Companies alternate placements — the odd-period company first, then whoever has
-placed fewer — until every scheduled contract has one. All spatial rules apply; starters may not use
-station holes.
+placed fewer — until every scheduled contract has one.
+
+**Starters enter from the edge of the map**: a starter peg is legal only on a normal hole on the
+board's **outer border** (`x = 1` or `27`, `y = 1` or `9` in board coordinates), enforced by the
+rules, not just the highlight. Stations may never take a starter. Interior holes are reached by
+building inward from the border.
 
 ## Construction — executing the plan
 
@@ -257,14 +275,47 @@ what you cannot afford. Ending the game in debt costs **-2 VP per $1M** owed, an
 opposition pays *you* for their own contacts reduces it. Remaining cash is still the last tiebreak,
 after that penalty.
 
-## Placing: look one step ahead
+## Placing: select, reposition, then Confirm
 
-Placement takes two taps. The first selects a target — it stays marked and the board shows, in
-dashed markers, where that line could go *next*. The second tap on the same target confirms it.
+Tapping a legal target only **selects** it: the provisional marker renders as a solid ring marked
+**1 / NOW**, and the board shows, in dashed rings marked **2 / NEXT**, where that line could go
+*afterwards*. Tapping any other legal target — a different hole, or a different station dock —
+simply **moves** the selection; nothing is spent and nothing needs undoing. While something is
+selected, the remaining unselected targets dim, and a NEXT marker always wins the coordinate over an
+unselected target, so the lookahead never drowns in a field of green.
 
-Current-step targets carry a solid ring marked **1**; following-step targets a dashed ring marked
-**2**. The following markers are a preview, not a reservation: the opposition may build first, and
-prices are recomputed when you actually confirm. Starter placement works the same way.
+Only the explicit **Confirm placement** button commits the selected target. Confirming resolves
+exactly one scheduled (or Overtime/Surge bonus) action and lets the normal queue decide who acts
+next. The action strip shows the exact target or dock, the required segment, any contacts with the
+opposing network, the toll, your cash afterwards, and the projected debt penalty before you press
+it. If the target went stale in the meantime — the opposition took the dock, or the board changed —
+the rules reject the commit, your action is **not** consumed, and you simply pick a fresh target.
+Cancel clears the selection. Starter placement works the same way.
+
+The NEXT markers are a preview, not a reservation: the opposition may build first, and prices are
+recomputed when you actually confirm. The one-placement Undo still exists after a confirmed
+placement, exactly as before.
+
+## The tabletop console and the public record
+
+The primary view is laid out like the physical table: the pegboard stays central at full width, the
+opposition's **public mat** sits across from you (identity, cash, contract progress, revealed
+schedule, and card **backs with counts** — never faces), the shared construction programme and a
+**public record** rail sit beside the board, and your own **player mat** runs along your edge with
+every card face up and organized by family, live `COMPLETE` status on your commitments, and a tap-to-
+zoom detail view. A minimap in the board's corner tracks the viewport. On a phone the board stays
+pan/zoomable above a sticky Confirm/Cancel strip, and the mats move into `My Mat`, `Schedule`, and
+`Log` bottom-sheet tabs instead of one long page. In hotseat, a **handoff veil** covers all private
+mats and saved plans whenever control changes hands, until the incoming player confirms who they
+are.
+
+Every accepted public change also appends one entry to a structured **event stream** kept in game
+state: phase and period transitions as prominent banners, player actions (placements with their
+public coordinates, tolls paid, public card plays, schedule submissions, skips, Undo, scoring) as
+brief notices. New events play once as dismissible overlays on the pegboard — polls never replay
+them — and the latest 20 remain readable in the public record rail. Events are **privacy-safe by
+construction**: a Destination draft pick is narrated without the card's identity, and no committed
+objective, assignment, unrevealed schedule, or saved plan ever enters the stream.
 
 ## Route geometry — ordered lengths, and no hairpins
 
@@ -321,9 +372,12 @@ Ties break on major connections, then remaining money, then a shared victory.
 - **State version:** `SUBWAY_STATE_VERSION` guards the saved shape. A room holding an older game shows a
   restart prompt rather than misreading it.
 - Clients receive shared room state, but the view never renders an opponent's committed Engineering
-  cards, their Destination assignments and status, or their unrevealed schedule. Server-filtered
-  private state is a future engine enhancement — this is concealment by the view, not by the server.
-  The Route Planner is the one genuinely private thing here: it never leaves the client.
+  cards, their Destination assignments and status, or their unrevealed schedule — the opponent mat
+  shows card backs and counts only, and the public event stream carries no hidden identity. Be
+  honest about what this is: **the complete room payload still reaches every client**, so anyone
+  reading the poll response can see everything; fairness does not depend on the server withholding
+  it. Server-filtered private state remains a future engine enhancement. Saved plans are the one
+  genuinely private thing here: they live only in the owner's browser and never leave the client.
 
 ## Future design pins (not implemented)
 
