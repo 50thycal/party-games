@@ -971,3 +971,135 @@ is written for, and it is the case where an unreviewed merge is likeliest.
 - Every significant PR gains a documentation-only finalization commit before merge.
 - `AGENTS.md`'s `Project-specific:` rules are untouched; the v0.5 behaviors are merged alongside
   them, not over them.
+
+---
+
+### DEC-021 — Subway's primary view is a board-centred tabletop console with public narration
+
+**Date:** 2026-08-29
+
+**Status:** Accepted
+
+**Context**
+Subway's merged WS-003 board works, but its information architecture still reads like a web form:
+the pegboard, programme, phase controls, cards, and company state appear in a long vertical page.
+During playtest, both players watched the board and missed period changes, opponent placements, card
+plays, and state changes reported elsewhere. Finding one's own hand or schedule meant scrolling away
+from the shared object everyone was discussing.
+
+The physical concept has a clearer hierarchy: one central pegboard, a public programme and game log,
+and a player area containing cards, contracts, money, and controls. The digital version should use
+that tabletop grammar while retaining responsive access on a phone.
+
+**Decision**
+Make the Metropolitan Pegboard Subway's dominant central surface at its current effective size.
+Arrange the revealed programme, public opponent mat, private player mat/cards, phase-valid actions,
+minimap, and public event history around it on desktop. On phone, keep the board and action strip in
+view and move the supporting mats into compact bottom sheets/tabs rather than a single long page.
+
+Add a bounded structured public event stream to Subway state. Accepted phase, period, turn, public
+card, placement, route, Undo, and scoring changes create privacy-safe events. The UI presents major
+transitions as brief pegboard banners, player actions as shorter notices, and retains the latest 20
+events in a public history. Routine polls and rejected actions create and replay nothing. Events
+never name hidden objectives, private Destination assignments, unrevealed schedules, or saved plans.
+
+The owning player sees organized card faces and private status. Opponents see only public state and
+card backs/counts until current rules reveal a card. Hotseat uses an explicit player-handoff veil.
+This is presentation privacy only: the entire room state still reaches every client under invariant
+11, and this decision does not claim server-side secrecy.
+
+**Rationale**
+The board is the game's shared attention surface, so transitions belong there. A structured event
+sequence is more reliable than watching a mutable `message` string: it provides deduplication under
+one-second polling, ordering when several state changes occur, an accessible history after animation,
+and a single privacy review point. Tiering events prevents the solution from becoming a new source of
+visual noise.
+
+Keeping the board dominant preserves the toy-like pegboard identity. Desktop mats mirror the
+physical table; mobile sheets acknowledge that a 3:1 board and four card families cannot remain
+simultaneously readable at 390 pixels without either zoom or layering.
+
+**Alternatives considered**
+- **Reorder the existing vertical panels.** Rejected because it changes sequence but preserves the
+  scrolling and divided attention that caused the problem.
+- **Use only transient toasts derived from `message`.** Rejected because polls can replay them,
+  simultaneous facts collapse into one string, and disappeared information has no history.
+- **Put the entire tabletop on one infinitely zoomable canvas.** Rejected because cards, controls,
+  text accessibility, and responsive input are better served by ordinary React layout around the
+  already zoomable SVG board.
+- **Add server-side private views now.** Rejected as a separate engine-wide architecture change; the
+  owner asked for correct public/private presentation, and the current limitation remains disclosed.
+
+**Consequences**
+- Subway state version bumps because it gains a bounded event sequence.
+- Accepted reducer paths need consistent event creation and privacy tests.
+- `GameView.tsx` needs a real component/layout refactor rather than incremental panel shuffling.
+- Hotseat must hide private mats during player transition.
+- Event overlays must support dismissal, reduced motion, and an `aria-live` equivalent.
+
+---
+
+### DEC-022 — Phantom route plans are private client-local aids; placement commits through Confirm
+
+**Date:** 2026-08-29
+
+**Status:** Accepted
+
+**Context**
+The existing Route Planner is client-only but temporary: it is available only in Engineering and
+Scheduling, and its ghost disappears when Construction begins. That removes the plan precisely when
+the player needs to compare intended and actual construction. The live placement interaction also
+commits when the player taps the selected target a second time, which makes changing one's mind look
+like an Undo problem even though no reducer action has happened yet.
+
+The same playtest found that every green starter target remains visually prominent after selection,
+covering the following-step preview, and that interior starter positions do not match the intended
+edge-entry rule of the tabletop.
+
+**Decision**
+Keep Plan Mode available through Starter Placement and Construction. Store one saved phantom route
+per room/player/owned line in versioned browser local storage. It is private to the supported UI,
+non-binding, never sent to shared room state, and never reserves, prices, scores, or authorizes a
+hole. It survives refresh on that browser, marks itself stale when real construction diverges or
+invalidates it, and remains editable/clearable by its owner.
+
+Change starter and Construction placement to explicit select/reposition/Confirm. Tapping any legal
+target creates or moves a provisional `NOW` marker and recomputes `NEXT` endpoints; only a separate
+Confirm control dispatches the reducer action. Confirm consumes exactly one scheduled or bonus
+action and lets the existing queue decide what follows. Post-confirm Undo remains DEC-015's one
+physical placement snapshot.
+
+All starters must be non-station holes on the 27×9 board's outer border. During starter preview,
+unselected current targets are visually subordinate; `NEXT` wins over an overlapping current target,
+and the selected `NOW` marker renders on top. Number, ring style, and colour all distinguish states.
+
+**Rationale**
+A private local plan matches its meaning: a pencil sketch belonging to one player, not game state.
+Putting it in the room would expose intent, invite synchronization conflicts, and make a non-binding
+aid look like a reservation. Local storage gives same-device continuity without changing reducer
+fairness; the disclosed cost is that plans do not follow a player to another device.
+
+Explicit Confirm cleanly separates exploration from commitment. It removes accidental second-tap
+builds, makes target changes obvious, and leaves Undo for its intended job—reversing an action the
+server actually accepted. Border-only starters strengthen the map's outside-in network shape and
+reduce the sea of starter targets that caused the marker-layering bug.
+
+**Alternatives considered**
+- **Keep plans only in React memory.** Rejected because phase changes and refresh erase the plan.
+- **Persist plans in Subway room state.** Rejected because the opponent receives the entire state and
+  a private sketch has no reducer authority.
+- **Keep second-tap confirmation and add a tooltip.** Rejected by playtest; the interaction itself,
+  not merely its explanation, is the problem.
+- **Auto-confirm after a short delay.** Rejected because it still turns inspection into commitment
+  and is fragile under touch/poll timing.
+- **Allow interior starters but visually recommend the border.** Rejected because the owner made the
+  border an actual rule; reducer legality must match.
+
+**Consequences**
+- Planner storage needs versioned keys, defensive parsing, per-player isolation, and a fallback when
+  storage is unavailable.
+- Construction mode gains an explicit planner/place toggle and a sticky Confirm/Cancel action strip.
+- Tests must preserve Overtime/Surge queue semantics: one Confirm is one action even if the same
+  player has another pending action.
+- Starter target generation and reducer validation both become border-only.
+- The all-green starter failure becomes a render-precedence regression test.
