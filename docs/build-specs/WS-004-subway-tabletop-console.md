@@ -380,7 +380,8 @@ The implementation PR must update:
 
 ## 12. Handoff requirements
 
-- Continue on draft Design Handoff PR `DESIGN_HANDOFF_PR`; do not create a second implementation PR.
+- Continue on draft Design Handoff PR [#147](https://github.com/50thycal/party-games/pull/147); do
+  not create a second implementation PR.
 - On code start, change WS-004 from `READY_TO_BUILD / Active` to `BUILDING / Active`.
 - Keep the card recommendations documentation-only until owner approval.
 - Recommended review focus: reducer versus UI Confirm parity, action-queue semantics, event privacy

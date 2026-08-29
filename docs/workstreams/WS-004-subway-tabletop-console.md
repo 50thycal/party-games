@@ -206,14 +206,14 @@ move, and immediately understand what changed without scrolling away from the bo
 ## Implementation State
 
 Approved Build Card and issued Build Spec are ready for Claude on draft Design Handoff PR
-`DESIGN_HANDOFF_PR`. Opening the PR does not start `BUILDING`; Claude checkpoints implementation
-start on the same branch.
+[#147](https://github.com/50thycal/party-games/pull/147). Opening the PR does not start `BUILDING`;
+Claude checkpoints implementation start on the same branch.
 
 ## Review State
 
 | PR | Verdict | Reviewed head | Finalization |
 |---|---|---|---|
-| `DESIGN_HANDOFF_PR` | Not started | — | — |
+| [#147](https://github.com/50thycal/party-games/pull/147) | Not started | — | — |
 
 ## Related Decisions
 
@@ -226,7 +226,8 @@ start on the same branch.
 
 - [#144](https://github.com/50thycal/party-games/pull/144) — merged WS-003 implementation this
   playtest evaluates.
-- `DESIGN_HANDOFF_PR` — WS-004 Design Handoff and implementation PR.
+- [#147](https://github.com/50thycal/party-games/pull/147) — WS-004 Design Handoff and
+  implementation PR.
 
 ## Next Step
 
