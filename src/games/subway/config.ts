@@ -18,10 +18,14 @@ import type { BaseAction, GameContext, Player } from "@/engine/types";
 // station docks are chosen explicitly; Engineering splits into a planning step
 // (three objectives + line-bound Destinations + purchased Survey Pins) and a
 // public Survey placement step; and the latest physical placement may be undone.
+//
+// WS-004 (DEC-021/DEC-022) adds a bounded, privacy-safe public event stream that
+// the view narrates over the pegboard, and restricts starter pegs to non-station
+// holes on the board's outer border.
 // ============================================================================
 
 /** Bumped when the state shape changes; older rooms must restart. */
-export const SUBWAY_STATE_VERSION = 7;
+export const SUBWAY_STATE_VERSION = 8;
 
 // ----------------------------------------------------------------------------
 // Tunable configuration
@@ -568,6 +572,36 @@ export type UndoRecord = {
   state: SubwayState;
 };
 
+/**
+ * One entry of the public narration stream (WS-004, DEC-021). Events are
+ * appended only when the reducer accepts a change, carry no hidden card
+ * identity, Destination assignment, unrevealed schedule, or private plan, and
+ * drive the pegboard overlays plus the bounded public history.
+ */
+export type SubwayEventKind =
+  | "PHASE"
+  | "PERIOD"
+  | "TURN"
+  | "PLACEMENT"
+  | "CARD"
+  | "PLAN"
+  | "ROUTE"
+  | "UNDO"
+  | "SCORE";
+
+export type SubwayEvent = {
+  seq: number;
+  kind: SubwayEventKind;
+  actorId?: string;
+  text: string;
+  createdAt: number;
+  /** Banners are prominent transitions; notices are brief action narration. */
+  emphasis: "banner" | "notice";
+};
+
+/** Public events kept in state; older ones fall off the front. */
+export const SUBWAY_EVENT_LIMIT = 20;
+
 export interface SubwayState {
   version: number;
   phase: SubwayPhase;
@@ -595,6 +629,10 @@ export interface SubwayState {
   resolveQueue: string[];
   /** The one placement that may still be taken back, if any. */
   undo?: UndoRecord;
+  /** Bounded public narration, newest last. Only accepted actions append. */
+  events: SubwayEvent[];
+  /** Monotonic event sequence. Never rewound — an Undo appends, it never erases. */
+  nextEventSeq: number;
   winnerIds: string[];
   message: string;
 }
@@ -705,6 +743,34 @@ const removeOne = <T,>(arr: T[], value: T): T[] => {
   const i = arr.indexOf(value);
   return i === -1 ? arr : [...arr.slice(0, i), ...arr.slice(i + 1)];
 };
+
+/**
+ * Appends one public event and keeps `message` in step with the latest one, so
+ * the string can never contradict the structured stream. The text must already
+ * be privacy-safe: no hidden card identity, Destination assignment, unrevealed
+ * schedule detail, or saved plan ever goes through here.
+ */
+function pushEvent(
+  s: SubwayState,
+  now: number,
+  kind: SubwayEventKind,
+  emphasis: "banner" | "notice",
+  text: string,
+  actorId?: string
+): void {
+  s.events.push({
+    seq: s.nextEventSeq++,
+    kind,
+    ...(actorId !== undefined ? { actorId } : {}),
+    text,
+    createdAt: now,
+    emphasis,
+  });
+  if (s.events.length > SUBWAY_EVENT_LIMIT) {
+    s.events.splice(0, s.events.length - SUBWAY_EVENT_LIMIT);
+  }
+  s.message = text;
+}
 
 // ----------------------------------------------------------------------------
 // Schedule maths
@@ -1106,6 +1172,17 @@ export function validateNode(
 
   const station = stationAt(p);
   if (starter && station) return "Starter pegs must use a normal hole.";
+  // Starters enter from the edge of the map (OD-6): only holes on the outer
+  // border are legal, and a border station would still be refused above.
+  if (
+    starter &&
+    p.x !== 0 &&
+    p.x !== SUBWAY_CONFIG.board.columns - 1 &&
+    p.y !== 0 &&
+    p.y !== SUBWAY_CONFIG.board.rows - 1
+  ) {
+    return "Starter pegs must sit on the outer border of the board.";
+  }
   if (!starter && myLine.route.length && lineComplete(myLine)) {
     return `${contract.name} is already finished.`;
   }
@@ -1421,7 +1498,7 @@ const lineMajors = (line: PlayerLine): Station[] =>
 const majorCount = (p: SubwayPlayer): number =>
   connectedStations(p).filter((s) => s.kind === "major").length;
 
-export function scoreGame(state: SubwayState): SubwayState {
+export function scoreGame(state: SubwayState, now: number): SubwayState {
   const players = structuredClone(state.players);
 
   for (const p of Object.values(players)) {
@@ -1505,14 +1582,23 @@ export function scoreGame(state: SubwayState): SubwayState {
     .filter((p) => p.score === top.score && majorCount(p) === majorCount(top) && p.money === top.money)
     .map((p) => p.id);
 
-  return {
+  const out: SubwayState = {
     ...state,
     players,
+    events: [...state.events],
     undo: undefined,
     winnerIds: winners,
     phase: "RESULTS",
-    message: winners.length > 1 ? "Shared victory!" : `${top.name} wins!`,
+    message: "",
   };
+  pushEvent(
+    out,
+    now,
+    "SCORE",
+    "banner",
+    winners.length > 1 ? "Shared victory!" : `${top.name} wins!`
+  );
+  return out;
 }
 
 // ----------------------------------------------------------------------------
@@ -1568,6 +1654,8 @@ function initialState(players: Player[]): SubwayState {
     surveyPins: [],
     currentPeriod: 1,
     resolveQueue: [],
+    events: [],
+    nextEventSeq: 1,
     winnerIds: [],
     message: "Waiting for the host to start.",
   };
@@ -1588,7 +1676,7 @@ function shuffle<T>(items: T[], random: () => number): T[] {
 // ----------------------------------------------------------------------------
 
 /** Hands the contract to the only company that can still legally own it. */
-function forceSale(s: SubwayState, entry: YardEntry): SubwayState {
+function forceSale(s: SubwayState, entry: YardEntry, now: number): SubwayState {
   const eligible = seats(s).filter(canHoldMore);
   if (!eligible.length) return s; // unreachable: two caps of three cover six contracts
   const buyer = [...eligible].sort((a, b) => b.money - a.money)[0];
@@ -1596,12 +1684,19 @@ function forceSale(s: SubwayState, entry: YardEntry): SubwayState {
   const price = Math.min(entry.price, buyer.money);
   buyer.money -= price;
   buyer.lines.push({ contractId: entry.contractId, paid: price, route: [] });
-  s.message = `${buyer.name} is assigned the ${contractById(entry.contractId)!.name} for $${price}M.`;
+  pushEvent(
+    s,
+    now,
+    "CARD",
+    "notice",
+    `${buyer.name} is assigned the ${contractById(entry.contractId)!.name} for $${price}M.`,
+    buyer.id
+  );
   return s;
 }
 
 /** Reveals the next contract, or ends procurement when every one is owned. */
-function nextOffer(s: SubwayState): SubwayState {
+function nextOffer(s: SubwayState, now: number): SubwayState {
   const proc = s.procurement;
   proc.offer = undefined;
 
@@ -1621,10 +1716,16 @@ function nextOffer(s: SubwayState): SubwayState {
     s.engineeringStep = "DESTINATION_DRAFT";
     s.destinationRow = s.destinationDeck.splice(0, SUBWAY_CONFIG.destinationRow);
     const first = destinationTurnId(s);
-    s.message = first
-      ? `Every contract is signed. ${s.players[first].name} drafts the first Destination.`
-      : "Every contract is signed. Lock your Engineering plan.";
     if (!first) s.engineeringStep = "PLAN";
+    pushEvent(
+      s,
+      now,
+      "PHASE",
+      "banner",
+      first
+        ? `Every contract is signed. ${s.players[first].name} drafts the first Destination.`
+        : "Every contract is signed. Lock your Engineering plan."
+    );
     return s;
   }
 
@@ -1660,11 +1761,17 @@ function autoSchedule(p: SubwayPlayer): void {
 }
 
 /** Closes Engineering once every purchased Survey Pin is on the board. */
-function toScheduling(s: SubwayState): SubwayState {
+function toScheduling(s: SubwayState, now: number): SubwayState {
   s.phase = "SCHEDULING";
   s.schedulingStep = "PLANNING";
   for (const p of seats(s)) autoSchedule(p);
-  s.message = "Plan your whole construction programme, then submit it.";
+  pushEvent(
+    s,
+    now,
+    "PHASE",
+    "banner",
+    "Scheduling opens. Plan your whole construction programme, then submit it."
+  );
   return s;
 }
 
@@ -1672,11 +1779,11 @@ function toScheduling(s: SubwayState): SubwayState {
 // Construction flow
 // ----------------------------------------------------------------------------
 
-function toScoring(s: SubwayState): SubwayState {
+function toScoring(s: SubwayState, now: number): SubwayState {
   s.phase = "SCORING";
   s.resolveQueue = [];
   for (const p of seats(s)) p.pendingActions = [];
-  s.message = "Construction is over. Reveal Engineering and score.";
+  pushEvent(s, now, "PHASE", "banner", "Construction is over. Reveal Engineering and score.");
   return s;
 }
 
@@ -1688,7 +1795,7 @@ export function scheduledLines(p: SubwayPlayer, period: number): number[] {
 }
 
 /** Opens the next period that anyone is scheduled to build in. */
-function beginConstructionPeriod(s: SubwayState): SubwayState {
+function beginConstructionPeriod(s: SubwayState, now: number, opening = false): SubwayState {
   for (const p of seats(s)) {
     p.pendingActions = [];
     p.actedThisPeriod = false;
@@ -1706,16 +1813,22 @@ function beginConstructionPeriod(s: SubwayState): SubwayState {
       for (const p of seats(s)) p.pendingActions = scheduledLines(p, s.currentPeriod);
       const first = periodPriorityId(s, s.currentPeriod);
       s.resolveQueue = actors.sort((a, b) => (a === first ? -1 : b === first ? 1 : 0));
-      s.message = `Period ${s.currentPeriod}: ${s.players[s.resolveQueue[0]].name} builds.`;
+      pushEvent(
+        s,
+        now,
+        "PERIOD",
+        "banner",
+        `${opening ? "Construction begins. " : ""}Period ${s.currentPeriod}: ${s.players[s.resolveQueue[0]].name} builds.`
+      );
       return s;
     }
     s.currentPeriod++;
   }
-  return toScoring(s);
+  return toScoring(s, now);
 }
 
 /** Ends a company's turn this period and moves play along. */
-function endPlayerTurn(s: SubwayState, playerId: string): SubwayState {
+function endPlayerTurn(s: SubwayState, playerId: string, now: number): SubwayState {
   const p = s.players[playerId];
   if (p) {
     p.pendingActions = [];
@@ -1724,9 +1837,17 @@ function endPlayerTurn(s: SubwayState, playerId: string): SubwayState {
   s.resolveQueue = s.resolveQueue.filter((id) => id !== playerId);
   if (!s.resolveQueue.length) {
     s.currentPeriod++;
-    return beginConstructionPeriod(s);
+    return beginConstructionPeriod(s, now);
   }
-  s.message = `Period ${s.currentPeriod}: ${s.players[s.resolveQueue[0]].name} builds.`;
+  // Turn-only change: a compact notice, never a large banner per queue pop.
+  pushEvent(
+    s,
+    now,
+    "TURN",
+    "notice",
+    `Period ${s.currentPeriod}: ${s.players[s.resolveQueue[0]].name} builds.`,
+    s.resolveQueue[0]
+  );
   return s;
 }
 
@@ -1790,7 +1911,8 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
         DESTINATION_CARDS.map((c) => c.id),
         ctx.random
       );
-      return nextOffer(fresh);
+      pushEvent(fresh, ctx.now(), "PHASE", "banner", "Subway begins — six Line Contracts go to market.");
+      return nextOffer(fresh, ctx.now());
     }
 
     case "PROCURE": {
@@ -1808,8 +1930,8 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
         me.money -= price;
         me.lines.push({ contractId: offer.contractId, paid: price, route: [] });
         me.decisionsUsed++;
-        s.message = `${me.name} signed the ${contract.name} for $${price}M.`;
-        return nextOffer(s);
+        pushEvent(s, ctx.now(), "CARD", "notice", `${me.name} signed the ${contract.name} for $${price}M.`, me.id);
+        return nextOffer(s, ctx.now());
       }
 
       if (action.payload?.choice !== "pass") return state;
@@ -1835,6 +1957,16 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
         const opponent = s.playerOrder.find((id) => id !== me.id)!;
         offer.stage = "second";
         offer.activeId = opponent;
+        // The drafted family is public; which card it was stays off the wire —
+        // the face-up slot is visible to anyone watching the market anyway.
+        pushEvent(
+          s,
+          ctx.now(),
+          "CARD",
+          "notice",
+          `${me.name} passed on the ${contract.name} and drafted a card from the ${deck} deck.`,
+          me.id
+        );
         s.message = `${me.name} passed and drafted a card. ${s.players[opponent].name} may take the ${contract.name}.`;
         return s;
       }
@@ -1844,12 +1976,19 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
       const nextPrice = Math.max(SUBWAY_CONFIG.minContractPrice, offer.price - SUBWAY_CONFIG.discountStep);
       if (offer.fromYard && nextPrice === offer.price) {
         // Already at the floor and declined again — assign it so the phase ends.
-        const assigned = forceSale(s, { contractId: offer.contractId, price: nextPrice });
-        return nextOffer(assigned);
+        const assigned = forceSale(s, { contractId: offer.contractId, price: nextPrice }, ctx.now());
+        return nextOffer(assigned, ctx.now());
       }
       s.procurement.yard.push({ contractId: offer.contractId, price: nextPrice });
-      s.message = `Both companies passed. ${contract.name} moves to the Discount Yard at $${nextPrice}M.`;
-      return nextOffer(s);
+      pushEvent(
+        s,
+        ctx.now(),
+        "CARD",
+        "notice",
+        `Both companies passed. ${contract.name} moves to the Discount Yard at $${nextPrice}M.`,
+        me.id
+      );
+      return nextOffer(s, ctx.now());
     }
 
     case "PICK_DESTINATION": {
@@ -1863,12 +2002,21 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
       while (s.destinationRow.length < SUBWAY_CONFIG.destinationRow && s.destinationDeck.length) {
         s.destinationRow.push(s.destinationDeck.shift()!);
       }
-      s.message = `${me.name} drafted ${destinationById(cardId)!.name}.`;
+      // The pick is public; which station it names is the drafter's secret, so
+      // neither the event nor the shared message may carry the card identity.
+      pushEvent(
+        s,
+        ctx.now(),
+        "CARD",
+        "notice",
+        `${me.name} drafted a Destination card (${destinationsHeld(me)} of ${SUBWAY_CONFIG.destinationsPerPlayer}).`,
+        me.id
+      );
 
       const next = destinationTurnId(s);
       if (!next) {
         s.engineeringStep = "PLAN";
-        s.message = "Destinations are drafted. Lock your Engineering plan.";
+        pushEvent(s, ctx.now(), "PHASE", "banner", "Destinations are drafted. Lock your Engineering plan.");
       }
       return s;
     }
@@ -1911,13 +2059,28 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
       me.surveysPurchased = surveys;
       me.money -= surveyCost;
       me.engineeringLocked = true;
-      s.message = `${me.name} locked their Engineering plan${surveys ? ` and bought ${surveys} Survey Pin${surveys === 1 ? "" : "s"}` : ""}.`;
+      // Pin count is public (they are placed publicly next step); the three
+      // objectives and Destination assignments stay unnamed.
+      pushEvent(
+        s,
+        ctx.now(),
+        "PLAN",
+        "notice",
+        `${me.name} locked their Engineering plan${surveys ? ` and bought ${surveys} Survey Pin${surveys === 1 ? "" : "s"}` : ""}.`,
+        me.id
+      );
 
       if (seats(s).every((p) => p.engineeringLocked)) {
         s.engineeringStep = "SURVEY";
         const first = surveyTurnId(s);
-        if (!first) return toScheduling(s);
-        s.message = `Engineering is locked. ${s.players[first].name} places the first Survey Pin.`;
+        if (!first) return toScheduling(s, ctx.now());
+        pushEvent(
+          s,
+          ctx.now(),
+          "PHASE",
+          "banner",
+          `Engineering is locked. ${s.players[first].name} places the first Survey Pin.`
+        );
       }
       return s;
     }
@@ -1929,10 +2092,10 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
       if (surveyBlocker(state, me.id, pt)) return state;
 
       s.surveyPins.push({ playerId: me.id, x: pt.x, y: pt.y });
-      s.message = `${me.name} surveyed ${pt.x + 1},${pt.y + 1}.`;
+      pushEvent(s, ctx.now(), "PLACEMENT", "notice", `${me.name} surveyed hole ${pt.x + 1},${pt.y + 1}.`, me.id);
       s.undo = undoRecord(state, me.id, "survey", "Survey Pin");
       if (!surveyTurnId(s)) {
-        const next = toScheduling(s);
+        const next = toScheduling(s, ctx.now());
         next.undo = s.undo; // the placement is still the last thing that happened
         return next;
       }
@@ -1965,10 +2128,17 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
       if (state.phase !== "SCHEDULING" || s.schedulingStep !== "PLANNING" || !me) return state;
       if (me.scheduleSubmitted || scheduleProblems(me).length) return state;
       me.scheduleSubmitted = true;
-      s.message = `${me.name} submitted their schedule.`;
+      // The fact of submission is public; the blocks stay hidden until reveal.
+      pushEvent(s, ctx.now(), "PLAN", "notice", `${me.name} submitted their schedule.`, me.id);
       if (seats(s).every((p) => p.scheduleSubmitted)) {
         s.schedulingStep = "RESOLUTION";
-        s.message = "Both schedules are revealed. Play up to one Scheduling card, then confirm.";
+        pushEvent(
+          s,
+          ctx.now(),
+          "PHASE",
+          "banner",
+          "Both schedules are revealed. Play up to one Scheduling card, then confirm."
+        );
       }
       return s;
     }
@@ -1983,7 +2153,14 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
         const period = action.payload?.period ?? 0;
         if (!contestedPeriods(s).includes(period)) return state;
         s.priorityOverrides[period] = me.id;
-        s.message = `${me.name} took build priority for period ${period}.`;
+        pushEvent(
+          s,
+          ctx.now(),
+          "CARD",
+          "notice",
+          `${me.name} played Priority Permit — they build first in period ${period}.`,
+          me.id
+        );
       } else {
         const lineIndex = action.payload?.lineIndex ?? -1;
         const line = me.lines[lineIndex];
@@ -1999,7 +2176,15 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
           line.mobilizationWaived = (line.mobilizationWaived ?? 0) + Math.max(0, after - before);
         }
         if (scheduleProblems(me).length) return state; // must stay affordable
-        s.message = `${me.name} moved a block ${shift < 0 ? "earlier" : "later"}.`;
+        // Schedules are already revealed in RESOLUTION, so the block is public.
+        pushEvent(
+          s,
+          ctx.now(),
+          "CARD",
+          "notice",
+          `${me.name} played ${schedulingById(id)!.name} — the ${contractOf(line)!.name} block moved ${shift < 0 ? "earlier" : "later"}.`,
+          me.id
+        );
       }
 
       me.schedulingHand = removeOne(me.schedulingHand, id);
@@ -2011,7 +2196,7 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
       if (state.phase !== "SCHEDULING" || s.schedulingStep !== "RESOLUTION" || !me) return state;
       if (me.scheduleConfirmed || scheduleProblems(me).length) return state;
       me.scheduleConfirmed = true;
-      s.message = `${me.name} locked their schedule.`;
+      pushEvent(s, ctx.now(), "PLAN", "notice", `${me.name} locked their schedule.`, me.id);
       if (seats(s).every((p) => p.scheduleConfirmed)) {
         for (const p of seats(s)) {
           const cost = scheduleCost(p);
@@ -2019,7 +2204,13 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
           p.schedulePaid = cost;
         }
         s.phase = "STARTER_PLACEMENT";
-        s.message = "Schedules are locked. Place one free starter peg per scheduled contract.";
+        pushEvent(
+          s,
+          ctx.now(),
+          "PHASE",
+          "banner",
+          "Schedules are locked. Place one free starter peg per scheduled contract — border holes only."
+        );
       }
       return s;
     }
@@ -2035,12 +2226,19 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
       const pt = { x: action.payload?.x ?? -1, y: action.payload?.y ?? -1 };
       if (validateNode(s, me.id, lineIndex, pt, true)) return state;
       line.route = [pt];
-      s.message = `${me.name} placed the ${contractOf(line)!.name} starter peg.`;
+      pushEvent(
+        s,
+        ctx.now(),
+        "PLACEMENT",
+        "notice",
+        `${me.name} opened the ${contractOf(line)!.name} at ${pt.x + 1},${pt.y + 1}.`,
+        me.id
+      );
       s.undo = undoRecord(state, me.id, "starter", "starter peg");
       if (!starterTurnId(s)) {
         s.phase = "CONSTRUCTION";
         s.currentPeriod = 1;
-        const opened = beginConstructionPeriod(s);
+        const opened = beginConstructionPeriod(s, ctx.now(), true);
         opened.undo = s.undo; // the placement is still the last thing that happened
         return opened;
       }
@@ -2057,7 +2255,14 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
       if (id === "expedite") {
         if (s.resolveQueue[0] === me.id) return state;
         s.resolveQueue = [me.id, ...s.resolveQueue.filter((pid) => pid !== me.id)];
-        s.message = `${me.name} expedited materials and builds first this period.`;
+        pushEvent(
+          s,
+          ctx.now(),
+          "CARD",
+          "notice",
+          `${me.name} played Expedite Materials and builds first this period.`,
+          me.id
+        );
       } else {
         const lineIndex = action.payload?.lineIndex ?? -1;
         const line = me.lines[lineIndex];
@@ -2073,7 +2278,14 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
           if (!hasLegalMove(s, me.id, lineIndex)) return state;
         }
         me.pendingActions.push(lineIndex);
-        s.message = `${me.name} played ${constructionById(id)!.name} on the ${contractOf(line)!.name}.`;
+        pushEvent(
+          s,
+          ctx.now(),
+          "CARD",
+          "notice",
+          `${me.name} played ${constructionById(id)!.name} on the ${contractOf(line)!.name}.`,
+          me.id
+        );
       }
 
       me.constructionHand = removeOne(me.constructionHand, id);
@@ -2116,16 +2328,28 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
 
       me.pendingActions = removeOne(me.pendingActions, lineIndex);
       const contract = contractOf(line)!;
+      // One combined, privacy-safe notice: the placement, the station or hole
+      // it reached, completion, and any toll transfer are all public facts.
+      const where = station
+        ? `${station.name} dock ${(slot ?? 0) + 1}`
+        : `hole ${pt.x + 1},${pt.y + 1}`;
       const tollNote = toll > 0
         ? ` ${contacts.length} contact${contacts.length === 1 ? "" : "s"} with ${s.players[opponentId!].name}: $${toll}M.`
         : "";
-      s.message = (lineComplete(line)
-        ? `${me.name} completed the ${contract.name}!`
-        : `${me.name} extended the ${contract.name}.`) + tollNote;
+      pushEvent(
+        s,
+        ctx.now(),
+        lineComplete(line) ? "ROUTE" : "PLACEMENT",
+        "notice",
+        (lineComplete(line)
+          ? `${me.name} completed the ${contract.name} at ${where}!`
+          : `${me.name} extended the ${contract.name} to ${where}.`) + tollNote,
+        me.id
+      );
       const record = undoRecord(state, me.id, "build", `${contract.name} node`);
 
       prunePendingActions(s, me.id);
-      const next = me.pendingActions.length ? s : endPlayerTurn(s, me.id);
+      const next = me.pendingActions.length ? s : endPlayerTurn(s, me.id, ctx.now());
       next.undo = record; // survives a period or phase advance until someone else acts
       return next;
     }
@@ -2141,8 +2365,8 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
         if (!me.pendingActions.includes(lineIndex)) return state;
         me.pendingActions = removeOne(me.pendingActions, lineIndex);
       }
-      s.message = `${me.name} gave up a construction action.`;
-      if (!me.pendingActions.length) return endPlayerTurn(s, me.id);
+      pushEvent(s, ctx.now(), "TURN", "notice", `${me.name} gave up a construction action.`, me.id);
+      if (!me.pendingActions.length) return endPlayerTurn(s, me.id, ctx.now());
       return s;
     }
 
@@ -2151,13 +2375,25 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
       if (!record || record.playerId !== action.playerId) return state;
       const restored = structuredClone(record.state);
       restored.undo = undefined;
-      restored.message = `${state.players[action.playerId]?.name ?? "A company"} took back their ${record.label}.`;
+      // The event stream is never rewound: the sequence stays monotonic so a
+      // client that saw seq N can never see a different event wearing the same
+      // number. The undo is narrated as its own event on top of the history.
+      restored.events = structuredClone(state.events);
+      restored.nextEventSeq = state.nextEventSeq;
+      pushEvent(
+        restored,
+        ctx.now(),
+        "UNDO",
+        "notice",
+        `${state.players[action.playerId]?.name ?? "A company"} took back their ${record.label}.`,
+        action.playerId
+      );
       return restored;
     }
 
     case "ADVANCE_SCORING": {
       if (state.phase !== "SCORING" || ctx.room.hostId !== action.playerId) return state;
-      return scoreGame(s);
+      return scoreGame(s, ctx.now());
     }
 
     default:

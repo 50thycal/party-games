@@ -1739,7 +1739,308 @@ function scheduling(red: string[], blue: string[]): SubwayState {
 }
 
 // ============================================================================
-// PART 14 — Persisted state version
+// PART 14 — WS-004: border-only starter pegs
+// ============================================================================
+
+// Starter legality: every non-station hole on the outer border, nothing inside.
+{
+  const s = base();
+  s.players.red.lines = [{ ...owned("short"), start: 1 }];
+
+  for (const p of [{ x: 0, y: 0 }, { x: 26, y: 0 }, { x: 0, y: 8 }, { x: 26, y: 8 }]) {
+    assert.equal(validateNode(s, "red", 0, p, true), null, `corner ${p.x},${p.y} is a legal starter`);
+  }
+  for (const p of [{ x: 13, y: 0 }, { x: 13, y: 8 }, { x: 0, y: 4 }, { x: 26, y: 4 }]) {
+    assert.equal(validateNode(s, "red", 0, p, true), null, `edge hole ${p.x},${p.y} is a legal starter`);
+  }
+  for (const p of [{ x: 1, y: 1 }, { x: 13, y: 4 }, { x: 25, y: 7 }]) {
+    assert.match(
+      validateNode(s, "red", 0, p, true) ?? "",
+      /outer border/,
+      `interior hole ${p.x},${p.y} is refused`
+    );
+  }
+  assert.match(
+    validateNode(s, "red", 0, { x: 5, y: 3 }, true) ?? "",
+    /normal hole/,
+    "a station is still refused before the border rule is even asked"
+  );
+  assert.match(
+    validateNode(s, "red", 0, { x: 27, y: 0 }, true) ?? "",
+    /Outside the pegboard/,
+    "and bounds still come first"
+  );
+
+  const targets = legalTargets(s, "red", 0, true);
+  const { columns, rows } = SUBWAY_CONFIG.board;
+  assert.equal(targets.length, 2 * columns + 2 * (rows - 2), "legal starters are exactly the border holes");
+  assert.ok(
+    targets.every((t) => t.x === 0 || t.x === columns - 1 || t.y === 0 || t.y === rows - 1),
+    "every offered starter sits on the border"
+  );
+  assert.ok(
+    targets.every((t) => t.slot === undefined),
+    "and none of them is a station dock"
+  );
+}
+
+// The reducer path refuses an interior starter outright.
+{
+  const s = starters(["short"], ["short"]);
+  const rejected = dispatch(s, "red", "PLACE_STARTER", { lineIndex: 0, x: 5, y: 5 });
+  assert.equal(rejected, s, "an interior starter is a no-op");
+  assert.deepEqual(pendingStarters(rejected.players.red), [0], "and the peg is still owed");
+  const placed = dispatch(s, "red", "PLACE_STARTER", { lineIndex: 0, x: 0, y: 4 });
+  assert.equal(placed.players.red.lines[0].route.length, 1, "a border starter is accepted");
+}
+
+// ============================================================================
+// PART 15 — WS-004: one Confirm is one action; a stale confirm costs nothing
+// ============================================================================
+
+// Overtime doubles a line: each confirmed build consumes exactly one queued
+// action, and the same company keeps the floor for its extra action.
+{
+  let s = construction(
+    [{ ...owned("short", [{ x: 0, y: 0 }]), start: 1 }],
+    [{ ...owned("short", [{ x: 20, y: 8 }]), start: 1 }]
+  );
+  s.players.red.pendingActions = [0, 0]; // as Overtime leaves it
+  s = dispatch(s, "red", "BUILD", { lineIndex: 0, x: 3, y: 0 });
+  assert.deepEqual(s.players.red.pendingActions, [0], "one confirm consumed exactly one action");
+  assert.equal(s.resolveQueue[0], "red", "and the Overtime action still belongs to the same company");
+  s = dispatch(s, "red", "BUILD", { lineIndex: 0, x: 7, y: 0 });
+  assert.deepEqual(s.players.red.pendingActions, [], "the second confirm consumed the second action");
+  assert.deepEqual(s.resolveQueue, ["blue"], "and only then does the turn move on");
+}
+
+// A confirm whose target went stale (dock race, wrong geometry) is a no-op that
+// keeps the actor's action — the player re-selects instead of losing the turn.
+{
+  let s = base();
+  s.phase = "CONSTRUCTION";
+  s.resolveQueue = ["blue", "red"];
+  s.players.red.lines = [owned("short", [{ x: 11, y: 2 }])];
+  s.players.blue.lines = [owned("short", [{ x: 17, y: 2 }])];
+  s.players.red.pendingActions = [0];
+  s.players.blue.pendingActions = [0];
+
+  const wrongLength = dispatch(s, "blue", "BUILD", { lineIndex: 0, x: 5, y: 2 });
+  assert.equal(wrongLength, s, "an illegal target is rejected outright");
+
+  s = structuredClone(s);
+  s.resolveQueue = ["red", "blue"];
+  const taken = dispatch(s, "red", "BUILD", { lineIndex: 0, x: 14, y: 2, slot: 0 });
+  const raced = dispatch(taken, "blue", "BUILD", { lineIndex: 0, x: 14, y: 2, slot: 0 });
+  assert.equal(raced, taken, "a dock taken between selection and confirm rejects the confirm");
+  assert.deepEqual(
+    raced.players.blue.pendingActions,
+    [0],
+    "and the loser keeps the action to spend on a fresh target"
+  );
+}
+
+// ============================================================================
+// PART 16 — WS-004: the public event stream
+// ============================================================================
+
+// Shape, sequencing, and the acceptance-only append rule.
+{
+  assert.equal(SUBWAY_STATE_VERSION, 8, "the event stream is a version-8 state shape");
+  const fresh = base();
+  assert.deepEqual(fresh.events, [], "a fresh room has no events");
+  assert.equal(fresh.nextEventSeq, 1, "and the sequence starts at 1");
+
+  let s = started();
+  assert.ok(s.events.length >= 1, "starting the game narrates");
+  assert.equal(s.events[0].kind, "PHASE", "with a phase event");
+  assert.equal(s.events[0].emphasis, "banner", "at banner prominence");
+  assert.equal(s.events[0].createdAt, 1, "stamped from ctx.now()");
+
+  const rejected = dispatch(s, "blue", "PROCURE", { choice: "buy" });
+  assert.equal(rejected, s, "a rejected action appends no event");
+
+  const beforeSeq = s.nextEventSeq;
+  s = dispatch(s, "red", "PROCURE", { choice: "buy" });
+  assert.ok(s.nextEventSeq > beforeSeq, "an accepted action appends");
+  const last = s.events[s.events.length - 1];
+  assert.equal(last.kind, "CARD", "a signing is a card event");
+  assert.equal(last.emphasis, "notice", "at notice prominence");
+  assert.equal(last.actorId, "red", "attributed to its actor");
+  assert.match(last.text, /signed the Branch Line for \$6M/, "and says what publicly happened");
+  for (let i = 1; i < s.events.length; i++) {
+    assert.ok(s.events[i].seq > s.events[i - 1].seq, "sequence numbers strictly increase");
+  }
+}
+
+// A Destination pick narrates the pick, never the card.
+{
+  let s = engineeringDraft();
+  const picker = destinationTurnId(s)!;
+  s = dispatch(s, picker, "PICK_DESTINATION", { destinationCardId: s.destinationRow[0] });
+  const last = s.events[s.events.length - 1];
+  assert.match(last.text, /drafted a Destination card/, "the pick itself is public");
+  assert.doesNotMatch(last.text, /Destination: /, "the station it names is not");
+  assert.doesNotMatch(s.message, /Destination: /, "and the shared message no longer leaks it either");
+}
+
+// Builds narrate placement, completion, and the toll transfer in one notice.
+{
+  let s = construction(
+    [{ ...owned("long", [{ x: 4, y: 0 }]), start: 1 }],
+    [{ ...owned("medium", [{ x: 4, y: 4 }, { x: 8, y: 4 }]), start: 1 }]
+  );
+  s = dispatch(s, "red", "BUILD", { lineIndex: 0, x: 4, y: 4 });
+  const built = s.events.find((e) => e.kind === "PLACEMENT" && /extended the Long Line/.test(e.text));
+  assert.ok(built, "the build is narrated");
+  assert.match(built!.text, /hole 5,5/, "with its public coordinate");
+  assert.match(built!.text, /1 contact with Blue: \$1M/, "and the toll transfer");
+
+  let done = construction(
+    [
+      {
+        ...owned("short", [{ x: 0, y: 0 }, { x: 3, y: 0 }, { x: 7, y: 0 }, { x: 10, y: 0 }]),
+        start: 1,
+      },
+    ],
+    [{ ...owned("short", [{ x: 20, y: 8 }]), start: 1 }]
+  );
+  done.players.blue.pendingActions = [];
+  done.resolveQueue = ["red"];
+  done = dispatch(done, "red", "BUILD", { lineIndex: 0, x: 14, y: 0 });
+  const completed = done.events.find((e) => e.kind === "ROUTE");
+  assert.ok(completed, "completion is a route event");
+  assert.match(completed!.text, /completed the Short Line/, "and says so");
+}
+
+// Undo rewinds gameplay but never the event sequence.
+{
+  let s = construction(
+    [{ ...owned("short", [{ x: 0, y: 0 }]), start: 1 }],
+    [{ ...owned("short", [{ x: 20, y: 8 }]), start: 1 }]
+  );
+  s = dispatch(s, "red", "BUILD", { lineIndex: 0, x: 3, y: 0 });
+  const seqAfterBuild = s.nextEventSeq;
+  const eventsAfterBuild = s.events.length;
+
+  const undone = dispatch(s, "red", "UNDO_PLACEMENT");
+  assert.equal(undone.players.red.lines[0].route.length, 1, "the placement itself rewinds");
+  assert.ok(undone.nextEventSeq > seqAfterBuild, "the event sequence keeps counting forward");
+  assert.equal(undone.events.length, Math.min(eventsAfterBuild + 1, 20), "the undo is appended, nothing erased");
+  const last = undone.events[undone.events.length - 1];
+  assert.equal(last.kind, "UNDO", "as an undo event");
+  assert.equal(undone.message, "Red took back their Short Line node.", "with the same public message as before");
+  assert.ok(
+    undone.events.some((e) => /extended the Short Line/.test(e.text)),
+    "and the history still shows the placement it took back"
+  );
+  for (let i = 1; i < undone.events.length; i++) {
+    assert.ok(undone.events[i].seq > undone.events[i - 1].seq, "so sequence numbers never repeat");
+  }
+}
+
+// A full game: events stay bounded at 20, ordered, and privacy-safe throughout.
+{
+  let s = started();
+  const textsSeen: string[] = [];
+  let lastSeq = 0;
+  const absorb = (state: SubwayState) => {
+    for (const e of state.events) {
+      if (e.seq > lastSeq) {
+        lastSeq = e.seq;
+        textsSeen.push(e.text);
+      }
+    }
+    assert.ok(state.events.length <= 20, "public history never exceeds 20 events");
+  };
+  absorb(s);
+
+  let guard = 0;
+  while (s.phase === "PROCUREMENT" && guard++ < 60) {
+    const offer = offerOf(s);
+    const active = s.players[offer.activeId];
+    s =
+      active.lines.length < SUBWAY_CONFIG.maxContractsPerPlayer && active.money >= offer.price
+        ? dispatch(s, offer.activeId, "PROCURE", { choice: "buy" })
+        : dispatch(s, offer.activeId, "PROCURE", {
+            choice: "pass",
+            ...(offer.stage === "first" ? { deck: "engineering" as const } : {}),
+          });
+    absorb(s);
+  }
+  s = runDraft(s);
+  absorb(s);
+  s = lockPlan(s, "red", { surveys: 1, destinations: assignAll(s, "red") });
+  absorb(s);
+  s = lockPlan(s, "blue", { surveys: 0, destinations: assignAll(s, "blue") });
+  absorb(s);
+  if (s.engineeringStep === "SURVEY") {
+    s = dispatch(s, surveyTurnId(s)!, "PLACE_SURVEY", { x: 1, y: 1 });
+    absorb(s);
+  }
+  assert.equal(s.phase, "SCHEDULING", "the scripted game reaches Scheduling");
+  for (const id of s.playerOrder) {
+    s = dispatch(s, id, "SUBMIT_SCHEDULE", {});
+    absorb(s);
+  }
+  for (const id of s.playerOrder) {
+    s = dispatch(s, id, "CONFIRM_SCHEDULE", {});
+    absorb(s);
+  }
+  assert.equal(s.phase, "STARTER_PLACEMENT", "and locks its schedules");
+  guard = 0;
+  while (s.phase === "STARTER_PLACEMENT" && guard++ < 12) {
+    const actor = starterTurnId(s)!;
+    const lineIndex = pendingStarters(s.players[actor])[0];
+    // Spread starters out so the routes that follow have room to build.
+    const placed = s.playerOrder.flatMap((id) => s.players[id].lines.flatMap((l) => l.route));
+    const clearance = (t: { x: number; y: number }) =>
+      placed.reduce((min, n) => Math.min(min, Math.hypot(n.x - t.x, n.y - t.y)), Infinity);
+    const target = [...legalTargets(s, actor, lineIndex, true)].sort(
+      (a, b) => clearance(b) - clearance(a)
+    )[0];
+    s = dispatch(s, actor, "PLACE_STARTER", { lineIndex, x: target.x, y: target.y });
+    absorb(s);
+  }
+  assert.equal(s.phase, "CONSTRUCTION", "all starters land on the border");
+
+  guard = 0;
+  while (s.phase === "CONSTRUCTION" && guard++ < 80) {
+    const actor = s.resolveQueue[0];
+    const lineIndex = s.players[actor].pendingActions[0];
+    const options = legalTargets(s, actor, lineIndex);
+    let next: SubwayState = s;
+    for (const o of options) {
+      next = dispatch(s, actor, "BUILD", { lineIndex, x: o.x, y: o.y, slot: o.slot });
+      if (next !== s) break;
+    }
+    s = next !== s ? next : dispatch(s, actor, "SKIP_ACTION", {});
+    absorb(s);
+  }
+  assert.equal(s.phase, "SCORING", "construction runs out");
+  s = dispatch(s, "red", "ADVANCE_SCORING", {});
+  absorb(s);
+  assert.equal(s.phase, "RESULTS", "and the game scores");
+  assert.equal(s.events[s.events.length - 1].kind, "SCORE", "with a scoring banner last");
+
+  assert.ok(s.nextEventSeq > 20, "far more than 20 events were narrated in total");
+  assert.equal(s.events.length, 20, "but only the latest 20 are kept");
+
+  // Privacy: no committed objective name, Destination identity, or assignment
+  // ever entered the public stream. OPENING_THREE is what both companies lock.
+  const hiddenNames = OPENING_THREE.map((id) => engineeringById(id)!.name).concat(["Destination: "]);
+  for (const text of textsSeen) {
+    for (const hidden of hiddenNames) {
+      assert.ok(
+        !text.includes(hidden),
+        `no public event may carry hidden identity — found "${hidden}" in "${text}"`
+      );
+    }
+  }
+}
+
+// ============================================================================
+// PART 17 — Persisted state version
 // ============================================================================
 {
   const stale = { ...base(), version: SUBWAY_STATE_VERSION - 1 };
@@ -1760,5 +2061,7 @@ console.log(
     "drafting/assignment/scoring, Survey purchase/placement/fulfilment, one-deep placement undo, " +
     "single-pass loop, six-contract first-refusal procurement, Discount Yard, ownership range, Gantt " +
     "scheduling, mobilization + second-crew economics, simultaneous reveal, schedule lock, construction " +
-    "execution, skipping, scoring, spatial rules, state versioning)."
+    "execution, skipping, scoring, spatial rules, border-only starters, one-Confirm-one-action, stale " +
+    "confirm rejection, the bounded privacy-safe public event stream, monotonic undo narration, state " +
+    "versioning)."
 );
