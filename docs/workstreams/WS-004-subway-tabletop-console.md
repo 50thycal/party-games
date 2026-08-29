@@ -1,6 +1,6 @@
 # WS-004 — Subway tabletop console and playtest clarity
 
-**Phase:** READY_TO_BUILD
+**Phase:** REVIEW
 **Status:** Active
 **Created:** 2026-08-29
 **Updated:** 2026-08-29
@@ -205,14 +205,24 @@ move, and immediately understand what changed without scrolling away from the bo
 
 ## Implementation State
 
-Approved Build Card and issued Build Spec are ready for Claude on draft Design Handoff PR
-[#147](https://github.com/50thycal/party-games/pull/147). Opening the PR does not start `BUILDING`;
-Claude checkpoints implementation start on the same branch.
+Implemented 2026-08-29 by Claude and delivered as PR
+[#148](https://github.com/50thycal/party-games/pull/148), stacked onto the head branch of Design
+Handoff PR [#147](https://github.com/50thycal/party-games/pull/147) (the executing session could
+push only to its designated branch; merging #148 lands every commit on #147, which remains the
+single implementation PR toward `main`). Shipped: board-centred tabletop console with opponent
+public mat, private player mat, event rail, and minimap; saved Plan Mode through Construction in
+versioned client storage with stale marking; select/reposition/Confirm placement; reducer-enforced
+border-only starters with NOW/NEXT marker precedence; bounded privacy-safe public event stream with
+pegboard narration (state version 8); phone bottom-sheet tabs with a height-filling board; hotseat
+handoff veil. Card expansion stays excluded per OD-12. Validation: focused reducer harness
+(extended for WS-004), production build, lint, `git diff --check`, and a scripted Chromium playtest
+covering desktop 1440×980, phone 390×844 touch, and hotseat veiling.
 
 ## Review State
 
 | PR | Verdict | Reviewed head | Finalization |
 |---|---|---|---|
+| [#148](https://github.com/50thycal/party-games/pull/148) (implementation, stacks into #147) | Not started | — | — |
 | [#147](https://github.com/50thycal/party-games/pull/147) | Not started | — | — |
 
 ## Related Decisions
@@ -228,8 +238,13 @@ Claude checkpoints implementation start on the same branch.
   playtest evaluates.
 - [#147](https://github.com/50thycal/party-games/pull/147) — WS-004 Design Handoff and
   implementation PR.
+- [#148](https://github.com/50thycal/party-games/pull/148) — WS-004 implementation, stacked onto
+  #147's head branch; carries the Implementation Handoff.
 
 ## Next Step
 
-Claude begins implementation on the Design Handoff PR, updates WS-004 to `BUILDING / Active`, and
-leaves card expansion untouched until the owner reviews the audit and approves a follow-up card.
+Independent review of PR [#148](https://github.com/50thycal/party-games/pull/148) against its
+current full head SHA (the implementation actor may not approve or merge). After #148 lands on
+#147's branch, adopt the Implementation Handoff as #147's body and run the v0.5 review gate and
+merge finalization on #147. Card expansion stays untouched until the owner reviews the audit and
+approves a follow-up card.
