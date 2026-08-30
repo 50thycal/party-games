@@ -84,6 +84,7 @@ Two properties define the shape of everything else:
 | HTTP surface | `src/app/api/{create-room,join-room,get-room,game-action}/route.ts` | The engine's entire public API. All pinned to the Node.js runtime. |
 | Game logic plugins | `src/games/<game>/config.ts` | Per-game state shape, actions, reducer, phase derivation, and action validation. Pure; no I/O. |
 | Game views | `src/games/<game>/GameView.tsx` | Per-game UI for all roles and phases. Receives `{state, room, playerId, isHost, dispatchAction}`. |
+| Subway tabletop | `src/games/subway/canvas.tsx`, `table.tsx`, `board.tsx` | Subway is composed as one pan-and-zoom coordinate space (DEC-023): `canvas.tsx` is the camera, `table.tsx` the pieces laid out in world pixels, `board.tsx` the pegboard as one of them. Camera state is client-local and never derived from room state, so polling cannot move it. |
 | Client view registry | `src/games/views.ts` | Maps `gameId → GameView`, plus `gameOptions` (the game list shown in the create-room UI) and per-game layout width. |
 | Generic room shell | `src/app/rooms/[roomCode]/page.tsx` | Polling loop, identity resolution, hotseat player switching, `dispatchAction` with retries, lobby chrome, and mounting of the game view. Contains no game-specific logic. |
 | Entry pages | `src/app/page.tsx`, `create/`, `join/` | Home (with a "latest merged PR" banner), room creation (game + mode + players), room joining. |
@@ -213,12 +214,15 @@ the room shell reads `state.phase` directly.
 | Open House | `real-estate` | `lobby → playing → round_results → … → results` |
 | HR Investigation | `performance-review` | `lobby → intro → accusation → reframing → interview → case_prep → editing → reveal → voting → round_over → … → game_over` |
 | The Desk | `the-desk` | `lobby → briefing → quote → trading → settlement → briefing … → final` |
-| Subway | `subway` | `SETUP → PROCUREMENT → ENGINEERING → SCHEDULING → STARTER_PLACEMENT → CONSTRUCTION → SCORING → RESULTS`, with `engineeringStep: DESTINATION_DRAFT → PLAN → SURVEY` inside `ENGINEERING` and `schedulingStep: PLANNING → RESOLUTION` inside `SCHEDULING`. One `UNDO_PLACEMENT` action can walk the latest physical placement back across a phase boundary. State v8 (WS-004) adds a bounded public event stream — `events` (latest 20) plus a monotonic `nextEventSeq` that is never rewound, Undo included — appended only by accepted actions and containing no hidden card identity; the view narrates it as pegboard overlays and a history rail. Starter pegs are reducer-legal only on non-station outer-border holes, and the view commits placements exclusively through an explicit Confirm dispatching `PLACE_STARTER`/`BUILD` with the one selected target. |
+| Subway | `subway` | `SETUP → PROCUREMENT → ENGINEERING → SCHEDULING → STARTER_PLACEMENT → CONSTRUCTION → SCORING → RESULTS`, with `engineeringStep: DESTINATION_DRAFT → PLAN → SURVEY` inside `ENGINEERING` and `schedulingStep: PLANNING → RESOLUTION` inside `SCHEDULING`. One `UNDO_PLACEMENT` action can walk the latest physical placement back across a phase boundary. State v8 (WS-004) adds a bounded public event stream — `events` (latest 20) plus a monotonic `nextEventSeq` that is never rewound, Undo included — appended only by accepted actions and containing no hidden card identity; the view narrates it as overlays over the table and a site logbook. Starter pegs are reducer-legal only on non-station outer-border holes, and the view commits placements exclusively through an explicit Confirm dispatching `PLACE_STARTER`/`BUILD` with the one selected target. |
 
 **The string `"lobby"` is load-bearing in the shell.** The room page shows the room-code header,
 the player list, and the leave link only while `gameState` is null or `state.phase === "lobby"`;
 otherwise it hands the full width to the game view. Subway starts at `SETUP`, so it renders as
-gameplay from its first action onward and provides its own pre-game chrome.
+gameplay from its first action onward and provides its own pre-game chrome. `getGameplayWidth`
+gives a game a wider gameplay container than the phone-first default; Subway takes the full
+window, because it fills what is left of the screen with one tabletop the player pans and zooms
+rather than a page that scrolls.
 
 ### Turn timing without a server clock
 
@@ -393,9 +397,11 @@ observable in the code, not as plans.
   saved phantom plans (WS-004/DEC-022) are the counter-example that shows the shape of the
   alternative: because they are client-local sketches in versioned browser storage that never
   enter an action payload or room state, they are genuinely private in a way no committed card
-  is. WS-004's tabletop presentation — opponent card backs/counts, the privacy-vetted public
-  event stream, the hotseat handoff veil — is deliberate *presentation* privacy on top of the
-  same shared payload, and is documented as such rather than as secrecy.
+  is. WS-004's tabletop presentation — the opposition's edge showing card backs and counts, the
+  privacy-vetted public event stream, the hotseat handoff veil — is deliberate *presentation*
+  privacy on top of the same shared payload, and is documented as such rather than as secrecy.
+  DEC-023's single-surface rework changed where those pieces sit on the table, not what any
+  client receives.
 - **Uncertain / not documented in the code:** whether `simulation` mode is intended to become a
   user-facing room mode (the shell supports it, the create page does not offer it), and whether
   the original `docs/history/` spec's WebSocket phase is still the intended upgrade path.

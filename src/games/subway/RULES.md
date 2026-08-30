@@ -296,24 +296,52 @@ The NEXT markers are a preview, not a reservation: the opposition may build firs
 recomputed when you actually confirm. The one-placement Undo still exists after a confirmed
 placement, exactly as before.
 
-## The tabletop console and the public record
+## The tabletop — one table you pan and zoom
 
-The primary view is laid out like the physical table: the pegboard stays central at full width, the
-opposition's **public mat** sits across from you (identity, cash, contract progress, revealed
-schedule, and card **backs with counts** — never faces), the shared construction programme and a
-**public record** rail sit beside the board, and your own **player mat** runs along your edge with
-every card face up and organized by family, live `COMPLETE` status on your commitments, and a tap-to-
-zoom detail view. A minimap in the board's corner tracks the viewport. On a phone the board stays
-pan/zoomable above a sticky Confirm/Cancel strip, and the mats move into `My Mat`, `Schedule`, and
-`Log` bottom-sheet tabs instead of one long page. In hotseat, a **handoff veil** covers all private
-mats and saved plans whenever control changes hands, until the incoming player confirms who they
-are.
+Subway is played on **one continuous tabletop**, seen from directly above, that you move a camera
+over. Everything in the game is a piece on that table, in one coordinate space:
+
+- the **opposition's edge** at the far side — identity, cash, contract progress, revealed schedule,
+  and card **backs with counts**, never faces;
+- the printed **public construction schedule**, with all sixteen periods, each company's blocks in
+  their line colours, who builds first in each period, second-crew markers, and — while Scheduling
+  is live — your own planning slip for moving blocks and submitting;
+- the **contract office** on one side (the contract on offer, the Discount Yard, the face-up market,
+  the Destination row) and the **site logbook** on the other;
+- the **metropolitan pegboard** in the middle, at its own size;
+- **your edge** nearest you: your company plaque with cash and Survey Pin supply, one **line-contract
+  board** per contract you own, your objectives shelf, and your hands.
+
+Drag the table to pan; pinch, scroll, or use the zoom controls to get closer; arrow keys pan and
+`+`, `−`, `0` zoom and reset from the keyboard. **Reset view** returns to whatever the current phase
+is played on, and quick-focus controls jump to the schedule, the pegboard, your lines, your cards,
+or the whole table. Your camera is yours: a refresh of the room never moves it, and never disturbs a
+provisional placement or a saved plan.
+
+**Cards are pieces too.** Zoom in to read one, or open it: the focused card shows its full face and
+carries whatever you may legally do with it — buy or pass a contract, draft a card, commit an
+objective, assign a Destination to a line, play a Scheduling or Construction card at a target you
+pick. A card you cannot play right now still opens, and says why. Playing one sends it across the
+table to where it now lives. Everything is selection plus an explicit action: nothing in the game
+requires dragging, and every action is reachable by keyboard and by touch.
+
+**Line-contract boards** carry the line's own permanent colour (never your company colour), its
+ordered recipe drawn as segment tiles — built ones struck through, the next one ringed and labelled,
+the rest plain — how many nodes are built and remaining, what the next segment must span, whether
+the line is scheduled, shelved, or complete, and the **Destination cards assigned to that line**,
+attached to its board. Engineering objectives are committed by the **company** rather than by line,
+so they sit on the company shelf instead, with live `COMPLETE` status.
+
+On a phone the table is the same table: it simply opens closer in, with the quick-focus controls and
+the Confirm/Cancel strip within thumb reach. In hotseat, a **handoff veil** covers your whole
+private edge and your saved plans whenever control changes hands, until the incoming player confirms
+who they are.
 
 Every accepted public change also appends one entry to a structured **event stream** kept in game
 state: phase and period transitions as prominent banners, player actions (placements with their
 public coordinates, tolls paid, public card plays, schedule submissions, skips, Undo, scoring) as
-brief notices. New events play once as dismissible overlays on the pegboard — polls never replay
-them — and the latest 20 remain readable in the public record rail. Events are **privacy-safe by
+brief notices. New events play once as dismissible overlays over the table — polls never replay
+them — and the latest 20 stay readable in the site logbook. Events are **privacy-safe by
 construction**: a Destination draft pick is narrated without the card's identity, and no committed
 objective, assignment, unrevealed schedule, or saved plan ever enters the stream.
 
@@ -372,8 +400,9 @@ Ties break on major connections, then remaining money, then a shared victory.
 - **State version:** `SUBWAY_STATE_VERSION` guards the saved shape. A room holding an older game shows a
   restart prompt rather than misreading it.
 - Clients receive shared room state, but the view never renders an opponent's committed Engineering
-  cards, their Destination assignments and status, or their unrevealed schedule — the opponent mat
-  shows card backs and counts only, and the public event stream carries no hidden identity. Be
+  cards, their Destination assignments and status, or their unrevealed schedule — the opposition's
+  edge of the table shows card backs and counts only, and the public event stream carries no hidden
+  identity. Be
   honest about what this is: **the complete room payload still reaches every client**, so anyone
   reading the poll response can see everything; fairness does not depend on the server withholding
   it. Server-filtered private state remains a future engine enhancement. Saved plans are the one
