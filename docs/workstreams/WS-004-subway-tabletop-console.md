@@ -1,9 +1,9 @@
 # WS-004 — Subway tabletop console and playtest clarity
 
-**Phase:** REVIEW
+**Phase:** BUILDING
 **Status:** Active
 **Created:** 2026-08-29
-**Updated:** 2026-08-29
+**Updated:** 2026-08-30
 **Build OS:** v0.5
 
 ## Goal
@@ -73,20 +73,81 @@ audit table and approves specific effects and quantities.
   private player mat, cards, controls, and supporting information arranged around the pegboard.
 - The card audit and recommendations ship for owner review, while new card effects remain a follow-up.
 
+## Approved Clarification — one continuous tabletop (2026-08-30)
+
+The owner reviewed the merged v1 console and clarified the intent of this workstream. This is a
+**clarification of the approved WS-004 goal, not a new gameplay proposal**: it changes presentation
+only, and no rule, cost, phase, card effect, or reducer behaviour moves with it. It is distinct
+from the still-unapproved card expansion under `Proposed Rules Not Yet Approved` below, which
+remains excluded (OD-12).
+
+### What was wrong
+
+v1 read "board-centred tabletop console" as panels arranged around the pegboard in ordinary page
+flow — mats, a Gantt panel, an event rail, phone bottom-sheet tabs — each with its own scrolling,
+with only the pegboard itself pan/zoomable. That reads as more web UI around a webpage, not as a
+game on a table.
+
+### What is approved instead
+
+The game is presented as **one continuous, zoomable virtual tabletop** resembling the physical game
+viewed from directly above. One camera, one world, every component inside it as a physical-looking
+piece.
+
+- **OD-13 — Single coordinate space.** Schedule board, pegboard, cards, line-contract boards, and
+  tokens all live in one pan-and-zoom world. Nothing game-related is a page section outside it.
+- **OD-14 — Spatial order.** Opponent public edge → public construction schedule board → pegboard
+  (centre, dominant, roughly its current size, never shrunk for panels) → the viewer's private
+  tabletop. No nested scroll regions; the camera moves, the page does not.
+- **OD-15 — Camera.** Pan the table, zoom to read a card, zoom out for the whole state, plus
+  `Reset view` and focus controls for schedule, pegboard, hand, and line contracts. Polling never
+  moves the camera, the focused card, a provisional placement, or a saved plan.
+- **OD-16 — Cards as pieces.** Cards are zoomable and openable into a readable focused state with
+  their legal action attached; unavailable cards stay inspectable with a reason; playing one moves
+  it visibly between zones with a short animation; the live `COMPLETE` treatment stays.
+- **OD-17 — Accessible interaction.** Keyboard and touch alternatives exist for everything.
+  Drag-and-drop is never the only path.
+- **OD-18 — Line-contract boards.** One printed board per owned line: name, permanent line colour,
+  strongly visual ordered recipe (completed filled/crossed, next emphasized, future visible), built
+  and remaining nodes, next length, status, and the Engineering/Destination cards assigned to it
+  shown attached to that board. Line colours are never tied to player colours.
+- **OD-19 — Privacy unchanged.** Opponent edge shows public information plus backs and counts only;
+  the hotseat veil is preserved. This stays UI privacy under invariant 11, documented honestly and
+  never described as server-side secrecy.
+- **OD-20 — One interface.** The tabletop becomes the primary and only interface; the previous
+  dashboard is removed, not left in place beside it.
+
+Where a presentational requirement would conflict with a reducer rule, the reducer rule wins and the
+conflict is surfaced rather than resolved in the view. One such conflict exists and is surfaced
+here rather than changed: **committed Engineering objectives are company-wide in the reducer, not
+per-line**, so they cannot be "attached to their assigned line" — only Destinations carry a line
+assignment. They are presented on the company shelf with that stated on the board. Changing
+objectives to per-line commitments would be a gameplay change and needs separate owner approval.
+
+Spec: [Addendum A](../build-specs/WS-004-subway-tabletop-console.md#addendum-a--single-surface-tabletop-approved-clarification-2026-08-30).
+Decision: `DEC-023`.
+
 ## Current Mental Model
 
 ```text
-                         opponent public mat
-                  card backs/counts · cash · lines
-                                  |
-public schedule/Gantt ---- central pegboard ---- public event history
-                                  |
-                    private player mat + cards
-                   line contracts · action controls
+  one camera over one world (pan + zoom; screen keeps only status, camera
+  controls, narration, and the Confirm/Cancel strip)
+
+  +---------------------------------------------------------------+
+  |  opponent public edge — cash, lines, card backs and counts     |
+  |  PUBLIC CONSTRUCTION SCHEDULE BOARD — 16 periods, priority     |
+  |                                                               |
+  |  contract     [ METROPOLITAN PEGBOARD — centre, dominant ]     |
+  |  office                                              logbook   |
+  |                                                               |
+  |  YOUR TABLETOP — company plaque · line-contract boards with    |
+  |  their attached Destination cards · objectives shelf · hands   |
+  +---------------------------------------------------------------+
 
 Plan Mode: choose owned line -> draw/edit phantom route -> Save privately
 Construction: choose target -> see NEXT options -> choose another or Confirm
 Confirm -> reducer accepts placement -> action ends -> event overlay -> queue advances
+Card: zoom or focus -> read -> play/commit/assign from the focused state -> it moves zones
 ```
 
 ## Assumptions
@@ -100,8 +161,11 @@ Confirm -> reducer accepts placement -> action ends -> event overlay -> queue ad
   polling and rejected actions receive none.
 - Card faces are shown only on the owning player's mat. Opponents see public counts/backs and public
   played cards. Hotseat inserts a handoff veil before private cards change owners.
-- The board retains its current rendered size and pan/zoom behavior. The console reorganizes the
-  surrounding information rather than shrinking the board into a dashboard tile.
+- The board retains its current rendered size at default zoom. Since 2026-08-30 it is positioned by
+  the shared table camera rather than panning and zooming on its own, and the rest of the table is
+  arranged around it in the same world.
+- Camera position is a client-local view preference, like a scroll position: it is never sent to the
+  room, and a poll never moves it.
 
 ## Non-Goals
 
@@ -219,6 +283,13 @@ veil. Card expansion stays excluded per OD-12. Validation before merge: focused 
 (extended for WS-004), production build, lint, `git diff --check`, and a scripted Chromium playtest
 covering desktop 1440×980, phone 390×844 touch, and hotseat veiling.
 
+**v2 — single-surface tabletop (in progress, started 2026-08-30).** The owner's approved
+clarification above returns this workstream to `BUILDING`. Scope: rebuild the presentation as one
+camera over one world per `DEC-023` and
+[Addendum A](../build-specs/WS-004-subway-tabletop-console.md#addendum-a--single-surface-tabletop-approved-clarification-2026-08-30),
+removing the v1 dashboard layout rather than adding a second interface. The reducer, state version
+8, every rule, and the card-audit boundary (OD-12) are unchanged by this work.
+
 ## Review State
 
 | PR | Verdict | Reviewed head | Finalization |
@@ -248,7 +319,12 @@ the merger under protocol rule 11; it does not replace the reviewer, so the gap 
 
 ## Next Step
 
-Owner playtest of the merged tabletop console in production — desktop, phone, and hotseat, with
+Implement the approved single-surface clarification (OD-13–OD-20) on
+`claude/subway-tabletop-pr-147-1qcbqf`, validate against Addendum A's acceptance list, and open the
+follow-up PR — the v1 PRs are merged and closed, so this is new work on a fresh branch, not a
+reopening of #147/#148.
+
+Still open from v1: owner playtest of the tabletop in production — desktop, phone, and hotseat, with
 particular attention to saved plans surviving refresh, the Confirm flow under real two-device play,
 and narration pacing. Separately, owner review of
 [the card audit](../subway-card-audit.md): any Scheduling/Construction card expansion needs

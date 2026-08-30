@@ -1103,3 +1103,82 @@ reduce the sea of starter targets that caused the marker-layering bug.
   player has another pending action.
 - Starter target generation and reducer validation both become border-only.
 - The all-green starter failure becomes a render-precedence regression test.
+
+---
+
+### DEC-023 — Subway renders as one continuous zoomable tabletop, not a page of panels around a board
+
+**Date:** 2026-08-30
+
+**Status:** Accepted
+
+**Context**
+DEC-021 asked for a "board-centred tabletop console" and WS-004 shipped it as the pegboard plus
+mats, a Gantt panel, an event rail, and phone bottom sheets — all laid out in normal page flow with
+their own scroll regions, and only the pegboard itself pan/zoomable. The owner reviewed the merged
+result on 2026-08-30 and clarified that this reads as "more UI cards and panels around the existing
+webpage", which is not the intended design. The intended reference is the physical game seen from
+directly above: one table, with the schedule board at the far edge, the pegboard in the middle, and
+the acting player's own boards and cards on the near edge.
+
+That distinction is presentational, not mechanical. Every rule, phase, cost, and privacy boundary
+from WS-001–WS-004 stays exactly as the reducer defines it.
+
+**Decision**
+Subway's primary interface is a single pan-and-zoom coordinate space — one camera over one world —
+that contains every component of the game as a physical-looking piece:
+
+- the public construction schedule board at the top of the world;
+- the metropolitan pegboard in the middle, dominant, at roughly its previous rendered size and never
+  shrunk to make room for side panels;
+- the acting player's private tabletop along the bottom: line-contract boards, committed cards,
+  hands, budget, survey-pin supply, and the action controls;
+- the opponent's public edge above the schedule, carrying public information and card backs only.
+
+The camera pans and zooms as one unit. Zooming in far enough to read a card is the way cards are
+read; a focused card also opens a readable focused state with its playable action attached. Screen
+level keeps only a thin HUD: status, camera controls (zoom, Reset view, Focus schedule/pegboard/
+hand/lines), narration, and the Confirm/Cancel action strip. There are no nested scroll regions
+inside the tabletop, and no second, parallel dashboard interface anywhere.
+
+Committed Engineering and Destination cards are shown attached to the line they are assigned to,
+not in one undifferentiated row. Line-contract boards carry the line's own permanent colour, which
+is never tied to a player/company colour.
+
+Camera state is client-local and survives polling: a room refetch never resets zoom, pan, focused
+card, provisional placement, or a saved plan.
+
+**Rationale**
+The tabletop metaphor was the point of WS-004, and a metaphor delivered as adjacent panels is not
+delivered. Making the whole table one coordinate space is what produces the "seen from above"
+reading: spatial memory replaces navigation, the board keeps its size at every zoom level, and the
+same gesture that inspects the board inspects a card. It also removes the layout problem that forced
+the phone into sheets and tabs — a phone gets the same table and simply starts zoomed differently.
+
+Keeping the reducer untouched keeps this reversible in the only way that matters: if the presentation
+ever conflicts with a rule, the rule wins and the conflict is surfaced rather than quietly resolved
+in the view layer.
+
+**Alternatives considered**
+- **Keep the merged panel layout and enlarge the board.** Rejected by the owner: the arrangement,
+  not the board size, is what makes it read as a web dashboard.
+- **Zoomable board plus conventional panels (the merged v1).** Rejected: two interaction models on
+  one screen, and the components that most need to feel physical — cards and contract boards — stay
+  outside the tabletop.
+- **A separate "tabletop mode" alongside the existing dashboard.** Rejected explicitly: a second
+  parallel interface doubles the surface to maintain and leaves the wrong one as the default.
+- **Drag-and-drop cards onto lines.** Rejected as the *only* interaction; a pointer-drag-only table
+  is unusable by keyboard and fragile on touch. Selection plus an explicit action stays the
+  contract, with drag available at most as an addition.
+
+**Consequences**
+- `GameView` becomes a camera plus world composition; the pegboard SVG loses its private pan/zoom
+  and is positioned by the world camera like every other piece.
+- Board hit-testing goes through the shared camera transform, so every tap path (and the playtest
+  driver) must read the camera, not the SVG's own transform.
+- Phone support becomes camera work — quick-focus controls and a screen-level action strip — rather
+  than a separate small-screen layout.
+- Privacy stays a rendering convention under invariant 11: opponent card faces and private
+  assignments are never put into this client's DOM, and that limit is documented rather than
+  overstated.
+- Any future component must be placed in world coordinates to exist on the table at all.
