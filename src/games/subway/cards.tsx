@@ -17,49 +17,6 @@ import {
 
 export const money = (n: number) => `$${n}M`;
 
-export function CardShell({
-  title,
-  tag,
-  children,
-  selected,
-  disabled,
-  disabledReason,
-  onClick,
-}: {
-  title: string;
-  tag?: string;
-  children?: React.ReactNode;
-  selected?: boolean;
-  disabled?: boolean;
-  disabledReason?: string;
-  onClick?: () => void;
-}) {
-  const interactive = !!onClick && !disabled;
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={!interactive}
-      className={`w-44 shrink-0 rounded-xl border-2 p-3 text-left shadow-sm transition ${
-        selected ? "border-amber-500 bg-amber-100 ring-2 ring-amber-300" : "border-stone-300 bg-[#fffaf0]"
-      } ${disabled ? "opacity-45" : interactive ? "hover:-translate-y-0.5 hover:border-stone-400" : ""}`}
-    >
-      <div className="flex items-start justify-between gap-1">
-        <strong className="text-sm leading-tight text-stone-900">{title}</strong>
-        {tag && (
-          <span className="rounded bg-stone-800 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-100">
-            {tag}
-          </span>
-        )}
-      </div>
-      {children && <p className="mt-1 text-xs leading-snug text-stone-600">{children}</p>}
-      {disabled && disabledReason && (
-        <p className="mt-1 text-[11px] font-semibold text-red-800">{disabledReason}</p>
-      )}
-    </button>
-  );
-}
-
 /** The line's badge: color plus its letter code, so color is never the only cue. */
 export function LineChip({ contract, subdued }: { contract: LineContract; subdued?: boolean }) {
   return (
@@ -202,9 +159,8 @@ export function ContractCard({
 }
 
 // ============================================================================
-// Consistent face template for card families without dedicated artwork
-// (Scheduling and Construction), card backs for hidden opposing hands, and the
-// zoom container every card opens into.
+// Consistent face template for the card families without dedicated artwork
+// (Scheduling and Construction).
 // ============================================================================
 
 const FAMILY_CHROME: Record<string, { tag: string; border: string; accent: string }> = {
@@ -247,67 +203,5 @@ export function MiniCardFace({
     <button type="button" onClick={onClick} className={`${shell} transition hover:-translate-y-0.5`}>
       {body}
     </button>
-  );
-}
-
-/**
- * A hidden opposing hand: card backs plus a count. Only the count is real
- * information; no private name or state ever renders here (OD-10).
- */
-export function CardBacks({ label, count, tone }: { label: string; count: number; tone: string }) {
-  const shown = Math.min(count, 4);
-  return (
-    <div className="flex items-center gap-2" aria-label={`${label}: ${count} hidden card${count === 1 ? "" : "s"}`}>
-      <div className="flex">
-        {count === 0 ? (
-          <span className="flex h-9 w-6 items-center justify-center rounded border border-dashed border-stone-400 text-[10px] text-stone-400">
-            –
-          </span>
-        ) : (
-          Array.from({ length: shown }, (_, i) => (
-            <span
-              key={i}
-              className={`h-9 w-6 rounded border border-white/60 shadow-sm ${tone} ${i > 0 ? "-ml-3.5" : ""}`}
-              style={{
-                backgroundImage:
-                  "repeating-linear-gradient(45deg, rgba(255,255,255,.16) 0 3px, transparent 3px 6px)",
-              }}
-            />
-          ))
-        )}
-      </div>
-      <div className="leading-tight">
-        <p className="text-sm font-black tabular-nums text-stone-800">{count}</p>
-        <p className="text-[10px] uppercase tracking-wide text-stone-500">{label}</p>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Full-size card detail. Dismissing never touches the board, so the player
- * returns to exactly the viewport they left (R: card zoom).
- */
-export function CardZoomModal({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      role="dialog"
-      aria-modal="true"
-      onClick={onClose}
-    >
-      <div className="w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-        <div className="max-h-[80vh] overflow-y-auto rounded-2xl bg-[#f6edda] p-3 shadow-2xl">
-          {children}
-          <button
-            type="button"
-            onClick={onClose}
-            className="mt-3 w-full rounded-lg bg-stone-900 py-2 text-sm font-bold text-white"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }

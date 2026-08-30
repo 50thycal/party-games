@@ -389,3 +389,109 @@ The implementation PR must update:
   tabletop usability.
 - Do not self-approve or merge. Independent review must name the current full 40-character head SHA.
 - Finish with the Build OS v0.5 documentation-only merge-finalization commit.
+
+---
+
+# Addendum A — Single-surface tabletop (approved clarification, 2026-08-30)
+
+**Status:** Approved clarification of the existing WS-004 intent — not a new gameplay proposal.
+**Decision record:** [DEC-023](../DECISIONS.md#dec-023--subway-renders-as-one-continuous-zoomable-tabletop-not-a-page-of-panels-around-a-board)
+**Applies to:** §5.1 (information architecture) and the presentation half of §5.6. Sections 5.2–5.5,
+§6, §7, §8 and the reducer contract are unchanged.
+
+The v1 implementation read the §5.1 layout as panels arranged around the board in page flow. The
+owner reviewed the merged result and clarified the intent: one continuous, zoomable virtual tabletop
+that resembles the physical game viewed from directly above. This addendum supersedes §5.1 and the
+mobile/desktop layout bullets of the Build Card; every rule, cost, phase, and privacy requirement
+elsewhere in this spec still stands.
+
+## A.1 One coordinate space
+
+- **SA-1.** All game components live inside a single pan-and-zoom world: schedule board, pegboard,
+  cards, line-contract boards, tokens, and player zones. Nothing that belongs to the game is laid
+  out as a sibling page section outside that world.
+- **SA-2.** Spatial order top → bottom is: opponent public edge, public construction schedule board,
+  metropolitan pegboard, the viewer's private tabletop (contract boards, committed cards, hands,
+  budget, pin supply). Left/right space carries the contract office and the site logbook.
+- **SA-3.** The pegboard stays dominant and keeps roughly its current rendered size at default zoom.
+  It is never reduced to make room for surrounding furniture.
+- **SA-4.** No nested scroll regions inside the tabletop. The page itself does not scroll during
+  play; the camera moves instead.
+- **SA-5.** Screen level holds only: status, camera controls, narration overlay, the Confirm/Cancel
+  action strip, and the hotseat veil. Everything else is world content.
+- **SA-6.** Exactly one interface ships. The previous dashboard layout is removed, not kept beside
+  the tabletop.
+
+## A.2 Camera
+
+- **SA-7.** Pan by dragging any empty table surface; zoom by wheel, pinch, or the zoom controls.
+- **SA-8.** `Reset view` returns to the default framing. `Focus` controls exist for schedule,
+  pegboard, hand/cards, and line contracts, on both desktop and phone.
+- **SA-9.** Camera state is client-local. A poll, a room refetch, or an opponent's action never
+  changes zoom, pan, focused card, provisional placement, or a saved plan. The camera may only move
+  on explicit player input or on a phase/step transition (an intentional, announced re-framing).
+- **SA-10.** Board hit-testing derives from the shared camera transform; a drag is never a tap, so
+  panning can neither select nor confirm a peg.
+
+## A.3 Cards as physical pieces
+
+- **SA-11.** Cards are readable by zooming in, and are also openable into a focused state that
+  presents the full face plus its current status.
+- **SA-12.** Any legal action for a card is available from its focused state (play, commit, assign,
+  draft, target selection). Unavailable cards remain inspectable and state the reason.
+- **SA-13.** Playing or committing a card gets a short physical movement — a card visibly leaves its
+  zone and lands in the zone it belongs to afterwards. Motion respects `prefers-reduced-motion`.
+- **SA-14.** Selection plus an explicit action is the interaction contract. Keyboard and touch paths
+  must exist for every action; drag-and-drop is never the only way to do anything.
+- **SA-15.** The live `COMPLETE` treatment on satisfied objectives and Destinations is preserved.
+
+## A.4 Line-contract boards
+
+- **SA-16.** Each owned line gets its own printed board carrying: line name, permanent line colour,
+  the ordered recipe as a strongly visual sequence (e.g. `5 — 3 — 4 — 4`) with completed segments
+  filled or crossed, the next segment emphasized, and future segments visible; nodes built and
+  remaining; next segment length; scheduled periods or shelved/complete status.
+- **SA-17.** Engineering and Destination cards assigned to a line are displayed attached to that
+  line's board, not pooled in one undifferentiated row. Cards that are company-wide rather than
+  per-line (committed Engineering objectives, under the current reducer) sit on the company's own
+  shelf and say so; this is a reducer fact, not a presentation choice, and is not changed here.
+- **SA-18.** Line colours stay independent of player/company colours.
+- **SA-19.** Destination rules are unchanged: Destinations do not count toward the three committed
+  objectives, and at most two may be assigned to one line.
+
+## A.5 Privacy and hotseat (presentation only)
+
+- **SA-20.** The opponent's edge shows public information plus card backs and counts. No opposing
+  card face, private assignment, or private status is rendered in this client's DOM or accessibility
+  tree.
+- **SA-21.** The hotseat handoff veil is preserved and covers the private edge of the table before
+  the incoming player confirms.
+- **SA-22.** This is UI privacy, not server-side secrecy: the whole room payload still reaches every
+  client under invariant 11. Documentation must keep saying so plainly.
+
+## A.6 Mobile
+
+- **SA-23.** The phone gets the same tabletop and the same camera, framed differently at rest — not
+  a separate stacked layout.
+- **SA-24.** Quick-focus controls for schedule, pegboard, hand, and lines are reachable one-handed;
+  Confirm/Cancel may stay in a stable screen-level strip.
+- **SA-25.** Long vertical page scrolling is not an acceptable substitute for camera movement.
+  Safe-area insets and browser gestures are respected; the page itself never scrolls sideways.
+
+## A.7 Acceptance additions
+
+In addition to §10, the change is acceptable only when, on a laptop width and on a phone in both
+portrait and landscape:
+
+- [ ] The whole game reads as one table; every component is inside the camera's world.
+- [ ] Pan, zoom, `Reset view`, and every focus control work, by pointer, touch, and keyboard.
+- [ ] Every card category can be found, read, and — where legal — played from the table.
+- [ ] Engineering and Destination assignments are visibly attached to the right line board.
+- [ ] Multiple lines at different progress are legible side by side.
+- [ ] A provisional placement can be made, repositioned, and confirmed while zoomed.
+- [ ] Saved phantom plans still render and reconcile.
+- [ ] Narration and history stay privacy-safe.
+- [ ] The hotseat handoff still conceals the private edge.
+- [ ] A poll arriving while zoomed into a card, and while a provisional placement is live, changes
+      neither the camera nor the selection.
+- [ ] Subway rules harness, lint, typecheck, and production build pass.

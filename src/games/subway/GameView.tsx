@@ -4,83 +4,88 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { GameViewProps } from "@/games/views";
 import { DestinationCardFace, EngineeringCardFace } from "./CardArt";
-import { CardShell, ContractCard, LineChip, RecipeStrip, money } from "./cards";
+import { ContractCard, MiniCardFace, money } from "./cards";
+import { Board, VB_W, holePos, targetKey, type DrawnLine } from "./board";
+import { TabletopCanvas, type CameraApi, type TableZone } from "./canvas";
 import {
-  EventRail,
-  HandoffVeil,
-  NarrationOverlay,
-  OpponentMat,
-  PlayerMat,
-  useNarration,
+  CardFlight,
+  CardFocus,
+  CardPiece,
+  ContractOffice,
+  LineTile,
+  Logbook,
+  OpponentEdge,
+  Pill,
+  PlayerTabletop,
+  Printed,
+  ScheduleBoard,
+  TABLE,
+  TableButton,
+  type FocusAction,
+  type FocusRef,
   type PlanChip,
-} from "./tabletop";
+} from "./table";
+import { HandoffVeil, NarrationOverlay, currentActorId, useNarration } from "./tabletop";
 import { clearPlan, loadPlan, reconcilePlan, savePlan, type PlanStatus, type SavedPlan } from "./plans";
 import {
-  STATIONS,
   SUBWAY_CONFIG,
   SUBWAY_STATE_VERSION,
   basePriorityId,
-  blockFits,
-  blockPeriods,
   buyBlocker,
-  concurrentBlocks,
   constructionById,
+  contactToll,
   contestedPeriods,
-  contractActions,
   contractById,
   contractNodes,
+  committedStatus,
   contractOf,
   contractsOutstanding,
-  crewCost,
   destinationById,
   destinationMet,
+  destinationProblems,
   destinationTurnId,
   destinationsHeld,
-  destinationProblems,
   engineeringById,
-  contactToll,
   legalTargets,
   lineComplete,
-  lineMobilization,
   marketConstruction,
   marketEngineering,
   marketScheduling,
-  mobilizationCost,
   mustBuyOffer,
   nextSegmentLength,
-  nodePoint,
-  routeContacts,
   pendingStarters,
-  periodPriorityId,
-  scheduleCost,
-  scheduleProblems,
+  routeContacts,
   schedulingById,
   segmentsBuilt,
-  slotPoint,
   starterTurnId,
   stationAt,
   stationById,
   surveyBlocker,
-  surveyFulfilled,
   surveyTurnId,
   surveysPending,
   validateNode,
   type CardDeckId,
   type ConstructionCardId,
-  type LineContract,
   type PlacementTarget,
-  type RouteContact,
   type PlayerLine,
   type Point,
+  type RouteContact,
   type RouteNode,
   type SchedulingCardId,
-  type Station,
   type SubwayPlayer,
   type SubwayState,
 } from "./config";
 
 // ============================================================================
-// Small helpers
+// Subway is played on one continuous, zoomable tabletop (DEC-023).
+//
+// This file composes that table — opponent edge, schedule board, contract
+// office, pegboard, site logbook, the viewer's own edge — inside a single
+// camera, and keeps only the thin screen-level HUD outside it: status, camera
+// controls, narration, and the Confirm/Cancel strip.
+//
+// The reducer stays authoritative for every rule; nothing here decides
+// legality. Privacy remains a rendering convention under invariant 11.
 // ============================================================================
 
 const PHASE_LABELS: Record<string, string> = {
@@ -94,6 +99,10 @@ const PHASE_LABELS: Record<string, string> = {
   RESULTS: "Results",
 };
 
+/** The table is as wide as its three columns; the camera does the rest. */
+const BOARD_FRAME_W = VB_W + 52;
+const WORLD_W = TABLE.margin * 2 + TABLE.side * 2 + TABLE.gap * 2 + BOARD_FRAME_W;
+
 const lineLabel = (line: PlayerLine): string => contractOf(line)?.name ?? "Line";
 
 const opponentOf = (game: SubwayState, me: SubwayPlayer): SubwayPlayer | undefined =>
@@ -101,6 +110,11 @@ const opponentOf = (game: SubwayState, me: SubwayPlayer): SubwayPlayer | undefin
 
 /** Room state is plain JSON by invariant, so this is a safe deep copy. */
 const cloneState = (s: SubwayState): SubwayState => JSON.parse(JSON.stringify(s)) as SubwayState;
+
+const reducedMotion = () =>
+  typeof window !== "undefined" &&
+  typeof window.matchMedia === "function" &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 type Status = { headline: string; tone: "act" | "wait" | "info"; detail?: string };
 
@@ -136,7 +150,7 @@ function statusFor(game: SubwayState, me: SubwayPlayer | undefined, isHost: bool
         ? {
             headline: `First refusal on the ${contract.name} at ${money(offer.price)}.`,
             tone: "act",
-            detail: "Buy it, or pass and draft one face-up card.",
+            detail: "Buy it, or pass and draft one face-up card from the office.",
           }
         : {
             headline: `${oppName} passed. The ${contract.name} is yours at ${money(offer.price)}.`,
@@ -152,7 +166,7 @@ function statusFor(game: SubwayState, me: SubwayPlayer | undefined, isHost: bool
           ? {
               headline: `Draft a Destination — ${owed} to go.`,
               tone: "act",
-              detail: "Three are face up. Picks are free; you assign them to lines next.",
+              detail: "Three are face up in the contract office. Picks are free.",
             }
           : {
               headline: `${game.players[turn ?? ""]?.name ?? oppName} is drafting a Destination.`,
@@ -203,7 +217,6 @@ function statusFor(game: SubwayState, me: SubwayPlayer | undefined, isHost: bool
       if (turn !== me.id) {
         return { headline: `${game.players[turn ?? ""]?.name ?? oppName} is placing a starter peg.`, tone: "wait" };
       }
-      // Shelved contracts are never built, so they are not owed a peg.
       const pending = pendingStarters(me);
       return {
         headline: `Place the free starter peg for your ${lineLabel(me.lines[pending[0]])}.`,
@@ -240,1843 +253,8 @@ function statusFor(game: SubwayState, me: SubwayPlayer | undefined, isHost: bool
   }
 }
 
-// ============================================================================
-// Pegboard
-// ============================================================================
-
-// The pegboard is a wide corridor, so the viewBox is sized from the board
-// rather than fixed: pegs stay a constant STEP apart however long it gets.
-const PAD = 62;
-const STEP = 82;
-const VB_W = PAD * 2 + (SUBWAY_CONFIG.board.columns - 1) * STEP;
-const VB_H = PAD * 2 + (SUBWAY_CONFIG.board.rows - 1) * STEP;
-const MIN_ZOOM = 0.6;
-// A long board is drawn small to fit, so zooming in has to go further.
-const MAX_ZOOM = 6;
-
-/** Peg-space → viewBox pixels. Everything on the board goes through this. */
-const toPx = (p: Point) => ({ x: PAD + p.x * STEP, y: PAD + p.y * STEP });
-const holePos = (p: Point) => toPx({ x: p.x, y: p.y });
-const nodePx = (n: RouteNode) => toPx(nodePoint(n));
-const slotPx = (station: Station, slot: number) => toPx(slotPoint(station, slot));
-
-const targetKey = (t: PlacementTarget) => `${t.x},${t.y},${t.slot ?? "-"}`;
-
-type ViewTransform = { scale: number; x: number; y: number };
-
-const clampView = (v: ViewTransform): ViewTransform => {
-  const scale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v.scale));
-  // Keep at least a quarter of the board on screen on each axis.
-  const bound = (size: number, value: number) =>
-    Math.min(size * 0.75, Math.max(size * 0.25 - size * scale, value));
-  return { scale, x: bound(VB_W, v.x), y: bound(VB_H, v.y) };
-};
-
-/** A line drawn on the board — a real route, or a phantom plan/sketch. */
-type DrawnLine = {
-  key: string;
-  route: RouteNode[];
-  contract: LineContract;
-  ownerColor: string;
-  active: boolean;
-  growing: boolean;
-  ghost?: boolean;
-  /** A saved plan that no longer matches reality; drawn extra-faint. */
-  stale?: boolean;
-  /** route[0] is a real node used only to anchor the first phantom segment. */
-  anchored?: boolean;
-  /** Index of route[0] within the full intended route, for peg numbering. */
-  numberOffset?: number;
-};
-
-/**
- * How the svg element maps viewBox units to CSS pixels. The board fills the
- * element (`slice`), so on a phone the corridor is taller than aspect-fit
- * would allow and the sides pan into view; on desktop the element keeps the
- * board's own aspect ratio and this degenerates to the plain width fit.
- */
-const frameMetrics = (w: number, h: number) => {
-  const scaleF = Math.max(w / VB_W, h / VB_H);
-  return { scaleF, ox: (w - VB_W * scaleF) / 2, oy: (h - VB_H * scaleF) / 2 };
-};
-
-/** Compact overview with the current viewport, so a zoomed-in phone never
- *  loses the rest of the corridor. Indicator only — panning stays on the board. */
-function Minimap({
-  drawn,
-  view,
-  svgSize,
-}: {
-  drawn: DrawnLine[];
-  view: ViewTransform;
-  svgSize: { w: number; h: number } | null;
-}) {
-  const m = svgSize ? frameMetrics(svgSize.w, svgSize.h) : undefined;
-  const vp = m
-    ? {
-        x: ((0 - m.ox) / m.scaleF - view.x) / view.scale,
-        y: ((0 - m.oy) / m.scaleF - view.y) / view.scale,
-        w: (svgSize!.w / m.scaleF) / view.scale,
-        h: (svgSize!.h / m.scaleF) / view.scale,
-      }
-    : { x: (0 - view.x) / view.scale, y: (0 - view.y) / view.scale, w: VB_W / view.scale, h: VB_H / view.scale };
-  return (
-    <svg
-      viewBox={`0 0 ${VB_W} ${VB_H}`}
-      className="block w-36 rounded-md sm:w-44"
-      style={{ background: "#43301f" }}
-      aria-hidden
-    >
-      <rect x="16" y="16" width={VB_W - 32} height={VB_H - 32} rx="26" fill="#b98a58" opacity="0.7" />
-      {STATIONS.map((s) => {
-        const p = holePos(s);
-        return (
-          <rect
-            key={s.id}
-            x={p.x - 34}
-            y={p.y - 26}
-            width="68"
-            height="52"
-            rx="10"
-            fill={s.kind === "major" ? "#24384c" : "#4f6357"}
-          />
-        );
-      })}
-      {drawn.map((d) =>
-        d.route.length > 1 ? (
-          <polyline
-            key={`mm-${d.key}`}
-            points={d.route.map((n) => `${nodePx(n).x},${nodePx(n).y}`).join(" ")}
-            fill="none"
-            stroke={d.contract.color}
-            strokeWidth="16"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeDasharray={d.ghost ? "24 24" : undefined}
-            opacity={d.ghost ? 0.5 : 1}
-          />
-        ) : null
-      )}
-      <rect
-        x={vp.x}
-        y={vp.y}
-        width={vp.w}
-        height={vp.h}
-        fill="none"
-        stroke="#fdf6e3"
-        strokeWidth="18"
-        rx="20"
-      />
-    </svg>
-  );
-}
-
-function Board({
-  game,
-  targets,
-  following,
-  selected,
-  canAct,
-  drawn,
-  onTapHole,
-  overlay,
-}: {
-  game: SubwayState;
-  targets: PlacementTarget[];
-  /** Where the line could go *after* the selected target. Informational only. */
-  following: PlacementTarget[];
-  selected?: PlacementTarget;
-  canAct: boolean;
-  drawn: DrawnLine[];
-  onTapHole: (p: Point, slot?: number) => void;
-  /** Narration and other decorations layered over the board. */
-  overlay?: React.ReactNode;
-}) {
-  const svgRef = useRef<SVGSVGElement | null>(null);
-  const [view, setView] = useState<ViewTransform>({ scale: 1, x: 0, y: 0 });
-  const [showMini, setShowMini] = useState(true);
-  const [svgSize, setSvgSize] = useState<{ w: number; h: number } | null>(null);
-  const pointers = useRef(new Map<number, { x: number; y: number }>());
-  const gesture = useRef<{
-    moved: boolean;
-    last: { x: number; y: number } | null;
-    pinch: { dist: number; view: ViewTransform } | null;
-  }>({ moved: false, last: null, pinch: null });
-
-  // Track the element size so tap mapping and the minimap viewport stay exact
-  // under the phone's height-filling crop.
-  useEffect(() => {
-    const svg = svgRef.current;
-    if (!svg) return;
-    const ro = new ResizeObserver((entries) => {
-      const r = entries[0].contentRect;
-      setSvgSize({ w: r.width, h: r.height });
-    });
-    ro.observe(svg);
-    return () => ro.disconnect();
-  }, []);
-
-  const pxToVb = () => {
-    const rect = svgRef.current?.getBoundingClientRect();
-    return rect && rect.width > 0 ? 1 / frameMetrics(rect.width, rect.height).scaleF : 1;
-  };
-
-  const clientToBoard = (clientX: number, clientY: number) => {
-    const rect = svgRef.current!.getBoundingClientRect();
-    const m = frameMetrics(rect.width, rect.height);
-    const vx = (clientX - rect.left - m.ox) / m.scaleF;
-    const vy = (clientY - rect.top - m.oy) / m.scaleF;
-    return { x: (vx - view.x) / view.scale, y: (vy - view.y) / view.scale };
-  };
-
-  const zoomAtCenter = (factor: number) => {
-    setView((v) => {
-      const scale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v.scale * factor));
-      const anchorX = (VB_W / 2 - v.x) / v.scale;
-      const anchorY = (VB_H / 2 - v.y) / v.scale;
-      return clampView({ scale, x: VB_W / 2 - anchorX * scale, y: VB_H / 2 - anchorY * scale });
-    });
-  };
-
-  // Wheel zoom (non-passive so the page does not scroll with it).
-  useEffect(() => {
-    const svg = svgRef.current;
-    if (!svg) return;
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      const rect = svg.getBoundingClientRect();
-      const m = frameMetrics(rect.width, rect.height);
-      const vx = (e.clientX - rect.left - m.ox) / m.scaleF;
-      const vy = (e.clientY - rect.top - m.oy) / m.scaleF;
-      setView((v) => {
-        const scale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v.scale * (e.deltaY < 0 ? 1.15 : 1 / 1.15)));
-        const ax = (vx - v.x) / v.scale;
-        const ay = (vy - v.y) / v.scale;
-        return clampView({ scale, x: vx - ax * scale, y: vy - ay * scale });
-      });
-    };
-    svg.addEventListener("wheel", onWheel, { passive: false });
-    return () => svg.removeEventListener("wheel", onWheel);
-  }, []);
-
-  const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
-    svgRef.current?.setPointerCapture(e.pointerId);
-    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pointers.current.size === 1) {
-      gesture.current = { moved: false, last: { x: e.clientX, y: e.clientY }, pinch: null };
-    } else if (pointers.current.size === 2) {
-      const [a, b] = Array.from(pointers.current.values());
-      gesture.current.pinch = { dist: Math.hypot(a.x - b.x, a.y - b.y), view };
-      gesture.current.moved = true;
-    }
-  };
-
-  const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
-    if (!pointers.current.has(e.pointerId)) return;
-    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
-    if (pointers.current.size === 2 && gesture.current.pinch) {
-      const [a, b] = Array.from(pointers.current.values());
-      const dist = Math.hypot(a.x - b.x, a.y - b.y);
-      if (dist > 0 && gesture.current.pinch.dist > 0) {
-        const start = gesture.current.pinch.view;
-        const rect = svgRef.current!.getBoundingClientRect();
-        const m = frameMetrics(rect.width, rect.height);
-        const midX = ((a.x + b.x) / 2 - rect.left - m.ox) / m.scaleF;
-        const midY = ((a.y + b.y) / 2 - rect.top - m.oy) / m.scaleF;
-        const scale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, start.scale * (dist / gesture.current.pinch.dist)));
-        const ax = (midX - start.x) / start.scale;
-        const ay = (midY - start.y) / start.scale;
-        setView(clampView({ scale, x: midX - ax * scale, y: midY - ay * scale }));
-      }
-      return;
-    }
-
-    const last = gesture.current.last;
-    if (pointers.current.size === 1 && last) {
-      const dx = e.clientX - last.x;
-      const dy = e.clientY - last.y;
-      if (!gesture.current.moved && Math.hypot(dx, dy) > 6) gesture.current.moved = true;
-      if (gesture.current.moved) {
-        const f = pxToVb();
-        setView((v) => clampView({ ...v, x: v.x + dx * f, y: v.y + dy * f }));
-        gesture.current.last = { x: e.clientX, y: e.clientY };
-      }
-    }
-  };
-
-  const onPointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
-    const wasTap = pointers.current.size === 1 && !gesture.current.moved;
-    pointers.current.delete(e.pointerId);
-    if (pointers.current.size === 1) {
-      // A pinch finger lifted: keep panning with the remaining finger.
-      const [rest] = Array.from(pointers.current.values());
-      gesture.current.last = rest;
-      gesture.current.pinch = null;
-      return;
-    }
-    if (pointers.current.size > 0) return;
-    gesture.current.pinch = null;
-    if (!wasTap || !canAct) return;
-
-    // Snap the tap to the nearest peg hole. Station tiles get a wider radius so
-    // tapping anywhere on the tile docks the line — but the *dock* is whichever
-    // one the tap actually landed nearest, never an automatic choice. A pan is
-    // never a tap, so panning can never select — let alone confirm — a peg.
-    const board = clientToBoard(e.clientX, e.clientY);
-    const cell = { x: Math.round((board.x - PAD) / STEP), y: Math.round((board.y - PAD) / STEP) };
-    if (
-      cell.x < 0 || cell.y < 0 ||
-      cell.x >= SUBWAY_CONFIG.board.columns || cell.y >= SUBWAY_CONFIG.board.rows
-    ) {
-      return;
-    }
-    const station = stationAt(cell);
-    const center = holePos(cell);
-    const radius = (station ? 0.55 : 0.45) * STEP;
-    if (Math.hypot(board.x - center.x, board.y - center.y) > radius) return;
-
-    if (!station) {
-      onTapHole(cell);
-      return;
-    }
-    let nearest = 0;
-    let nearestDist = Infinity;
-    for (let slot = 0; slot < station.capacity; slot++) {
-      const c = slotPx(station, slot);
-      const d = Math.hypot(board.x - c.x, board.y - c.y);
-      if (d < nearestDist) {
-        nearestDist = d;
-        nearest = slot;
-      }
-    }
-    onTapHole(cell, nearest);
-  };
-
-  const targetSet = new Set(targets.map(targetKey));
-  const followingSet = new Set(following.map(targetKey));
-  const targetCells = new Set(targets.map((t) => `${t.x},${t.y}`));
-  const hasSelection = !!selected;
-
-  const cells: Point[] = [];
-  for (let y = 0; y < SUBWAY_CONFIG.board.rows; y++) {
-    for (let x = 0; x < SUBWAY_CONFIG.board.columns; x++) cells.push({ x, y });
-  }
-
-  /** Which contract, if any, is docked in a given station slot. */
-  const dockedIn = (stationId: string, slot: number) =>
-    drawn.find(
-      (d) => !d.ghost && d.route.some((n) => n.stationId === stationId && (n.stationSlot ?? 0) === slot)
-    );
-
-  return (
-    <section className="relative overflow-hidden rounded-3xl border-4 border-[#5d4127] bg-[#8a6844] shadow-2xl">
-      <div className="flex items-center justify-between gap-2 bg-[#43301f] px-3 py-2 text-amber-50">
-        <strong className="text-xs tracking-widest sm:text-sm">METROPOLITAN PEGBOARD</strong>
-        <div className="flex items-center gap-1.5 text-sm">
-          <button onClick={() => zoomAtCenter(1 / 1.25)} aria-label="Zoom out" className="rounded-md bg-white/15 px-2.5 py-0.5 font-bold hover:bg-white/25">
-            −
-          </button>
-          <span className="w-11 text-center text-xs tabular-nums">{Math.round(view.scale * 100)}%</span>
-          <button onClick={() => zoomAtCenter(1.25)} aria-label="Zoom in" className="rounded-md bg-white/15 px-2.5 py-0.5 font-bold hover:bg-white/25">
-            +
-          </button>
-          <button onClick={() => setView({ scale: 1, x: 0, y: 0 })} className="rounded-md bg-white/15 px-2 py-0.5 text-xs hover:bg-white/25">
-            Reset
-          </button>
-          <button
-            onClick={() => setShowMini(!showMini)}
-            className="rounded-md bg-white/15 px-2 py-0.5 text-xs hover:bg-white/25"
-            aria-pressed={showMini}
-          >
-            Map
-          </button>
-        </div>
-      </div>
-
-      {overlay}
-
-      {showMini && (
-        <div className="pointer-events-none absolute bottom-2 right-2 z-10 rounded-lg border border-[#43301f]/70 shadow-lg">
-          <Minimap drawn={drawn} view={view} svgSize={svgSize} />
-        </div>
-      )}
-
-      <svg
-        ref={svgRef}
-        viewBox={`0 0 ${VB_W} ${VB_H}`}
-        preserveAspectRatio="xMidYMid slice"
-        className={`block h-[46vh] min-h-[240px] w-full touch-none select-none lg:aspect-[2256/780] lg:h-auto lg:min-h-0 ${canAct ? "cursor-crosshair" : "cursor-grab"}`}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-      >
-        {/* All pointer handling lives on the svg itself, so decorations can
-            never swallow a tap. */}
-        <rect x="0" y="0" width={VB_W} height={VB_H} fill="#8a6844" />
-        <g transform={`translate(${view.x},${view.y}) scale(${view.scale})`} pointerEvents="none">
-          <rect x="16" y="16" width={VB_W - 32} height={VB_H - 32} rx="26" fill="#b98a58" />
-          <rect x="16" y="16" width={VB_W - 32} height={VB_H - 32} rx="26" fill="none" stroke="#71533a" strokeWidth="3" opacity="0.6" />
-
-          {cells.map((c) => {
-            const p = holePos(c);
-            return (
-              <g key={`h-${c.x}-${c.y}`}>
-                <circle cx={p.x} cy={p.y} r="8" fill="#8f6c49" />
-                <circle cx={p.x} cy={p.y} r="5.5" fill="#5f4630" />
-              </g>
-            );
-          })}
-
-          {/* Public Survey Pins. They never occupy a hole, so they sit above and
-              left of it and stay small enough not to hide a peg or string. */}
-          {game.surveyPins.map((pin, i) => {
-            const owner = game.players[pin.playerId];
-            const p = holePos(pin);
-            const cx = p.x - 21;
-            const cy = p.y - 21;
-            const done = !!owner && surveyFulfilled(owner, pin);
-            return (
-              <g key={`pin-${i}`}>
-                <path
-                  d={`M ${cx} ${cy - 11} L ${cx + 9} ${cy} L ${cx} ${cy + 11} L ${cx - 9} ${cy} Z`}
-                  fill={done ? owner?.color ?? "#78716c" : "#fdf6e3"}
-                  stroke={owner?.color ?? "#78716c"}
-                  strokeWidth="3"
-                />
-                <text
-                  x={cx}
-                  y={cy + 3.5}
-                  textAnchor="middle"
-                  fontSize="10"
-                  fontWeight="800"
-                  fill={done ? "#ffffff" : owner?.color ?? "#78716c"}
-                >
-                  {done ? "✓" : "S"}
-                </text>
-                <circle cx={cx} cy={cy} r="14.5" fill="none" stroke={owner?.color ?? "#000"} strokeWidth="2" opacity="0.85" />
-              </g>
-            );
-          })}
-
-          {/* Station tiles with one docking slot per unit of capacity.
-              Marker precedence inside a tile (OD-7 / R 5.4): unselected current
-              targets dim once anything is selected, a NEXT marker wins over an
-              unselected current target on the same dock, and the selected NOW
-              ring renders on top of everything. */}
-          {STATIONS.map((s) => {
-            const p = holePos(s);
-            const major = s.kind === "major";
-            const w = major ? 76 : 64;
-            const h = 56;
-            const highlight = targetCells.has(`${s.x},${s.y}`) && !hasSelection;
-            const openDocks = Array.from({ length: s.capacity }, (_, i) => i).filter((i) => !dockedIn(s.id, i));
-            const full = openDocks.length === 0;
-            // Two-word names wrap so they never spill outside the tile.
-            const words = s.name.split(" ");
-            return (
-              <g key={s.id} transform={`translate(${p.x},${p.y})`}>
-                <rect x={-w / 2} y={-h / 2 + 2} width={w} height={h} rx="11" fill="#000" opacity="0.25" />
-                <rect
-                  x={-w / 2}
-                  y={-h / 2}
-                  width={w}
-                  height={h}
-                  rx="11"
-                  fill={major ? "#24384c" : "#4f6357"}
-                  stroke={highlight ? "#4ade80" : full ? "#b45309" : "#f5d98a"}
-                  strokeWidth={highlight ? 5 : 3.5}
-                />
-                {words.map((word, i) => (
-                  <text
-                    key={i}
-                    y={(words.length > 1 ? -19 : -14) + i * 11}
-                    textAnchor="middle"
-                    fill="#ffffff"
-                    fontSize="10.5"
-                    fontWeight="700"
-                  >
-                    {word}
-                  </text>
-                ))}
-                <text y={words.length > 1 ? 2 : -1} textAnchor="middle" fill="#f5d98a" fontSize="9" fontWeight="700">
-                  {major ? "MAJOR" : "MINOR"} · +{SUBWAY_CONFIG.stationScores[s.kind]} VP
-                </text>
-                {Array.from({ length: s.capacity }, (_, slot) => {
-                  const c = slotPx(s, slot);
-                  const dx = c.x - p.x;
-                  const dy = c.y - p.y;
-                  const docked = dockedIn(s.id, slot);
-                  const key = `${s.x},${s.y},${slot}`;
-                  const open = targetSet.has(key);
-                  const nextOpen = followingSet.has(key);
-                  const isSelected =
-                    !!selected && selected.x === s.x && selected.y === s.y && selected.slot === slot;
-                  return (
-                    <g key={slot}>
-                      {open && !isSelected && (
-                        <circle
-                          cx={dx}
-                          cy={dy}
-                          r="13"
-                          fill="#4ade80"
-                          opacity={hasSelection ? 0.12 : 0.35}
-                          data-target={key}
-                          data-step="1"
-                        >
-                          {!hasSelection && (
-                            <animate attributeName="opacity" values="0.65;0.2;0.65" dur="1.6s" repeatCount="indefinite" />
-                          )}
-                        </circle>
-                      )}
-                      {nextOpen && (!open || hasSelection) && (
-                        <circle
-                          cx={dx}
-                          cy={dy}
-                          r="12"
-                          fill="#facc15"
-                          opacity="0.25"
-                          stroke="#ca8a04"
-                          strokeWidth="2.5"
-                          strokeDasharray="5 4"
-                          data-target={key}
-                          data-step="2"
-                        />
-                      )}
-                      <circle
-                        cx={dx}
-                        cy={dy}
-                        r="9"
-                        fill={docked ? docked.contract.color : "#00000055"}
-                        stroke={open && !hasSelection ? "#4ade80" : docked ? "#ffffff" : "#f5d98a"}
-                        strokeWidth={open && !hasSelection ? 3 : 2}
-                        strokeDasharray={docked || open ? "0" : "3 3"}
-                      />
-                      <text y={dy - 13} x={dx} textAnchor="middle" fontSize="8" fontWeight="800" fill="#f5d98a">
-                        {slot + 1}
-                      </text>
-                      {isSelected && (
-                        <>
-                          <circle
-                            cx={dx}
-                            cy={dy}
-                            r="15"
-                            fill="#4ade80"
-                            opacity="0.5"
-                            data-target={key}
-                            data-step="1"
-                            data-selected="true"
-                          />
-                          <circle cx={dx} cy={dy} r="15" fill="none" stroke="#15803d" strokeWidth="4" />
-                          <text x={dx} y={dy + 3.5} textAnchor="middle" fontSize="11" fontWeight="800" fill="#14532d">
-                            1
-                          </text>
-                          <text x={dx} y={dy + 27} textAnchor="middle" fontSize="9" fontWeight="800" fill="#14532d">
-                            NOW
-                          </text>
-                        </>
-                      )}
-                    </g>
-                  );
-                })}
-              </g>
-            );
-          })}
-
-          {/* Normal-hole markers, in explicit precedence order (R 5.4):
-              1. unselected current targets — dimmed once anything is selected,
-                 and fully ceded where a following marker shares the hole;
-              2. following `2 / NEXT` markers, dashed;
-              3. the selected `1 / NOW` marker, drawn last further below.
-              Colour is never the only cue (DEC-013): the current step is a
-              solid ring marked 1, the following step a dashed ring marked 2.
-              data-target/data-step name what each marker means, so a playtest
-              driver taps exactly what the rules allow. */}
-          {canAct &&
-            targets
-              .filter((t) => t.slot === undefined)
-              .filter((t) => !(hasSelection && followingSet.has(targetKey(t))))
-              .map((c) => {
-                const isSelected =
-                  !!selected && selected.slot === undefined && selected.x === c.x && selected.y === c.y;
-                if (isSelected) return null;
-                const p = holePos(c);
-                return (
-                  <g key={`t-${c.x}-${c.y}`} opacity={hasSelection ? 0.35 : 1}>
-                    <circle
-                      cx={p.x}
-                      cy={p.y}
-                      r="13"
-                      fill="#4ade80"
-                      opacity={hasSelection ? 0.15 : 0.28}
-                      data-target={`${c.x},${c.y}`}
-                      data-step="1"
-                    />
-                    <circle cx={p.x} cy={p.y} r="13" fill="none" stroke="#4ade80" strokeWidth="2.5">
-                      {!hasSelection && (
-                        <animate attributeName="opacity" values="0.9;0.35;0.9" dur="1.6s" repeatCount="indefinite" />
-                      )}
-                    </circle>
-                    <text x={p.x} y={p.y + 4} textAnchor="middle" fontSize="11" fontWeight="800" fill="#14532d">
-                      1
-                    </text>
-                  </g>
-                );
-              })}
-          {canAct &&
-            following
-              .filter((t) => t.slot === undefined)
-              .map((c) => {
-                const p = holePos(c);
-                return (
-                  <g key={`f-${c.x}-${c.y}`}>
-                    <circle
-                      cx={p.x}
-                      cy={p.y}
-                      r="12"
-                      fill="#facc15"
-                      opacity="0.18"
-                      data-target={`${c.x},${c.y}`}
-                      data-step="2"
-                    />
-                    <circle
-                      cx={p.x}
-                      cy={p.y}
-                      r="12"
-                      fill="none"
-                      stroke="#ca8a04"
-                      strokeWidth="2.5"
-                      strokeDasharray="5 4"
-                    />
-                    <text x={p.x} y={p.y + 4} textAnchor="middle" fontSize="11" fontWeight="800" fill="#854d0e">
-                      2
-                    </text>
-                  </g>
-                );
-              })}
-          {canAct && selected && selected.slot === undefined && (
-            <g key="selected-now">
-              <circle
-                cx={holePos(selected).x}
-                cy={holePos(selected).y}
-                r="15"
-                fill="#4ade80"
-                opacity="0.55"
-                data-target={`${selected.x},${selected.y}`}
-                data-step="1"
-                data-selected="true"
-              />
-              <circle
-                cx={holePos(selected).x}
-                cy={holePos(selected).y}
-                r="15"
-                fill="none"
-                stroke="#15803d"
-                strokeWidth="4"
-              />
-              <text
-                x={holePos(selected).x}
-                y={holePos(selected).y + 4}
-                textAnchor="middle"
-                fontSize="12"
-                fontWeight="800"
-                fill="#14532d"
-              >
-                1
-              </text>
-              <text
-                x={holePos(selected).x}
-                y={holePos(selected).y - 22}
-                textAnchor="middle"
-                fontSize="10"
-                fontWeight="800"
-                fill="#14532d"
-              >
-                NOW
-              </text>
-            </g>
-          )}
-
-          {/* Strings: pale casing pass, then the line's own color. Each contract
-              carries a distinct dash pattern so color is never the only cue.
-              Phantom plans draw dashed and translucent; stale ones fainter still. */}
-          {drawn.flatMap((d) =>
-            d.route.slice(1).map((n, i) => {
-              const a = nodePx(d.route[i]);
-              const b = nodePx(n);
-              return (
-                <line
-                  key={`o-${d.key}-${i}`}
-                  x1={a.x}
-                  y1={a.y}
-                  x2={b.x}
-                  y2={b.y}
-                  stroke="#fdf6e3"
-                  strokeWidth="13"
-                  strokeLinecap="round"
-                  opacity={d.ghost ? (d.stale ? 0.15 : 0.35) : 1}
-                />
-              );
-            })
-          )}
-          {drawn.flatMap((d) =>
-            d.route.slice(1).map((n, i) => {
-              const a = nodePx(d.route[i]);
-              const b = nodePx(n);
-              return (
-                <line
-                  key={`c-${d.key}-${i}`}
-                  x1={a.x}
-                  y1={a.y}
-                  x2={b.x}
-                  y2={b.y}
-                  stroke={d.contract.color}
-                  strokeWidth={d.ghost ? 6 : 8}
-                  strokeLinecap="round"
-                  strokeDasharray={d.ghost ? "10 12" : d.contract.dash}
-                  opacity={d.ghost ? (d.stale ? 0.35 : 0.7) : 1}
-                />
-              );
-            })
-          )}
-
-          {/* Pegs: the line's color inside, the owning company's color around. */}
-          {drawn.flatMap((d) =>
-            d.route.map((n, i) => {
-              if (d.anchored && i === 0) return null; // a real peg already sits there
-              const p = nodePx(n);
-              const isEndpoint = i === d.route.length - 1;
-              const r = n.stationId ? 7.5 : 11;
-              return (
-                <g key={`n-${d.key}-${i}`} opacity={d.ghost ? (d.stale ? 0.45 : 0.75) : 1}>
-                  {isEndpoint && d.growing && !d.ghost && (
-                    <circle
-                      cx={p.x}
-                      cy={p.y}
-                      r={r + 5}
-                      fill="none"
-                      stroke={d.contract.color}
-                      strokeWidth="2.5"
-                      opacity={d.active ? 1 : 0.45}
-                    >
-                      {d.active && (
-                        <animate attributeName="r" values={`${r + 4};${r + 10};${r + 4}`} dur="1.4s" repeatCount="indefinite" />
-                      )}
-                    </circle>
-                  )}
-                  <circle
-                    cx={p.x}
-                    cy={p.y}
-                    r={r}
-                    fill={d.ghost ? "#fdf6e3" : d.contract.color}
-                    stroke={d.ghost ? d.contract.color : d.ownerColor}
-                    strokeWidth={d.ghost ? 3 : 3.5}
-                    strokeDasharray={d.ghost ? "4 3" : undefined}
-                  />
-                  {!n.stationId && (
-                    <text
-                      x={p.x}
-                      y={p.y + 4}
-                      textAnchor="middle"
-                      fontSize="11"
-                      fontWeight="800"
-                      fill={d.ghost ? d.contract.color : "#ffffff"}
-                    >
-                      {d.ghost ? (d.numberOffset ?? 0) + i : d.contract.code}
-                    </text>
-                  )}
-                </g>
-              );
-            })
-          )}
-        </g>
-      </svg>
-    </section>
-  );
-}
-
-// ============================================================================
-// Gantt scheduling board — the shared picture of the whole build programme
-// ============================================================================
-
-const PERIODS = SUBWAY_CONFIG.timelinePeriods;
-const GRID_COLUMNS = `repeat(${PERIODS}, minmax(18px, 1fr))`;
-
-/**
- * Period ruler. Priority alternates odd/even by calendar period, so it is shown
- * for every period, not only contested ones, with permits called out.
- */
-function PeriodRuler({ game }: { game: SubwayState }) {
-  return (
-    <div className="grid gap-px" style={{ gridTemplateColumns: GRID_COLUMNS }}>
-      {Array.from({ length: PERIODS }, (_, i) => {
-        const period = i + 1;
-        const live = game.phase === "CONSTRUCTION" && period === game.currentPeriod;
-        const past = game.phase === "CONSTRUCTION" && period < game.currentPeriod;
-        const firstId = periodPriorityId(game, period);
-        const overridden = game.priorityOverrides[period] !== undefined;
-        const first = game.players[firstId];
-        return (
-          <div key={period} className="flex flex-col items-center">
-            <span
-              className={`w-full rounded-t text-center text-[10px] font-bold ${
-                live ? "bg-emerald-600 text-white" : past ? "text-stone-400" : "text-stone-500"
-              }`}
-            >
-              {period}
-            </span>
-            <span
-              className={`flex h-2.5 w-full items-center justify-center rounded-b text-[8px] font-black text-white ${
-                overridden ? "ring-1 ring-amber-500" : ""
-              }`}
-              style={{ background: first?.color ?? "transparent" }}
-              title={`${first?.name ?? "?"} builds first in period ${period}${
-                overridden ? " (Priority Permit)" : period % 2 === 1 ? " (odd periods)" : " (even periods)"
-              }`}
-            >
-              {overridden ? "P" : ""}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/** One contract's bar across the timeline, in that contract's own color. */
-function GanttRow({
-  line,
-  player,
-  game,
-}: {
-  line: PlayerLine;
-  player: SubwayPlayer;
-  game: SubwayState;
-}) {
-  const active = new Set(blockPeriods(line));
-  const contract = contractOf(line);
-  return (
-    <div className="grid gap-px" style={{ gridTemplateColumns: GRID_COLUMNS }}>
-      {Array.from({ length: PERIODS }, (_, i) => {
-        const period = i + 1;
-        const on = active.has(period);
-        const doubled = on && concurrentBlocks(player, period) > 1;
-        const past = game.phase === "CONSTRUCTION" && period < game.currentPeriod;
-        return (
-          <div
-            key={period}
-            className={`h-4 rounded-sm ${on ? "" : "bg-stone-200/70"} ${doubled ? "ring-1 ring-amber-500" : ""}`}
-            style={
-              on
-                ? { background: contract?.color ?? player.color, opacity: past ? 0.4 : 1 }
-                : undefined
-            }
-            title={doubled ? `Period ${period}: second crew` : undefined}
-          />
-        );
-      })}
-    </div>
-  );
-}
-
-/** All of one company's rows, with editing controls when it is your own. */
-function CompanySchedule({
-  game,
-  player,
-  hidden,
-  editable,
-  busy,
-  act,
-}: {
-  game: SubwayState;
-  player: SubwayPlayer;
-  hidden: boolean;
-  editable: boolean;
-  busy: boolean;
-  act: (type: string, payload?: Record<string, unknown>) => void;
-}) {
-  const oddPriority = player.id === game.oddPriorityId;
-  const mob = mobilizationCost(player);
-  const crew = crewCost(player);
-
-  return (
-    <div className="rounded-lg bg-white/60 p-2">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: player.color }} />
-        <span className="truncate text-xs font-bold">{player.name}</span>
-        <span
-          className={`rounded px-1 text-[10px] font-black ${
-            oddPriority ? "bg-amber-400 text-stone-900" : "bg-sky-200 text-stone-700"
-          }`}
-          title={oddPriority ? "Builds first in odd periods" : "Builds first in even periods"}
-        >
-          {oddPriority ? "ODD" : "EVEN"}
-        </span>
-        {!hidden && (
-          <span className="ml-auto text-[11px] font-bold text-stone-500">
-            mob {money(mob)} · crew {money(crew)}
-          </span>
-        )}
-      </div>
-
-      {hidden ? (
-        <p className="mt-1 text-[11px] italic text-stone-500">
-          Planning in private — {player.scheduleSubmitted ? "submitted" : "still drafting"}.
-        </p>
-      ) : (
-        <div className="mt-1.5 space-y-2">
-          {player.lines.map((line, li) => {
-            const contract = contractOf(line);
-            if (!contract) return null;
-            const shelved = line.start === undefined;
-            const end = shelved ? undefined : line.start! + contractActions(contract) - 1;
-            return (
-              <div key={li}>
-                <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-                  <LineChip contract={contract} subdued={shelved} />
-                  <span className="font-semibold">{contract.name}</span>
-                  <span className="text-stone-500">
-                    {shelved
-                      ? "shelved — will score its penalty"
-                      : `periods ${line.start}–${end} · mobilization ${money(lineMobilization(line))}`}
-                  </span>
-                  {editable && (
-                    <span className="ml-auto flex items-center gap-1">
-                      <button
-                        disabled={busy || shelved || !blockFits(line, (line.start ?? 1) - 1)}
-                        onClick={() => act("SET_SCHEDULE", { lineIndex: li, start: (line.start ?? 1) - 1 })}
-                        className="rounded border border-stone-400 px-1.5 font-bold disabled:opacity-30"
-                        aria-label={`Start ${contract.name} earlier`}
-                      >
-                        ◀
-                      </button>
-                      <button
-                        disabled={busy || shelved || !blockFits(line, (line.start ?? 1) + 1)}
-                        onClick={() => act("SET_SCHEDULE", { lineIndex: li, start: (line.start ?? 1) + 1 })}
-                        className="rounded border border-stone-400 px-1.5 font-bold disabled:opacity-30"
-                        aria-label={`Start ${contract.name} later`}
-                      >
-                        ▶
-                      </button>
-                      <button
-                        disabled={busy}
-                        onClick={() => act("SET_SCHEDULE", { lineIndex: li, start: shelved ? 1 : null })}
-                        className="rounded border border-stone-400 px-1.5 font-bold disabled:opacity-30"
-                      >
-                        {shelved ? "Schedule" : "Shelve"}
-                      </button>
-                    </span>
-                  )}
-                </div>
-                <div className="mt-0.5">
-                  <GanttRow line={line} player={player} game={game} />
-                </div>
-              </div>
-            );
-          })}
-          {!player.lines.length && <p className="text-[11px] italic text-stone-400">No contracts.</p>}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function GanttBoard({
-  game,
-  viewerId,
-  revealed,
-  editable,
-  busy,
-  act,
-}: {
-  game: SubwayState;
-  viewerId: string;
-  revealed: boolean;
-  editable: boolean;
-  busy: boolean;
-  act: (type: string, payload?: Record<string, unknown>) => void;
-}) {
-  return (
-    <section className="rounded-2xl border border-stone-300 bg-[#f6edda] p-3 text-stone-900">
-      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-sm font-black uppercase tracking-wider">Construction programme</h3>
-        <span className="text-xs text-stone-600">{PERIODS} periods · one crew each</span>
-      </div>
-      <div className="overflow-x-auto">
-        <div className="min-w-[288px] space-y-2">
-          <PeriodRuler game={game} />
-          {game.playerOrder.map((id) => {
-            const p = game.players[id];
-            if (!p) return null;
-            return (
-              <CompanySchedule
-                key={id}
-                game={game}
-                player={p}
-                hidden={!revealed && id !== viewerId}
-                editable={editable && id === viewerId}
-                busy={busy}
-                act={act}
-              />
-            );
-          })}
-        </div>
-      </div>
-      <p className="mt-2 text-[11px] text-stone-500">
-        Bars carry each contract&apos;s own line color. The band under a period number shows which
-        company builds first there — odd and even periods alternate, and a Priority Permit marks
-        its period with a <b>P</b>. Amber outline = second crew.
-      </p>
-    </section>
-  );
-}
-
-// ============================================================================
-// Phase panels
-// ============================================================================
-
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-2xl bg-white/70 p-4 text-stone-900">
-      <h3 className="font-bold">{title}</h3>
-      {children}
-    </section>
-  );
-}
-
-function ProcurementPanel({
-  game,
-  me,
-  busy,
-  act,
-}: {
-  game: SubwayState;
-  me: SubwayPlayer;
-  busy: boolean;
-  act: (type: string, payload?: Record<string, unknown>) => void;
-}) {
-  const [deck, setDeck] = useState<CardDeckId>("engineering");
-  const offer = game.procurement.offer;
-  if (!offer) return null;
-  const contract = contractById(offer.contractId)!;
-  const mine = offer.activeId === me.id;
-  const forced = mine && mustBuyOffer(game, me.id);
-  const blocker = buyBlocker(game, me.id);
-  const canBuy = mine && (!blocker || (forced && blocker === "Not enough money."));
-
-  const engineering = marketEngineering(game.market);
-  const faceUp: { id: CardDeckId; name: string; description: string; tag: string }[] = [
-    {
-      id: "engineering",
-      name: engineering.name,
-      description: engineering.description,
-      tag: engineering.destination ? "destination" : "engineering",
-    },
-    { id: "scheduling", name: marketScheduling(game.market).name, description: marketScheduling(game.market).description, tag: "scheduling" },
-    { id: "construction", name: marketConstruction(game.market).name, description: marketConstruction(game.market).description, tag: "construction" },
-  ];
-
-  return (
-    <Panel title={`${contract.name} on offer${offer.fromYard ? " — Discount Yard" : ""}`}>
-      <p className="mt-1 text-sm text-stone-600">
-        {contractsOutstanding(game)} contract{contractsOutstanding(game) === 1 ? "" : "s"} still need an owner.
-        You hold {me.lines.length} of a maximum {SUBWAY_CONFIG.maxContractsPerPlayer} and {money(me.money)}.
-      </p>
-
-      <div className="mt-3">
-        <ContractCard contract={contract} price={offer.price} />
-      </div>
-
-      {game.procurement.yard.length > 0 && (
-        <div className="mt-3">
-          <b className="text-xs uppercase text-stone-500">Discount Yard</b>
-          <ul className="mt-1 space-y-0.5 text-xs text-stone-600">
-            {game.procurement.yard.map((entry, i) => {
-              const c = contractById(entry.contractId)!;
-              return (
-                <li key={i} className="flex justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <LineChip contract={c} />
-                    {c.name}
-                  </span>
-                  <span>
-                    <span className="mr-1 text-stone-400 line-through">{money(c.cost)}</span>
-                    <b>{money(entry.price)}</b>
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-          <p className="mt-1 text-[11px] italic text-stone-500">
-            Every yard contract must still be bought before Procurement ends.
-          </p>
-        </div>
-      )}
-
-      {!mine ? (
-        <p className="mt-3 text-sm text-stone-500">
-          Waiting for {game.players[offer.activeId]?.name ?? "the opposition"}…
-        </p>
-      ) : (
-        <>
-          {offer.stage === "first" && !forced && (
-            <div className="mt-3">
-              <b className="text-xs uppercase text-stone-500">Pass and draft one of these</b>
-              <div className="mt-2 flex gap-3 overflow-x-auto pb-2">
-                {faceUp.map((card) => (
-                  <CardShell
-                    key={card.id}
-                    title={card.name}
-                    tag={card.tag}
-                    selected={deck === card.id}
-                    onClick={() => setDeck(card.id)}
-                  >
-                    {card.description}
-                  </CardShell>
-                ))}
-              </div>
-            </div>
-          )}
-          <div className="mt-2 flex flex-wrap gap-2">
-            <button
-              disabled={busy || !canBuy}
-              onClick={() => act("PROCURE", { choice: "buy" })}
-              className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-35"
-            >
-              Buy for {money(forced ? Math.min(offer.price, me.money) : offer.price)}
-            </button>
-            {!forced && (
-              <button
-                disabled={busy}
-                onClick={() =>
-                  act("PROCURE", offer.stage === "first" ? { choice: "pass", deck } : { choice: "pass" })
-                }
-                className="rounded-lg border border-stone-400 px-4 py-2 text-sm font-bold text-stone-700 disabled:opacity-35"
-              >
-                {offer.stage === "first" ? `Pass — take ${deck}` : "Pass to the Discount Yard"}
-              </button>
-            )}
-            {!canBuy && blocker && !forced && <p className="w-full text-xs text-red-800">{blocker}</p>}
-          </div>
-        </>
-      )}
-    </Panel>
-  );
-}
-
-/**
- * The Destination draft. Three cards face up, companies alternate free picks
- * starting with the odd-period company, and each ends with exactly two. This
- * is why every game now contains Destinations at all (DEC-019).
- */
-function DestinationDraftPanel({
-  game,
-  me,
-  busy,
-  act,
-}: {
-  game: SubwayState;
-  me: SubwayPlayer;
-  busy: boolean;
-  act: (type: string, payload?: Record<string, unknown>) => void;
-}) {
-  const turn = destinationTurnId(game);
-  const mine = turn === me.id;
-  const owed = SUBWAY_CONFIG.destinationsPerPlayer - destinationsHeld(me);
-  const opponent = opponentOf(game, me);
-
-  return (
-    <Panel title="Destination draft">
-      <p className="mt-1 text-sm text-stone-600">
-        Take turns picking from the three face-up cards until each company holds{" "}
-        {SUBWAY_CONFIG.destinationsPerPlayer}. Picks are free. You assign each one to a line you own
-        in the next step, and it pays +{SUBWAY_CONFIG.destinationVp} VP if that line reaches the
-        station — finished or not.
-      </p>
-      <p className="mt-2 text-sm font-semibold">
-        {mine
-          ? `Your pick — ${owed} to go.`
-          : turn
-            ? `${game.players[turn]?.name ?? "The opposition"} is picking.`
-            : "Both companies are done drafting."}
-      </p>
-
-      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {game.destinationRow.map((id) => (
-          <DestinationCardFace
-            key={id}
-            card={id}
-            color={me.color}
-            compact
-            onClick={mine && !busy ? () => act("PICK_DESTINATION", { destinationCardId: id }) : undefined}
-            disabled={!mine || busy}
-          />
-        ))}
-        {!game.destinationRow.length && (
-          <p className="col-span-full text-[11px] italic text-stone-400">The row is empty.</p>
-        )}
-      </div>
-
-      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-        <div>
-          <b className="uppercase text-stone-500">Yours ({destinationsHeld(me)})</b>
-          <ul className="mt-1 space-y-0.5 text-stone-600">
-            {me.destinationHand.map((id, i) => (
-              <li key={i}>{destinationById(id)?.name ?? id}</li>
-            ))}
-            {!me.destinationHand.length && <li className="italic text-stone-400">None yet.</li>}
-          </ul>
-        </div>
-        <div>
-          <b className="uppercase text-stone-500">
-            {opponent?.name ?? "Opposition"} ({opponent ? destinationsHeld(opponent) : 0})
-          </b>
-          <p className="mt-1 italic text-stone-400">
-            Picked from the same public row — the count is open, the cards are theirs to reveal.
-          </p>
-        </div>
-      </div>
-    </Panel>
-  );
-}
-
-/**
- * The Engineering plan: three objectives, any Destination assignments, and a
- * Survey Pin purchase. It all locks in one action, and the money leaves once.
- */
-function EngineeringPlanPanel({
-  me,
-  chosen,
-  setChosen,
-  assignments,
-  setAssignments,
-  surveys,
-  setSurveys,
-  busy,
-  act,
-}: {
-  me: SubwayPlayer;
-  chosen: string[];
-  setChosen: (v: string[]) => void;
-  assignments: Record<string, number>;
-  setAssignments: (v: Record<string, number>) => void;
-  surveys: number;
-  setSurveys: (n: number) => void;
-  busy: boolean;
-  act: (type: string, payload?: Record<string, unknown>) => void;
-}) {
-  if (me.engineeringLocked) {
-    return (
-      <Panel title="Engineering plan locked">
-        <p className="mt-1 text-sm text-stone-600">
-          Three objectives and {me.destinationCommitments.length} Destination
-          {me.destinationCommitments.length === 1 ? "" : "s"} are committed face down, and{" "}
-          {me.surveysPurchased} Survey Pin{me.surveysPurchased === 1 ? "" : "s"} are paid for. The
-          opposition cannot see any of it until scoring; your own copies stay visible on your mat
-          with live status.
-        </p>
-      </Panel>
-    );
-  }
-
-  const toggle = (id: string) =>
-    setChosen(
-      chosen.includes(id) ? chosen.filter((x) => x !== id) : chosen.length < 3 ? [...chosen, id] : chosen
-    );
-
-  const list = Object.entries(assignments)
-    .filter(([, lineIndex]) => lineIndex >= 0)
-    .map(([cardId, lineIndex]) => ({ cardId, lineIndex }));
-  const problems = destinationProblems(me, list);
-  const allAssigned = list.length === me.destinationHand.length;
-  const surveyCost = surveys * SUBWAY_CONFIG.survey.cost;
-  const affordable = surveyCost <= me.money;
-  const ready = chosen.length === 3 && allAssigned && !problems.length && affordable;
-
-  return (
-    <Panel title={`Engineering plan — ${chosen.length}/3 objectives`}>
-      <p className="mt-1 text-sm text-stone-600">
-        Commit exactly three objectives. Destinations are separate: assign as many as you like, at
-        most two per line. Uncommitted cards stay in hand and score nothing.
-      </p>
-
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        {me.engineeringHand.map((id, i) => (
-          <EngineeringCardFace
-            key={`${id}-${i}`}
-            card={id}
-            color={me.color}
-            state={chosen.includes(id) ? "selected" : "idle"}
-            onClick={() => toggle(id)}
-          />
-        ))}
-      </div>
-
-      <div className="mt-4">
-        <b className="text-xs uppercase text-stone-500">Destination cards ({me.destinationHand.length})</b>
-        {me.destinationHand.length === 0 ? (
-          <p className="mt-1 text-[11px] italic text-stone-500">
-            None in hand.
-          </p>
-        ) : (
-          <div className="mt-1.5 grid grid-cols-2 gap-2">
-            {me.destinationHand.map((id, i) => {
-              const assigned = assignments[id] ?? -1;
-              return (
-                <DestinationCardFace
-                  key={`${id}-${i}`}
-                  card={id}
-                  color={me.color}
-                  compact
-                  state={assigned >= 0 ? "selected" : "idle"}
-                  footer={
-                    <select
-                      value={assigned}
-                      onChange={(e) => setAssignments({ ...assignments, [id]: Number(e.target.value) })}
-                      className="mt-1.5 w-full rounded border border-stone-400 bg-white px-1 py-1 text-[11px]"
-                    >
-                      <option value={-1}>Not assigned</option>
-                      {me.lines.map((line, li) => (
-                        <option key={li} value={li}>
-                          {lineLabel(line)}
-                        </option>
-                      ))}
-                    </select>
-                  }
-                />
-              );
-            })}
-          </div>
-        )}
-        {(problems.length > 0 || !allAssigned) && (
-          <ul className="mt-1.5 space-y-0.5 text-xs font-semibold text-red-800">
-            {!allAssigned && <li>• Every Destination you drafted must be assigned to a line.</li>}
-            {problems.map((p, i) => (
-              <li key={i}>• {p}</li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="mt-4 rounded-xl border border-stone-300 bg-white/70 p-3">
-        <b className="text-xs uppercase text-stone-500">Survey Pins</b>
-        <p className="mt-1 text-[11px] text-stone-600">
-          {money(SUBWAY_CONFIG.survey.cost)} each, up to {SUBWAY_CONFIG.survey.max}. Each pin scores
-          +{SUBWAY_CONFIG.survey.vp} VP if any line you own later builds through its hole. Pins are
-          public and reserve nothing.
-        </p>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <button
-            disabled={busy || surveys === 0}
-            onClick={() => setSurveys(Math.max(0, surveys - 1))}
-            className="rounded border border-stone-400 px-3 py-1 font-bold disabled:opacity-30"
-            aria-label="Buy one fewer Survey Pin"
-          >
-            −
-          </button>
-          <b className="w-6 text-center text-lg tabular-nums">{surveys}</b>
-          <button
-            disabled={busy || surveys >= SUBWAY_CONFIG.survey.max}
-            onClick={() => setSurveys(Math.min(SUBWAY_CONFIG.survey.max, surveys + 1))}
-            className="rounded border border-stone-400 px-3 py-1 font-bold disabled:opacity-30"
-            aria-label="Buy one more Survey Pin"
-          >
-            +
-          </button>
-          <span className="text-xs text-stone-600">
-            cost <b className={affordable ? "" : "text-red-700"}>{money(surveyCost)}</b> · cash after{" "}
-            <b className={affordable ? "" : "text-red-700"}>{money(me.money - surveyCost)}</b>
-          </span>
-        </div>
-        {!affordable && (
-          <p className="mt-1 text-xs font-semibold text-red-800">
-            You hold {money(me.money)} — buy fewer pins.
-          </p>
-        )}
-      </div>
-
-      <button
-        disabled={busy || !ready}
-        onClick={() => act("LOCK_ENGINEERING_PLAN", { cardIds: chosen, destinations: list, surveys })}
-        className="mt-3 w-full rounded-lg bg-emerald-700 px-4 py-2 font-bold text-white disabled:opacity-40"
-      >
-        Lock the plan{surveyCost > 0 ? ` & pay ${money(surveyCost)}` : ""}
-      </button>
-    </Panel>
-  );
-}
-
-/** Placing the pins already bought. Public, alternating, non-reserving. */
-function SurveyPanel({ game, me }: { game: SubwayState; me: SubwayPlayer }) {
-  const turn = surveyTurnId(game);
-  const mine = turn === me.id;
-  const left = surveysPending(game, me.id);
-
-  return (
-    <Panel title="Survey Pins">
-      <p className="mt-1 text-sm text-stone-600">
-        Companies alternate, starting with the odd-period company. A pin marks intent only: it
-        never reserves the hole, and either company may still build there. Pins are company-wide —
-        <b> any</b> line you own fulfils one by placing a normal node on its exact hole.
-      </p>
-      <p className="mt-2 text-sm">
-        You have <b>{left}</b> pin{left === 1 ? "" : "s"} left to place.{" "}
-        {mine ? "Tap a glowing normal hole to pin it." : `Waiting for ${game.players[turn ?? ""]?.name ?? "the opposition"}…`}
-      </p>
-
-      <ul className="mt-3 space-y-1 text-xs">
-        {game.surveyPins.map((pin, i) => {
-          const owner = game.players[pin.playerId];
-          return (
-            <li key={i} className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full" style={{ background: owner?.color }} />
-              <span className="font-semibold">{owner?.name}</span>
-              <span className="text-stone-500">
-                pinned {pin.x + 1},{pin.y + 1}
-              </span>
-            </li>
-          );
-        })}
-        {!game.surveyPins.length && <li className="italic text-stone-400">No pins on the board yet.</li>}
-      </ul>
-    </Panel>
-  );
-}
-
-function SchedulingPanel({
-  game,
-  me,
-  busy,
-  act,
-}: {
-  game: SubwayState;
-  me: SubwayPlayer;
-  busy: boolean;
-  act: (type: string, payload?: Record<string, unknown>) => void;
-}) {
-  const [picked, setPicked] = useState<SchedulingCardId | null>(null);
-  const [target, setTarget] = useState(0);
-  const [direction, setDirection] = useState<-1 | 1>(-1);
-  const [period, setPeriod] = useState(1);
-
-  const planning = game.schedulingStep === "PLANNING";
-  const waived = me.lines.reduce((sum, l) => sum + (l.mobilizationWaived ?? 0), 0);
-  const problems = scheduleProblems(me);
-  const cost = scheduleCost(me);
-  const contested = contestedPeriods(game);
-
-  const cardReason = (id: SchedulingCardId): string | undefined => {
-    if (me.schedulingCardPlayed) return "One Scheduling card per game";
-    if (me.scheduleConfirmed) return "Schedule already locked";
-    if (id === "priority" && !contested.length) return "No contested periods";
-    if (id !== "priority" && !me.lines.some((l) => l.start !== undefined)) return "Nothing scheduled to move";
-    return undefined;
-  };
-
-  return (
-    <Panel title={planning ? "Plan your programme" : "Schedules revealed"}>
-      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-4">
-        <span className="text-stone-500">Mobilization</span>
-        <b>{money(mobilizationCost(me))}</b>
-        <span className="text-stone-500">Second crew</span>
-        <b>{money(crewCost(me))}</b>
-        <span className="text-stone-500">Schedule total</span>
-        <b className={cost > me.money ? "text-red-700" : ""}>{money(cost)}</b>
-        <span className="text-stone-500">Cash after</span>
-        <b className={cost > me.money ? "text-red-700" : ""}>{money(me.money - cost)}</b>
-      </div>
-      {waived > 0 && (
-        <p className="mt-1 text-xs text-emerald-800">
-          Early Mobilization waived <b>{money(waived)}</b> of mobilization surcharge — the increase
-          the earlier start caused, and nothing else. Base mobilization{" "}
-          <b>{money(mobilizationCost(me) + waived)}</b> → <b>{money(mobilizationCost(me))}</b>. Any
-          second-crew change from the move stays payable, and is included in the{" "}
-          <b>{money(crewCost(me))}</b> above.
-        </p>
-      )}
-
-      {problems.length > 0 && (
-        <ul className="mt-2 space-y-0.5 text-xs font-semibold text-red-800">
-          {problems.map((p, i) => (
-            <li key={i}>• {p}</li>
-          ))}
-        </ul>
-      )}
-
-      {planning ? (
-        <button
-          disabled={busy || me.scheduleSubmitted || problems.length > 0}
-          onClick={() => act("SUBMIT_SCHEDULE")}
-          className="mt-3 w-full rounded-lg bg-emerald-700 px-4 py-2 font-bold text-white disabled:opacity-40"
-        >
-          {me.scheduleSubmitted ? "Submitted — waiting" : "Submit schedule"}
-        </button>
-      ) : (
-        <>
-          {!me.scheduleConfirmed && me.schedulingHand.length > 0 && (
-            <>
-              <p className="mt-3 text-xs font-bold uppercase text-stone-500">Scheduling cards</p>
-              <div className="mt-1 flex gap-3 overflow-x-auto pb-2">
-                {me.schedulingHand.map((id, i) => {
-                  const card = schedulingById(id)!;
-                  const reason = cardReason(id);
-                  return (
-                    <CardShell
-                      key={`${id}-${i}`}
-                      title={card.name}
-                      tag="Scheduling"
-                      selected={picked === id}
-                      disabled={!!reason}
-                      disabledReason={reason}
-                      onClick={() => setPicked(picked === id ? null : id)}
-                    >
-                      {card.description}
-                    </CardShell>
-                  );
-                })}
-              </div>
-            </>
-          )}
-
-          {picked && picked !== "priority" && (
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
-              <span className="font-bold uppercase text-stone-500">Line</span>
-              <select
-                value={target}
-                onChange={(e) => setTarget(Number(e.target.value))}
-                className="rounded border border-stone-400 bg-white px-2 py-1"
-              >
-                {me.lines.map((l, i) =>
-                  l.start === undefined ? null : (
-                    <option key={i} value={i}>
-                      {lineLabel(l)}
-                    </option>
-                  )
-                )}
-              </select>
-              {picked === "float" && (
-                <span className="flex overflow-hidden rounded border border-stone-400 font-bold">
-                  <button
-                    className={`px-2 py-1 ${direction === -1 ? "bg-stone-800 text-white" : ""}`}
-                    onClick={() => setDirection(-1)}
-                  >
-                    Earlier
-                  </button>
-                  <button
-                    className={`px-2 py-1 ${direction === 1 ? "bg-stone-800 text-white" : ""}`}
-                    onClick={() => setDirection(1)}
-                  >
-                    Later
-                  </button>
-                </span>
-              )}
-            </div>
-          )}
-
-          {picked === "priority" && (
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
-              <span className="font-bold uppercase text-stone-500">Contested period</span>
-              <select
-                value={period}
-                onChange={(e) => setPeriod(Number(e.target.value))}
-                className="rounded border border-stone-400 bg-white px-2 py-1"
-              >
-                {contested.map((q) => (
-                  <option key={q} value={q}>
-                    Period {q} — {game.players[basePriorityId(game, q)]?.name} builds first now
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div className="mt-2 flex flex-wrap gap-2">
-            {picked && (
-              <button
-                disabled={busy}
-                onClick={() => {
-                  act("PLAY_SCHEDULING_CARD", {
-                    cardId: picked,
-                    ...(picked === "priority"
-                      ? { period: contested.includes(period) ? period : contested[0] }
-                      : { lineIndex: target, ...(picked === "float" ? { direction } : {}) }),
-                  });
-                  setPicked(null);
-                }}
-                className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-40"
-              >
-                Play {schedulingById(picked)?.name}
-              </button>
-            )}
-            <button
-              disabled={busy || me.scheduleConfirmed || problems.length > 0}
-              onClick={() => act("CONFIRM_SCHEDULE")}
-              className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-40"
-            >
-              {me.scheduleConfirmed ? "Locked — waiting" : `Confirm & pay ${money(cost)}`}
-            </button>
-          </div>
-        </>
-      )}
-    </Panel>
-  );
-}
-
-function StarterPanel({ game, me }: { game: SubwayState; me: SubwayPlayer }) {
-  const pending = pendingStarters(me);
-  const turn = starterTurnId(game);
-  return (
-    <Panel title="Starter pegs">
-      <p className="mt-1 text-sm text-stone-600">
-        Every <strong>scheduled</strong> contract gets one free starter peg — it counts as node 1 and
-        costs no scheduled action. Starters enter from the edge of the map: only normal holes on the
-        board&apos;s <strong>outer border</strong> are legal, and stations never are. Shelved
-        contracts get none, since they are never built. The odd-period company places first, then
-        companies alternate. Tap a border hole to select it, reposition freely, then Confirm.
-      </p>
-      <ul className="mt-2 space-y-1 text-sm">
-        {me.lines.map((line, i) => {
-          const contract = contractOf(line);
-          if (!contract) return null;
-          return (
-            <li key={i} className="flex items-center gap-2">
-              <LineChip contract={contract} subdued={line.start === undefined} />
-              <span className={`font-semibold ${line.start === undefined ? "text-stone-400" : ""}`}>
-                {contract.name}
-              </span>
-              <span className="text-stone-500">
-                {line.start === undefined
-                  ? "shelved — no peg"
-                  : line.route.length
-                    ? "placed"
-                    : turn === me.id && pending[0] === i
-                      ? "← place now"
-                      : "waiting"}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
-    </Panel>
-  );
-}
-
-/**
- * The banner above the board while you are actually placing. Everything the
- * rule needs to be obvious lives here: which line, its color and code, how far
- * along the recipe it is, and exactly what the next segment must be.
- */
-function ActiveLineBanner({
-  line,
-  starter,
-  targetCount,
-}: {
-  line: PlayerLine;
-  starter: boolean;
-  targetCount: number;
-}) {
-  const contract = contractOf(line);
-  if (!contract) return null;
-  const built = segmentsBuilt(line);
-  const next = nextSegmentLength(line);
-  const endpoint = line.route[line.route.length - 1];
-
-  return (
-    <div
-      className="rounded-2xl border-l-8 bg-white/85 px-4 py-3 text-stone-900 shadow"
-      style={{ borderColor: contract.color }}
-    >
-      <div className="flex flex-wrap items-center gap-2">
-        <LineChip contract={contract} />
-        <b className="text-base">{contract.name}</b>
-        <span className="rounded-full bg-stone-900 px-2.5 py-0.5 text-[11px] font-black uppercase text-amber-50">
-          {starter ? "Starter peg" : `Segment ${built + 1} of ${contract.recipe.length}`}
-        </span>
-        <span className="ml-auto text-sm font-black tabular-nums">
-          {line.route.length}/{contractNodes(contract)} nodes
-        </span>
-      </div>
-
-      <div className="mt-2">
-        <RecipeStrip contract={contract} built={built} />
-      </div>
-
-      <p className="mt-2 text-sm font-semibold">
-        {starter ? (
-          <>Select a starter hole on the outer border — stations are not allowed. Confirm commits it.</>
-        ) : next === undefined ? (
-          <>This line is finished.</>
-        ) : (
-          <>
-            Next segment must span <b style={{ color: contract.color }}>{next} pegs</b> (±
-            {SUBWAY_CONFIG.geometry.lengthTolerance}) and turn no more than{" "}
-            {SUBWAY_CONFIG.geometry.maxTurnDegrees}°.
-          </>
-        )}
-      </p>
-      <p className="mt-0.5 text-xs text-stone-600">
-        {endpoint
-          ? `Building from ${endpoint.stationId ? `${stationById(endpoint.stationId)?.name} dock ${(endpoint.stationSlot ?? 0) + 1}` : `hole ${endpoint.x + 1},${endpoint.y + 1}`}. `
-          : ""}
-        {targetCount > 0
-          ? `${targetCount} legal target${targetCount === 1 ? "" : "s"} glowing.`
-          : "No legal target — you may give up this action below."}
-      </p>
-    </div>
-  );
-}
-
-function ConstructionPanel({
-  game,
-  me,
-  busy,
-  act,
-  selectedLine,
-  setSelectedLine,
-}: {
-  game: SubwayState;
-  me: SubwayPlayer;
-  busy: boolean;
-  act: (type: string, payload?: Record<string, unknown>) => void;
-  selectedLine: number;
-  setSelectedLine: (n: number) => void;
-}) {
-  const [picked, setPicked] = useState<ConstructionCardId | null>(null);
-  const myTurn = game.resolveQueue[0] === me.id;
-  const queued = game.resolveQueue.includes(me.id);
-
-  useEffect(() => {
-    setPicked(null);
-  }, [game.currentPeriod]);
-
-  const reason = (id: ConstructionCardId): string | undefined => {
-    if (me.constructionCardThisPeriod) return "One Construction card per period";
-    if (!queued || me.actedThisPeriod) return "Only on a period you build";
-    if (id === "expedite") return game.resolveQueue[0] === me.id ? "You already build first" : undefined;
-    if (id === "overtime" && !me.pendingActions.length) return "No scheduled action to double";
-    if (id === "surge") {
-      const others = me.lines
-        .map((_, i) => i)
-        .filter((i) => !me.pendingActions.includes(i) && !lineComplete(me.lines[i]));
-      if (!others.length) return "No other project to open";
-    }
-    return undefined;
-  };
-
-  const cardTargets = (id: ConstructionCardId): number[] =>
-    id === "overtime"
-      ? Array.from(new Set(me.pendingActions))
-      : me.lines.map((_, i) => i).filter((i) => !me.pendingActions.includes(i) && !lineComplete(me.lines[i]));
-
-  if (!queued && !myTurn) return null;
-
-  return (
-    <Panel title={`Period ${game.currentPeriod} — your scheduled work`}>
-      <ul className="mt-1 space-y-0.5 text-sm">
-        {me.pendingActions.length === 0 && <li className="text-stone-500">No actions left this period.</li>}
-        {Array.from(new Set(me.pendingActions)).map((i) => {
-          const count = me.pendingActions.filter((x) => x === i).length;
-          const contract = contractOf(me.lines[i]);
-          if (!contract) return null;
-          return (
-            <li key={i} className="flex items-center gap-2">
-              <LineChip contract={contract} />
-              <button
-                onClick={() => setSelectedLine(i)}
-                className={`rounded px-1.5 font-semibold ${selectedLine === i ? "bg-amber-100 ring-1 ring-amber-400" : ""}`}
-              >
-                {contract.name}
-              </button>
-              <span className="text-xs text-stone-500">
-                {count > 1 ? `${count} actions` : "1 action"} · next {nextSegmentLength(me.lines[i]) ?? "—"} pegs
-              </span>
-            </li>
-          );
-        })}
-      </ul>
-
-      {me.constructionHand.length > 0 && (
-        <div className="mt-3 flex gap-3 overflow-x-auto pb-2">
-          {me.constructionHand.map((id, i) => {
-            const card = constructionById(id)!;
-            const why = reason(id);
-            return (
-              <CardShell
-                key={`${id}-${i}`}
-                title={card.name}
-                tag="Construction"
-                selected={picked === id}
-                disabled={!!why}
-                disabledReason={why}
-                onClick={() => setPicked(picked === id ? null : id)}
-              >
-                {card.description}
-              </CardShell>
-            );
-          })}
-        </div>
-      )}
-
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        {picked && picked !== "expedite" && (
-          <select
-            value={selectedLine}
-            onChange={(e) => setSelectedLine(Number(e.target.value))}
-            className="rounded border border-stone-400 bg-white px-2 py-1 text-xs"
-          >
-            {cardTargets(picked).map((i) => (
-              <option key={i} value={i}>
-                {lineLabel(me.lines[i])}
-              </option>
-            ))}
-          </select>
-        )}
-        {picked && (
-          <button
-            disabled={busy}
-            onClick={() => {
-              const targets = cardTargets(picked);
-              act("PLAY_CONSTRUCTION_CARD", {
-                cardId: picked,
-                ...(picked === "expedite"
-                  ? {}
-                  : { lineIndex: targets.includes(selectedLine) ? selectedLine : targets[0] }),
-              });
-              setPicked(null);
-            }}
-            className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-40"
-          >
-            Play {constructionById(picked)?.name}
-          </button>
-        )}
-        {myTurn && (
-          <button
-            disabled={busy}
-            onClick={() => act("SKIP_ACTION")}
-            className="rounded-lg border border-stone-400 px-4 py-2 text-sm font-bold text-stone-600 disabled:opacity-40"
-          >
-            Give up this period
-          </button>
-        )}
-      </div>
-      {myTurn && (
-        <p className="mt-1 text-[11px] italic text-stone-500">
-          A skipped action is lost — it never rolls into a later period.
-        </p>
-      )}
-    </Panel>
-  );
-}
-
-// ============================================================================
-// Main view
-// ============================================================================
-
 /** What the next tap on the board does. */
 type BoardMode = "none" | "place" | "survey" | "planner";
-
-type MobileTab = "mat" | "schedule" | "log";
 
 const PLAN_PHASES = new Set(["ENGINEERING", "SCHEDULING", "STARTER_PLACEMENT", "CONSTRUCTION"]);
 
@@ -2094,7 +272,43 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
   const [preview, setPreview] = useState<PlacementTarget | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [tab, setTab] = useState<MobileTab | null>(null);
+
+  // Card focus and its card-play targets.
+  const [focus, setFocus] = useState<FocusRef | null>(null);
+  const [cardLine, setCardLine] = useState(0);
+  const [cardDirection, setCardDirection] = useState<-1 | 1>(-1);
+  const [cardPeriod, setCardPeriod] = useState(1);
+  const [flight, setFlight] = useState<{ from: DOMRect; to: { x: number; y: number }; label: string; color: string } | null>(
+    null
+  );
+
+  // The camera. Client-local by construction: no poll can move it (SA-9).
+  const cam = useRef<CameraApi | null>(null);
+  const [zoomPct, setZoomPct] = useState(100);
+  const boardRef = useRef<HTMLDivElement | null>(null);
+  // The HUD's real bands, measured: the camera frames zones clear of them, so
+  // nothing important ever ends up under the status plate or the action strip.
+  const hudTopRef = useRef<HTMLDivElement | null>(null);
+  const hudBottomRef = useRef<HTMLDivElement | null>(null);
+  const [bands, setBands] = useState({ top: 96, bottom: 140 });
+  useEffect(() => {
+    const measure = () => {
+      const top = (hudTopRef.current?.offsetHeight ?? 80) + 16;
+      const bottom = (hudBottomRef.current?.offsetHeight ?? 120) + 16;
+      setBands((prev) =>
+        Math.abs(prev.top - top) < 3 && Math.abs(prev.bottom - bottom) < 3 ? prev : { top, bottom }
+      );
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (hudTopRef.current) ro.observe(hudTopRef.current);
+    if (hudBottomRef.current) ro.observe(hudBottomRef.current);
+    window.addEventListener("resize", measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, []);
 
   // Saved Plan Mode (DEC-022): all client-local, keyed per room/player/line.
   const [planMode, setPlanMode] = useState(false);
@@ -2103,9 +317,9 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
   const [plans, setPlans] = useState<Record<string, SavedPlan>>({});
   const [planStorageOk, setPlanStorageOk] = useState(true);
 
-  // Hotseat handoff veil: in hotseat mode a changed controlling player keeps
-  // every private surface unrendered until the newcomer confirms who they are.
-  // The gate is derived during render, so nothing private can flash in between.
+  // Hotseat handoff veil: a changed controlling player keeps every private
+  // surface unrendered until the newcomer confirms. Derived during render, so
+  // nothing private can flash in between.
   const [seatedId, setSeatedId] = useState(playerId);
   const veiled = isHotseat && !!game && game.phase !== "SETUP" && playerId !== seatedId;
   useEffect(() => {
@@ -2129,7 +343,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
     }
   };
 
-  // ---- Saved plans: load for this room/player/contract set -----------------
+  // ---- Saved plans: load for this room/player/contract set -------------------
   const contractIds = me ? me.lines.map((l) => l.contractId).join(",") : "";
   useEffect(() => {
     if (!contractIds) {
@@ -2148,8 +362,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
     setSketch([]);
   }, [room.roomCode, playerId, contractIds]);
 
-  const planAvailable =
-    !!game && !!me && me.lines.length > 0 && PLAN_PHASES.has(game.phase) && !veiled;
+  const planAvailable = !!game && !!me && me.lines.length > 0 && PLAN_PHASES.has(game.phase) && !veiled;
   useEffect(() => {
     if (!planAvailable && planMode) {
       setPlanMode(false);
@@ -2194,6 +407,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
     setSketch(start);
     setPlanMode(true);
     setNotice(null);
+    cam.current?.focus("board");
   };
 
   const exitPlanner = () => {
@@ -2222,7 +436,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
     setSketch([...line.route]);
   };
 
-  // ---- What the board is for right now --------------------------------------
+  // ---- What the board is for right now ---------------------------------------
   const myStarterTurn = !!game && game.phase === "STARTER_PLACEMENT" && starterTurnId(game) === playerId;
   const starterLine = game && me ? pendingStarters(me)[0] ?? -1 : -1;
   const placingStarter = myStarterTurn && starterLine >= 0;
@@ -2242,9 +456,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
   const plannerActive =
     planMode && plannerLine !== null && !!game && !!me && planAvailable && !!me.lines[plannerLine];
 
-  // Plan Mode pauses live placement without surrendering it (R 5.2): leaving
-  // it restores the same legal choices, and any provisional selection that is
-  // still legal survives in `preview`.
+  // Plan Mode pauses live placement without surrendering it (R 5.2).
   const mode: BoardMode = plannerActive
     ? "planner"
     : placingStarter || myBuild
@@ -2286,8 +498,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
   }, [game, me, mode, activeLineIndex, placingStarter, plannerState, plannerLine, sketch]);
 
   // The board as it would be if the selected target were confirmed. Yellow is
-  // derived from this by the reducer's own rules, so a following target is
-  // legal by exactly the rules the next placement will use (OD-5).
+  // derived from this by the reducer's own rules (OD-5).
   const previewState = useMemo(() => {
     if (!game || !me || !preview || activeLineIndex < 0 || mode !== "place") return undefined;
     const clone = cloneState(game);
@@ -2316,10 +527,8 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
     return routeContacts(game, me.id, from, { x: preview.x, y: preview.y });
   }, [game, me, preview, activeLineIndex, placingStarter]);
 
-  // A routine poll must never cancel a selection in progress: the room refetches
-  // every second, so only a change that actually affects this selection clears
-  // it. A target that went stale (taken dock, changed geometry) drops out here,
-  // which is exactly the "refresh and reselect" the spec asks for (R 5.3).
+  // A routine poll must never cancel a selection in progress: only a change
+  // that actually affects this selection clears it (R 5.3).
   const previewKey = preview ? targetKey(preview) : "";
   const targetKeys = targets.map(targetKey).join("|");
   useEffect(() => {
@@ -2405,9 +614,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
           const anchored = line.route.length > 0;
           out.push({
             key: `plan-${li}`,
-            route: anchored
-              ? [line.route[line.route.length - 1], ...status.phantom]
-              : status.phantom,
+            route: anchored ? [line.route[line.route.length - 1], ...status.phantom] : status.phantom,
             contract,
             ownerColor: me.color,
             active: false,
@@ -2455,9 +662,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
         return;
       }
       setNotice(null);
-      // Selection only — tapping never commits. Another legal tap simply moves
-      // the provisional marker; the Confirm button is the one way to commit
-      // (OD-3 / OD-4).
+      // Selection only — tapping never commits (OD-3 / OD-4).
       setPreview({ x: p.x, y: p.y, ...(stationAt(p) ? { slot } : {}) });
     }
   };
@@ -2482,22 +687,53 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
     });
   };
 
-  // Mobile tab handoffs on phase transitions only — a routine poll or an
-  // unrelated re-render never moves the player's chosen tab.
+  /** Keyboard/touch alternative to tapping the board: step the selection. */
+  const cycleTarget = (delta: number) => {
+    if (!targets.length) return;
+    const i = preview ? targets.findIndex((t) => targetKey(t) === targetKey(preview)) : -1;
+    const next = targets[(i + delta + targets.length * 2) % targets.length];
+    if (mode === "planner") {
+      onTapHole({ x: next.x, y: next.y }, next.slot);
+      return;
+    }
+    setPreview(next);
+    // Bring the chosen hole on screen without disturbing the zoom level.
+    const svg = boardRef.current?.querySelector("svg");
+    const rect = svg?.getBoundingClientRect();
+    if (rect && rect.width) {
+      const s = rect.width / VB_W;
+      const p = holePos(next);
+      const cx = rect.left + p.x * s;
+      const cy = rect.top + p.y * s;
+      const r = 46 * s;
+      cam.current?.ensureRect({ left: cx - r, top: cy - r, right: cx + r, bottom: cy + r });
+    }
+  };
+
+  // Which part of the table this phase is played on: it decides the opening
+  // shot and what `Reset view` returns to.
   const phaseKey = game ? `${game.phase}:${game.engineeringStep}:${game.schedulingStep}` : "";
+  const phaseZone: TableZone = (() => {
+    const [phase, step] = phaseKey.split(":");
+    if (phase === "PROCUREMENT") return "office";
+    if (phase === "SCHEDULING") return "schedule";
+    if (phase === "ENGINEERING") {
+      return step === "DESTINATION_DRAFT" ? "office" : step === "PLAN" ? "hand" : "board";
+    }
+    if (phase === "RESULTS") return "results";
+    if (phase === "SCORING") return "table";
+    return "board";
+  })();
+
+  // Camera re-framing on phase transitions only — never on a routine poll.
   const prevPhaseKey = useRef<string | null>(null);
   useEffect(() => {
     if (!phaseKey) return;
-    if (prevPhaseKey.current !== null && prevPhaseKey.current !== phaseKey) {
-      const phase = phaseKey.split(":")[0];
-      if (phase === "SCHEDULING") setTab("schedule");
-      else if (phase === "ENGINEERING" || phase === "PROCUREMENT") setTab("mat");
-      else setTab(null);
-    }
+    if (prevPhaseKey.current !== null && prevPhaseKey.current !== phaseKey) cam.current?.focus(phaseZone);
     prevPhaseKey.current = phaseKey;
-  }, [phaseKey]);
+  }, [phaseKey, phaseZone]);
 
-  // ---- Pre-game lobby -------------------------------------------------------
+  // ---- Pre-game lobby ---------------------------------------------------------
   if (!game || game.phase === "SETUP") {
     const enough = room.players.length >= 2;
     return (
@@ -2507,8 +743,8 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
         <p className="mx-auto my-4 max-w-xl text-sm text-stone-600">
           Six Line Contracts come up one at a time and all of them find an owner. Each carries an
           ordered recipe of segment lengths and its own line color. Commit secret objectives and
-          Destinations, buy Survey Pins, plan the whole programme on a shared Gantt board, then
-          engineer the routes hole by hole.
+          Destinations, buy Survey Pins, plan the whole programme on the public schedule board, then
+          engineer the routes hole by hole — all on one table you pan and zoom around.
         </p>
         {stale && (
           <p className="mx-auto mb-4 max-w-md rounded-lg bg-amber-100 px-3 py-2 text-sm font-semibold text-amber-900">
@@ -2537,31 +773,410 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
 
   const status = statusFor(game, me, isHost);
   const schedulingRevealed = game.phase !== "SCHEDULING" || game.schedulingStep === "RESOLUTION";
-  // Kept on the results screen too: the final programme shows what was planned
-  // against what actually got built.
-  const showGantt = ["SCHEDULING", "STARTER_PLACEMENT", "CONSTRUCTION", "SCORING", "RESULTS"].includes(game.phase);
-  // The board is up during Engineering and Scheduling too, so Survey Pins and
-  // saved plans have somewhere to happen.
-  const showBoard = game.phase !== "PROCUREMENT";
   const canUndo = game.undo?.playerId === playerId && !veiled;
   const activeLine = activeLineIndex >= 0 && me ? me.lines[activeLineIndex] : undefined;
   const opponent = me ? opponentOf(game, me) : undefined;
   const plannerLineObj = plannerActive && me && plannerLine !== null ? me.lines[plannerLine] : undefined;
   const plannerContract = plannerLineObj ? contractOf(plannerLineObj) : undefined;
   const sketchedSegments = Math.max(0, sketch.length - 1);
-  const plannerSavedStatus =
-    plannerLineObj && plannerActive ? planStatuses[plannerLineObj.contractId] : undefined;
+  const plannerSavedStatus = plannerLineObj && plannerActive ? planStatuses[plannerLineObj.contractId] : undefined;
   const minSketch = plannerLineObj ? plannerLineObj.route.length : 0;
+  const contested = contestedPeriods(game);
 
-  // The sticky action strip attached to the board: what is selected, what it
-  // costs, and the only Confirm that commits anything. Rendered under the
-  // board on desktop and as the fixed bottom strip on the phone.
+  // ---- Card focus: read a card, and do the legal thing with it ---------------
+
+  /** Send a card on its way, then dispatch. Decoration only. */
+  const playWithFlight = (label: string, color: string, zone: TableZone, run: () => void) => {
+    const card = document.querySelector<HTMLElement>("[data-focus-card]");
+    const dest = document.querySelector<HTMLElement>(`[data-zone="${zone}"]`);
+    if (card && dest && !reducedMotion()) {
+      const from = card.getBoundingClientRect();
+      const dr = dest.getBoundingClientRect();
+      setFlight({
+        from,
+        to: { x: dr.left + dr.width / 2 - from.width / 2, y: dr.top + dr.height / 2 - from.height / 2 },
+        label,
+        color,
+      });
+      setTimeout(() => setFlight(null), 460);
+    }
+    setFocus(null);
+    run();
+  };
+
+  const schedulingReason = (id: SchedulingCardId): string | undefined => {
+    if (!me) return "Spectating";
+    if (game.phase !== "SCHEDULING" || game.schedulingStep !== "RESOLUTION")
+      return "Only after both schedules are revealed";
+    if (me.schedulingCardPlayed) return "One Scheduling card per company per game";
+    if (me.scheduleConfirmed) return "Your schedule is already locked";
+    if (id === "priority" && !contested.length) return "No contested periods to reorder";
+    if (id !== "priority" && !me.lines.some((l) => l.start !== undefined)) return "Nothing scheduled to move";
+    return undefined;
+  };
+
+  const constructionReason = (id: ConstructionCardId): string | undefined => {
+    if (!me) return "Spectating";
+    if (game.phase !== "CONSTRUCTION") return "Only during Construction";
+    if (me.constructionCardThisPeriod) return "One Construction card per period";
+    const queued = game.resolveQueue.includes(me.id);
+    if (!queued || me.actedThisPeriod) return "Only on a period you build";
+    if (id === "expedite" && game.resolveQueue[0] === me.id) return "You already build first";
+    if (id === "overtime" && !me.pendingActions.length) return "No scheduled action to double";
+    if (id === "surge") {
+      const others = me.lines
+        .map((_, i) => i)
+        .filter((i) => !me.pendingActions.includes(i) && !lineComplete(me.lines[i]));
+      if (!others.length) return "No other project to open";
+    }
+    return undefined;
+  };
+
+  const constructionTargets = (id: ConstructionCardId): number[] =>
+    !me
+      ? []
+      : id === "overtime"
+        ? Array.from(new Set(me.pendingActions))
+        : me.lines.map((_, i) => i).filter((i) => !me.pendingActions.includes(i) && !lineComplete(me.lines[i]));
+
+  const lineSelect = (value: number, onChange: (n: number) => void, options: number[]) =>
+    me && options.length > 0 ? (
+      <label className="block text-sm font-bold text-stone-700">
+        Line
+        <select
+          value={options.includes(value) ? value : options[0]}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="mt-1 w-full rounded-lg border-2 border-stone-400 bg-white px-2 py-2 text-sm"
+        >
+          {options.map((i) => (
+            <option key={i} value={i}>
+              {lineLabel(me.lines[i])}
+            </option>
+          ))}
+        </select>
+      </label>
+    ) : null;
+
+  const focusPanel = (() => {
+    if (!focus || !me) return null;
+    const close = () => setFocus(null);
+
+    if (focus.family === "contract") {
+      const contract = contractById(focus.id);
+      if (!contract) return null;
+      const offer = game.procurement.offer;
+      const onOffer = !!offer && offer.contractId === focus.id;
+      const mine = onOffer && offer!.activeId === me.id;
+      const forced = mine && mustBuyOffer(game, me.id);
+      const blocker = buyBlocker(game, me.id);
+      const canBuy = mine && (!blocker || (forced && blocker === "Not enough money."));
+      const actions: FocusAction[] = [];
+      if (mine) {
+        actions.push({
+          label: `Buy for ${money(forced ? Math.min(offer!.price, me.money) : offer!.price)}`,
+          disabled: busy || !canBuy,
+          reason: canBuy ? undefined : blocker,
+          run: () => playWithFlight(contract.name, contract.color, "lines", () => act("PROCURE", { choice: "buy" })),
+        });
+        if (!forced) {
+          actions.push({
+            label: offer!.stage === "first" ? "Pass (draft a card below)" : "Pass to the Discount Yard",
+            tone: "plain",
+            disabled: busy || offer!.stage === "first",
+            reason:
+              offer!.stage === "first"
+                ? "Passing first takes a face-up card: open one from the office instead."
+                : undefined,
+            run: () => playWithFlight(contract.name, contract.color, "office", () => act("PROCURE", { choice: "pass" })),
+          });
+        }
+      }
+      return (
+        <CardFocus
+          title={contract.name}
+          onClose={close}
+          face={<ContractCard contract={contract} price={focus.price} />}
+          note={
+            <>
+              {contractNodes(contract)} nodes over {contract.recipe.length} segments.{" "}
+              {contractsOutstanding(game)} contract{contractsOutstanding(game) === 1 ? "" : "s"} still need an
+              owner; you hold {me.lines.length} of {SUBWAY_CONFIG.maxContractsPerPlayer}.
+            </>
+          }
+          reason={!mine && onOffer ? `${game.players[offer!.activeId]?.name ?? "The opposition"} is deciding.` : undefined}
+          actions={actions}
+        />
+      );
+    }
+
+    if (focus.family === "market") {
+      const offer = game.procurement.offer;
+      const mine = !!offer && offer.activeId === me.id && offer.stage === "first" && !mustBuyOffer(game, me.id);
+      const card =
+        focus.id === "engineering"
+          ? marketEngineering(game.market)
+          : focus.id === "scheduling"
+            ? marketScheduling(game.market)
+            : marketConstruction(game.market);
+      return (
+        <CardFocus
+          title={card.name}
+          onClose={close}
+          face={
+            <MiniCardFace
+              family={focus.id === "construction" ? "construction" : "scheduling"}
+              name={card.name}
+              description={card.description}
+              note={`Face-up ${focus.id} card`}
+            />
+          }
+          note="Passing on the contract at first refusal draws this card."
+          reason={mine ? undefined : "You can only draft a face-up card by passing at first refusal."}
+          actions={[
+            {
+              label: "Pass and take this card",
+              disabled: busy || !mine,
+              run: () =>
+                playWithFlight(card.name, "#a16207", "hand", () =>
+                  act("PROCURE", { choice: "pass", deck: focus.id })
+                ),
+            },
+          ]}
+        />
+      );
+    }
+
+    if (focus.family === "engineering") {
+      const card = engineeringById(focus.id);
+      if (!card) return null;
+      const committed = focus.slot === "committed";
+      const met = committed && !veiled ? committedStatusFor(game, me, focus.id) : false;
+      const planning = game.phase === "ENGINEERING" && game.engineeringStep === "PLAN" && !me.engineeringLocked;
+      const picked = chosen.includes(focus.id);
+      const actions: FocusAction[] = [];
+      if (planning && !committed) {
+        actions.push({
+          label: picked ? "Take out of the plan" : "Commit to the plan",
+          tone: picked ? "plain" : "go",
+          disabled: !picked && chosen.length >= 3,
+          reason: !picked && chosen.length >= 3 ? "Three objectives are already chosen." : undefined,
+          run: () => {
+            setChosen(picked ? chosen.filter((x) => x !== focus.id) : [...chosen, focus.id]);
+            setFocus(null);
+          },
+        });
+      }
+      return (
+        <CardFocus
+          title={card.name}
+          onClose={close}
+          face={
+            <EngineeringCardFace
+              card={card}
+              color={me.color}
+              state={committed ? (met ? "met" : "committed") : picked ? "selected" : "idle"}
+            />
+          }
+          note={
+            committed
+              ? met
+                ? `✓ COMPLETE — scores +${card.vp} VP as the board stands.`
+                : "Committed and hidden from the opposition until scoring."
+              : planning
+                ? `Objectives chosen: ${chosen.length}/3. Uncommitted cards score nothing.`
+                : "In hand — it commits at Engineering plan lock and scores nothing otherwise."
+          }
+          actions={actions}
+        />
+      );
+    }
+
+    if (focus.family === "destination") {
+      const card = destinationById(focus.id);
+      if (!card) return null;
+      const drafting = game.phase === "ENGINEERING" && game.engineeringStep === "DESTINATION_DRAFT";
+      const myPick = drafting && destinationTurnId(game) === me.id;
+      const planning = game.phase === "ENGINEERING" && game.engineeringStep === "PLAN" && !me.engineeringLocked;
+      const committed = focus.slot === "committed";
+      const commitment = committed
+        ? me.destinationCommitments.find((c) => c.cardId === focus.id && c.lineIndex === focus.lineIndex)
+        : undefined;
+      const met = commitment ? destinationMet(me, commitment) : false;
+      const assignedTo = assignments[focus.id] ?? -1;
+      const actions: FocusAction[] = [];
+      if (focus.slot === "row") {
+        actions.push({
+          label: "Draft this Destination",
+          disabled: busy || !myPick,
+          reason: myPick ? undefined : "It is not your pick.",
+          run: () =>
+            playWithFlight(card.name, "#7e22ce", "hand", () =>
+              act("PICK_DESTINATION", { destinationCardId: focus.id })
+            ),
+        });
+      }
+      return (
+        <CardFocus
+          title={stationById(card.stationId)?.name ?? card.name}
+          onClose={close}
+          face={
+            <DestinationCardFace
+              card={card}
+              color={me.color}
+              state={committed ? (met ? "met" : "committed") : assignedTo >= 0 ? "selected" : "idle"}
+            />
+          }
+          note={
+            committed
+              ? `Assigned to ${
+                  commitment && me.lines[commitment.lineIndex] ? lineLabel(me.lines[commitment.lineIndex]) : "a line"
+                } · ${met ? `✓ COMPLETE — scores +${card.vp} VP` : "not connected yet"}`
+              : planning
+                ? "Assign it to a line below. Destinations never count toward your three objectives, and one line may hold at most two."
+                : "Drafted — you assign it to a line at Engineering plan lock."
+          }
+          extra={
+            planning && !committed ? (
+              <label className="block text-sm font-bold text-stone-700">
+                Assign to
+                <select
+                  value={assignedTo}
+                  onChange={(e) => setAssignments({ ...assignments, [focus.id]: Number(e.target.value) })}
+                  className="mt-1 w-full rounded-lg border-2 border-stone-400 bg-white px-2 py-2 text-sm"
+                >
+                  <option value={-1}>Not assigned</option>
+                  {me.lines.map((line, li) => (
+                    <option key={li} value={li}>
+                      {lineLabel(line)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : undefined
+          }
+          actions={actions}
+        />
+      );
+    }
+
+    if (focus.family === "scheduling") {
+      const card = schedulingById(focus.id);
+      if (!card) return null;
+      const why = schedulingReason(focus.id);
+      const options = me.lines.map((_, i) => i).filter((i) => me.lines[i].start !== undefined);
+      return (
+        <CardFocus
+          title={card.name}
+          onClose={close}
+          face={<MiniCardFace family="scheduling" name={card.name} description={card.description} note="Scheduling card" />}
+          note="One Scheduling card per company per game, played after both schedules are revealed."
+          reason={why}
+          extra={
+            !why ? (
+              focus.id === "priority" ? (
+                <label className="block text-sm font-bold text-stone-700">
+                  Contested period
+                  <select
+                    value={contested.includes(cardPeriod) ? cardPeriod : contested[0]}
+                    onChange={(e) => setCardPeriod(Number(e.target.value))}
+                    className="mt-1 w-full rounded-lg border-2 border-stone-400 bg-white px-2 py-2 text-sm"
+                  >
+                    {contested.map((q) => (
+                      <option key={q} value={q}>
+                        Period {q} — {game.players[basePriorityId(game, q)]?.name} builds first now
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <div className="space-y-2">
+                  {lineSelect(cardLine, setCardLine, options)}
+                  {focus.id === "float" && (
+                    <div className="flex overflow-hidden rounded-lg border-2 border-stone-400 text-sm font-bold">
+                      <button
+                        type="button"
+                        className={`flex-1 px-3 py-2 ${cardDirection === -1 ? "bg-stone-800 text-white" : "bg-white"}`}
+                        onClick={() => setCardDirection(-1)}
+                      >
+                        Earlier
+                      </button>
+                      <button
+                        type="button"
+                        className={`flex-1 px-3 py-2 ${cardDirection === 1 ? "bg-stone-800 text-white" : "bg-white"}`}
+                        onClick={() => setCardDirection(1)}
+                      >
+                        Later
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            ) : undefined
+          }
+          actions={[
+            {
+              label: `Play ${card.name}`,
+              tone: "warn",
+              disabled: busy || !!why,
+              reason: why,
+              run: () =>
+                playWithFlight(card.name, "#075985", "schedule", () =>
+                  act("PLAY_SCHEDULING_CARD", {
+                    cardId: focus.id,
+                    ...(focus.id === "priority"
+                      ? { period: contested.includes(cardPeriod) ? cardPeriod : contested[0] }
+                      : {
+                          lineIndex: options.includes(cardLine) ? cardLine : options[0],
+                          ...(focus.id === "float" ? { direction: cardDirection } : {}),
+                        }),
+                  })
+                ),
+            },
+          ]}
+        />
+      );
+    }
+
+    // Construction card
+    const card = constructionById(focus.id);
+    if (!card) return null;
+    const why = constructionReason(focus.id);
+    const options = constructionTargets(focus.id);
+    return (
+      <CardFocus
+        title={card.name}
+        onClose={close}
+        face={<MiniCardFace family="construction" name={card.name} description={card.description} note="Construction card" />}
+        note="One Construction card per company per period, on a period you build."
+        reason={why}
+        extra={!why && focus.id !== "expedite" ? lineSelect(cardLine, setCardLine, options) : undefined}
+        actions={[
+          {
+            label: `Play ${card.name}`,
+            tone: "warn",
+            disabled: busy || !!why,
+            reason: why,
+            run: () =>
+              playWithFlight(card.name, "#b45309", "board", () =>
+                act("PLAY_CONSTRUCTION_CARD", {
+                  cardId: focus.id,
+                  ...(focus.id === "expedite"
+                    ? {}
+                    : { lineIndex: options.includes(cardLine) ? cardLine : options[0] }),
+                })
+              ),
+          },
+        ]}
+      />
+    );
+  })();
+
+  // ---- The screen-level strip: the only commitment control -------------------
+
   const actionStrip = (
-    <div className="rounded-2xl border border-stone-300 bg-[#fffaf0]/95 p-2.5 text-stone-900 shadow-lg">
+    <div className="pointer-events-auto rounded-2xl border-2 border-[#6b4b2c] bg-[#fffaf0]/97 p-2.5 text-stone-900 shadow-2xl">
       {notice && (
-        <p className="mb-1.5 rounded-lg bg-red-100 px-2 py-1 text-center text-xs font-bold text-red-900">
-          {notice}
-        </p>
+        <p className="mb-1.5 rounded-lg bg-red-100 px-2 py-1 text-center text-xs font-bold text-red-900">{notice}</p>
       )}
 
       {mode === "planner" && plannerContract && plannerLineObj && (
@@ -2570,7 +1185,6 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
             <span className="rounded bg-purple-700 px-1.5 py-0.5 text-[10px] font-black uppercase text-white">
               Plan Mode
             </span>
-            <LineChip contract={plannerContract} />
             <b>{plannerContract.name}</b>
             <select
               value={plannerLine ?? -1}
@@ -2609,41 +1223,29 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
             )}
           </p>
           <div className="flex flex-wrap gap-1.5">
-            <button
-              disabled={sketch.length <= minSketch}
-              onClick={() => setSketch(sketch.slice(0, -1))}
-              className="rounded-lg border border-stone-400 px-2.5 py-1.5 text-xs font-bold text-stone-700 disabled:opacity-35"
-            >
+            <StripButton onClick={() => cycleTarget(1)} disabled={!targets.length}>
+              Next legal hole
+            </StripButton>
+            <StripButton disabled={sketch.length <= minSketch} onClick={() => setSketch(sketch.slice(0, -1))}>
               Undo step
-            </button>
-            <button
+            </StripButton>
+            <StripButton
               disabled={sketch.length <= minSketch}
               onClick={() => setSketch(plannerLineObj ? [...plannerLineObj.route] : [])}
-              className="rounded-lg border border-stone-400 px-2.5 py-1.5 text-xs font-bold text-stone-700 disabled:opacity-35"
             >
               Restart sketch
-            </button>
-            <button
-              disabled={sketch.length <= Math.max(1, minSketch)}
-              onClick={savePlanNow}
-              className="rounded-lg bg-purple-700 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-35"
-            >
+            </StripButton>
+            <StripButton tone="plan" disabled={sketch.length <= Math.max(1, minSketch)} onClick={savePlanNow}>
               Save plan
-            </button>
+            </StripButton>
             {plannerSavedStatus && (
-              <button
-                onClick={clearPlanNow}
-                className="rounded-lg border border-red-300 px-2.5 py-1.5 text-xs font-bold text-red-800"
-              >
+              <StripButton tone="danger" onClick={clearPlanNow}>
                 Clear saved
-              </button>
+              </StripButton>
             )}
-            <button
-              onClick={exitPlanner}
-              className="ml-auto rounded-lg bg-stone-900 px-3 py-1.5 text-xs font-bold text-white"
-            >
-              {mode === "planner" && (placingStarter || myBuild) ? "Back to placement" : "Close Plan Mode"}
-            </button>
+            <StripButton tone="dark" className="ml-auto" onClick={exitPlanner}>
+              {placingStarter || myBuild ? "Back to placement" : "Close Plan Mode"}
+            </StripButton>
           </div>
         </div>
       )}
@@ -2651,12 +1253,13 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
       {mode === "place" && activeLine && me && (
         <div className="space-y-1.5">
           <div className="flex flex-wrap items-center gap-2 text-sm">
-            {contractOf(activeLine) && <LineChip contract={contractOf(activeLine)!} />}
             <b>{lineLabel(activeLine)}</b>
             <span className="text-xs text-stone-500">
               {placingStarter
                 ? "starter peg · border holes only"
-                : `segment ${segmentsBuilt(activeLine) + 1}/${contractOf(activeLine)?.recipe.length} · ${nextSegmentLength(activeLine) ?? "—"} pegs`}
+                : `segment ${segmentsBuilt(activeLine) + 1}/${contractOf(activeLine)?.recipe.length} · ${
+                    nextSegmentLength(activeLine) ?? "—"
+                  } pegs`}
             </span>
             <span className="ml-auto text-xs font-bold">
               {preview
@@ -2679,8 +1282,8 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
                   <b>
                     {previewContacts.length} contact{previewContacts.length === 1 ? "" : "s"}
                   </b>{" "}
-                  ({previewContacts.map((c) => c.kind).join(", ")}) ·{" "}
-                  <b>{money(contactToll(previewContacts))}</b> to {opponent?.name ?? "them"} · cash after{" "}
+                  ({previewContacts.map((c) => c.kind).join(", ")}) · <b>{money(contactToll(previewContacts))}</b> to{" "}
+                  {opponent?.name ?? "them"} · cash after{" "}
                   <b className={me.money - contactToll(previewContacts) < 0 ? "text-red-700" : ""}>
                     {money(me.money - contactToll(previewContacts))}
                   </b>
@@ -2697,44 +1300,33 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
               )}
             </p>
           )}
-          {preview && (
-            <p className="text-[11px] text-stone-500">
-              Dashed <b>2 / NEXT</b> markers preview where this line could go afterwards — a preview,
-              not a reservation. Tap another glowing target to move the selection.
-            </p>
-          )}
           <div className="flex flex-wrap items-center gap-1.5">
-            <button
-              disabled={busy || !preview}
-              onClick={() => setPreview(null)}
-              className="rounded-lg border border-stone-400 px-3 py-1.5 text-sm font-bold text-stone-700 disabled:opacity-35"
-            >
+            <StripButton onClick={() => cycleTarget(-1)} disabled={!targets.length} aria-label="Previous legal target">
+              ◀
+            </StripButton>
+            <StripButton onClick={() => cycleTarget(1)} disabled={!targets.length} aria-label="Next legal target">
+              Target ▶
+            </StripButton>
+            <StripButton disabled={busy || !preview} onClick={() => setPreview(null)}>
               Cancel
-            </button>
-            <button
-              disabled={busy || !preview}
-              onClick={confirmPlacement}
-              className="rounded-lg bg-emerald-700 px-4 py-1.5 text-sm font-bold text-white disabled:opacity-35"
-              data-confirm-placement
-            >
+            </StripButton>
+            <StripButton tone="go" disabled={busy || !preview} onClick={confirmPlacement} data-confirm-placement>
               Confirm placement
-            </button>
+            </StripButton>
             {planAvailable && (
-              <button
-                onClick={() => openPlanner(activeLineIndex >= 0 ? activeLineIndex : 0)}
-                className="rounded-lg border border-purple-400 px-3 py-1.5 text-sm font-bold text-purple-800"
-              >
+              <StripButton tone="plan" onClick={() => openPlanner(activeLineIndex >= 0 ? activeLineIndex : 0)}>
                 Plan
-              </button>
+              </StripButton>
+            )}
+            {myBuild && (
+              <StripButton tone="dark" disabled={busy} onClick={() => act("SKIP_ACTION")}>
+                Give up
+              </StripButton>
             )}
             {canUndo && (
-              <button
-                disabled={busy}
-                onClick={() => act("UNDO_PLACEMENT")}
-                className="ml-auto rounded-lg bg-stone-900 px-3 py-1.5 text-sm font-bold text-white disabled:opacity-40"
-              >
+              <StripButton tone="dark" className="ml-auto" disabled={busy} onClick={() => act("UNDO_PLACEMENT")}>
                 Undo {game.undo?.label}
-              </button>
+              </StripButton>
             )}
           </div>
         </div>
@@ -2742,20 +1334,14 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
 
       {mode === "survey" && me && (
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="rounded bg-emerald-700 px-1.5 py-0.5 text-[10px] font-black uppercase text-white">
-            Survey
-          </span>
+          <span className="rounded bg-emerald-700 px-1.5 py-0.5 text-[10px] font-black uppercase text-white">Survey</span>
           <span className="text-xs text-stone-600">
-            Tap a glowing hole to place a pin — {surveysPending(game, me.id)} left. Pins are public
-            and reserve nothing.
+            Tap a glowing hole to place a pin — {surveysPending(game, me.id)} left. Pins are public and reserve nothing.
           </span>
           {planAvailable && (
-            <button
-              onClick={() => openPlanner(0)}
-              className="ml-auto rounded-lg border border-purple-400 px-3 py-1.5 text-sm font-bold text-purple-800"
-            >
+            <StripButton tone="plan" className="ml-auto" onClick={() => openPlanner(0)}>
               Plan
-            </button>
+            </StripButton>
           )}
         </div>
       )}
@@ -2766,261 +1352,426 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
             className={`h-2 w-2 rounded-full ${status.tone === "act" ? "animate-pulse bg-emerald-600" : "bg-stone-400"}`}
           />
           <span className="text-xs font-bold text-stone-700">{status.headline}</span>
+          {game.phase === "SCORING" && isHost && (
+            <StripButton tone="go" disabled={busy} onClick={() => act("ADVANCE_SCORING")}>
+              Reveal Engineering &amp; score
+            </StripButton>
+          )}
           {planAvailable && (
-            <button
-              onClick={() => openPlanner(0)}
-              className="ml-auto rounded-lg border border-purple-400 px-3 py-1.5 text-sm font-bold text-purple-800"
-            >
+            <StripButton tone="plan" className="ml-auto" onClick={() => openPlanner(0)}>
               Plan
-            </button>
+            </StripButton>
           )}
           {canUndo && (
-            <button
-              disabled={busy}
-              onClick={() => act("UNDO_PLACEMENT")}
-              className={`${planAvailable ? "" : "ml-auto "}rounded-lg bg-stone-900 px-3 py-1.5 text-sm font-bold text-white disabled:opacity-40`}
-            >
+            <StripButton tone="dark" className={planAvailable ? "" : "ml-auto"} disabled={busy} onClick={() => act("UNDO_PLACEMENT")}>
               Undo {game.undo?.label}
-            </button>
+            </StripButton>
           )}
         </div>
       )}
     </div>
   );
 
-  // Phase-valid actions, shown near the board on desktop and inside the My Mat
-  // sheet on the phone.
-  const phasePanel = me ? (
-    <>
-      {game.phase === "PROCUREMENT" && <ProcurementPanel game={game} me={me} busy={busy} act={act} />}
-      {game.phase === "ENGINEERING" && game.engineeringStep === "DESTINATION_DRAFT" && (
-        <DestinationDraftPanel game={game} me={me} busy={busy} act={act} />
-      )}
-      {game.phase === "ENGINEERING" && game.engineeringStep === "PLAN" && (
-        <EngineeringPlanPanel
-          me={me}
-          chosen={chosen}
-          setChosen={setChosen}
-          assignments={assignments}
-          setAssignments={setAssignments}
-          surveys={surveys}
-          setSurveys={setSurveys}
-          busy={busy}
-          act={act}
-        />
-      )}
-      {game.phase === "ENGINEERING" && game.engineeringStep === "SURVEY" && <SurveyPanel game={game} me={me} />}
-      {game.phase === "SCHEDULING" && <SchedulingPanel game={game} me={me} busy={busy} act={act} />}
-      {game.phase === "STARTER_PLACEMENT" && <StarterPanel game={game} me={me} />}
-      {game.phase === "CONSTRUCTION" && (
-        <ConstructionPanel
-          game={game}
-          me={me}
-          busy={busy}
-          act={act}
-          selectedLine={activeLineIndex >= 0 ? activeLineIndex : 0}
-          setSelectedLine={setSelectedLine}
-        />
-      )}
-      {game.phase === "SCORING" && isHost && (
-        <button
-          disabled={busy}
-          onClick={() => act("ADVANCE_SCORING")}
-          className="w-full rounded-xl bg-stone-900 py-3 font-bold text-white disabled:opacity-40"
-        >
-          Reveal Engineering &amp; score
-        </button>
-      )}
-    </>
-  ) : null;
+  // ---- Engineering plan slip (lives on the player's own edge) -----------------
 
-  const playerMat = privateVisible ? (
-    <PlayerMat
-      game={game}
-      me={me!}
-      activeLineIndex={activeLineIndex}
-      planChips={planChips}
-      planAvailable={planAvailable}
-      onOpenPlanner={openPlanner}
-    />
-  ) : null;
+  const planningStep = game.phase === "ENGINEERING" && game.engineeringStep === "PLAN";
+  const assignmentList = Object.entries(assignments)
+    .filter(([, lineIndex]) => lineIndex >= 0)
+    .map(([cardId, lineIndex]) => ({ cardId, lineIndex }));
+  const destProblems = me ? destinationProblems(me, assignmentList) : [];
+  const allAssigned = me ? assignmentList.length === me.destinationHand.length : false;
+  const surveyCost = surveys * SUBWAY_CONFIG.survey.cost;
+  const planReady =
+    !!me && chosen.length === 3 && allAssigned && !destProblems.length && surveyCost <= me.money;
+
+  const engineeringSlip =
+    me && planningStep && !veiled ? (
+      me.engineeringLocked ? (
+        <Printed title="Engineering plan" tone="slip" subtitle="Locked">
+          <p className="max-w-[900px] text-[20px] text-stone-700">
+            Three objectives and {me.destinationCommitments.length} Destination
+            {me.destinationCommitments.length === 1 ? "" : "s"} are committed face down, and{" "}
+            {me.surveysPurchased} Survey Pin{me.surveysPurchased === 1 ? "" : "s"} are paid for. The opposition
+            cannot see any of it until scoring; your own copies stay on this edge of the table with live status.
+          </p>
+        </Printed>
+      ) : (
+        <Printed
+          title="Engineering plan"
+          tone="slip"
+          subtitle={`${chosen.length}/3 objectives committed`}
+          style={{ maxWidth: 1900 }}
+        >
+          <p className="text-[20px] text-stone-700">
+            Open a card to read it and commit it. Exactly three objectives; Destinations are separate — assign as
+            many as you like, at most two per line. Uncommitted cards stay in hand and score nothing.
+          </p>
+          <div className="mt-[18px] flex flex-wrap gap-[18px]">
+            {me.engineeringHand.map((id, i) => (
+              <CardPiece
+                key={`${id}-${i}`}
+                label={`Engineering objective ${id}`}
+                ring={chosen.includes(id) ? "#f59e0b" : undefined}
+                onOpen={() => setFocus({ family: "engineering", id, slot: "hand" })}
+              >
+                <EngineeringCardFace
+                  card={id}
+                  color={me.color}
+                  compact
+                  state={chosen.includes(id) ? "selected" : "idle"}
+                  footer={
+                    <p className="mt-1 text-[11px] font-black text-stone-500">
+                      {chosen.includes(id) ? "Committing" : "Tap to read"}
+                    </p>
+                  }
+                />
+              </CardPiece>
+            ))}
+          </div>
+          {me.destinationHand.length > 0 && (
+            <div className="mt-[22px]">
+              <p className="text-[19px] font-black uppercase tracking-[.14em] text-stone-500">
+                Destinations to assign
+              </p>
+              <div className="mt-[12px] flex flex-wrap gap-[18px]">
+                {me.destinationHand.map((id, i) => {
+                  const assigned = assignments[id] ?? -1;
+                  return (
+                    <CardPiece
+                      key={`${id}-${i}`}
+                      label={`Destination ${id}`}
+                      ring={assigned >= 0 ? "#f59e0b" : undefined}
+                      onOpen={() => setFocus({ family: "destination", id, slot: "hand" })}
+                    >
+                      <DestinationCardFace
+                        card={id}
+                        color={me.color}
+                        compact
+                        state={assigned >= 0 ? "selected" : "idle"}
+                        footer={
+                          <p className="mt-1 text-[11px] font-black text-stone-500">
+                            {assigned >= 0 ? lineLabel(me.lines[assigned]) : "Tap to assign"}
+                          </p>
+                        }
+                      />
+                    </CardPiece>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          <div className="mt-[22px] flex flex-wrap items-center gap-[20px] rounded-[16px] border-[3px] border-stone-300 bg-white/70 p-[18px]">
+            <div>
+              <p className="text-[19px] font-black uppercase tracking-wide text-stone-500">Survey pins</p>
+              <p className="text-[18px] text-stone-600">
+                {money(SUBWAY_CONFIG.survey.cost)} each, up to {SUBWAY_CONFIG.survey.max}. +{SUBWAY_CONFIG.survey.vp} VP
+                if any line you own later builds through the pinned hole.
+              </p>
+            </div>
+            <TableButton size="sm" disabled={busy || surveys === 0} onClick={() => setSurveys(Math.max(0, surveys - 1))}>
+              −
+            </TableButton>
+            <b className="w-[46px] text-center text-[34px] tabular-nums">{surveys}</b>
+            <TableButton
+              size="sm"
+              disabled={busy || surveys >= SUBWAY_CONFIG.survey.max}
+              onClick={() => setSurveys(Math.min(SUBWAY_CONFIG.survey.max, surveys + 1))}
+            >
+              +
+            </TableButton>
+            <span className="text-[19px] text-stone-600">
+              cost <b className={surveyCost <= me.money ? "" : "text-red-700"}>{money(surveyCost)}</b> · cash after{" "}
+              <b className={surveyCost <= me.money ? "" : "text-red-700"}>{money(me.money - surveyCost)}</b>
+            </span>
+          </div>
+          {(destProblems.length > 0 || !allAssigned) && (
+            <ul className="mt-[12px] space-y-[4px] text-[19px] font-bold text-red-800">
+              {!allAssigned && <li>• Every Destination you drafted must be assigned to a line.</li>}
+              {destProblems.map((p, i) => (
+                <li key={i}>• {p}</li>
+              ))}
+            </ul>
+          )}
+          <div className="mt-[18px]">
+            <TableButton
+              tone="go"
+              disabled={busy || !planReady}
+              onClick={() => act("LOCK_ENGINEERING_PLAN", { cardIds: chosen, destinations: assignmentList, surveys })}
+            >
+              Lock the plan{surveyCost > 0 ? ` & pay ${money(surveyCost)}` : ""}
+            </TableButton>
+          </div>
+        </Printed>
+      )
+    ) : null;
+
+  // ---- The table --------------------------------------------------------------
+
+  // Quick-focus controls, one-handed on a phone: the short label is what a
+  // narrow screen shows, the long one is the accessible name everywhere.
+  const focusButtons: { zone: TableZone; label: string; short: string }[] = [
+    { zone: "board", label: "Pegboard", short: "Board" },
+    { zone: "schedule", label: "Schedule", short: "Sched" },
+    { zone: "lines", label: "Lines", short: "Lines" },
+    { zone: "hand", label: "Cards", short: "Cards" },
+    { zone: "table", label: "Whole table", short: "All" },
+  ];
+
+  const hud = (
+    <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-2 sm:p-3">
+      <div ref={hudTopRef} className="flex flex-wrap items-start justify-between gap-2">
+        <div
+          className={`pointer-events-auto max-w-[52%] rounded-xl border-l-4 bg-[#fffaf0]/95 px-2.5 py-1.5 shadow-lg sm:max-w-[42%] sm:px-3 sm:py-2 ${
+            status.tone === "act" ? "border-emerald-600" : status.tone === "wait" ? "border-stone-400" : "border-amber-500"
+          }`}
+        >
+          <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-amber-800">
+            {PHASE_LABELS[game.phase] ?? game.phase}
+            {game.phase === "CONSTRUCTION" &&
+              ` · period ${Math.min(game.currentPeriod, SUBWAY_CONFIG.timelinePeriods)}/${SUBWAY_CONFIG.timelinePeriods}`}
+          </p>
+          <p className="flex items-center gap-2 text-[12px] font-bold leading-snug text-stone-900 sm:text-sm">
+            {status.tone === "act" && <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-emerald-600" />}
+            {status.headline}
+          </p>
+          {status.detail && <p className="hidden text-xs text-stone-600 sm:block">{status.detail}</p>}
+        </div>
+
+        <div className="pointer-events-auto flex flex-wrap items-center justify-end gap-1 rounded-xl bg-stone-900/85 p-1.5 text-amber-50 shadow-lg">
+          <button
+            onClick={() => cam.current?.zoomBy(1 / 1.3)}
+            aria-label="Zoom out"
+            className="rounded-lg bg-white/15 px-2.5 py-1 text-base font-black leading-none hover:bg-white/25"
+          >
+            −
+          </button>
+          <span className="w-10 text-center text-[11px] tabular-nums sm:w-12 sm:text-xs">{zoomPct}%</span>
+          <button
+            onClick={() => cam.current?.zoomBy(1.3)}
+            aria-label="Zoom in"
+            className="rounded-lg bg-white/15 px-2.5 py-1 text-base font-black leading-none hover:bg-white/25"
+          >
+            +
+          </button>
+          <button
+            onClick={() => cam.current?.reset()}
+            aria-label="Reset view"
+            className="rounded-lg bg-white/15 px-2 py-1 text-[11px] font-bold hover:bg-white/25 sm:text-xs"
+          >
+            Reset<span className="hidden sm:inline"> view</span>
+          </button>
+        </div>
+      </div>
+
+      <NarrationOverlay event={narration.overlay} onDismiss={narration.dismiss} />
+
+      <div
+        ref={hudBottomRef}
+        className="flex flex-col items-center gap-1.5"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        {/* Quick-focus lives one thumb away from the action buttons. */}
+        <div className="pointer-events-auto flex flex-wrap justify-center gap-1 rounded-xl bg-stone-900/85 p-1 text-amber-50 shadow-lg">
+          {focusButtons.map((b) => (
+            <button
+              key={b.zone}
+              onClick={() => cam.current?.focus(b.zone)}
+              aria-label={`Focus ${b.label}`}
+              className="rounded-lg bg-white/15 px-2.5 py-1 text-[11px] font-bold hover:bg-white/25 sm:text-xs"
+            >
+              <span className="sm:hidden">{b.short}</span>
+              <span className="hidden sm:inline">{b.label}</span>
+            </button>
+          ))}
+        </div>
+        <div className="w-full max-w-3xl">{actionStrip}</div>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="space-y-4 rounded-3xl bg-[#ede1c7] p-3 text-stone-900 sm:p-5">
-      {veiled && me && (
-        <HandoffVeil name={me.name} color={me.color} onConfirm={() => setSeatedId(playerId)} />
-      )}
+    <div className="relative">
+      {veiled && me && <HandoffVeil name={me.name} color={me.color} onConfirm={() => setSeatedId(playerId)} />}
       {/* Screen readers hear every accepted public event, animation or not. */}
       <div aria-live="polite" className="sr-only">
         {narration.liveText}
       </div>
 
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-[.3em] text-amber-800">Two-company network contest</p>
-          <h2 className="font-serif text-2xl font-black sm:text-3xl">Subway</h2>
-        </div>
-        <span className="rounded-full bg-stone-900 px-4 py-1.5 text-xs font-bold text-amber-50 sm:text-sm">
-          {PHASE_LABELS[game.phase] ?? game.phase}
-          {game.phase === "ENGINEERING" && (game.engineeringStep === "PLAN" ? " · plan" : game.engineeringStep === "SURVEY" ? " · surveys" : " · draft")}
-          {game.phase === "CONSTRUCTION" &&
-            ` · Period ${Math.min(game.currentPeriod, SUBWAY_CONFIG.timelinePeriods)}/${SUBWAY_CONFIG.timelinePeriods}`}
-        </span>
-      </header>
-
-      <div
-        className={`rounded-xl border-l-4 px-4 py-2.5 ${
-          status.tone === "act"
-            ? "border-emerald-600 bg-emerald-50"
-            : status.tone === "wait"
-              ? "border-stone-400 bg-white/60"
-              : "border-amber-500 bg-amber-50"
-        }`}
+      <TabletopCanvas
+        worldWidth={WORLD_W}
+        apiRef={cam}
+        onCamera={(scale) => setZoomPct((prev) => (Math.round(scale * 100) === prev ? prev : Math.round(scale * 100)))}
+        overlay={hud}
+        openZone={phaseZone}
+        bottomInset={30}
+        hudTop={bands.top}
+        hudBottom={bands.bottom}
+        label="Subway tabletop — drag to pan, pinch or scroll to zoom"
       >
-        <p className="flex items-center gap-2 text-sm font-bold">
-          {status.tone === "act" && <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-600" />}
-          {status.headline}
-        </p>
-        {status.detail && <p className="text-xs text-stone-600">{status.detail}</p>}
-      </div>
+        {/* Printed pieces carry dark ink whatever the surrounding page theme is. */}
+        <div className="flex flex-col text-stone-900" style={{ gap: TABLE.gap, padding: TABLE.margin }}>
+          {opponent && <OpponentEdge game={game} opponent={opponent} scheduleRevealed={schedulingRevealed} />}
 
-      {/* Opponent public state sits across the table, above the board. */}
-      {opponent && <OpponentMat game={game} opponent={opponent} scheduleRevealed={schedulingRevealed} />}
-
-      {/* The pegboard is a 3:1 corridor, so it gets the full page width rather
-          than sharing a column with the panels. */}
-      {showBoard && (
-        <div className="space-y-2">
-          {mode === "place" && activeLine && (
-            <div className="hidden lg:block">
-              <ActiveLineBanner line={activeLine} starter={placingStarter} targetCount={targets.length} />
-            </div>
-          )}
-          <Board
+          <ScheduleBoard
             game={game}
-            targets={canAct ? targets : []}
-            following={mode === "place" ? following : []}
-            selected={mode === "place" ? preview ?? undefined : undefined}
-            canAct={canAct}
-            drawn={drawn}
-            onTapHole={onTapHole}
-            overlay={<NarrationOverlay event={narration.overlay} onDismiss={narration.dismiss} />}
+            viewerId={playerId}
+            revealed={schedulingRevealed}
+            editable={
+              game.phase === "SCHEDULING" &&
+              game.schedulingStep === "PLANNING" &&
+              !me?.scheduleSubmitted &&
+              !veiled
+            }
+            busy={busy}
+            act={act}
+            veiled={veiled}
           />
-          <div className="sticky bottom-2 z-20 hidden lg:block">{actionStrip}</div>
-        </div>
-      )}
 
-      {/* Desktop dashboard: actions and programme beside the public record. */}
-      <div className="hidden gap-4 lg:grid lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-start">
-        <div className="min-w-0 space-y-3">
-          {!veiled && phasePanel}
-          {showGantt && (
-            <GanttBoard
+          <div className="flex items-start" style={{ gap: TABLE.gap }}>
+            <ContractOffice
               game={game}
-              viewerId={playerId}
-              revealed={schedulingRevealed}
-              editable={game.phase === "SCHEDULING" && game.schedulingStep === "PLANNING" && !me?.scheduleSubmitted && !veiled}
-              busy={busy}
-              act={act}
+              me={me}
+              veiled={veiled}
+              onOpenContract={(id, price) => setFocus({ family: "contract", id, price })}
+              onOpenMarket={(deck: CardDeckId) => setFocus({ family: "market", id: deck })}
+              onOpenDestination={(id) => setFocus({ family: "destination", id, slot: "row" })}
             />
-          )}
-        </div>
-        <div className="min-w-0 space-y-3">
-          <EventRail game={game} />
-        </div>
-      </div>
 
-      {/* The viewer's private mat runs along their edge of the table. */}
-      {playerMat && <div className="hidden lg:block">{playerMat}</div>}
-
-      {game.phase === "RESULTS" && <ResultsScreen game={game} />}
-
-      {/* Phone: no board during Procurement, so the action panel takes over. */}
-      {!showBoard && !veiled && <div className="lg:hidden">{phasePanel}</div>}
-
-      {/* Phone: sticky action strip plus bottom-sheet tabs instead of the old
-          long panel stack. Board panning stays above; nothing here scrolls the
-          page sideways. */}
-      <div className="sticky bottom-0 z-30 -mx-3 border-t border-stone-300 bg-[#ede1c7]/95 px-3 pb-1.5 pt-1.5 backdrop-blur sm:-mx-5 sm:px-5 lg:hidden">
-        {tab && (
-          <div className="mb-1.5 max-h-[48vh] space-y-3 overflow-y-auto rounded-2xl border border-stone-300 bg-[#ede1c7] p-2 shadow-inner">
-            {tab === "mat" && (
-              <>
-                {!veiled && showBoard && phasePanel}
-                {playerMat}
-                {!privateVisible && <p className="p-3 text-sm text-stone-500">Private mat is covered.</p>}
-              </>
-            )}
-            {tab === "schedule" &&
-              (showGantt ? (
-                <GanttBoard
-                  game={game}
-                  viewerId={playerId}
-                  revealed={schedulingRevealed}
-                  editable={game.phase === "SCHEDULING" && game.schedulingStep === "PLANNING" && !me?.scheduleSubmitted && !veiled}
-                  busy={busy}
-                  act={act}
-                />
-              ) : (
-                <p className="p-3 text-sm text-stone-500">The programme appears once Scheduling opens.</p>
-              ))}
-            {tab === "log" && <EventRail game={game} />}
-          </div>
-        )}
-        {showBoard && actionStrip}
-        <div className="mt-1.5 grid grid-cols-3 gap-1">
-          {(["mat", "schedule", "log"] as MobileTab[]).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(tab === t ? null : t)}
-              className={`rounded-lg py-1.5 text-xs font-black uppercase tracking-wide ${
-                tab === t ? "bg-stone-900 text-amber-50" : "bg-white/70 text-stone-600"
-              }`}
-              aria-pressed={tab === t}
+            <div
+              ref={boardRef}
+              data-zone="board"
+              className="rounded-[34px] border-[10px] border-[#5d4127] bg-[#8a6844] p-[16px] shadow-[0_24px_50px_rgba(0,0,0,.5)]"
+              style={{ width: BOARD_FRAME_W }}
             >
-              {t === "mat" ? "My Mat" : t === "schedule" ? "Schedule" : "Log"}
-            </button>
-          ))}
-        </div>
-      </div>
+              <div className="mb-[12px] flex items-center justify-between px-[8px] text-[#f5e6c8]">
+                <strong className="text-[26px] font-black uppercase tracking-[.3em]">Metropolitan pegboard</strong>
+                <span className="text-[20px] font-bold opacity-80">
+                  {SUBWAY_CONFIG.board.columns} × {SUBWAY_CONFIG.board.rows} holes
+                </span>
+              </div>
+              <Board
+                game={game}
+                targets={canAct ? targets : []}
+                following={mode === "place" ? following : []}
+                selected={mode === "place" ? preview ?? undefined : undefined}
+                canAct={canAct}
+                drawn={drawn}
+                onTapHole={onTapHole}
+              />
+            </div>
 
-      <footer className="flex items-center justify-between border-t border-stone-300 pt-2 text-xs text-stone-500">
-        <span>
-          Room <code className="rounded bg-white/60 px-1.5 py-0.5 font-bold">{room.roomCode}</code>
-        </span>
-        <Link href="/" className="hover:text-stone-800">
-          Leave room
-        </Link>
-      </footer>
+            <Logbook game={game} actorId={currentActorId(game)} />
+          </div>
+
+          {me && (
+            <PlayerTabletop
+              game={game}
+              me={me}
+              veiled={veiled}
+              activeLineIndex={activeLineIndex}
+              planChips={planChips}
+              planAvailable={planAvailable}
+              onOpenPlanner={openPlanner}
+              onSelectLine={(i) => setSelectedLine(i)}
+              selectableLines={myBuild && !veiled}
+              onOpenCard={(ref) => setFocus(ref)}
+            >
+              {engineeringSlip}
+            </PlayerTabletop>
+          )}
+
+          {game.phase === "RESULTS" && <ResultsSheet game={game} />}
+
+          <footer className="flex items-center justify-between text-[20px] text-[#e6d7b4]">
+            <span>
+              Room <code className="rounded bg-black/30 px-[10px] py-[4px] font-bold">{room.roomCode}</code>
+            </span>
+            <Link href="/" className="underline hover:text-white">
+              Leave room
+            </Link>
+          </footer>
+        </div>
+      </TabletopCanvas>
+
+      {focusPanel}
+      {flight && <CardFlight from={flight.from} to={flight.to} label={flight.label} color={flight.color} />}
     </div>
   );
 }
 
-/** Results, with every company's revealed commitments laid out. */
-function ResultsScreen({ game }: { game: SubwayState }) {
+/** Whether a committed objective currently reads as met, for the focus panel. */
+function committedStatusFor(game: SubwayState, me: SubwayPlayer, cardId: string): boolean {
+  const entry = committedStatus(game, me.id).find((c) => c.cardId === cardId);
+  return !!entry?.met;
+}
+
+function StripButton({
+  children,
+  onClick,
+  disabled,
+  tone = "plain",
+  className = "",
+  ...rest
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  tone?: "plain" | "go" | "plan" | "danger" | "dark";
+  className?: string;
+} & Record<string, unknown>) {
+  const skin =
+    tone === "go"
+      ? "bg-emerald-700 text-white"
+      : tone === "plan"
+        ? "bg-purple-700 text-white"
+        : tone === "danger"
+          ? "border border-red-300 text-red-800"
+          : tone === "dark"
+            ? "bg-stone-900 text-white"
+            : "border border-stone-400 text-stone-700";
   return (
-    <section className="rounded-2xl bg-white/80 p-5 text-stone-900">
-      <h3 className="text-center font-serif text-3xl font-black">{game.message}</h3>
-      <div className="mt-4 space-y-4">
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`rounded-lg px-3 py-1.5 text-sm font-bold disabled:opacity-35 ${skin} ${className}`}
+      {...rest}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** The final scoring sheet, laid on the table like everything else. */
+function ResultsSheet({ game }: { game: SubwayState }) {
+  return (
+    <Printed zone="results" title="Final scoring" subtitle={game.message} className="w-full">
+      <div className="flex flex-col gap-[26px]">
         {game.playerOrder.map((id) => {
           const p = game.players[id];
           if (!p) return null;
           const winner = game.winnerIds.includes(id);
           return (
-            <div key={id} className={`rounded-xl border-2 p-4 ${winner ? "shadow-lg" : "opacity-95"}`} style={{ borderColor: p.color }}>
-              <div className="flex items-baseline justify-between text-xl font-black">
-                <span className="flex items-center gap-2">
-                  <span className="h-3.5 w-3.5 rounded-full" style={{ background: p.color }} />
+            <div
+              key={id}
+              className="rounded-[22px] border-[5px] bg-[#fffaf0] p-[22px]"
+              style={{ borderColor: p.color, opacity: winner ? 1 : 0.95 }}
+            >
+              <div className="flex items-baseline justify-between text-[34px] font-black">
+                <span className="flex items-center gap-[14px]">
+                  <span className="h-[26px] w-[26px] rounded-full" style={{ background: p.color }} />
                   {p.name}
-                  {winner && <span className="text-sm">🏆</span>}
+                  {winner && <Pill tone="good">🏆 Winner</Pill>}
                 </span>
                 <span>{p.score} VP</span>
               </div>
-              <div className="mt-2">
+              <div className="mt-[14px] max-w-[1400px]">
                 {p.scoreBreakdown?.map((item, i) => (
                   <div
                     key={i}
-                    className={`flex justify-between border-b border-stone-200 py-1 text-sm ${item.met === false ? "text-stone-400" : ""}`}
+                    className={`flex justify-between border-b border-stone-200 py-[6px] text-[21px] ${
+                      item.met === false ? "text-stone-400" : ""
+                    }`}
                   >
                     <span>
                       {item.label}
@@ -3032,49 +1783,51 @@ function ResultsScreen({ game }: { game: SubwayState }) {
                     </b>
                   </div>
                 ))}
-                <div className="flex justify-between py-1 text-xs text-stone-500">
+                <div className="flex justify-between py-[6px] text-[19px] text-stone-500">
                   <span>Remaining money (tiebreak)</span>
                   <span>{money(p.money)}</span>
                 </div>
               </div>
-              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <div className="mt-[18px] flex flex-wrap gap-[18px]">
                 {p.committedEngineering.map((cardId, i) => {
                   const card = engineeringById(cardId);
                   const scored = p.scoreBreakdown?.find((x) => x.label === card?.name);
                   return (
-                    <EngineeringCardFace
-                      key={`${cardId}-${i}`}
-                      card={cardId}
-                      color={p.color}
-                      compact
-                      state={scored?.met ? "met" : "missed"}
-                      footer={
-                        <p
-                          className={`mt-1 text-[11px] font-black ${scored?.met ? "text-emerald-700" : "text-stone-400"}`}
-                        >
-                          {scored?.met ? `Scored +${scored.points}` : "Not met"}
-                        </p>
-                      }
-                    />
+                    <div key={`${cardId}-${i}`} style={{ width: 360 }}>
+                      <EngineeringCardFace
+                        card={cardId}
+                        color={p.color}
+                        compact
+                        state={scored?.met ? "met" : "missed"}
+                        footer={
+                          <p className={`mt-1 text-[11px] font-black ${scored?.met ? "text-emerald-700" : "text-stone-400"}`}>
+                            {scored?.met ? `Scored +${scored.points}` : "Not met"}
+                          </p>
+                        }
+                      />
+                    </div>
                   );
                 })}
                 {p.destinationCommitments.map((commitment, i) => {
                   const met = destinationMet(p, commitment);
                   const assigned = p.lines[commitment.lineIndex];
+                  const contract = assigned ? contractOf(assigned) : undefined;
                   return (
-                    <DestinationCardFace
-                      key={`${commitment.cardId}-${i}`}
-                      card={commitment.cardId}
-                      color={p.color}
-                      compact
-                      state={met ? "met" : "missed"}
-                      footer={
-                        <p className={`mt-1 text-[11px] font-black ${met ? "text-emerald-700" : "text-stone-400"}`}>
-                          {assigned ? lineLabel(assigned) : "unassigned"} ·{" "}
-                          {met ? `Scored +${SUBWAY_CONFIG.destinationVp}` : "Not connected"}
-                        </p>
-                      }
-                    />
+                    <div key={`${commitment.cardId}-${i}`} style={{ width: 360 }}>
+                      <DestinationCardFace
+                        card={commitment.cardId}
+                        color={p.color}
+                        compact
+                        state={met ? "met" : "missed"}
+                        footer={
+                          <p className={`mt-1 flex items-center gap-1 text-[11px] font-black ${met ? "text-emerald-700" : "text-stone-400"}`}>
+                            {contract && <LineTile contract={contract} size={16} />}
+                            {assigned ? lineLabel(assigned) : "unassigned"} ·{" "}
+                            {met ? `Scored +${SUBWAY_CONFIG.destinationVp}` : "Not connected"}
+                          </p>
+                        }
+                      />
+                    </div>
                   );
                 })}
               </div>
@@ -3082,6 +1835,6 @@ function ResultsScreen({ game }: { game: SubwayState }) {
           );
         })}
       </div>
-    </section>
+    </Printed>
   );
 }
