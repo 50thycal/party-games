@@ -1,6 +1,6 @@
 # WS-004 — Subway tabletop console and playtest clarity
 
-**Phase:** BUILDING
+**Phase:** REVIEW
 **Status:** Active
 **Created:** 2026-08-29
 **Updated:** 2026-08-30
@@ -283,12 +283,28 @@ veil. Card expansion stays excluded per OD-12. Validation before merge: focused 
 (extended for WS-004), production build, lint, `git diff --check`, and a scripted Chromium playtest
 covering desktop 1440×980, phone 390×844 touch, and hotseat veiling.
 
-**v2 — single-surface tabletop (in progress, started 2026-08-30).** The owner's approved
-clarification above returns this workstream to `BUILDING`. Scope: rebuild the presentation as one
-camera over one world per `DEC-023` and
-[Addendum A](../build-specs/WS-004-subway-tabletop-console.md#addendum-a--single-surface-tabletop-approved-clarification-2026-08-30),
-removing the v1 dashboard layout rather than adding a second interface. The reducer, state version
-8, every rule, and the card-audit boundary (OD-12) are unchanged by this work.
+**v2 — single-surface tabletop (implemented 2026-08-30, in review).** The owner's approved
+clarification above returned this workstream to `BUILDING`; the rebuild is delivered as PR
+[#150](https://github.com/50thycal/party-games/pull/150) on
+`claude/subway-tabletop-pr-147-1qcbqf` (head `941c68077b828e8860ea688b106c1ccc2df58fe6`), and the
+phase is `REVIEW` again. Shipped: one camera over one world (`canvas.tsx`) holding the opposition's
+public edge, the printed schedule board with its planning slip, the contract office, the pegboard at
+its natural size (`board.tsx`, private pan/zoom and minimap removed), the site logbook, and the
+viewer's own edge with line-contract boards, objectives shelf and hands (`table.tsx`); pan/pinch/
+wheel/keyboard camera with `Reset view`, quick-focus per zone, HUD-band-aware framing, and a
+drag-vs-tap rule that keeps a pan from ever confirming a peg; camera state client-local so polling
+moves nothing; cards as pieces that open into a focused state carrying their legal action, with a
+short flight when played and a reason when they cannot be; phone framing that opens the board at a
+working zoom instead of an unreadable fit; the v1 dashboard layout removed rather than left beside
+it. The reducer, state version 8, every rule, and the card-audit boundary (OD-12) are unchanged.
+Validation before handoff: Subway rules harness, `tsc`, lint, production build, `git diff --check`,
+and three scripted Chromium suites (tabletop 35 checks, phase walk 21 checks, extras 7 checks) on
+freshly staged rooms at 1440×900, 390×844 and 844×390.
+
+One approved requirement could not be met as written and was surfaced rather than resolved in the
+view: committed Engineering objectives are company-wide in the reducer, so they cannot attach to a
+line board (OD-18 / SA-17). They render on a company shelf that says so; making them per-line would
+be a gameplay change awaiting owner approval.
 
 ## Review State
 
@@ -316,13 +332,18 @@ the merger under protocol rule 11; it does not replace the reviewer, so the gap 
   implementation PR (merged to `main` 2026-08-29; carries the Implementation Handoff).
 - [#148](https://github.com/50thycal/party-games/pull/148) — WS-004 implementation, stacked onto
   #147's head branch (merged into it 2026-08-29).
+- [#149](https://github.com/50thycal/party-games/pull/149) — post-merge reconciliation of the v1
+  record (merged 2026-08-29).
+- [#150](https://github.com/50thycal/party-games/pull/150) — the approved single-surface
+  clarification: Subway rebuilt as one continuous zoomable tabletop (open, in review).
 
 ## Next Step
 
-Implement the approved single-surface clarification (OD-13–OD-20) on
-`claude/subway-tabletop-pr-147-1qcbqf`, validate against Addendum A's acceptance list, and open the
-follow-up PR — the v1 PRs are merged and closed, so this is new work on a fresh branch, not a
-reopening of #147/#148.
+Independent review of PR [#150](https://github.com/50thycal/party-games/pull/150) against Addendum A
+(SA-1–SA-25) and its acceptance list, naming the full 40-character head it was reached against.
+Owner decisions still open: whether the company-shelf treatment of Engineering objectives is
+accepted or objectives should become per-line commitments (a gameplay change), and the card audit
+(OD-12).
 
 Still open from v1: owner playtest of the tabletop in production — desktop, phone, and hotseat, with
 particular attention to saved plans surviving refresh, the Confirm flow under real two-device play,
