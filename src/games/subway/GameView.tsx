@@ -839,23 +839,66 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
         ? Array.from(new Set(me.pendingActions))
         : me.lines.map((_, i) => i).filter((i) => !me.pendingActions.includes(i) && !lineComplete(me.lines[i]));
 
-  const lineSelect = (value: number, onChange: (n: number) => void, options: number[]) =>
-    me && options.length > 0 ? (
-      <label className="block text-sm font-bold text-stone-700">
-        Line
-        <select
-          value={options.includes(value) ? value : options[0]}
-          onChange={(e) => onChange(Number(e.target.value))}
-          className="mt-1 w-full rounded-lg border-2 border-stone-400 bg-white px-2 py-2 text-sm"
-        >
-          {options.map((i) => (
-            <option key={i} value={i}>
-              {lineLabel(me.lines[i])}
-            </option>
-          ))}
-        </select>
-      </label>
-    ) : null;
+  /** A row of choices as real buttons. Native <select> menus draw outside the
+   *  dialog, so picking one reads as a click on the backdrop and closes the
+   *  card before the choice lands — and they are poor targets on touch. */
+  const choiceRow = <T,>({
+    label,
+    value,
+    options,
+    onChange,
+  }: {
+    label: string;
+    value: T;
+    options: { value: T; label: React.ReactNode; key: string }[];
+    onChange: (v: T) => void;
+  }) => (
+    <div>
+      <p className="text-xs font-black uppercase tracking-wider text-stone-500">{label}</p>
+      <div className="mt-1.5 flex flex-wrap gap-1.5">
+        {options.map((o) => {
+          const active = o.value === value;
+          return (
+            <button
+              key={o.key}
+              type="button"
+              aria-pressed={active}
+              onClick={() => onChange(o.value)}
+              className={`rounded-lg border-2 px-3 py-2 text-sm font-bold transition ${
+                active
+                  ? "border-emerald-700 bg-emerald-700 text-white"
+                  : "border-stone-400 bg-white text-stone-700 hover:border-stone-600"
+              }`}
+            >
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const lineChoice = (value: number, onChange: (n: number) => void, options: number[]) =>
+    me && options.length > 0
+      ? choiceRow({
+          label: "Line",
+          value: options.includes(value) ? value : options[0],
+          onChange,
+          options: options.map((i) => {
+            const contract = contractOf(me.lines[i]);
+            return {
+              key: String(i),
+              value: i,
+              label: (
+                <span className="flex items-center gap-1.5">
+                  {contract && <LineTile contract={contract} size={18} />}
+                  {lineLabel(me.lines[i])}
+                </span>
+              ),
+            };
+          }),
+        })
+      : null;
 
   const focusPanel = (() => {
     if (!focus || !me) return null;
@@ -1036,23 +1079,29 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
                 : "Drafted — you assign it to a line at Engineering plan lock."
           }
           extra={
-            planning && !committed ? (
-              <label className="block text-sm font-bold text-stone-700">
-                Assign to
-                <select
-                  value={assignedTo}
-                  onChange={(e) => setAssignments({ ...assignments, [focus.id]: Number(e.target.value) })}
-                  className="mt-1 w-full rounded-lg border-2 border-stone-400 bg-white px-2 py-2 text-sm"
-                >
-                  <option value={-1}>Not assigned</option>
-                  {me.lines.map((line, li) => (
-                    <option key={li} value={li}>
-                      {lineLabel(line)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : undefined
+            planning && !committed
+              ? choiceRow({
+                  label: "Assign to",
+                  value: assignedTo,
+                  onChange: (v: number) => setAssignments({ ...assignments, [focus.id]: v }),
+                  options: [
+                    { key: "none", value: -1, label: "Not assigned" },
+                    ...me.lines.map((line, li) => {
+                      const contract = contractOf(line);
+                      return {
+                        key: String(li),
+                        value: li,
+                        label: (
+                          <span className="flex items-center gap-1.5">
+                            {contract && <LineTile contract={contract} size={18} />}
+                            {lineLabel(line)}
+                          </span>
+                        ),
+                      };
+                    }),
+                  ],
+                })
+              : undefined
           }
           actions={actions}
         />
@@ -1074,23 +1123,26 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
           extra={
             !why ? (
               focus.id === "priority" ? (
-                <label className="block text-sm font-bold text-stone-700">
-                  Contested period
-                  <select
-                    value={contested.includes(cardPeriod) ? cardPeriod : contested[0]}
-                    onChange={(e) => setCardPeriod(Number(e.target.value))}
-                    className="mt-1 w-full rounded-lg border-2 border-stone-400 bg-white px-2 py-2 text-sm"
-                  >
-                    {contested.map((q) => (
-                      <option key={q} value={q}>
-                        Period {q} — {game.players[basePriorityId(game, q)]?.name} builds first now
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                choiceRow({
+                  label: "Contested period",
+                  value: contested.includes(cardPeriod) ? cardPeriod : contested[0],
+                  onChange: (v: number) => setCardPeriod(v),
+                  options: contested.map((q) => ({
+                    key: String(q),
+                    value: q,
+                    label: (
+                      <span>
+                        Period {q}
+                        <span className="ml-1 font-normal text-stone-500">
+                          ({game.players[basePriorityId(game, q)]?.name} first)
+                        </span>
+                      </span>
+                    ),
+                  })),
+                })
               ) : (
                 <div className="space-y-2">
-                  {lineSelect(cardLine, setCardLine, options)}
+                  {lineChoice(cardLine, setCardLine, options)}
                   {focus.id === "float" && (
                     <div className="flex overflow-hidden rounded-lg border-2 border-stone-400 text-sm font-bold">
                       <button
@@ -1149,7 +1201,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
         face={<MiniCardFace family="construction" name={card.name} description={card.description} note="Construction card" />}
         note="One Construction card per company per period, on a period you build."
         reason={why}
-        extra={!why && focus.id !== "expedite" ? lineSelect(cardLine, setCardLine, options) : undefined}
+        extra={!why && focus.id !== "expedite" ? lineChoice(cardLine, setCardLine, options) : undefined}
         actions={[
           {
             label: `Play ${card.name}`,
@@ -1174,7 +1226,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
   // ---- The screen-level strip: the only commitment control -------------------
 
   const actionStrip = (
-    <div className="pointer-events-auto rounded-2xl border-2 border-[#6b4b2c] bg-[#fffaf0]/97 p-2.5 text-stone-900 shadow-2xl">
+    <div className="pointer-events-auto rounded-2xl border-2 border-[#6b4b2c] bg-[#fffaf0]/95 p-2.5 text-stone-900 shadow-2xl backdrop-blur-sm">
       {notice && (
         <p className="mb-1.5 rounded-lg bg-red-100 px-2 py-1 text-center text-xs font-bold text-red-900">{notice}</p>
       )}
