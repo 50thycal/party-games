@@ -283,11 +283,13 @@ veil. Card expansion stays excluded per OD-12. Validation before merge: focused 
 (extended for WS-004), production build, lint, `git diff --check`, and a scripted Chromium playtest
 covering desktop 1440×980, phone 390×844 touch, and hotseat veiling.
 
-**v2 — single-surface tabletop (implemented 2026-08-30, in review).** The owner's approved
-clarification above returned this workstream to `BUILDING`; the rebuild is delivered as PR
+**v2 — single-surface tabletop (merged 2026-08-30).** The owner's approved clarification above
+returned this workstream to `BUILDING`; the rebuild was delivered as PR
 [#150](https://github.com/50thycal/party-games/pull/150) on
-`claude/subway-tabletop-pr-147-1qcbqf` (head `941c68077b828e8860ea688b106c1ccc2df58fe6`), and the
-phase is `REVIEW` again. Shipped: one camera over one world (`canvas.tsx`) holding the opposition's
+`claude/subway-tabletop-pr-147-1qcbqf` and merged to `main` by the owner on 2026-08-30
+(reviewed head `16c39e59871290333e2cff290e940dc16ffa6f6f`, merge commit
+`81539d60cca88d33b116dcbe499f008469d0f24f`). The production Vercel deployment of that merge is
+READY. Shipped: one camera over one world (`canvas.tsx`) holding the opposition's
 public edge, the printed schedule board with its planning slip, the contract office, the pegboard at
 its natural size (`board.tsx`, private pan/zoom and minimap removed), the site logbook, and the
 viewer's own edge with line-contract boards, objectives shelf and hands (`table.tsx`); pan/pinch/
@@ -311,11 +313,15 @@ be a gameplay change awaiting owner approval.
 | PR | Verdict | Reviewed head | Finalization |
 |---|---|---|---|
 | [#148](https://github.com/50thycal/party-games/pull/148) (implementation, stacked into #147) | Merged by owner 2026-08-29 with no recorded verdict | — | — |
-| [#147](https://github.com/50thycal/party-games/pull/147) | Merged to `main` by owner 2026-08-29 with no recorded verdict | — | Not pushed; superseded by this post-merge reconciliation |
+| [#147](https://github.com/50thycal/party-games/pull/147) | Merged to `main` by owner 2026-08-29 with no recorded verdict | — | Not pushed; superseded by post-merge reconciliation [#149](https://github.com/50thycal/party-games/pull/149) |
+| [#150](https://github.com/50thycal/party-games/pull/150) (single-surface tabletop) | Merged to `main` by owner 2026-08-30 with no recorded verdict | — | Not pushed; superseded by this post-merge reconciliation |
 
 Recorded rather than backfilled so `main` does not imply a review that did not happen: no
-independent verdict was posted on either PR before the owner merged them (owner direction replaces
-the merger under protocol rule 11; it does not replace the reviewer, so the gap is recorded here).
+independent verdict was posted on any of these PRs before the owner merged them (owner direction
+replaces the merger under protocol rule 11; it does not replace the reviewer, so the gap is
+recorded here). #150 was handed off as `Pending independent review` and merged in that state, and
+its merge-finalization commit was therefore never pushed to it — this reconciliation stands in for
+it, exactly as [#149](https://github.com/50thycal/party-games/pull/149) did for #147/#148.
 
 ## Related Decisions
 
@@ -339,13 +345,19 @@ the merger under protocol rule 11; it does not replace the reviewer, so the gap 
 
 ## Next Step
 
-Independent review of PR [#150](https://github.com/50thycal/party-games/pull/150) against Addendum A
-(SA-1–SA-25) and its acceptance list, naming the full 40-character head it was reached against.
-Owner decisions still open: whether the company-shelf treatment of Engineering objectives is
-accepted or objectives should become per-line commitments (a gameplay change), and the card audit
-(OD-12).
+Owner playtest of the merged tabletop in production — desktop, phone (portrait and landscape), and
+hotseat — with attention to the camera under real touch, two-device play, and whether the pegboard
+still reads as the centre of the table.
 
-Still open from v1: owner playtest of the tabletop in production — desktop, phone, and hotseat, with
+Two owner decisions remain open:
+
+1. **Engineering objectives.** They are company-wide in the reducer, so they sit on a company shelf
+   rather than on a line board (the surfaced OD-18 / SA-17 conflict). Accept that, or approve
+   per-line objective commitments as a gameplay change under an amended Build Card.
+2. **The card audit** (OD-12): any Scheduling/Construction card expansion still needs explicit
+   owner selections, economics, copy, availability, and tests.
+
+Earlier and still open from v1: owner playtest of the tabletop in production — desktop, phone, and hotseat, with
 particular attention to saved plans surviving refresh, the Confirm flow under real two-device play,
 and narration pacing. Separately, owner review of
 [the card audit](../subway-card-audit.md): any Scheduling/Construction card expansion needs
