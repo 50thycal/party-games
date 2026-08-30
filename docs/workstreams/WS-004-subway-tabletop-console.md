@@ -303,6 +303,16 @@ Validation before handoff: Subway rules harness, `tsc`, lint, production build, 
 and three scripted Chromium suites (tabletop 35 checks, phase walk 21 checks, extras 7 checks) on
 freshly staged rooms at 1440×900, 390×844 and 844×390.
 
+**Playtest defects fixed 2026-08-30** ([#152](https://github.com/50thycal/party-games/pull/152),
+merge `208a7d4cb2244e1eeeb9cfcf459fcdf33b6bbd32`). The owner's first playtest of the merged tabletop
+found two: the action strip carried an off-scale Tailwind opacity (`/97`), so no background rule was
+generated and Plan Mode read as dark text straight onto the pegboard; and Destination assignment used
+a native `<select>`, whose menu draws outside the dialog, so choosing a line registered as a click on
+the backdrop and closed the card mid-selection. Every choice inside a focused card is now a button
+carrying the line's colour tile. No rule or reducer behaviour changed. A browser check now asserts
+the strip's computed background is opaque, since an unsupported opacity fails silently rather than
+erroring.
+
 One approved requirement could not be met as written and was surfaced rather than resolved in the
 view: committed Engineering objectives are company-wide in the reducer, so they cannot attach to a
 line board (OD-18 / SA-17). They render on a company shelf that says so; making them per-line would
@@ -314,7 +324,8 @@ be a gameplay change awaiting owner approval.
 |---|---|---|---|
 | [#148](https://github.com/50thycal/party-games/pull/148) (implementation, stacked into #147) | Merged by owner 2026-08-29 with no recorded verdict | — | — |
 | [#147](https://github.com/50thycal/party-games/pull/147) | Merged to `main` by owner 2026-08-29 with no recorded verdict | — | Not pushed; superseded by post-merge reconciliation [#149](https://github.com/50thycal/party-games/pull/149) |
-| [#150](https://github.com/50thycal/party-games/pull/150) (single-surface tabletop) | Merged to `main` by owner 2026-08-30 with no recorded verdict | — | Not pushed; superseded by this post-merge reconciliation |
+| [#150](https://github.com/50thycal/party-games/pull/150) (single-surface tabletop) | Merged to `main` by owner 2026-08-30 with no recorded verdict | — | Not pushed; superseded by post-merge reconciliation [#151](https://github.com/50thycal/party-games/pull/151) |
+| [#152](https://github.com/50thycal/party-games/pull/152) (playtest defect fixes) | Merged to `main` by owner 2026-08-30 with no recorded verdict | — | Not pushed; superseded by this post-merge reconciliation |
 
 Recorded rather than backfilled so `main` does not imply a review that did not happen: no
 independent verdict was posted on any of these PRs before the owner merged them (owner direction

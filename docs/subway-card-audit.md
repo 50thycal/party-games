@@ -2,6 +2,8 @@
 
 **Workstream:** WS-004
 **Source audited:** `src/games/subway/config.ts` on `main` at `fa780cc`
+**Re-verified:** 2026-08-30 against `main` at `208a7d4` — the inventory below is unchanged
+(Engineering 10, Destination 6, Scheduling 3, Construction 3, Line Contracts 6)
 **Status:** Inventory verified; expansion recommendations await owner review
 
 ## Audit Standard
