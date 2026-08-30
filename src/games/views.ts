@@ -86,9 +86,10 @@ export const gameOptions: GameOption[] = [
 ];
 
 // Games that want a wider gameplay container than the default phone-first
-// column (e.g. board-centric games). Values are Tailwind max-width classes.
+// column. Values are Tailwind max-width classes. Subway is played on one
+// pan-and-zoom tabletop that fills the window, so it takes the full width.
 const gameplayWidths: Record<string, string> = {
-  subway: "max-w-6xl",
+  subway: "max-w-none",
 };
 
 /**
