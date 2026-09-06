@@ -3,8 +3,9 @@
 ## Build OS
 
 - Canonical framework: [50thycal/build-os](https://github.com/50thycal/build-os)
-- Adopted version: v0.5
-- Last compatibility check: v0.5 on 2026-08-29
+- Adopted version: v0.11
+- Last compatibility check: v0.11 on 2026-09-06
+- Operating mode: reviewed
 
 Before substantial design or architectural work, compare the adopted version against
 `VERSION.md` in the canonical repository and act on the delta — see `framework/FRAMEWORK_SYNC.md`.
@@ -115,3 +116,13 @@ moves rather than editing them into a local variant. The Design Room's ChatGPT P
   in-flight rooms offer a restart instead of misreading old state (Subway does this; see DEC-008).
 - Environment: `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` are required for any room to work;
   `OPENAI_API_KEY` is optional and every AI path has a deterministic fallback.
+
+## Build OS v0.11 intake and completion
+
+Classify work as simple, significant, or escalated; promote if its scope grows.
+Significant work requires a workstream and explicit owner authorization. The owner
+may delegate product decisions, as in WS-005. Fixable review findings return to
+the implementation agent on the same PR. The handoff uses one Owner Result when
+terminal, never an additional Owner Summary. Do not claim SHIP before validation,
+independent current-head approval and finalization are complete. Never pre-write
+a verdict in a finalization commit. No historical acceptance is inferred or backfilled.

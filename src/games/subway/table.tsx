@@ -5,6 +5,7 @@ import { DestinationCardFace, EngineeringCardFace } from "./CardArt";
 import { money } from "./cards";
 import {
   SUBWAY_CONFIG,
+  basePriorityId,
   SUBWAY_EVENT_LIMIT,
   blockFits,
   blockPeriods,
@@ -86,9 +87,9 @@ export function Printed({
 }) {
   const skin =
     tone === "board"
-      ? "bg-[#f2e6cb] border-[#6b4b2c]"
+      ? "bg-[#f5f3e9] border-[#234b57]"
       : tone === "mat"
-        ? "bg-[#e6dcc2] border-[#5a4a35]"
+        ? "bg-[#e7eee9] border-[#234b57]"
         : "bg-[#fffaf0] border-[#a58a63]";
   return (
     <section
@@ -317,20 +318,20 @@ export function OpponentEdge({
   opponent: SubwayPlayer;
   scheduleRevealed: boolean;
 }) {
-  const oddPriority = opponent.id === game.oddPriorityId;
+  const priorityPeriods = Array.from({length: SUBWAY_CONFIG.timelinePeriods}, (_, i) => i + 1).filter((q) => basePriorityId(game, q) === opponent.id);
   const permits = Object.entries(game.priorityOverrides)
     .filter(([, id]) => id === opponent.id)
     .map(([period]) => period);
   const pins = game.surveyPins.filter((pin) => pin.playerId === opponent.id);
 
   return (
-    <Printed zone="opponent" tone="mat" className="w-full">
+    <Printed tone="mat" className="w-full">
       <div className="flex flex-wrap items-center gap-x-[40px] gap-y-[18px]">
         <span className="flex items-center gap-[16px]">
           <span className="h-[38px] w-[38px] rounded-full shadow-inner" style={{ background: opponent.color }} />
           <b className="text-[34px] font-black text-stone-800">{opponent.name}</b>
           <Pill>Opposition</Pill>
-          <Pill tone={oddPriority ? "warn" : "neutral"}>{oddPriority ? "Odd first" : "Even first"}</Pill>
+          <Pill>Priority: {priorityPeriods.join(" · ")}</Pill>
         </span>
         <span className={`text-[34px] font-black ${opponent.money < 0 ? "text-red-700" : "text-stone-800"}`}>
           {opponent.money < 0 ? `−${money(-opponent.money)}` : money(opponent.money)}
@@ -458,9 +459,10 @@ export function ScheduleBoard({
     <Printed
       zone="schedule"
       title="Public construction schedule"
-      subtitle={`${PERIODS} periods · one crew per company · odd and even priority alternate`}
+      subtitle={`${PERIODS} periods · one crew per company · priority rotates between companies`}
       className="w-full"
     >
+      {editable && !veiled && <div className="mb-[18px]"><TableButton size="sm" disabled={busy} onClick={() => act("AUTO_SCHEDULE")}>Suggest lowest-cost schedule</TableButton><p className="mt-2 text-[18px] text-stone-600">Keeps all three routes. Adjust the timing to race for stations.</p></div>}
       <div className="grid items-center gap-[6px]" style={{ gridTemplateColumns: columns }}>
         <div className="text-[19px] font-black uppercase tracking-[.14em] text-stone-500">Period</div>
         {Array.from({ length: PERIODS }, (_, i) => {
@@ -493,7 +495,7 @@ export function ScheduleBoard({
               }`}
               style={{ background: first?.color ?? "transparent" }}
               title={`${first?.name ?? "?"} builds first in period ${period}${
-                overridden ? " (Priority Permit)" : period % 2 === 1 ? " (odd periods)" : " (even periods)"
+                overridden ? " (Priority Permit)" : " (rotating priority)"
               }`}
             >
               {overridden ? "P" : first?.name?.slice(0, 1).toUpperCase() ?? ""}
@@ -520,7 +522,7 @@ export function ScheduleBoard({
               </div>
               {hidden ? (
                 <div className="col-span-full rounded-[10px] bg-stone-900/5 px-[16px] py-[12px] text-[19px] italic text-stone-500">
-                  Sealed until both schedules are submitted — {p.scheduleSubmitted ? "submitted" : "still drafting"}.
+                  Sealed until all schedules are submitted — {p.scheduleSubmitted ? "submitted" : "still drafting"}.
                 </div>
               ) : (
                 p.lines.map((line, li) => {
@@ -1135,7 +1137,7 @@ export function PlayerTabletop({
           {me.money < 0 ? `−${money(-me.money)}` : money(me.money)}
         </span>
         <span className="text-[20px] text-stone-600">
-          Builds first in <b>{me.id === game.oddPriorityId ? "odd" : "even"}</b> periods
+          Builds first in <b>{Array.from({length: SUBWAY_CONFIG.timelinePeriods}, (_, i) => i + 1).filter((q) => basePriorityId(game, q) === me.id).join(", ")}</b> periods
           {me.tollsPaid > 0 && <> · paid {money(me.tollsPaid)} in contacts</>}
         </span>
         {!veiled && <PinSupply game={game} me={me} />}

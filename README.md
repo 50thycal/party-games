@@ -15,7 +15,7 @@ This design makes the system easy to extend, fast to iterate, and ideal for buil
 > [`docs/PROJECT_MODEL.md`](docs/PROJECT_MODEL.md) is the source of truth for how the system works
 > today, [`docs/DECISIONS.md`](docs/DECISIONS.md) records why, and
 > [`docs/workstreams/ACTIVE.md`](docs/workstreams/ACTIVE.md) shows what is being designed and built
-> right now. This repository follows [Build OS v0.4](https://github.com/50thycal/build-os); agent
+> right now. This repository follows [Build OS v0.11](https://github.com/50thycal/build-os); agent
 > instructions are in [`AGENTS.md`](AGENTS.md).
 
 ---
@@ -295,3 +295,11 @@ src/
 ---
 
 Made with care. Have fun building games with your friends!
+
+## Subway: 2–4 player edition
+
+Open `/subway` for local hotseat with automatic save/resume, or create an online
+Subway room for 2–4 players. Read `src/games/subway/RULES.md` for the current rules.
+`/test/subway` is an isolated visual lab with seven game phases and desktop/phone
+viewports. `./scripts/test-subway.sh` runs the geometry regressions, multiplayer and
+card checks, every three-route affordability check, and full seeded games.

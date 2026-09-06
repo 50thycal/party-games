@@ -29,6 +29,7 @@ import { HandoffVeil, NarrationOverlay, currentActorId, useNarration } from "./t
 import { clearPlan, loadPlan, reconcilePlan, savePlan, type PlanStatus, type SavedPlan } from "./plans";
 import {
   SUBWAY_CONFIG,
+  blockPeriods,
   SUBWAY_STATE_VERSION,
   basePriorityId,
   buyBlocker,
@@ -121,13 +122,13 @@ type Status = { headline: string; tone: "act" | "wait" | "info"; detail?: string
 /** Per-client status derived from authoritative state, never from the shared
  *  broadcast message — so it can never claim the wrong player is acting. */
 function statusFor(game: SubwayState, me: SubwayPlayer | undefined, isHost: boolean): Status {
-  if (!me) return { headline: "You are spectating this two-company contest.", tone: "info" };
-  const oppName = opponentOf(game, me)?.name ?? "the opposition";
+  if (!me) return { headline: "You are spectating this transit contest.", tone: "info" };
+  const oppName = "the other companies";
 
   switch (game.phase) {
     case "SETUP":
       return isHost
-        ? { headline: "Start the game when both companies are ready.", tone: "act" }
+        ? { headline: "Start the game when all companies are ready.", tone: "act" }
         : { headline: "Waiting for the host to start.", tone: "wait" };
     case "PROCUREMENT": {
       const offer = game.procurement.offer;
@@ -146,17 +147,11 @@ function statusFor(game: SubwayState, me: SubwayPlayer | undefined, isHost: bool
           detail: `The opposition has hit its ${SUBWAY_CONFIG.maxContractsPerPlayer}-contract cap.`,
         };
       }
-      return offer.stage === "first"
-        ? {
-            headline: `First refusal on the ${contract.name} at ${money(offer.price)}.`,
-            tone: "act",
-            detail: "Buy it, or pass and draft one face-up card from the office.",
-          }
-        : {
-            headline: `${oppName} passed. The ${contract.name} is yours at ${money(offer.price)}.`,
-            tone: "act",
-            detail: "Pass too and it goes to the Discount Yard — no card for a second pass.",
-          };
+      return {
+        headline: `${contract.name} is on offer at ${money(offer.price)}.`,
+        tone: "act",
+        detail: "Buy the route, or open a face-up card to pass and draft it.",
+      };
     }
     case "ENGINEERING": {
       if (game.engineeringStep === "DESTINATION_DRAFT") {
@@ -735,13 +730,13 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
 
   // ---- Pre-game lobby ---------------------------------------------------------
   if (!game || game.phase === "SETUP") {
-    const enough = room.players.length >= 2;
+    const enough = room.players.length >= 2 && room.players.length <= 4;
     return (
       <section className="rounded-2xl bg-[#ede1c7] p-6 text-center text-stone-900 shadow-xl">
-        <p className="text-xs font-bold uppercase tracking-[.3em] text-amber-800">Two-company network contest</p>
+        <p className="text-xs font-bold uppercase tracking-[.3em] text-amber-800">Metropolitan Transit Authority · 2–4 players</p>
         <h2 className="mt-2 font-serif text-3xl font-black">Subway</h2>
         <p className="mx-auto my-4 max-w-xl text-sm text-stone-600">
-          Six Line Contracts come up one at a time and all of them find an owner. Each carries an
+          Build a city that connects. Each company takes three routes from a pool of twelve services. Each carries an
           ordered recipe of segment lengths and its own line color. Commit secret objectives and
           Destinations, buy Survey Pins, plan the whole programme on the public schedule board, then
           engineer the routes hole by hole — all on one table you pan and zoom around.
@@ -753,8 +748,8 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
           </p>
         )}
         <p className="mb-4 text-sm font-semibold text-stone-700">
-          Companies: {room.players.slice(0, 2).map((p) => p.name).join(" vs ") || "waiting…"}
-          {room.players.length > 2 && ` · ${room.players.length - 2} spectating`}
+          Companies: {room.players.slice(0, 4).map((p) => p.name).join(" vs ") || "waiting…"}
+          {room.players.length > 4 && ` · ${room.players.length - 4} spectating`}
         </p>
         {isHost ? (
           <button
@@ -775,13 +770,13 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
   const schedulingRevealed = game.phase !== "SCHEDULING" || game.schedulingStep === "RESOLUTION";
   const canUndo = game.undo?.playerId === playerId && !veiled;
   const activeLine = activeLineIndex >= 0 && me ? me.lines[activeLineIndex] : undefined;
-  const opponent = me ? opponentOf(game, me) : undefined;
+  const opponents = game.playerOrder.map((id) => game.players[id]).filter((p) => p && p.id !== playerId);
   const plannerLineObj = plannerActive && me && plannerLine !== null ? me.lines[plannerLine] : undefined;
   const plannerContract = plannerLineObj ? contractOf(plannerLineObj) : undefined;
   const sketchedSegments = Math.max(0, sketch.length - 1);
   const plannerSavedStatus = plannerLineObj && plannerActive ? planStatuses[plannerLineObj.contractId] : undefined;
   const minSketch = plannerLineObj ? plannerLineObj.route.length : 0;
-  const contested = contestedPeriods(game);
+  const contested = contestedPeriods(game).filter((period) => !!me && me.lines.some((l) => blockPeriods(l).includes(period)) && !game.priorityOverrides[period]);
 
   // ---- Card focus: read a card, and do the legal thing with it ---------------
 
@@ -807,7 +802,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
   const schedulingReason = (id: SchedulingCardId): string | undefined => {
     if (!me) return "Spectating";
     if (game.phase !== "SCHEDULING" || game.schedulingStep !== "RESOLUTION")
-      return "Only after both schedules are revealed";
+      return "Only after all schedules are revealed";
     if (me.schedulingCardPlayed) return "One Scheduling card per company per game";
     if (me.scheduleConfirmed) return "Your schedule is already locked";
     if (id === "priority" && !contested.length) return "No contested periods to reorder";
@@ -923,14 +918,10 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
         });
         if (!forced) {
           actions.push({
-            label: offer!.stage === "first" ? "Pass (draft a card below)" : "Pass to the Discount Yard",
+            label: "Pass & draft Engineering",
             tone: "plain",
-            disabled: busy || offer!.stage === "first",
-            reason:
-              offer!.stage === "first"
-                ? "Passing first takes a face-up card: open one from the office instead."
-                : undefined,
-            run: () => playWithFlight(contract.name, contract.color, "office", () => act("PROCURE", { choice: "pass" })),
+            disabled: busy,
+            run: () => playWithFlight(contract.name, contract.color, "office", () => act("PROCURE", { choice: "pass", deck: "engineering" })),
           });
         }
       }
@@ -954,7 +945,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
 
     if (focus.family === "market") {
       const offer = game.procurement.offer;
-      const mine = !!offer && offer.activeId === me.id && offer.stage === "first" && !mustBuyOffer(game, me.id);
+      const mine = !!offer && offer.activeId === me.id && !mustBuyOffer(game, me.id);
       const card =
         focus.id === "engineering"
           ? marketEngineering(game.market)
@@ -973,8 +964,8 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
               note={`Face-up ${focus.id} card`}
             />
           }
-          note="Passing on the contract at first refusal draws this card."
-          reason={mine ? undefined : "You can only draft a face-up card by passing at first refusal."}
+          note="Passing on the current contract draws this card."
+          reason={mine ? undefined : "Draft a face-up card when the current contract is offered to you."}
           actions={[
             {
               label: "Pass and take this card",
@@ -1118,7 +1109,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
           title={card.name}
           onClose={close}
           face={<MiniCardFace family="scheduling" name={card.name} description={card.description} note="Scheduling card" />}
-          note="One Scheduling card per company per game, played after both schedules are revealed."
+          note="One Scheduling card per company per game, played after all schedules are revealed."
           reason={why}
           extra={
             !why ? (
@@ -1143,7 +1134,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
               ) : (
                 <div className="space-y-2">
                   {lineChoice(cardLine, setCardLine, options)}
-                  {focus.id === "float" && (
+                  {(focus.id === "float" || focus.id === "flex") && (
                     <div className="flex overflow-hidden rounded-lg border-2 border-stone-400 text-sm font-bold">
                       <button
                         type="button"
@@ -1179,7 +1170,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
                       ? { period: contested.includes(cardPeriod) ? cardPeriod : contested[0] }
                       : {
                           lineIndex: options.includes(cardLine) ? cardLine : options[0],
-                          ...(focus.id === "float" ? { direction: cardDirection } : {}),
+                          ...((focus.id === "float" || focus.id === "flex") ? { direction: cardDirection } : {}),
                         }),
                   })
                 ),
@@ -1201,7 +1192,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
         face={<MiniCardFace family="construction" name={card.name} description={card.description} note="Construction card" />}
         note="One Construction card per company per period, on a period you build."
         reason={why}
-        extra={!why && focus.id !== "expedite" ? lineChoice(cardLine, setCardLine, options) : undefined}
+        extra={!why && (focus.id === "overtime" || focus.id === "surge") ? lineChoice(cardLine, setCardLine, options) : undefined}
         actions={[
           {
             label: `Play ${card.name}`,
@@ -1212,7 +1203,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
               playWithFlight(card.name, "#b45309", "board", () =>
                 act("PLAY_CONSTRUCTION_CARD", {
                   cardId: focus.id,
-                  ...(focus.id === "expedite"
+                  ...(!["overtime", "surge"].includes(focus.id)
                     ? {}
                     : { lineIndex: options.includes(cardLine) ? cardLine : options[0] }),
                 })
@@ -1327,7 +1318,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
             <p className="text-xs text-stone-600">
               {previewContacts.length === 0 ? (
                 <>
-                  No contact with {opponent?.name ?? "the opposition"}&apos;s network — <b>free</b>.
+                  No contact with other networks — <b>free</b>.
                 </>
               ) : (
                 <>
@@ -1335,16 +1326,16 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
                     {previewContacts.length} contact{previewContacts.length === 1 ? "" : "s"}
                   </b>{" "}
                   ({previewContacts.map((c) => c.kind).join(", ")}) · <b>{money(contactToll(previewContacts))}</b> to{" "}
-                  {opponent?.name ?? "them"} · cash after{" "}
-                  <b className={me.money - contactToll(previewContacts) < 0 ? "text-red-700" : ""}>
-                    {money(me.money - contactToll(previewContacts))}
+                  {Array.from(new Set(previewContacts.map((c) => game.players[c.ownerId]?.name))).join(", ")}{me.accessPass ? " (city pays)" : ""} · cash after{" "}
+                  <b className={me.money - (me.accessPass ? 0 : contactToll(previewContacts)) < 0 ? "text-red-700" : ""}>
+                    {money(me.money - (me.accessPass ? 0 : contactToll(previewContacts)))}
                   </b>
-                  {me.money - contactToll(previewContacts) < 0 && (
+                  {me.money - (me.accessPass ? 0 : contactToll(previewContacts)) < 0 && (
                     <>
                       {" "}
                       · projected debt penalty{" "}
                       <b className="text-red-700">
-                        {(me.money - contactToll(previewContacts)) * SUBWAY_CONFIG.contact.debtVpPerMillion} VP
+                        {(me.money - (me.accessPass ? 0 : contactToll(previewContacts))) * SUBWAY_CONFIG.contact.debtVpPerMillion} VP
                       </b>
                     </>
                   )}
@@ -1642,7 +1633,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
   );
 
   return (
-    <div className="relative">
+    <div className="relative" style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
       {veiled && me && <HandoffVeil name={me.name} color={me.color} onConfirm={() => setSeatedId(playerId)} />}
       {/* Screen readers hear every accepted public event, animation or not. */}
       <div aria-live="polite" className="sr-only">
@@ -1662,7 +1653,9 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
       >
         {/* Printed pieces carry dark ink whatever the surrounding page theme is. */}
         <div className="flex flex-col text-stone-900" style={{ gap: TABLE.gap, padding: TABLE.margin }}>
-          {opponent && <OpponentEdge game={game} opponent={opponent} scheduleRevealed={schedulingRevealed} />}
+          <div data-zone="opponent" className="grid gap-[24px]">
+            {opponents.map((opponent) => <OpponentEdge key={opponent.id} game={game} opponent={opponent} scheduleRevealed={schedulingRevealed} />)}
+          </div>
 
           <ScheduleBoard
             game={game}
@@ -1692,11 +1685,11 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
             <div
               ref={boardRef}
               data-zone="board"
-              className="rounded-[34px] border-[10px] border-[#5d4127] bg-[#8a6844] p-[16px] shadow-[0_24px_50px_rgba(0,0,0,.5)]"
+              className="rounded-[34px] border-[10px] border-[#1b3945] bg-[#234b57] p-[16px] shadow-[0_24px_50px_rgba(0,0,0,.5)]"
               style={{ width: BOARD_FRAME_W }}
             >
               <div className="mb-[12px] flex items-center justify-between px-[8px] text-[#f5e6c8]">
-                <strong className="text-[26px] font-black uppercase tracking-[.3em]">Metropolitan pegboard</strong>
+                <strong className="text-[26px] font-black uppercase tracking-[.3em]">Metropolitan Transit Map</strong>
                 <span className="text-[20px] font-bold opacity-80">
                   {SUBWAY_CONFIG.board.columns} × {SUBWAY_CONFIG.board.rows} holes
                 </span>

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import type { GameContext, Player, Room } from "../src/engine/types";
 import {
   DESTINATION_CARDS,
+  STATIONS,
   LINE_CONTRACTS,
   MARKET_DECKS,
   SUBWAY_CONFIG,
@@ -76,7 +77,13 @@ const base = () => subwayGame.initialState(players);
 
 /** A started game. random()=0 gives a fixed shuffle and priority, so the deck
  *  order below is deterministic. */
-const started = () => dispatch(base(), "red", "START_GAME");
+// Fixed legacy portfolio for geometry/economics regression fixtures.
+// The multiplayer suite separately exercises the actual shuffled 12-route pool.
+const started = () => {
+  const s = dispatch(base(), "red", "START_GAME");
+  s.procurement.deck = ["medium", "express", "crosstown", "long", "short"];
+  return s;
+};
 
 const owned = (contractId: string, route: PlayerLine["route"] = []): PlayerLine => ({
   contractId,
@@ -123,7 +130,7 @@ function engineeringDraft(): SubwayState {
         ? dispatch(s, offer.activeId, "PROCURE", { choice: "buy" })
         : dispatch(s, offer.activeId, "PROCURE", {
             choice: "pass",
-            ...(offer.stage === "first" ? { deck: "engineering" as const } : {}),
+            deck: "engineering" as const,
           });
   }
   return s;
@@ -392,7 +399,7 @@ const DECK_ORDER = ["branch", "medium", "express", "crosstown", "long", "short"]
 // PART 5 — Destination cards
 // ============================================================================
 {
-  assert.equal(DESTINATION_CARDS.length, 6, "there is one Destination card per station");
+  assert.equal(DESTINATION_CARDS.length, STATIONS.length, "there is one Destination card per station");
   assert.ok(
     DESTINATION_CARDS.every((c) => stationById(c.stationId)),
     "each names a real station"
@@ -612,7 +619,7 @@ function engineering(red: string[], blue: string[]): SubwayState {
   s = lockPlan(s, "blue", { surveys: 0 });
   assert.equal(s.phase, "SCHEDULING", "with nothing to place, Engineering closes immediately");
   assert.equal(s.schedulingStep, "PLANNING", "and private planning opens");
-  assert.equal(s.players.red.lines[0].start, 1, "with the blocks laid out to start from");
+  assert.equal(s.players.red.lines[0].start, 10, "with the cheapest complete schedule suggested");
 }
 
 // ============================================================================
@@ -1058,7 +1065,7 @@ function construction(red: PlayerLine[], blue: PlayerLine[]): SubwayState {
   assert.deepEqual(contractById("crosstown")!.recipe, [4, 3, 4, 3, 4, 3], "Crosstown is six");
   assert.deepEqual(contractById("long")!.recipe, [4, 5, 4, 4, 5, 4, 4], "Long is seven");
 
-  const demand = LINE_CONTRACTS.reduce((sum, c) => sum + contractActions(c), 0);
+  const demand = LINE_CONTRACTS.slice(0, 6).reduce((sum, c) => sum + contractActions(c), 0);
   assert.equal(demand, 33, "total construction demand is 33 placements");
   const capacity = 2 * SUBWAY_CONFIG.timelinePeriods;
   assert.equal(capacity, 32, "against 32 base crew-periods");
@@ -1159,8 +1166,8 @@ function construction(red: PlayerLine[], blue: PlayerLine[]): SubwayState {
 // 5. the yard price is discounted
 {
   let s = dispatch(started(), "red", "PROCURE", { choice: "pass", deck: "construction" });
-  assert.equal(dispatch(s, "blue", "PROCURE", { choice: "pass", deck: "engineering" }).players.blue.engineeringHand.length, 5, "a second pass earns no card");
-  s = dispatch(s, "blue", "PROCURE", { choice: "pass" });
+  assert.equal(dispatch(s, "blue", "PROCURE", { choice: "pass", deck: "engineering" }).players.blue.engineeringHand.length, 6, "every seat gets the same pass-and-draft option");
+  s = dispatch(s, "blue", "PROCURE", { choice: "pass", deck: "engineering" });
   assert.equal(s.procurement.yard.length, 1, "a doubly-declined contract is not discarded");
   assert.equal(s.procurement.yard[0].contractId, "branch", "it goes to the Discount Yard");
   assert.equal(
@@ -1179,7 +1186,7 @@ function construction(red: PlayerLine[], blue: PlayerLine[]): SubwayState {
   // Everyone declines every contract on its first pass round.
   for (let i = 0; i < 6; i++) {
     s = dispatch(s, offerOf(s).activeId, "PROCURE", { choice: "pass", deck: "engineering" });
-    s = dispatch(s, offerOf(s).activeId, "PROCURE", { choice: "pass" });
+    s = dispatch(s, offerOf(s).activeId, "PROCURE", { choice: "pass", deck: "engineering" });
   }
   assert.equal(s.phase, "PROCUREMENT", "procurement cannot end with contracts unowned");
   assert.equal(s.procurement.cleanup, true, "the Discount Yard cleanup begins");
@@ -1188,7 +1195,7 @@ function construction(red: PlayerLine[], blue: PlayerLine[]): SubwayState {
   const firstYardPrice = offerOf(s).price;
   const yardId = offerOf(s).contractId;
   s = dispatch(s, offerOf(s).activeId, "PROCURE", { choice: "pass", deck: "engineering" });
-  s = dispatch(s, offerOf(s).activeId, "PROCURE", { choice: "pass" });
+  s = dispatch(s, offerOf(s).activeId, "PROCURE", { choice: "pass", deck: "engineering" });
   const requeued = s.procurement.yard.find((e) => e.contractId === yardId) ?? offerOf(s);
   assert.ok(
     requeued.price < firstYardPrice || firstYardPrice === SUBWAY_CONFIG.minContractPrice,
@@ -1205,15 +1212,15 @@ function construction(red: PlayerLine[], blue: PlayerLine[]): SubwayState {
       ? dispatch(s, offer.activeId, "PROCURE", { choice: "buy" })
       : dispatch(s, offer.activeId, "PROCURE", {
           choice: "pass",
-          ...(offer.stage === "first" ? { deck: "engineering" as const } : {}),
+          deck: "engineering" as const,
         });
   }
   assert.equal(s.phase, "ENGINEERING", "procurement ends once every contract is owned");
   assert.equal(s.engineeringStep, "DESTINATION_DRAFT", "and opens on the Destination draft");
   assert.equal(
     s.players.red.lines.length + s.players.blue.lines.length,
-    LINE_CONTRACTS.length,
-    "all six contracts found an owner"
+    6,
+    "all six selected contracts found an owner"
   );
   assert.ok(s.players.red.money >= 0 && s.players.blue.money >= 0, "nobody ends procurement in debt");
 }
@@ -1285,7 +1292,7 @@ function scheduling(red: string[], blue: string[]): SubwayState {
         ? dispatch(s, offer.activeId, "PROCURE", { choice: "buy" })
         : dispatch(s, offer.activeId, "PROCURE", {
             choice: "pass",
-            ...(offer.stage === "first" ? { deck: "engineering" as const } : {}),
+            deck: "engineering" as const,
           });
   }
   s = runDraft(s);
@@ -1316,7 +1323,7 @@ function scheduling(red: string[], blue: string[]): SubwayState {
         "and it is contiguous"
       );
     }
-    assert.equal(crewCost(p), 0, "the opening plan never charges for a second crew");
+    assert.ok(scheduleCost(p) <= p.money, "the suggested complete schedule is affordable");
   }
   // A company holding more work than the horizon must compress or shelve.
   const heavy = [s.players.red, s.players.blue].filter(
@@ -1324,8 +1331,8 @@ function scheduling(red: string[], blue: string[]): SubwayState {
   );
   for (const p of heavy) {
     assert.ok(
-      p.lines.some((l) => l.start === undefined),
-      "an over-committed portfolio opens with its overflow shelved"
+      p.lines.every((l) => l.start !== undefined),
+      "an over-committed portfolio is compressed without shelving routes"
     );
   }
 }
@@ -1846,7 +1853,7 @@ function scheduling(red: string[], blue: string[]): SubwayState {
 
 // Shape, sequencing, and the acceptance-only append rule.
 {
-  assert.equal(SUBWAY_STATE_VERSION, 8, "the event stream is a version-8 state shape");
+  assert.equal(SUBWAY_STATE_VERSION, 9, "multiplayer and Access Pass use state version 9");
   const fresh = base();
   assert.deepEqual(fresh.events, [], "a fresh room has no events");
   assert.equal(fresh.nextEventSeq, 1, "and the sequence starts at 1");
@@ -1964,7 +1971,7 @@ function scheduling(red: string[], blue: string[]): SubwayState {
         ? dispatch(s, offer.activeId, "PROCURE", { choice: "buy" })
         : dispatch(s, offer.activeId, "PROCURE", {
             choice: "pass",
-            ...(offer.stage === "first" ? { deck: "engineering" as const } : {}),
+            deck: "engineering" as const,
           });
     absorb(s);
   }

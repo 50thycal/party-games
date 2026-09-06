@@ -1,0 +1,73 @@
+# WS-005 — Subway finished edition
+
+Build OS: v0.11
+Phase: BUILDING
+Status: Blocked
+Updated: 2026-09-06
+Implementation State: Implemented and published; automated checks pass; browser verification blocked by preview access
+Related PRs: [#154](https://github.com/50thycal/party-games/pull/154)
+
+## Goal and approved scope
+After this change, Subway supports complete 2-, 3- and 4-player games, with more
+routes and cards, accessible light-strategy choices, a coherent transit theme,
+and tested desktop/phone hotseat play.
+
+Owner authorization: Calvin explicitly requested implementation on a mergeable
+branch in the 2026-09-06 ChatGPT session and delegated rules, balancing and visual
+design. This supersedes WS-004's pending card-selection and objective-scope
+decisions for this implementation. Company-wide objectives are retained. No merge
+is authorized here. No extra issue or workstream is needed for a discovered defect
+that blocks this goal.
+
+## Build Card / specification
+- 2–4 seats, three routes per company, sampled from twelve unique contracts.
+- All seats get a pass-and-draft decision; offers go round the entire table before
+  discounting. Forced allocation guarantees finite procurement and equal portfolios.
+- Drafts, starter pegs, surveys and construction queues visit every seat fairly.
+  Priority rotates every period; any two overlapping companies create contention.
+- Contact payments belong to the actual route owners. Shared vertices charge once
+  per owner. An Access Pass subsidizes the next build; a City Grant provides $3M.
+- Ten station Destinations; fourteen Engineering goals; five Scheduling and five
+  Construction cards. Reducer authority, exact geometry and explicit Confirm remain.
+- $40M starting capital and a cheapest-complete-schedule suggestion. Validate every
+  three-route combination can fund its complete schedule at list price.
+- All opponents appear on the same continuous tabletop with private cards hidden.
+  Improve printed map, typography and transit-sign styling.
+- Local hotseat at `/subway` saves on the current device, supports restart confirmation,
+  clear handoff and quick rules. Online rooms keep the existing storage transport.
+- Browser lab uses the real reducer to reach all phases in desktop/phone iframes.
+
+## Acceptance / verification
+Run build, lint, existing Subway regressions, multiplayer/card/ownership/undo
+regressions, 220 portfolio checks and full simulated games for 2/3/4 seats. Playtest
+real UI controls in desktop and phone widths, including hotseat privacy, card focus,
+placement preview/Confirm, save/resume, and results. Record evidence and honest
+limitations; simulation is not a claim of statistically proven human balance.
+
+## Framework preflight
+Read canonical VERSION.md at v0.11 (Draft), the v0.5–v0.11 migration entries,
+FRAMEWORK_SYNC and CLAUDE_HANDOFF. Migrated the framework block, current templates
+and intake/result rules. Reviewed mode retained; historical work is not reopened.
+
+## Review State
+Pending independent review. No approval or merge claimed.
+
+## Validation checkpoint
+- `npm run build`, `npm run lint`, `./scripts/test-subway.sh`, and `git diff --check` pass.
+- Existing geometry/rules regressions and new multiplayer, content, actual-owner
+  toll, subsidy, undo, priority and finite-procurement checks pass.
+- All 220 three-route portfolios can fund a complete schedule at list price.
+- 36 deterministic full games (12 each at 2/3/4 players) reached RESULTS without
+  debt. Average completed routes per company: 2.96 / 2.97 / 2.96. Seat wins:
+  [5,7] / [5,2,5] / [2,4,3,3]. These heuristic bots do not prove human balance.
+- Original live prototype inspected in browser. Updated branch visual playtest is
+  **not completed**: cloud browser cannot reach localhost; Vercel preview redirects
+  to authentication, and connected Vercel temporary-access request returned 403.
+  Deployment status itself is successful. No protection settings were changed.
+
+## Next Step
+Obtain an accessible preview from the owner, then verify desktop/phone layouts,
+card dialogs, placement preview/Confirm, all-seat handoff and local save/resume.
+Use `/subway` for local hotseat and `/test/subway` for responsive phase fixtures.
+Fix any defects on this branch, then request independent review. Do not merge
+before the outstanding visual gate and independent review are satisfied.

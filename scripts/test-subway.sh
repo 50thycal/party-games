@@ -21,6 +21,7 @@ cat >"$config" <<EOF
   },
   "include": [
     "$repo_root/scripts/subway-rules-test.ts",
+    "$repo_root/scripts/subway-multiplayer-test.ts",
     "$repo_root/src/games/subway/config.ts",
     "$repo_root/src/engine/**/*.ts"
   ]
@@ -32,3 +33,5 @@ npx tsc -p "$config"
 mkdir -p "$out_dir/node_modules/@"
 ln -s "$out_dir/src/engine" "$out_dir/node_modules/@/engine"
 node "$out_dir/scripts/subway-rules-test.js"
+
+node "$out_dir/scripts/subway-multiplayer-test.js"
