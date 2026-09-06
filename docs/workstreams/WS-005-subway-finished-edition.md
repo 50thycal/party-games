@@ -2,10 +2,10 @@
 
 Build OS: v0.11
 Phase: BUILDING
-Status: Active
+Status: Blocked
 Updated: 2026-09-06
-Implementation State: Implementing and validating on `astra/subway-finished-edition`
-Related PRs: Not opened yet
+Implementation State: Implemented and published; automated checks pass; browser verification blocked by preview access
+Related PRs: [#154](https://github.com/50thycal/party-games/pull/154)
 
 ## Goal and approved scope
 After this change, Subway supports complete 2-, 3- and 4-player games, with more
@@ -52,5 +52,22 @@ and intake/result rules. Reviewed mode retained; historical work is not reopened
 ## Review State
 Pending independent review. No approval or merge claimed.
 
+## Validation checkpoint
+- `npm run build`, `npm run lint`, `./scripts/test-subway.sh`, and `git diff --check` pass.
+- Existing geometry/rules regressions and new multiplayer, content, actual-owner
+  toll, subsidy, undo, priority and finite-procurement checks pass.
+- All 220 three-route portfolios can fund a complete schedule at list price.
+- 36 deterministic full games (12 each at 2/3/4 players) reached RESULTS without
+  debt. Average completed routes per company: 2.96 / 2.97 / 2.96. Seat wins:
+  [5,7] / [5,2,5] / [2,4,3,3]. These heuristic bots do not prove human balance.
+- Original live prototype inspected in browser. Updated branch visual playtest is
+  **not completed**: cloud browser cannot reach localhost; Vercel preview redirects
+  to authentication, and connected Vercel temporary-access request returned 403.
+  Deployment status itself is successful. No protection settings were changed.
+
 ## Next Step
-Complete tests and visual playtests, fix defects on this branch, and publish one PR.
+Obtain an accessible preview from the owner, then verify desktop/phone layouts,
+card dialogs, placement preview/Confirm, all-seat handoff and local save/resume.
+Use `/subway` for local hotseat and `/test/subway` for responsive phase fixtures.
+Fix any defects on this branch, then request independent review. Do not merge
+before the outstanding visual gate and independent review are satisfied.
