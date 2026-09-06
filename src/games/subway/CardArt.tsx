@@ -228,10 +228,18 @@ function Diagram({ id, color }: { id: string; color: string }) {
           <Route points={[[14, 50], [102, 16]]} color={color} nodes={false} />
           <circle cx="58" cy="33" r="10" fill="none" stroke={RULE} strokeWidth="1.6" strokeDasharray="3 2" />
           <text x="58" y="60" textAnchor="middle" fontSize="8.5" fontWeight="700" fill={RULE}>
-            one permitted crossing
+            one paid crossing
           </text>
         </>
       );
+    case "crosstown-service":
+      return <><Route points={[[12,48],[42,32],[76,32],[108,16]]} color={color} /><text x="12" y="12" fontSize="9" fill={RULE}>WEST</text><text x="82" y="60" fontSize="9" fill={RULE}>EAST</text></>;
+    case "local-service":
+      return <><Route points={[[12,48],[44,32],[76,32],[108,16]]} color={color} />{[44,76,108].map((x,i)=><circle key={x} cx={x} cy={i===2?16:32} r="7" fill="white" stroke={color} strokeWidth="3" />)}</>;
+    case "interchange":
+      return <><Route points={[[12,32],[108,32]]} color={color} /><Route points={[[60,8],[60,56]]} color={color} dashed /><circle cx="60" cy="32" r="10" fill="white" stroke={color} strokeWidth="4" /></>;
+    case "solvent":
+      return <><Route points={[[12,16],[44,16]]} color={color} /><Route points={[[12,48],[44,48]]} color={color} /><text x="80" y="39" textAnchor="middle" fontSize="22" fontWeight="900" fill={color}>$3M</text></>;
     default:
       return null;
   }

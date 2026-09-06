@@ -37,7 +37,7 @@ export const gameOptions: GameOption[] = [
     name: "Subway",
     description: "Bid for transit contracts, schedule the build, and race for stations.",
     minPlayers: 2,
-    maxPlayers: 2,
+    maxPlayers: 4,
   },
   {
     id: "number-guess",

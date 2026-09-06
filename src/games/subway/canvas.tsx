@@ -588,7 +588,7 @@ export function TabletopCanvas({
         height: height ?? 520,
         cursor: "grab",
         background:
-          "radial-gradient(circle at 50% 12%, #4b6650 0%, #33452f 55%, #26331f 100%)",
+          "radial-gradient(circle at 50% 12%, #2f5860 0%, #18343f 55%, #10232d 100%)",
       }}
     >
       <div

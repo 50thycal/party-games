@@ -7,7 +7,7 @@
 
 ## Verdict
 
-**Verdict:** <Not started | In review | Changes required | Approved | Approved with follow-ups>
+**Verdict:** <Not started | In review | Changes required | Approved | Approved with follow-ups | Owner-accepted>
 **Reviewed head:** <full 40-character commit SHA, or —>
 **Reviewed PR:** #<n>
 **Head current at publication:** <yes | no — PR is now at abc1234...>
@@ -54,6 +54,11 @@ This verdict is about one PR. Name it above; it says nothing about the workstrea
 
 A finding only the owner can settle is `Changes required`, with the question under
 *Decisions requiring owner attention* below.
+
+`Owner-accepted` is not a reviewer's verdict and does not belong in a review summary written by
+a reviewer — it is what the OWNER records in a `solo` project, where no independent actor
+exists, against the head they merge. It names `Accepted head`, never `Reviewed head`, and it is
+never an approval. If you are reviewing, you are not in that case.
 -->
 
 ## What actually changed

@@ -1182,3 +1182,53 @@ in the view layer.
   assignments are never put into this client's DOM, and that limit is documented rather than
   overstated.
 - Any future component must be placed in world coordinates to exist on the table at all.
+
+---
+
+### DEC-024 — Subway supports 2–4 companies with equal portfolios and a broader city
+
+**Date:** 2026-09-06
+
+**Status:** Accepted within the owner's delegated WS-005 implementation scope; pending PR review.
+
+**Context**
+The owner requested a more finished light-strategy game, explicitly delegated rules,
+content, balance and visuals, and requested all changes on a branch. This authorizes
+resolving WS-004's pending card-expansion and objective-scope questions in this build.
+The two-seat implementation paid every toll to the first opponent and used two-seat
+tiebreaks for drafts/placements. Its default schedule shelved work rather than fitting it.
+
+**Decision**
+Support 2–4 companies with three routes each, sampled from twelve. Each seat gets the
+same pass-and-draft decision. Entire-table refusal precedes a discount; forced sales
+bound procurement. The first offer starts from the randomized opening priority seat.
+All seat rotations include every company; any two active schedules are contested.
+Priority Permits cannot overwrite a previously claimed period.
+
+Keep Engineering objectives company-wide for lower planning overhead. Add four goals,
+four station Destinations, two Scheduling cards and two Construction cards. Keep the
+existing geometry, toll rate and explicit placement Confirm. Pay each contacted owner
+once per geometric contact, with city-paid Access Pass transfers and a $3M City Grant.
+Start with $40M and suggest the cheapest schedule that includes every purchased route.
+The Orbital route costs $8M and rewards 6 VP; this makes all 220 possible three-route
+portfolios affordable at list price without using a grant or leaving a route unscheduled.
+
+Keep the single tabletop, with every opponent visible and a lighter printed transit
+map. Add a local hotseat entry that reuses the same reducer and view, persists a versioned
+game on this browser and requires confirmation before replacing it. Existing network
+rooms still use server-side reducer authority and Turso. Local play has no server and
+is deliberately device-bound; it is not a second set of rules or UI.
+
+**Rationale**
+Equal portfolios cap workload per player as groups grow. Cash relief and schedule
+suggestions remove bookkeeping traps while preserving the race for stations and
+route-planning decisions. New cards have distinct, small effects. Automated games
+measure termination and obvious tendencies; human enjoyment and strategy balance
+are not inferred from the heuristic's win rates.
+
+**Consequences**
+State version 9 requires older rooms to restart. Contact records carry owner IDs.
+Local storage may fail; a visible warning then tells players to keep the tab open.
+The visual lab uses legal reducer actions and real iframe viewports without touching
+live rooms. Build OS v0.11 is adopted in reviewed mode; no historical reviews or
+acceptances are invented. This branch must receive independent review before merge.

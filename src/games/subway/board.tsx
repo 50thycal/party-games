@@ -139,7 +139,7 @@ export function Board({
       className={`block ${canAct ? "cursor-crosshair" : ""}`}
       style={{ touchAction: "none" }}
     >
-      <rect x="0" y="0" width={VB_W} height={VB_H} rx="26" fill="#b98a58" />
+      <rect x="0" y="0" width={VB_W} height={VB_H} rx="26" fill="#eaece2" />
       <rect
         x="16"
         y="16"
@@ -147,17 +147,27 @@ export function Board({
         height={VB_H - 32}
         rx="20"
         fill="none"
-        stroke="#71533a"
+        stroke="#8da59b"
         strokeWidth="3"
         opacity="0.6"
       />
+
+      {/* Printed city geography is decorative; every legal route uses the same peg rules. */}
+      <g pointerEvents="none" opacity="0.45">
+        <path d={`M ${VB_W * .45} 22 C ${VB_W * .38} ${VB_H * .35}, ${VB_W * .62} ${VB_H * .55}, ${VB_W * .55} ${VB_H - 22}`} fill="none" stroke="#9ac9cf" strokeWidth="58" />
+        <rect x={VB_W * .43} y="38" width="220" height="110" rx="45" fill="#bbcfad" />
+        <rect x="65" y={VB_H * .65} width="220" height="100" rx="30" fill="#cbd9bd" />
+        {["OLD TOWN", "CIVIC QUARTER", "EAST END"].map((name, i) => (
+          <text key={name} x={100 + i * VB_W / 3} y="48" fill="#45645d" fontSize="15" fontWeight="800" letterSpacing="4">{name}</text>
+        ))}
+      </g>
 
       {cells.map((c) => {
         const p = holePos(c);
         return (
           <g key={`h-${c.x}-${c.y}`}>
-            <circle cx={p.x} cy={p.y} r="8" fill="#8f6c49" />
-            <circle cx={p.x} cy={p.y} r="5.5" fill="#5f4630" />
+            <circle cx={p.x} cy={p.y} r="8" fill="#c6d0c7" />
+            <circle cx={p.x} cy={p.y} r="5.5" fill="#7c918b" />
           </g>
         );
       })}

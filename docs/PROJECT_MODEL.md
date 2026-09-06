@@ -2,7 +2,7 @@
 
 <!-- How does this system work TODAY? Present tense. Not a roadmap, not a history. -->
 
-**Last updated:** 2026-08-27 · **Build OS v0.5** (see [50thycal/build-os](https://github.com/50thycal/build-os))
+**Last updated:** 2026-09-06 · **Build OS v0.11** (see [50thycal/build-os](https://github.com/50thycal/build-os))
 
 Project memory has three layers: this file (how the system works today),
 [`DECISIONS.md`](DECISIONS.md) (why), and [`workstreams/`](workstreams/ACTIVE.md) (what is being
@@ -90,7 +90,9 @@ Two properties define the shape of everything else:
 | Entry pages | `src/app/page.tsx`, `create/`, `join/` | Home (with a "latest merged PR" banner), room creation (game + mode + players), room joining. |
 | AI narrator routes | `src/app/api/{host,desk,speak}/route.ts` | Stateless OpenAI calls serving one game each: HR Investigation narration, The Desk's Oracle round generation, and text-to-speech. |
 | Dev simulator | `src/app/test/`, `src/app/api/llm-bot/route.ts`, `src/games/cafe/bots.ts` | **Development-only.** Runs Comet Rush and Cafe reducers in the browser with scripted or LLM bots. Bypasses the API routes and the database entirely. |
-| Subway rules harness | `scripts/subway-rules-test.ts`, `scripts/test-subway.sh` | The only automated test in the repository: compiles the Subway reducer plus engine types and asserts rules by driving the reducer directly. Covers Subway's contract recipes and route geometry, station docks, priority, procurement, Engineering plan lock, Destinations, Survey Pins, placement undo, scheduling, spatial rules, scoring, border-only starters, one-Confirm-one-action queue semantics, stale-confirm rejection, the bounded privacy-safe public event stream (append-on-accept, 20-entry cap, monotonic sequence across Undo), and state versioning. |
+| Subway local hotseat | `src/app/subway/page.tsx` | Device-local, versioned save/resume, 2–4 seat setup and handoff. Uses the same pure reducer and GameView; no Turso/network dependency. |
+| Subway playtest lab | `src/app/test/subway/`, `src/games/subway/playtest.ts` | Seeded legal-action phase walks and iframe viewports for desktop/phone inspection. Isolated from real rooms. |
+| Subway rules harness | `scripts/subway-rules-test.ts`, `scripts/subway-multiplayer-test.ts`, `scripts/test-subway.sh` | The only automated test in the repository: compiles the Subway reducer plus engine types and asserts rules by driving the reducer directly. Covers Subway's contract recipes and route geometry, station docks, priority, procurement, Engineering plan lock, Destinations, Survey Pins, placement undo, scheduling, spatial rules, scoring, border-only starters, one-Confirm-one-action queue semantics, stale-confirm rejection, the bounded privacy-safe public event stream (append-on-accept, 20-entry cap, monotonic sequence across Undo), and state versioning. |
 
 ### How they relate
 
@@ -214,7 +216,7 @@ the room shell reads `state.phase` directly.
 | Open House | `real-estate` | `lobby → playing → round_results → … → results` |
 | HR Investigation | `performance-review` | `lobby → intro → accusation → reframing → interview → case_prep → editing → reveal → voting → round_over → … → game_over` |
 | The Desk | `the-desk` | `lobby → briefing → quote → trading → settlement → briefing … → final` |
-| Subway | `subway` | `SETUP → PROCUREMENT → ENGINEERING → SCHEDULING → STARTER_PLACEMENT → CONSTRUCTION → SCORING → RESULTS`, with `engineeringStep: DESTINATION_DRAFT → PLAN → SURVEY` inside `ENGINEERING` and `schedulingStep: PLANNING → RESOLUTION` inside `SCHEDULING`. One `UNDO_PLACEMENT` action can walk the latest physical placement back across a phase boundary. State v8 (WS-004) adds a bounded public event stream — `events` (latest 20) plus a monotonic `nextEventSeq` that is never rewound, Undo included — appended only by accepted actions and containing no hidden card identity; the view narrates it as overlays over the table and a site logbook. Starter pegs are reducer-legal only on non-station outer-border holes, and the view commits placements exclusively through an explicit Confirm dispatching `PLACE_STARTER`/`BUILD` with the one selected target. |
+| Subway | `subway` | `SETUP → PROCUREMENT → ENGINEERING → SCHEDULING → STARTER_PLACEMENT → CONSTRUCTION → SCORING → RESULTS`, with `engineeringStep: DESTINATION_DRAFT → PLAN → SURVEY` inside `ENGINEERING` and `schedulingStep: PLANNING → RESOLUTION` inside `SCHEDULING`. One `UNDO_PLACEMENT` action can walk the latest physical placement back across a phase boundary. State v9 (WS-005) retains a bounded public event stream — `events` (latest 20) plus a monotonic `nextEventSeq` that is never rewound, Undo included — appended only by accepted actions and containing no hidden card identity; the view narrates it as overlays over the table and a site logbook. Starter pegs are reducer-legal only on non-station outer-border holes, and the view commits placements exclusively through an explicit Confirm dispatching `PLACE_STARTER`/`BUILD` with the one selected target. |
 
 **The string `"lobby"` is load-bearing in the shell.** The room page shows the room-code header,
 the player list, and the leave link only while `gameState` is null or `state.phase === "lobby"`;
@@ -351,8 +353,9 @@ These should remain true across implementations:
   `npm run lint`, that script, and manual play.
 - **Player-count limits are advisory.** `minPlayers`/`maxPlayers` are declared in the template and
   mirrored in `gameOptions`, but no server route enforces them — `join-room` admits any number of
-  players, in any phase, including after a game has started. Subway declares 2/2 and seats the
-  first two players in the room; later joiners are spectators by convention, not by enforcement.
+  players, in any phase, including after a game has started. Subway declares 2–4 and rejects START_GAME outside that range. Its normal create UI
+  offers 2/3/4 seats; old overfilled rooms cannot start. The engine-wide join limitation
+  remains advisory; the Subway reducer rebuilds only the supported roster at start.
 - **No server-side private state.** There is one room payload and every client gets all of it
   (invariant 11). A mechanic that needs true secrecy needs an engine change — per-player state
   filtering in `get-room` — not a game-level change.
@@ -421,3 +424,19 @@ game. This file is the current source of truth for architecture; `docs/DECISIONS
 
 <!-- Update this file in the same PR as any change that materially alters architecture,
      important flows, invariants, or system responsibilities. -->
+
+## WS-005 gameplay invariants
+
+Subway has 2–4 companies, exactly three selected contracts each from twelve, and ten
+stations. Shared pure reducer helpers own the full-seat draft/placement rotation,
+rotating construction queue and owner-specific contact payments. Access Pass covers
+the next build this period; undo restores the allowance and every recipient balance.
+Each company starts with $40M. A bounded search over the three schedule blocks finds
+the cheapest complete schedule, and never silently shelves a contract. A player may
+still choose different timing or deliberately shelve a route.
+
+`/subway` stores a versioned local session under `subway-hotseat-v9`. It is separate
+from network rooms and uses no server authority; same-device social play is the only
+intended mode. Storage errors show a keep-tab-open warning. `/test/subway` creates
+isolated scenarios through real reducer actions, rendering the same GameView inside
+true phone/desktop iframe viewports. It never writes the local player's saved game.

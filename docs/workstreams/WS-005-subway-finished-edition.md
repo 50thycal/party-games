@@ -1,0 +1,56 @@
+# WS-005 — Subway finished edition
+
+Build OS: v0.11
+Phase: BUILDING
+Status: Active
+Updated: 2026-09-06
+Implementation State: Implementing and validating on `astra/subway-finished-edition`
+Related PRs: Not opened yet
+
+## Goal and approved scope
+After this change, Subway supports complete 2-, 3- and 4-player games, with more
+routes and cards, accessible light-strategy choices, a coherent transit theme,
+and tested desktop/phone hotseat play.
+
+Owner authorization: Calvin explicitly requested implementation on a mergeable
+branch in the 2026-09-06 ChatGPT session and delegated rules, balancing and visual
+design. This supersedes WS-004's pending card-selection and objective-scope
+decisions for this implementation. Company-wide objectives are retained. No merge
+is authorized here. No extra issue or workstream is needed for a discovered defect
+that blocks this goal.
+
+## Build Card / specification
+- 2–4 seats, three routes per company, sampled from twelve unique contracts.
+- All seats get a pass-and-draft decision; offers go round the entire table before
+  discounting. Forced allocation guarantees finite procurement and equal portfolios.
+- Drafts, starter pegs, surveys and construction queues visit every seat fairly.
+  Priority rotates every period; any two overlapping companies create contention.
+- Contact payments belong to the actual route owners. Shared vertices charge once
+  per owner. An Access Pass subsidizes the next build; a City Grant provides $3M.
+- Ten station Destinations; fourteen Engineering goals; five Scheduling and five
+  Construction cards. Reducer authority, exact geometry and explicit Confirm remain.
+- $40M starting capital and a cheapest-complete-schedule suggestion. Validate every
+  three-route combination can fund its complete schedule at list price.
+- All opponents appear on the same continuous tabletop with private cards hidden.
+  Improve printed map, typography and transit-sign styling.
+- Local hotseat at `/subway` saves on the current device, supports restart confirmation,
+  clear handoff and quick rules. Online rooms keep the existing storage transport.
+- Browser lab uses the real reducer to reach all phases in desktop/phone iframes.
+
+## Acceptance / verification
+Run build, lint, existing Subway regressions, multiplayer/card/ownership/undo
+regressions, 220 portfolio checks and full simulated games for 2/3/4 seats. Playtest
+real UI controls in desktop and phone widths, including hotseat privacy, card focus,
+placement preview/Confirm, save/resume, and results. Record evidence and honest
+limitations; simulation is not a claim of statistically proven human balance.
+
+## Framework preflight
+Read canonical VERSION.md at v0.11 (Draft), the v0.5–v0.11 migration entries,
+FRAMEWORK_SYNC and CLAUDE_HANDOFF. Migrated the framework block, current templates
+and intake/result rules. Reviewed mode retained; historical work is not reopened.
+
+## Review State
+Pending independent review. No approval or merge claimed.
+
+## Next Step
+Complete tests and visual playtests, fix defects on this branch, and publish one PR.
