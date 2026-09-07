@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { SUBWAY_CONFIG, LINE_CONTRACTS, ENGINEERING_CARDS, SCHEDULING_CARDS, CONSTRUCTION_CARDS, subwayGame, basePriorityId, contestedPeriods, destinationTurnId, starterTurnId, surveyTurnId, scheduleCost, lineComplete, autoSchedule, objectiveMet, nextCompanyId, routeContacts, contractById, type SubwayState, type SubwayAction } from "../src/games/subway/config";
+import { SUBWAY_CONFIG, LINE_CONTRACTS, ENGINEERING_CARDS, SCHEDULING_CARDS, CONSTRUCTION_CARDS, STATIONS, subwayGame, basePriorityId, contestedPeriods, destinationTurnId, starterTurnId, surveyTurnId, scheduleCost, lineComplete, autoSchedule, objectiveMet, nextCompanyId, routeContacts, contractById, type SubwayState, type SubwayAction } from "../src/games/subway/config";
 import { startPlaytest, testRoom, runPlaytest } from "../src/games/subway/playtest";
 
 let checks=0;
@@ -7,6 +7,10 @@ for(const count of [2,3,4]) {
   const {room,state} = startPlaytest(count,42);
   const dispatch=(s:SubwayState, playerId:string,type:SubwayAction["type"],payload?:SubwayAction["payload"])=>subwayGame.reducer(s,{type,playerId,payload},{room,playerId,random:()=>.5,now:()=>1});
   assert.equal(state.playerOrder.length,count);
+  assert.equal(state.stations.length,STATIONS.length);
+  assert.equal(new Set(state.stations.map((station)=>`${station.x},${station.y}`)).size,STATIONS.length,"station sites never overlap");
+  assert.ok(state.stations.every((station)=>station.kind==='major' ? station.capacity===3 : station.capacity===2),"major stations have three docks and minors have two");
+  assert.ok(state.stations.every((station,i)=>state.stations.slice(i+1).every((other)=>Math.hypot(station.x-other.x,station.y-other.y)>=3)),"random station sites remain spread apart");
   assert.equal(state.procurement.deck.length+1,count*3);
   assert.equal(new Set([...state.procurement.deck,state.procurement.offer!.contractId]).size,count*3);
   assert.equal(new Set(state.playerOrder.map((id)=>state.players[id].color)).size,count);
@@ -45,6 +49,8 @@ assert.equal(LINE_CONTRACTS.length,12);
 assert.equal(ENGINEERING_CARDS.length,14);
 assert.equal(SCHEDULING_CARDS.length,5);
 assert.equal(CONSTRUCTION_CARDS.length,5);
+assert.equal(LINE_CONTRACTS.filter((contract)=>contract.special).length,4,"four premium routes carry specials");
+assert.ok(LINE_CONTRACTS.every((contract)=>contract.recipe.length<=7 && contract.recipe.every((length)=>length>=2 && length<=6)),"every route uses the 2–6 peg range with at most seven segments");
 // Every three-contract portfolio gets a full, affordable programme at list price.
 for(let a=0;a<12;a++) for(let b=a+1;b<12;b++) for(let c=b+1;c<12;c++) {
   const p=subwayGame.initialState(testRoom(2).players).players['seat-1'];
@@ -59,7 +65,7 @@ for(let a=0;a<12;a++) for(let b=a+1;b<12;b++) for(let c=b+1;c<12;c++) {
 {
   const room=testRoom(4);let s=subwayGame.initialState(room.players);s.phase="CONSTRUCTION";
   for(const id of s.playerOrder) s.players[id].lines=[];
-  s.players['seat-1'].lines=[{contractId:'short',paid:5,start:1,route:[{x:0,y:0}]}];
+  s.players['seat-1'].lines=[{contractId:'university',paid:6,start:1,route:[{x:0,y:0}]}];
   s.players['seat-2'].lines=[{contractId:'branch',paid:6,route:[{x:1,y:0}]}];
   s.players['seat-3'].lines=[{contractId:'medium',paid:8,route:[{x:2,y:0}]}];
   s.players['seat-4'].lines=[{contractId:'long',paid:12,route:[{x:3,y:0}]}];
@@ -81,27 +87,27 @@ for(let a=0;a<12;a++) for(let b=a+1;b<12;b++) for(let c=b+1;c<12;c++) {
   assert.equal(dispatch(grant,'PLAY_CONSTRUCTION_CARD',{cardId:'grant'}),grant);
   checks+=10;
 }
-// Each new schedule card has an effect, boundaries, and the one-card limit.
-for(const cardId of ['depot','flex'] as const){
+// Each replacement schedule card has an effect, boundaries, and the one-card limit.
+for(const cardId of ['stagger','coordination'] as const){
   const room=testRoom(3);let s=subwayGame.initialState(room.players);s.phase='SCHEDULING';s.schedulingStep='RESOLUTION';
-  const p=s.players['seat-1'];p.lines=[{contractId:'short',paid:5,start:3,route:[]}];p.schedulingHand=[cardId];
+  const p=s.players['seat-1'];p.lines=[{contractId:'short',paid:5,start:3,route:[]},{contractId:'tram',paid:5,start:3,route:[]}];p.schedulingHand=[cardId];
   const action:SubwayAction={type:'PLAY_SCHEDULING_CARD',playerId:p.id,payload:{cardId,lineIndex:0,direction:1}};
   const ctx={room,playerId:p.id,now:()=>1,random:()=>.5};
   const next=subwayGame.reducer(s,action,ctx);
-  assert.notEqual(next,s);assert.equal(next.players[p.id].lines[0].start,cardId==='flex'?5:3);
-  if(cardId==='depot') assert.equal(scheduleCost(next.players[p.id]),0);
+  assert.notEqual(next,s);assert.equal(next.players[p.id].lines[0].start,cardId==='stagger'?4:3);
+  if(cardId==='coordination') assert.equal(scheduleCost(next.players[p.id]),scheduleCost(p)-2);
   assert.equal(subwayGame.reducer(next,action,ctx),next);
   checks+=3;
 }
 // New objectives distinguish their actual conditions from near misses.
 {
   const p=subwayGame.initialState(testRoom(2).players).players['seat-1'];
-  p.lines=[{contractId:'short',paid:5,route:[{x:1,y:0},{x:18,y:0}]}];
+  p.lines=[{contractId:'short',paid:5,route:[{x:5,y:0},{x:21,y:0}]}];
   assert.equal(objectiveMet('crosstown-service',p,[]),true);
-  p.lines[0].route[1].x=17;assert.equal(objectiveMet('crosstown-service',p,[]),false);
+  p.lines[0].route[1].x=20;assert.equal(objectiveMet('crosstown-service',p,[]),false);
   p.lines[0].route=[{x:3,y:7,stationId:'market'},{x:10,y:6,stationId:'museum'},{x:14,y:2,stationId:'garden'}];
   assert.equal(objectiveMet('local-service',p,[]),true);
-  p.lines[0].route.pop();assert.equal(objectiveMet('local-service',p,[]),false);
+  p.lines[0].route.pop();p.lines[0].route.pop();assert.equal(objectiveMet('local-service',p,[]),false);
   p.lines.push({contractId:'tram',paid:5,route:[{x:3,y:7,stationId:'market'}]});
   assert.equal(objectiveMet('interchange',p,[]),true);
   p.lines[1].route=[];assert.equal(objectiveMet('interchange',p,[]),false);

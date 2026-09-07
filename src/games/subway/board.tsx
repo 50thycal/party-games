@@ -106,7 +106,7 @@ export function Board({
     ) {
       return;
     }
-    const station = stationAt(cell);
+    const station = stationAt(cell, game.stations);
     const center = holePos(cell);
     const radius = (station ? 0.55 : 0.45) * STEP;
     if (Math.hypot(bx - center.x, by - center.y) > radius) return;
@@ -208,7 +208,7 @@ export function Board({
           targets dim once anything is selected, a NEXT marker wins over an
           unselected current target on the same dock, and the selected NOW
           ring renders on top of everything. */}
-      {STATIONS.map((s) => {
+      {game.stations.map((s) => {
         const p = holePos(s);
         const major = s.kind === "major";
         const w = major ? 76 : 64;

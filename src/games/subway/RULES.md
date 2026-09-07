@@ -38,22 +38,25 @@ has. Procurement cannot loop forever or put a company into debt.
 
 | Route | Code | Segment recipe | Price | Complete VP | Major bonus | Unfinished VP |
 |---|---|---|---:|---:|---:|---:|
-| Short Line | S | 3,4,3,4 | 5 | 4 | 3 | −4 |
-| Branch Line | B | 5,5,3,4,4 | 6 | 5 | 3 | −5 |
-| Medium Line | M | 3,4,3,4,3,4 | 8 | 6 | 4 | −6 |
-| Express Line | E | 5,4,5,4,5 | 9 | 6 | 5 | −7 |
-| Crosstown Line | C | 4,3,4,3,4,3 | 10 | 7 | 4 | −7 |
-| Long Line | L | 4,5,4,4,5,4,4 | 12 | 9 | 4 | −8 |
-| Old Town Tram | T | 3,3,4,3 | 5 | 4 | 3 | −4 |
-| Riverside Line | R | 4,3,4,4,3 | 7 | 5 | 4 | −5 |
-| University Shuttle | U | 3,4,3,3 | 6 | 4 | 3 | −4 |
-| Orbital Line | O | 4,4,3,4,4,3 | 8 | 6 | 4 | −6 |
-| Airport Express | A | 5,4,5,4,4 | 9 | 6 | 5 | −6 |
-| Neighbourhood Local | N | 3,3,3,4,3 | 6 | 5 | 3 | −5 |
+| Market Shuttle | S | 2,3,2,3 | 5 | 4 | 3 | −4 |
+| Garden Spur | B | 4,2,3,4,2 | 6 | 5 | 3 | −5 |
+| Museum Connector | M | 3,5,2,4,3,5 | 8 | 6 | 4 | −6 |
+| Grand Central Express | E | 6,4,5,3,6 | 10 | 6 | 5 | −7 |
+| Crosstown Line | C | 5,3,4,2,5,3 | 10 | 7 | 4 | −7 |
+| Harbor Line | L | 4,6,3,5,2,4,6 | 11 | 9 | 4 | −8 |
+| Old Town Tram | T | 2,3,4,2 | 5 | 4 | 3 | −4 |
+| Riverside Line | R | 4,2,5,3,4 | 7 | 5 | 4 | −5 |
+| University Shuttle | U | 3,2,4,3 | 6 | 4 | 3 | −4 |
+| Orbital Line | O | 4,5,2,4,3,5 | 9 | 6 | 4 | −6 |
+| Airport Express | A | 6,3,5,4,2 | 10 | 6 | 5 | −6 |
+| Neighbourhood Local | N | 2,3,2,4,3 | 6 | 5 | 3 | −5 |
 
 The Major bonus pays once per contract that docks at least one Major Station,
-complete or incomplete. Express additionally scores +3 for completing a route
-connecting two different Major Stations.
+complete or incomplete. Four premium routes carry completion specials: Grand
+Central Express scores +3 for two Major Stations; Crosstown scores +3 for
+reaching within five pegs of both board edges; Orbital scores +3 for three
+stations; and Airport Express scores +4 for docking at Airport. Every recipe
+has 4–7 segments, and every printed segment is 2–6 pegs long.
 
 ## Engineering
 
@@ -65,9 +68,25 @@ station, whether the line is finished or not.
 
 Choose **three different Engineering goals** from your hand. These are company-wide:
 any qualifying owned route may satisfy a goal. They are separate from Destinations.
-The card describes its precise scoring condition. Four new goals are Across Town,
-Local Service, Interchange and On Budget; the existing ten remain. Uncommitted
-cards never score. The interface shows your own progress privately.
+The card describes its precise scoring condition. Uncommitted cards never score.
+The interface shows your own progress privately.
+
+| Engineering goal | VP | Requirement |
+|---|---:|---|
+| Gentle Curve | 4 | One line has three consecutive segments where every turn is ≤30°. |
+| 45° Bend | 3 | One line turns more than 30° and at most 50° at a node. |
+| Straightaway | 4 | One line has three consecutive segments aligned within 15°. |
+| Major Connection | 4 | One completed line connects a Major and a Minor Station. |
+| Grand Tour | 5 | One completed line connects one Major and at least two Minor Stations. |
+| Network Link | 4 | One completed line connects at least three different stations. |
+| Long Haul | 4 | One completed line has six or more segments. |
+| End of the Line | 4 | A completed line ends on a station. |
+| Twin Completion | 3 | Complete at least two Line Contracts. |
+| Crossing Design | 2 | One of your segments properly crosses any existing line. |
+| Across Town | 5 | One line has a node within five pegs of both board edges. |
+| Local Service | 4 | Your company connects two different Minor Stations. |
+| Interchange | 3 | Two of your lines dock the same station. |
+| On Budget | 3 | Complete at least two lines and finish with at least $3M. |
 
 Optionally buy up to five Survey Pins for $1M each. Place them on non-station holes,
 taking turns across all companies. A pin scores +1 VP if any of your routes has a
@@ -92,8 +111,8 @@ confirm. Costs are paid when all confirm.
 | Early Mobilization | Move a block one period earlier; waive the extra mobilization cost. |
 | Float | Move a block one period earlier or later; costs adjust. |
 | Priority Permit | Take first place in one period where you and another company work. A claimed period cannot be overwritten. |
-| Ready Depot | Waive a scheduled line's full mobilization charge; timing stays fixed. |
-| Flexible Working | Move a block exactly two periods earlier or later; costs adjust. |
+| Staggered Start | Move one block one to three periods later; costs adjust. |
+| Coordination Window | Waive $2M of your crew-overlap cost. |
 
 Shifts must fit the calendar and remain affordable. Priority starts at a randomly
 chosen company and rotates each period through **every seat**. Resolution order
@@ -111,7 +130,10 @@ Follow the route's lengths **in the printed order**, within ±0.5 peg-space dist
 Turns may be at most **90°**, inclusive. The first segment has no heading constraint.
 Station docks have distinct positions; choose a particular free dock. Length and
 angle use its physical position. A taken dock is rejected, never substituted.
-Every station has two docks. A line docks each station at most once.
+Minor Stations have two docks; Major Stations have three. Each game shuffles
+the named stations among deliberately well-spaced board sites, so Destinations
+move while the city never clusters into one corner. A line docks each station at
+most once.
 
 Normal pegs may share holes, sit on strings, or be adjacent. Routes may cross and
 pass through pegs. Only collinear **string overlap** is prohibited. Stations never
@@ -161,6 +183,6 @@ scores once per company, even if two of its routes dock there. Ties break on Maj
 connections, then remaining money, then a shared victory. Scoring is final when
 the host advances to Results.
 
-State version **9** requires existing older online games to restart. Multiplayer
+State version **10** requires existing older online games to restart. Multiplayer
 balance is provisional: automated games verify completion and expose tendencies;
 human games remain the test of enjoyment and long-term strategy balance.

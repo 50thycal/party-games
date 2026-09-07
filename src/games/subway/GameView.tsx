@@ -40,6 +40,7 @@ import {
   contractNodes,
   committedStatus,
   contractOf,
+  crewCost,
   contractsOutstanding,
   destinationById,
   destinationMet,
@@ -271,7 +272,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
   // Card focus and its card-play targets.
   const [focus, setFocus] = useState<FocusRef | null>(null);
   const [cardLine, setCardLine] = useState(0);
-  const [cardDirection, setCardDirection] = useState<-1 | 1>(-1);
+  const [cardDirection, setCardDirection] = useState<number>(-1);
   const [cardPeriod, setCardPeriod] = useState(1);
   const [flight, setFlight] = useState<{ from: DOMRect; to: { x: number; y: number }; label: string; color: string } | null>(
     null
@@ -499,7 +500,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
     const clone = cloneState(game);
     const line = clone.players[me.id]?.lines[activeLineIndex];
     if (!line) return undefined;
-    const station = stationAt(preview);
+    const station = stationAt(preview, game.stations);
     line.route.push({
       x: preview.x,
       y: preview.y,
@@ -633,7 +634,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
         setNotice(reason);
         return;
       }
-      const station = stationAt(p);
+      const station = stationAt(p, game.stations);
       setNotice(null);
       setSketch([...sketch, { ...p, ...(station ? { stationId: station.id, stationSlot: slot ?? 0 } : {}) }]);
       return;
@@ -658,7 +659,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
       }
       setNotice(null);
       // Selection only — tapping never commits (OD-3 / OD-4).
-      setPreview({ x: p.x, y: p.y, ...(stationAt(p) ? { slot } : {}) });
+      setPreview({ x: p.x, y: p.y, ...(stationAt(p, game.stations) ? { slot } : {}) });
     }
   };
 
@@ -806,6 +807,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
     if (me.schedulingCardPlayed) return "One Scheduling card per company per game";
     if (me.scheduleConfirmed) return "Your schedule is already locked";
     if (id === "priority" && !contested.length) return "No contested periods to reorder";
+    if (id === "coordination" && crewCost(me) <= 0) return "No crew-overlap cost to waive";
     if (id !== "priority" && !me.lines.some((l) => l.start !== undefined)) return "Nothing scheduled to move";
     return undefined;
   };
@@ -1134,7 +1136,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
               ) : (
                 <div className="space-y-2">
                   {lineChoice(cardLine, setCardLine, options)}
-                  {(focus.id === "float" || focus.id === "flex") && (
+                  {focus.id === "float" && (
                     <div className="flex overflow-hidden rounded-lg border-2 border-stone-400 text-sm font-bold">
                       <button
                         type="button"
@@ -1150,6 +1152,20 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
                       >
                         Later
                       </button>
+                    </div>
+                  )}
+                  {focus.id === "stagger" && (
+                    <div className="flex overflow-hidden rounded-lg border-2 border-stone-400 text-sm font-bold">
+                      {[1, 2, 3].map((periods) => (
+                        <button
+                          key={periods}
+                          type="button"
+                          className={`flex-1 px-3 py-2 ${cardDirection === periods ? "bg-stone-800 text-white" : "bg-white"}`}
+                          onClick={() => setCardDirection(periods)}
+                        >
+                          +{periods}
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -1170,7 +1186,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
                       ? { period: contested.includes(cardPeriod) ? cardPeriod : contested[0] }
                       : {
                           lineIndex: options.includes(cardLine) ? cardLine : options[0],
-                          ...((focus.id === "float" || focus.id === "flex") ? { direction: cardDirection } : {}),
+                          ...((focus.id === "float" || focus.id === "stagger") ? { direction: cardDirection } : {}),
                         }),
                   })
                 ),
@@ -1307,7 +1323,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
             <span className="ml-auto text-xs font-bold">
               {preview
                 ? preview.slot !== undefined
-                  ? `Selected: ${stationAt(preview)?.name ?? "station"} dock ${preview.slot + 1}`
+                  ? `Selected: ${stationAt(preview, game.stations)?.name ?? "station"} dock ${preview.slot + 1}`
                   : `Selected: hole ${preview.x + 1},${preview.y + 1}`
                 : targets.length
                   ? "Tap a glowing target to select"

@@ -197,30 +197,30 @@ const DECK_ORDER = ["branch", "medium", "express", "crosstown", "long", "short"]
   assert.equal(lengthMatches(3.51, 3), false, "and so does just over it");
 
   const s = base();
-  s.players.red.lines = [owned("short", [{ x: 0, y: 0 }])]; // recipe 3-4-3-4
-  assert.equal(nextSegmentLength(s.players.red.lines[0]), 3, "the first segment of a Short Line spans 3");
-  assert.equal(validateNode(s, "red", 0, { x: 3, y: 0 }), null, "a straight 3 is legal");
-  assert.equal(validateNode(s, "red", 0, { x: 2, y: 2 }), null, "so is a 2-2 diagonal at 2.83");
-  assert.match(validateNode(s, "red", 0, { x: 4, y: 0 }) ?? "", /must span 3/, "a 4 is not a 3");
-  assert.match(validateNode(s, "red", 0, { x: 2, y: 3 }) ?? "", /must span 3/, "and neither is 3.61");
-  assert.match(validateNode(s, "red", 0, { x: 1, y: 0 }) ?? "", /must span 3/, "nor is a single peg");
+  s.players.red.lines = [owned("short", [{ x: 0, y: 0 }])]; // recipe 2-3-2-3
+  assert.equal(nextSegmentLength(s.players.red.lines[0]), 2, "the first segment of Market Shuttle spans 2");
+  assert.equal(validateNode(s, "red", 0, { x: 2, y: 0 }), null, "a straight 2 is legal");
+  assert.equal(validateNode(s, "red", 0, { x: 1, y: 2 }), null, "so is a 1-2 diagonal at 2.24");
+  assert.match(validateNode(s, "red", 0, { x: 3, y: 0 }) ?? "", /must span 2/, "a 3 is not a 2");
+  assert.match(validateNode(s, "red", 0, { x: 2, y: 2 }) ?? "", /must span 2/, "and neither is 2.83");
+  assert.match(validateNode(s, "red", 0, { x: 0, y: 0 }) ?? "", /must span 2/, "nor is no distance");
 }
 
 // The recipe is ordered: the second segment must be the second length.
 {
   const s = base();
-  s.players.red.lines = [owned("short", [{ x: 5, y: 0 }, { x: 8, y: 0 }])]; // 3 built, next is 4
-  assert.equal(nextSegmentLength(s.players.red.lines[0]), 4, "the Short Line's second segment spans 4");
-  assert.match(validateNode(s, "red", 0, { x: 11, y: 0 }) ?? "", /must span 4/, "a repeat 3 is rejected");
-  assert.equal(validateNode(s, "red", 0, { x: 12, y: 0 }), null, "the ordered 4 is accepted");
+  s.players.red.lines = [owned("short", [{ x: 5, y: 0 }, { x: 7, y: 0 }])]; // 2 built, next is 3
+  assert.equal(nextSegmentLength(s.players.red.lines[0]), 3, "Market Shuttle's second segment spans 3");
+  assert.match(validateNode(s, "red", 0, { x: 9, y: 0 }) ?? "", /must span 3/, "a repeat 2 is rejected");
+  assert.equal(validateNode(s, "red", 0, { x: 10, y: 0 }), null, "the ordered 3 is accepted");
 }
 
 // Turns: 90° exactly is legal, anything sharper is not. The first segment has
 // no previous heading, so the rule starts at the second.
 {
   const s = base();
-  s.players.red.lines = [owned("short", [{ x: 5, y: 0 }, { x: 8, y: 0 }])];
-  assert.equal(validateNode(s, "red", 0, { x: 8, y: 4 }), null, "exactly 90° is legal");
+  s.players.red.lines = [owned("short", [{ x: 5, y: 0 }, { x: 7, y: 0 }])];
+  assert.equal(validateNode(s, "red", 0, { x: 7, y: 3 }), null, "exactly 90° is legal");
   assert.match(
     validateNode(s, "red", 0, { x: 4, y: 1 }) ?? "",
     /turn at most 90/,
@@ -228,7 +228,7 @@ const DECK_ORDER = ["branch", "medium", "express", "crosstown", "long", "short"]
   );
   const first = base();
   first.players.red.lines = [owned("short", [{ x: 5, y: 5 }])];
-  assert.equal(validateNode(first, "red", 0, { x: 5, y: 2 }), null, "the first segment has no turn to judge");
+  assert.equal(validateNode(first, "red", 0, { x: 7, y: 5 }), null, "the first segment has no turn to judge");
 }
 
 // A finished line takes no further placement, whatever the schedule says.
@@ -237,7 +237,7 @@ const DECK_ORDER = ["branch", "medium", "express", "crosstown", "long", "short"]
   const c = contractById("short")!;
   s.players.red.lines = [
     owned("short", [
-      { x: 0, y: 0 }, { x: 3, y: 0 }, { x: 7, y: 0 }, { x: 10, y: 0 }, { x: 14, y: 0 },
+      { x: 0, y: 0 }, { x: 2, y: 0 }, { x: 5, y: 0 }, { x: 7, y: 0 }, { x: 10, y: 0 },
     ]),
   ];
   assert.equal(lineComplete(s.players.red.lines[0]), true, "the recipe is exhausted");
@@ -252,9 +252,9 @@ const DECK_ORDER = ["branch", "medium", "express", "crosstown", "long", "short"]
 {
   const garden = stationById("garden")!;
   const s = base();
-  // Red approaches Garden from the left; 2.85 pegs to dock 0, 3.17 to dock 1.
-  s.players.red.lines = [owned("short", [{ x: 11, y: 2 }])];
-  assert.equal(validateNode(s, "red", 0, { x: 14, y: 2 }, false, 0), null, "dock 0 is within the 3-peg tolerance");
+  // Red approaches Garden from the left; both docks are within a 2-peg segment.
+  s.players.red.lines = [owned("short", [{ x: 12, y: 2 }])];
+  assert.equal(validateNode(s, "red", 0, { x: 14, y: 2 }, false, 0), null, "dock 0 is within the 2-peg tolerance");
   assert.equal(validateNode(s, "red", 0, { x: 14, y: 2 }, false, 1), null, "so is dock 1 from here");
   assert.match(
     validateNode(s, "red", 0, { x: 14, y: 2 }) ?? "",
@@ -287,7 +287,7 @@ const DECK_ORDER = ["branch", "medium", "express", "crosstown", "long", "short"]
 {
   const s = base();
   s.players.red.lines = [owned("medium", [{ x: 14, y: 5 }, { x: 14, y: 2, stationId: "garden", stationSlot: 0 }])];
-  s.players.blue.lines = [owned("short", [{ x: 17, y: 2 }])];
+  s.players.blue.lines = [owned("short", [{ x: 16, y: 2 }])];
   assert.match(
     validateNode(s, "blue", 0, { x: 14, y: 2 }, false, 0) ?? "",
     /already taken/,
@@ -322,8 +322,8 @@ const DECK_ORDER = ["branch", "medium", "express", "crosstown", "long", "short"]
   let s = base();
   s.phase = "CONSTRUCTION";
   s.resolveQueue = ["red", "blue"];
-  s.players.red.lines = [owned("short", [{ x: 11, y: 2 }])];
-  s.players.blue.lines = [owned("short", [{ x: 17, y: 2 }])];
+  s.players.red.lines = [owned("short", [{ x: 12, y: 2 }])];
+  s.players.blue.lines = [owned("short", [{ x: 16, y: 2 }])];
   s.players.red.pendingActions = [0];
   s.players.blue.pendingActions = [0];
 
@@ -363,7 +363,7 @@ const DECK_ORDER = ["branch", "medium", "express", "crosstown", "long", "short"]
 {
   assert.equal(engineeringById("long-segment"), undefined, "Long Segment is gone");
   assert.ok(engineeringById("network"), "Network Link took its place");
-  assert.equal(engineeringById("network")!.vp, 3, "worth +3 VP");
+  assert.equal(engineeringById("network")!.vp, 4, "worth +4 VP");
   assert.ok(
     SUBWAY_CONFIG.startingHands.engineering.includes("network"),
     "and it is what the opening hand holds instead"
@@ -375,18 +375,18 @@ const DECK_ORDER = ["branch", "medium", "express", "crosstown", "long", "short"]
     return p;
   };
 
-  // A finished Short Line touching two different stations.
-  const two = complete([
-    { x: 1, y: 3 }, { x: 4, y: 3 }, { x: 5, y: 3, stationId: "grand", stationSlot: 0 },
+  // A finished Market Shuttle touching three different stations.
+  const three = complete([
+    { x: 1, y: 3 }, { x: 4, y: 3, stationId: "market", stationSlot: 0 }, { x: 5, y: 3, stationId: "grand", stationSlot: 0 },
     { x: 8, y: 3 }, { x: 10, y: 6, stationId: "museum", stationSlot: 0 },
   ]);
-  assert.equal(objectiveMet("network", two, []), true, "two distinct stations on a completed line scores");
+  assert.equal(objectiveMet("network", three, []), true, "three distinct stations on a completed line scores");
 
   const one = complete([
     { x: 1, y: 3 }, { x: 4, y: 3 }, { x: 5, y: 3, stationId: "grand", stationSlot: 0 },
     { x: 8, y: 3 }, { x: 11, y: 3 },
   ]);
-  assert.equal(objectiveMet("network", one, []), false, "one station is not a link");
+  assert.equal(objectiveMet("network", one, []), false, "one station is not a network");
 
   const unfinished = complete([
     { x: 1, y: 3 }, { x: 4, y: 3 }, { x: 5, y: 3, stationId: "grand", stationSlot: 0 },
@@ -794,7 +794,7 @@ function construction(red: PlayerLine[], blue: PlayerLine[]): SubwayState {
     [{ ...owned("short", [{ x: 20, y: 8 }]), start: 1 }]
   );
   const before = s;
-  s = dispatch(s, "red", "BUILD", { lineIndex: 0, x: 3, y: 0 });
+  s = dispatch(s, "red", "BUILD", { lineIndex: 0, x: 2, y: 0 });
   assert.equal(s.players.red.lines[0].route.length, 2, "the node is placed");
   assert.deepEqual(s.resolveQueue, ["blue"], "and red's turn is over");
 
@@ -803,7 +803,7 @@ function construction(red: PlayerLine[], blue: PlayerLine[]): SubwayState {
   assert.deepEqual(undone.resolveQueue, ["red", "blue"], "restores the resolution queue");
   assert.deepEqual(undone.players.red.pendingActions, [0], "and the scheduled action");
   assert.equal(undone.currentPeriod, before.currentPeriod, "in the same period");
-  assert.equal(undone.message, "Red took back their Short Line node.", "and says so");
+  assert.equal(undone.message, "Red took back their Market Shuttle node.", "and says so");
 }
 
 // A period-advancing build, undone.
@@ -812,8 +812,8 @@ function construction(red: PlayerLine[], blue: PlayerLine[]): SubwayState {
     [{ ...owned("short", [{ x: 0, y: 0 }]), start: 1 }],
     [{ ...owned("short", [{ x: 20, y: 8 }]), start: 1 }]
   );
-  s = dispatch(s, "red", "BUILD", { lineIndex: 0, x: 3, y: 0 });
-  s = dispatch(s, "blue", "BUILD", { lineIndex: 0, x: 17, y: 8 });
+  s = dispatch(s, "red", "BUILD", { lineIndex: 0, x: 2, y: 0 });
+  s = dispatch(s, "blue", "BUILD", { lineIndex: 0, x: 18, y: 8 });
   assert.equal(s.currentPeriod, 2, "the period rolls over when both are done");
   const undone = dispatch(s, "blue", "UNDO_PLACEMENT");
   assert.equal(undone.currentPeriod, 1, "undo rolls it back");
@@ -825,13 +825,13 @@ function construction(red: PlayerLine[], blue: PlayerLine[]): SubwayState {
 {
   let s = construction(
     [{ ...owned("short", [{ x: 0, y: 3 }]), start: 1 }],
-    [{ ...owned("medium", [{ x: 2, y: 0 }, { x: 2, y: 6 }]), start: 1 }]
+    [{ ...owned("medium", [{ x: 1, y: 0 }, { x: 1, y: 6 }]), start: 1 }]
   );
   s.players.red.committedEngineering = ["crossing", "straight", "bend"];
   const redCash = s.players.red.money;
   const blueCash = s.players.blue.money;
-  assert.equal(validateNode(s, "red", 0, { x: 3, y: 3 }), null, "crossing needs no permit at all");
-  s = dispatch(s, "red", "BUILD", { lineIndex: 0, x: 3, y: 3 });
+  assert.equal(validateNode(s, "red", 0, { x: 2, y: 3 }), null, "crossing needs no permit at all");
+  s = dispatch(s, "red", "BUILD", { lineIndex: 0, x: 2, y: 3 });
   assert.equal(s.players.red.properCrossings, 1, "a proper crossing is recorded");
   assert.equal(s.players.red.money, redCash - 1, "and costs $1M");
   assert.equal(s.players.blue.money, blueCash + 1, "paid to the opposition");
@@ -851,7 +851,7 @@ function construction(red: PlayerLine[], blue: PlayerLine[]): SubwayState {
   let s = construction(
     [
       {
-        ...owned("short", [{ x: 0, y: 0 }, { x: 3, y: 0 }, { x: 7, y: 0 }, { x: 10, y: 0 }]),
+        ...owned("short", [{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 5, y: 0 }, { x: 7, y: 0 }]),
         start: 1,
       },
     ],
@@ -867,7 +867,7 @@ function construction(red: PlayerLine[], blue: PlayerLine[]): SubwayState {
   assert.equal(lineComplete(s.players.blue.lines[0]), true, "the opposition is already finished");
   s.players.blue.pendingActions = [];
   s.resolveQueue = ["red"];
-  s = dispatch(s, "red", "BUILD", { lineIndex: 0, x: 14, y: 0 });
+  s = dispatch(s, "red", "BUILD", { lineIndex: 0, x: 10, y: 0 });
   assert.equal(lineComplete(s.players.red.lines[0]), true, "the last recipe segment completes the line");
   assert.equal(s.phase, "SCORING", "and with nothing else scheduled, Construction ends");
   assert.equal(s.undo?.playerId, "red", "the placement is still undoable");
@@ -889,7 +889,7 @@ function construction(red: PlayerLine[], blue: PlayerLine[]): SubwayState {
   let s = construction(
     [
       {
-        ...owned("short", [{ x: 1, y: 3 }, { x: 4, y: 3 }, { x: 5, y: 3, stationId: "grand", stationSlot: 0 }, { x: 8, y: 3 }]),
+        ...owned("short", [{ x: 0, y: 0 }, { x: 3, y: 7, stationId: "market", stationSlot: 0 }, { x: 5, y: 3, stationId: "grand", stationSlot: 0 }, { x: 7, y: 4 }]),
         start: 1,
       },
     ],
@@ -897,11 +897,11 @@ function construction(red: PlayerLine[], blue: PlayerLine[]): SubwayState {
   );
   s.players.red.committedEngineering = ["network", "straight", "bend"];
   assert.equal(committedStatus(s, "red").find((c) => c.cardId === "network")?.met, false, "not yet linked");
-  s = dispatch(s, "red", "BUILD", { lineIndex: 0, x: 10, y: 6, slot: 0 });
+  s = dispatch(s, "red", "BUILD", { lineIndex: 0, x: 7, y: 7, slot: 0 });
   assert.equal(
     committedStatus(s, "red").find((c) => c.cardId === "network")?.met,
     true,
-    "docking the second station completes Network Link at once"
+    "docking the third station completes Network Link at once"
   );
   const undone = dispatch(s, "red", "UNDO_PLACEMENT");
   assert.equal(
@@ -1061,9 +1061,11 @@ function construction(red: PlayerLine[], blue: PlayerLine[]): SubwayState {
 
 // The trimmed recipes, and what they do to the calendar.
 {
-  assert.deepEqual(contractById("express")!.recipe, [5, 4, 5, 4, 5], "Express is five segments");
-  assert.deepEqual(contractById("crosstown")!.recipe, [4, 3, 4, 3, 4, 3], "Crosstown is six");
-  assert.deepEqual(contractById("long")!.recipe, [4, 5, 4, 4, 5, 4, 4], "Long is seven");
+  assert.deepEqual(contractById("express")!.recipe, [6, 4, 5, 3, 6], "Grand Central Express is five segments");
+  assert.deepEqual(contractById("crosstown")!.recipe, [5, 3, 4, 2, 5, 3], "Crosstown is six");
+  assert.deepEqual(contractById("long")!.recipe, [4, 6, 3, 5, 2, 4, 6], "Harbor Line is seven");
+  assert.ok(LINE_CONTRACTS.every((contract) => contract.recipe.length <= 7), "seven segments is the hard route cap");
+  assert.ok(LINE_CONTRACTS.every((contract) => contract.recipe.every((length) => length >= 2 && length <= 6)), "every segment length stays in the 2–6 peg range");
 
   const demand = LINE_CONTRACTS.slice(0, 6).reduce((sum, c) => sum + contractActions(c), 0);
   assert.equal(demand, 33, "total construction demand is 33 placements");
@@ -1479,7 +1481,7 @@ function scheduling(red: string[], blue: string[]): SubwayState {
   assert.equal(s.players.red.lines[0].route.length, beforeSkip, "skipping builds nothing");
   assert.deepEqual(s.resolveQueue, ["blue"], "and hands the period on");
   assert.equal(s.undo, undefined, "a skip is not a placement, so there is nothing to undo");
-  s = dispatch(s, "blue", "BUILD", { lineIndex: 0, x: 24, y: 5 });
+  s = dispatch(s, "blue", "BUILD", { lineIndex: 0, x: 24, y: 6 });
   assert.equal(s.currentPeriod, 2, "the period advances when everyone is done");
   assert.equal(s.players.red.lines[0].route.length, 1, "the lost action never came back");
 
@@ -1517,9 +1519,9 @@ function scheduling(red: string[], blue: string[]): SubwayState {
 
   s = dispatch(s, "red", "ADVANCE_SCORING", {});
   assert.equal(s.phase, "RESULTS", "the host reveals the scoring");
-  const redPenalty = s.players.red.scoreBreakdown!.find((i) => i.label.includes("Short Line"))!;
+  const redPenalty = s.players.red.scoreBreakdown!.find((i) => i.label.includes("Market Shuttle"))!;
   assert.equal(redPenalty.points, contractById("short")!.incompletePenalty, "an unfinished contract is penalised");
-  const bluePaid = s.players.blue.scoreBreakdown!.find((i) => i.label.includes("Short Line"))!;
+  const bluePaid = s.players.blue.scoreBreakdown!.find((i) => i.label.includes("Market Shuttle"))!;
   assert.equal(bluePaid.points, contractById("short")!.completionVp, "a delivered one pays out");
 }
 
@@ -1581,7 +1583,7 @@ function scheduling(red: string[], blue: string[]): SubwayState {
   const nearlyDone = construction(
     [
       {
-        ...owned("short", [{ x: 0, y: 0 }, { x: 3, y: 0 }, { x: 7, y: 0 }, { x: 10, y: 0 }]),
+        ...owned("short", [{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 5, y: 0 }, { x: 7, y: 0 }]),
         start: 1,
       },
     ],
@@ -1627,12 +1629,12 @@ function scheduling(red: string[], blue: string[]): SubwayState {
 {
   const s = base();
   s.players.red.lines = [owned("short", [{ x: 0, y: 3 }])];
-  s.players.blue.lines = [owned("short", [{ x: 2, y: 0 }, { x: 2, y: 6 }])];
-  assert.equal(validateNode(s, "red", 0, { x: 3, y: 3 }), null, "crossing is legal without any card");
+  s.players.blue.lines = [owned("short", [{ x: 1, y: 0 }, { x: 1, y: 6 }])];
+  assert.equal(validateNode(s, "red", 0, { x: 2, y: 3 }), null, "crossing is legal without any card");
   s.players.red.properCrossings = 5;
-  assert.equal(validateNode(s, "red", 0, { x: 3, y: 3 }), null, "and stays legal however many you have made");
+  assert.equal(validateNode(s, "red", 0, { x: 2, y: 3 }), null, "and stays legal however many you have made");
   assert.equal(
-    routeContacts(s, "red", { x: 0, y: 3 }, { x: 3, y: 3 }).length,
+    routeContacts(s, "red", { x: 0, y: 3 }, { x: 2, y: 3 }).length,
     1,
     "the crossing is one priced contact"
   );
@@ -1641,16 +1643,16 @@ function scheduling(red: string[], blue: string[]): SubwayState {
   const s = base();
   s.players.red.lines = [owned("short", [{ x: 0, y: 3 }]), owned("medium", [{ x: 1, y: 1 }, { x: 1, y: 5 }])];
   s.players.red.committedEngineering = ["crossing"];
-  assert.equal(validateNode(s, "red", 0, { x: 3, y: 3 }), null, "crossing your own network is legal now");
+  assert.equal(validateNode(s, "red", 0, { x: 2, y: 3 }), null, "crossing your own network is legal now");
   assert.equal(
-    routeContacts(s, "red", { x: 0, y: 3 }, { x: 3, y: 3 }).length,
+    routeContacts(s, "red", { x: 0, y: 3 }, { x: 2, y: 3 }).length,
     0,
     "and free — own contacts are never charged"
   );
 
   const close = base();
   close.players.red.lines = [owned("short", [{ x: 0, y: 0 }]), owned("medium", [{ x: 2, y: 1 }, { x: 2, y: 4 }])];
-  assert.equal(validateNode(close, "red", 0, { x: 3, y: 0 }), null, "your own lines may run close together");
+  assert.equal(validateNode(close, "red", 0, { x: 2, y: 0 }), null, "your own lines may run close together");
 }
 
 // The one route-on-route prohibition that survives: coincident strings.
@@ -1659,16 +1661,16 @@ function scheduling(red: string[], blue: string[]): SubwayState {
   s.players.red.lines = [owned("short", [{ x: 5, y: 4 }])];
   s.players.blue.lines = [owned("medium", [{ x: 4, y: 4 }, { x: 12, y: 4 }])];
   assert.match(
-    validateNode(s, "red", 0, { x: 8, y: 4 }) ?? "",
+    validateNode(s, "red", 0, { x: 7, y: 4 }) ?? "",
     /on top of an existing string/,
     "a segment that lies along an existing string is refused"
   );
-  assert.equal(validateNode(s, "red", 0, { x: 5, y: 1 }), null, "stepping off that line is fine");
+  assert.equal(validateNode(s, "red", 0, { x: 5, y: 2 }), null, "stepping off that line is fine");
 
   const own = base();
   own.players.red.lines = [owned("short", [{ x: 5, y: 4 }]), owned("medium", [{ x: 4, y: 4 }, { x: 12, y: 4 }])];
   assert.match(
-    validateNode(own, "red", 0, { x: 8, y: 4 }) ?? "",
+    validateNode(own, "red", 0, { x: 7, y: 4 }) ?? "",
     /on top of an existing string/,
     "including on top of your own string"
   );
@@ -1727,8 +1729,8 @@ function scheduling(red: string[], blue: string[]): SubwayState {
   assert.equal(pins.filter((p) => p.met).length, 2, "any owned line fulfils a pin, not just one");
   assert.ok(pins.filter((p) => p.met).every((p) => p.points === SUBWAY_CONFIG.survey.vp), "each pays +1");
 
-  assert.equal(byLabel("Network Link")[0].points, 3, "Network Link scores on a completed two-station line");
-  assert.equal(byLabel("Minimal Footprint")[0].points, 0, "with one contract unfinished, Minimal Footprint does not");
+  assert.equal(byLabel("Network Link")[0].points, 0, "Network Link needs three stations on its completed line");
+  assert.equal(byLabel("Twin Completion")[0].points, 0, "with one contract unfinished, Twin Completion does not score");
 }
 
 // A Destination on an incomplete line still scores if the station was reached.
@@ -1813,10 +1815,10 @@ function scheduling(red: string[], blue: string[]): SubwayState {
     [{ ...owned("short", [{ x: 20, y: 8 }]), start: 1 }]
   );
   s.players.red.pendingActions = [0, 0]; // as Overtime leaves it
-  s = dispatch(s, "red", "BUILD", { lineIndex: 0, x: 3, y: 0 });
+  s = dispatch(s, "red", "BUILD", { lineIndex: 0, x: 2, y: 0 });
   assert.deepEqual(s.players.red.pendingActions, [0], "one confirm consumed exactly one action");
   assert.equal(s.resolveQueue[0], "red", "and the Overtime action still belongs to the same company");
-  s = dispatch(s, "red", "BUILD", { lineIndex: 0, x: 7, y: 0 });
+  s = dispatch(s, "red", "BUILD", { lineIndex: 0, x: 5, y: 0 });
   assert.deepEqual(s.players.red.pendingActions, [], "the second confirm consumed the second action");
   assert.deepEqual(s.resolveQueue, ["blue"], "and only then does the turn move on");
 }
@@ -1827,8 +1829,8 @@ function scheduling(red: string[], blue: string[]): SubwayState {
   let s = base();
   s.phase = "CONSTRUCTION";
   s.resolveQueue = ["blue", "red"];
-  s.players.red.lines = [owned("short", [{ x: 11, y: 2 }])];
-  s.players.blue.lines = [owned("short", [{ x: 17, y: 2 }])];
+  s.players.red.lines = [owned("short", [{ x: 12, y: 2 }])];
+  s.players.blue.lines = [owned("short", [{ x: 16, y: 2 }])];
   s.players.red.pendingActions = [0];
   s.players.blue.pendingActions = [0];
 
@@ -1853,7 +1855,7 @@ function scheduling(red: string[], blue: string[]): SubwayState {
 
 // Shape, sequencing, and the acceptance-only append rule.
 {
-  assert.equal(SUBWAY_STATE_VERSION, 9, "multiplayer and Access Pass use state version 9");
+  assert.equal(SUBWAY_STATE_VERSION, 10, "random station layouts use state version 10");
   const fresh = base();
   assert.deepEqual(fresh.events, [], "a fresh room has no events");
   assert.equal(fresh.nextEventSeq, 1, "and the sequence starts at 1");
@@ -1874,7 +1876,7 @@ function scheduling(red: string[], blue: string[]): SubwayState {
   assert.equal(last.kind, "CARD", "a signing is a card event");
   assert.equal(last.emphasis, "notice", "at notice prominence");
   assert.equal(last.actorId, "red", "attributed to its actor");
-  assert.match(last.text, /signed the Branch Line for \$6M/, "and says what publicly happened");
+  assert.match(last.text, /signed the Garden Spur for \$6M/, "and says what publicly happened");
   for (let i = 1; i < s.events.length; i++) {
     assert.ok(s.events[i].seq > s.events[i - 1].seq, "sequence numbers strictly increase");
   }
@@ -1898,7 +1900,7 @@ function scheduling(red: string[], blue: string[]): SubwayState {
     [{ ...owned("medium", [{ x: 4, y: 4 }, { x: 8, y: 4 }]), start: 1 }]
   );
   s = dispatch(s, "red", "BUILD", { lineIndex: 0, x: 4, y: 4 });
-  const built = s.events.find((e) => e.kind === "PLACEMENT" && /extended the Long Line/.test(e.text));
+  const built = s.events.find((e) => e.kind === "PLACEMENT" && /extended the Harbor Line/.test(e.text));
   assert.ok(built, "the build is narrated");
   assert.match(built!.text, /hole 5,5/, "with its public coordinate");
   assert.match(built!.text, /1 contact with Blue: \$1M/, "and the toll transfer");
@@ -1906,7 +1908,7 @@ function scheduling(red: string[], blue: string[]): SubwayState {
   let done = construction(
     [
       {
-        ...owned("short", [{ x: 0, y: 0 }, { x: 3, y: 0 }, { x: 7, y: 0 }, { x: 10, y: 0 }]),
+        ...owned("short", [{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 5, y: 0 }, { x: 7, y: 0 }]),
         start: 1,
       },
     ],
@@ -1914,10 +1916,10 @@ function scheduling(red: string[], blue: string[]): SubwayState {
   );
   done.players.blue.pendingActions = [];
   done.resolveQueue = ["red"];
-  done = dispatch(done, "red", "BUILD", { lineIndex: 0, x: 14, y: 0 });
+  done = dispatch(done, "red", "BUILD", { lineIndex: 0, x: 10, y: 0 });
   const completed = done.events.find((e) => e.kind === "ROUTE");
   assert.ok(completed, "completion is a route event");
-  assert.match(completed!.text, /completed the Short Line/, "and says so");
+  assert.match(completed!.text, /completed the Market Shuttle/, "and says so");
 }
 
 // Undo rewinds gameplay but never the event sequence.
@@ -1926,7 +1928,7 @@ function scheduling(red: string[], blue: string[]): SubwayState {
     [{ ...owned("short", [{ x: 0, y: 0 }]), start: 1 }],
     [{ ...owned("short", [{ x: 20, y: 8 }]), start: 1 }]
   );
-  s = dispatch(s, "red", "BUILD", { lineIndex: 0, x: 3, y: 0 });
+  s = dispatch(s, "red", "BUILD", { lineIndex: 0, x: 2, y: 0 });
   const seqAfterBuild = s.nextEventSeq;
   const eventsAfterBuild = s.events.length;
 
@@ -1936,9 +1938,9 @@ function scheduling(red: string[], blue: string[]): SubwayState {
   assert.equal(undone.events.length, Math.min(eventsAfterBuild + 1, 20), "the undo is appended, nothing erased");
   const last = undone.events[undone.events.length - 1];
   assert.equal(last.kind, "UNDO", "as an undo event");
-  assert.equal(undone.message, "Red took back their Short Line node.", "with the same public message as before");
+  assert.equal(undone.message, "Red took back their Market Shuttle node.", "with the same public message as before");
   assert.ok(
-    undone.events.some((e) => /extended the Short Line/.test(e.text)),
+    undone.events.some((e) => /extended the Market Shuttle/.test(e.text)),
     "and the history still shows the placement it took back"
   );
   for (let i = 1; i < undone.events.length; i++) {

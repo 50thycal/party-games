@@ -25,13 +25,13 @@ function bestTarget(s: SubwayState, id: string, lineIndex: number, starter: bool
   const me = s.players[id];
   const line = me.lines[lineIndex];
   const desired = me.destinationCommitments.filter((c)=>c.lineIndex===lineIndex).map((c)=>destinationById(c.cardId)?.stationId);
-  const unvisited = STATIONS.filter((station)=>!line.route.some((n)=>n.stationId===station.id));
+  const unvisited = s.stations.filter((station)=>!line.route.some((n)=>n.stationId===station.id));
   const clone = {...s, players:{...s.players, [id]:{...me, lines:me.lines.map((l)=>({...l, route:[...l.route]}))}}};
   const trial = clone.players[id].lines[lineIndex];
   // Prefer real station points and reachable destinations, but retain a
   // continuation. A small seeded tie-break removes fixed coordinate bias.
   return targets.map((target) => {
-    const station = stationAt(target);
+    const station = stationAt(target, s.stations);
     trial.route = [...line.route, {...target, ...(station ? {stationId:station.id,stationSlot:target.slot} : {})}];
     const finished = lineComplete(trial);
     const options = finished ? [] : legalTargets(clone,id,lineIndex,false);

@@ -216,7 +216,7 @@ the room shell reads `state.phase` directly.
 | Open House | `real-estate` | `lobby → playing → round_results → … → results` |
 | HR Investigation | `performance-review` | `lobby → intro → accusation → reframing → interview → case_prep → editing → reveal → voting → round_over → … → game_over` |
 | The Desk | `the-desk` | `lobby → briefing → quote → trading → settlement → briefing … → final` |
-| Subway | `subway` | `SETUP → PROCUREMENT → ENGINEERING → SCHEDULING → STARTER_PLACEMENT → CONSTRUCTION → SCORING → RESULTS`, with `engineeringStep: DESTINATION_DRAFT → PLAN → SURVEY` inside `ENGINEERING` and `schedulingStep: PLANNING → RESOLUTION` inside `SCHEDULING`. One `UNDO_PLACEMENT` action can walk the latest physical placement back across a phase boundary. State v9 (WS-005) retains a bounded public event stream — `events` (latest 20) plus a monotonic `nextEventSeq` that is never rewound, Undo included — appended only by accepted actions and containing no hidden card identity; the view narrates it as overlays over the table and a site logbook. Starter pegs are reducer-legal only on non-station outer-border holes, and the view commits placements exclusively through an explicit Confirm dispatching `PLACE_STARTER`/`BUILD` with the one selected target. |
+| Subway | `subway` | `SETUP → PROCUREMENT → ENGINEERING → SCHEDULING → STARTER_PLACEMENT → CONSTRUCTION → SCORING → RESULTS`, with `engineeringStep: DESTINATION_DRAFT → PLAN → SURVEY` inside `ENGINEERING` and `schedulingStep: PLANNING → RESOLUTION` inside `SCHEDULING`. One `UNDO_PLACEMENT` action can walk the latest physical placement back across a phase boundary. State v10 (WS-005) retains a bounded public event stream — `events` (latest 20) plus a monotonic `nextEventSeq` that is never rewound, Undo included — appended only by accepted actions and containing no hidden card identity; the view narrates it as overlays over the table and a site logbook. A game-start random layout assigns named stations to separated sites; Major Stations have three docks and Minor Stations have two. Starter pegs are reducer-legal only on non-station outer-border holes, and the view commits placements exclusively through an explicit Confirm dispatching `PLACE_STARTER`/`BUILD` with the one selected target. |
 
 **The string `"lobby"` is load-bearing in the shell.** The room page shows the room-code header,
 the player list, and the leave link only while `gameState` is null or `state.phase === "lobby"`;
@@ -435,7 +435,7 @@ Each company starts with $40M. A bounded search over the three schedule blocks f
 the cheapest complete schedule, and never silently shelves a contract. A player may
 still choose different timing or deliberately shelve a route.
 
-`/subway` stores a versioned local session under `subway-hotseat-v9`. It is separate
+`/subway` stores a versioned local session under `subway-hotseat-v10`. It is separate
 from network rooms and uses no server authority; same-device social play is the only
 intended mode. Storage errors show a keep-tab-open warning. `/test/subway` creates
 isolated scenarios through real reducer actions, rendering the same GameView inside

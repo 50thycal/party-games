@@ -1232,3 +1232,46 @@ Local storage may fail; a visible warning then tells players to keep the tab ope
 The visual lab uses legal reducer actions and real iframe viewports without touching
 live rooms. Build OS v0.11 is adopted in reviewed mode; no historical reviews or
 acceptances are invented. This branch must receive independent review before merge.
+
+---
+
+### DEC-025 — Subway routes use named services and a shuffled, spaced station layout
+
+**Date:** 2026-09-07
+**Status:** Accepted within the owner's delegated WS-005 implementation scope; pending PR review.
+
+**Context**
+The owner rejected generic route names and the narrow 3–5 peg recipe range. They
+requested a hard maximum of seven segments, 2–6 peg segment variation, four premium
+route specials, three Major Station connections, and station locations that vary
+between games without clustering every Destination.
+
+**Decision**
+Rename the original generic services as Market Shuttle, Garden Spur, Museum
+Connector, Grand Central Express, and Harbor Line. Every route uses four to seven
+segments whose printed lengths are 2–6 pegs. Four premium services score a visible
+completion special: Grand Central Express, Crosstown, Orbital, and Airport Express.
+
+At game start, assign the ten named stations to ten of fourteen predefined separated
+sites using reducer-provided randomness. Station identity, type and Destination card
+stay the same; only its map position changes. Major Stations have three docks and
+Minor Stations have two.
+
+**Rationale**
+The new names make contracts feel like city services rather than difficulty labels.
+Broader recipes create more readable route personalities while preserving the
+existing 16-period schedule model. A bounded site set makes the board replayable
+without allowing pathological station clumps or introducing freeform placement
+complexity.
+
+**Alternatives considered**
+- **Fixed station positions.** Rejected by the owner because repeated games make
+  Destination play too familiar.
+- **Unconstrained random coordinates.** Rejected because adjacency and blocked
+  geography would make some layouts poor before a player made a decision.
+
+**Consequences**
+State version 10 invalidates older rooms and local saves. Reducer tests verify
+unique, separated station sites, 3/2 Major/Minor dock capacity, the 2–6 segment
+range, seven-segment cap, premium route count, portfolio affordability, and full
+2/3/4-player completion simulations. Visual browser verification remains pending.

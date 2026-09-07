@@ -160,19 +160,19 @@ function Diagram({ id, color }: { id: string; color: string }) {
     case "approach":
       return (
         <>
-          <Route points={[[10, 50], [40, 42], [70, 34], [96, 27]]} color={color} nodes />
-          <StationTile x={96} y={27} major />
-          <AngleMark x={40} y={42} label="≤15°" labelDx={-10} labelDy={-16} />
+          <Route points={[[12, 48], [54, 36], [100, 24]]} color={color} nodes />
+          <StationTile x={12} y={48} />
+          <StationTile x={100} y={24} major />
+          <Tick x={60} y={16} />
         </>
       );
     case "through":
       return (
         <>
-          <Route points={[[10, 32], [42, 32], [66, 32], [90, 32], [110, 32]]} color={color} />
-          <StationTile x={66} y={32} />
-          <text x="60" y="56" textAnchor="middle" fontSize="8.5" fontWeight="700" fill={RULE}>
-            in and out, ≤30°
-          </text>
+          <Route points={[[10, 48], [44, 38], [72, 28], [108, 18]]} color={color} />
+          <StationTile x={10} y={48} />
+          <StationTile x={72} y={28} />
+          <StationTile x={108} y={18} major />
         </>
       );
     case "network":
@@ -183,19 +183,15 @@ function Diagram({ id, color }: { id: string; color: string }) {
           <StationTile x={100} y={34} />
           <Tick x={62} y={16} />
           <text x="60" y="58" textAnchor="middle" fontSize="8.5" fontWeight="700" fill={RULE}>
-            one finished line, two stations
+            one finished line, three stations
           </text>
         </>
       );
     case "parallel":
       return (
         <>
-          <Route points={[[14, 18], [52, 14], [92, 18]]} color={OPPONENT} nodes={false} width={4} />
-          <Route points={[[14, 40], [52, 36], [92, 40]]} color={color} />
-          <line x1="52" y1="18" x2="52" y2="34" stroke={RULE} strokeWidth="1.4" strokeDasharray="2 2" />
-          <text x="86" y="56" textAnchor="middle" fontSize="8.5" fontWeight="700" fill={RULE}>
-            within 15°
-          </text>
+          <Route points={[[8, 48], [24, 42], [40, 36], [56, 30], [72, 24], [88, 18], [108, 12]]} color={color} />
+          <text x="60" y="60" textAnchor="middle" fontSize="8.5" fontWeight="700" fill={RULE}>6+ segments</text>
         </>
       );
     case "terminal":
@@ -217,7 +213,7 @@ function Diagram({ id, color }: { id: string; color: string }) {
           <Route points={[[14, 46], [44, 50], [72, 44]]} color={color} dashed width={4} />
           <Tick x={88} y={46} />
           <text x="60" y="34" textAnchor="middle" fontSize="8.5" fontWeight="700" fill={RULE}>
-            every contract delivered
+            complete two contracts
           </text>
         </>
       );
@@ -228,14 +224,14 @@ function Diagram({ id, color }: { id: string; color: string }) {
           <Route points={[[14, 50], [102, 16]]} color={color} nodes={false} />
           <circle cx="58" cy="33" r="10" fill="none" stroke={RULE} strokeWidth="1.6" strokeDasharray="3 2" />
           <text x="58" y="60" textAnchor="middle" fontSize="8.5" fontWeight="700" fill={RULE}>
-            one paid crossing
+            cross any line
           </text>
         </>
       );
     case "crosstown-service":
-      return <><Route points={[[12,48],[42,32],[76,32],[108,16]]} color={color} /><text x="12" y="12" fontSize="9" fill={RULE}>WEST</text><text x="82" y="60" fontSize="9" fill={RULE}>EAST</text></>;
+      return <><Route points={[[8,48],[42,32],[76,32],[112,16]]} color={color} /><text x="8" y="12" fontSize="9" fill={RULE}>≤5</text><text x="93" y="60" fontSize="9" fill={RULE}>≤5</text></>;
     case "local-service":
-      return <><Route points={[[12,48],[44,32],[76,32],[108,16]]} color={color} />{[44,76,108].map((x,i)=><circle key={x} cx={x} cy={i===2?16:32} r="7" fill="white" stroke={color} strokeWidth="3" />)}</>;
+      return <><Route points={[[12,48],[44,32],[76,32],[108,16]]} color={color} />{[44,76].map((x)=><circle key={x} cx={x} cy={32} r="7" fill="white" stroke={color} strokeWidth="3" />)}</>;
     case "interchange":
       return <><Route points={[[12,32],[108,32]]} color={color} /><Route points={[[60,8],[60,56]]} color={color} dashed /><circle cx="60" cy="32" r="10" fill="white" stroke={color} strokeWidth="4" /></>;
     case "solvent":

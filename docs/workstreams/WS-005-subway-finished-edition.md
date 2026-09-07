@@ -3,8 +3,8 @@
 Build OS: v0.11
 Phase: BUILDING
 Status: Blocked
-Updated: 2026-09-06
-Implementation State: Implemented and published; automated checks pass; browser verification blocked by preview access
+Updated: 2026-09-07
+Implementation State: Content pass in progress on the published branch; automated reducer checks pass; browser verification remains blocked by preview access
 Related PRs: [#154](https://github.com/50thycal/party-games/pull/154)
 
 ## Goal and approved scope
@@ -29,6 +29,9 @@ that blocks this goal.
   per owner. An Access Pass subsidizes the next build; a City Grant provides $3M.
 - Ten station Destinations; fourteen Engineering goals; five Scheduling and five
   Construction cards. Reducer authority, exact geometry and explicit Confirm remain.
+- Named stations shuffle among well-spaced sites at game start; Major Stations
+  have three docks and Minor Stations two. Contracts use 2–6 peg segments with
+  a seven-segment hard cap and four premium route specials.
 - $40M starting capital and a cheapest-complete-schedule suggestion. Validate every
   three-route combination can fund its complete schedule at list price.
 - All opponents appear on the same continuous tabletop with private cards hidden.
@@ -66,7 +69,8 @@ Pending independent review. No approval or merge claimed.
   Deployment status itself is successful. No protection settings were changed.
 
 ## Next Step
-Obtain an accessible preview from the owner, then verify desktop/phone layouts,
+Complete the owner-directed contract/card review and retest affordability and
+simulations. Then obtain an accessible preview to verify desktop/phone layouts,
 card dialogs, placement preview/Confirm, all-seat handoff and local save/resume.
 Use `/subway` for local hotseat and `/test/subway` for responsive phase fixtures.
 Fix any defects on this branch, then request independent review. Do not merge
