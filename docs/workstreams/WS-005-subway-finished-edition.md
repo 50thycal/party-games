@@ -5,7 +5,7 @@ Phase: BUILDING
 Status: Blocked
 Updated: 2026-09-07
 Implementation State: Content pass in progress on the published branch; automated reducer checks pass; browser verification remains blocked by preview access
-Related PRs: [#154](https://github.com/50thycal/party-games/pull/154)
+Related PRs: [#154](https://github.com/50thycal/party-games/pull/154) (merged), [#155](https://github.com/50thycal/party-games/pull/155) (content pass)
 
 ## Goal and approved scope
 After this change, Subway supports complete 2-, 3- and 4-player games, with more
