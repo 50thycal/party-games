@@ -31,6 +31,8 @@ export const VB_H = PAD * 2 + (SUBWAY_CONFIG.board.rows - 1) * STEP;
 
 /** Peg-space → board pixels. Everything drawn on the board goes through this. */
 const toPx = (p: Point) => ({ x: PAD + p.x * STEP, y: PAD + p.y * STEP });
+// Stable station identities, independent of their randomized board positions.
+const STATION_COLORS = ["#244b70", "#783d58", "#356044", "#77502c", "#4f477c", "#27656a", "#744535", "#354e83", "#245967", "#66502f"];
 export const holePos = (p: Point) => toPx({ x: p.x, y: p.y });
 export const nodePx = (n: RouteNode) => toPx(nodePoint(n));
 export const slotPx = (station: Station, slot: number) => toPx(slotPoint(station, slot));
@@ -152,16 +154,6 @@ export function Board({
         opacity="0.6"
       />
 
-      {/* Printed city geography is decorative; every legal route uses the same peg rules. */}
-      <g pointerEvents="none" opacity="0.45">
-        <path d={`M ${VB_W * .45} 22 C ${VB_W * .38} ${VB_H * .35}, ${VB_W * .62} ${VB_H * .55}, ${VB_W * .55} ${VB_H - 22}`} fill="none" stroke="#9ac9cf" strokeWidth="58" />
-        <rect x={VB_W * .43} y="38" width="220" height="110" rx="45" fill="#bbcfad" />
-        <rect x="65" y={VB_H * .65} width="220" height="100" rx="30" fill="#cbd9bd" />
-        {["OLD TOWN", "CIVIC QUARTER", "EAST END"].map((name, i) => (
-          <text key={name} x={100 + i * VB_W / 3} y="48" fill="#45645d" fontSize="15" fontWeight="800" letterSpacing="4">{name}</text>
-        ))}
-      </g>
-
       {cells.map((c) => {
         const p = holePos(c);
         return (
@@ -211,38 +203,41 @@ export function Board({
       {game.stations.map((s) => {
         const p = holePos(s);
         const major = s.kind === "major";
-        const w = major ? 76 : 64;
-        const h = 56;
+        const w = major ? 136 : 120;
+        const h = 96;
+        const top = -66;
+        const color = STATION_COLORS[Math.max(0, STATIONS.findIndex((station) => station.id === s.id)) % STATION_COLORS.length];
         const highlight = targetCells.has(`${s.x},${s.y}`) && !hasSelection;
         const openDocks = Array.from({ length: s.capacity }, (_, i) => i).filter((i) => !dockedIn(s.id, i));
         const full = openDocks.length === 0;
         const words = s.name.split(" ");
         return (
           <g key={s.id} transform={`translate(${p.x},${p.y})`}>
-            <rect x={-w / 2} y={-h / 2 + 2} width={w} height={h} rx="11" fill="#000" opacity="0.25" />
+            <title>{s.name} · {s.kind} station · +{SUBWAY_CONFIG.stationScores[s.kind]} VP · {openDocks.length} of {s.capacity} docks open</title>
+            <rect x={-w / 2} y={top + 3} width={w} height={h} rx={major ? 10 : 22} fill="#000" opacity="0.18" />
             <rect
               x={-w / 2}
-              y={-h / 2}
+              y={top}
               width={w}
               height={h}
-              rx="11"
-              fill={major ? "#24384c" : "#4f6357"}
+              rx={major ? 10 : 22}
+              fill={color}
               stroke={highlight ? "#4ade80" : full ? "#b45309" : "#f5d98a"}
               strokeWidth={highlight ? 5 : 3.5}
             />
             {words.map((word, i) => (
               <text
                 key={i}
-                y={(words.length > 1 ? -19 : -14) + i * 11}
+                y={(words.length > 1 ? -44 : -35) + i * 18}
                 textAnchor="middle"
                 fill="#ffffff"
-                fontSize="10.5"
-                fontWeight="700"
+                fontSize="17"
+                fontWeight="800"
               >
                 {word}
               </text>
             ))}
-            <text y={words.length > 1 ? 2 : -1} textAnchor="middle" fill="#f5d98a" fontSize="9" fontWeight="700">
+            <text y={-9} textAnchor="middle" fill="#fff1c2" fontSize="12" fontWeight="700">
               {major ? "MAJOR" : "MINOR"} · +{SUBWAY_CONFIG.stationScores[s.kind]} VP
             </text>
             {Array.from({ length: s.capacity }, (_, slot) => {
