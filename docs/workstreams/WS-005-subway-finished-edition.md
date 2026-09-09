@@ -4,8 +4,8 @@ Build OS: v0.11
 Phase: BUILDING
 Status: Blocked
 Updated: 2026-09-09
-Implementation State: Flexible goals, merged drafts and per-round crews implemented and automatically tested; published in PR #156; visual verification blocked
-Related PRs: [#154](https://github.com/50thycal/party-games/pull/154) (merged), [#155](https://github.com/50thycal/party-games/pull/155) (merged); [#156](https://github.com/50thycal/party-games/pull/156) (flexible goals and crews)
+Implementation State: Flexible goals and crews merged in PR #156; station readability and clean-board changes published in PR #157; visual verification blocked
+Related PRs: [#154](https://github.com/50thycal/party-games/pull/154) (merged), [#155](https://github.com/50thycal/party-games/pull/155) (merged); [#156](https://github.com/50thycal/party-games/pull/156) (merged); [#157](https://github.com/50thycal/party-games/pull/157) (station readability)
 
 ## Goal and approved scope
 After this change, Subway supports complete 2-, 3- and 4-player games, with more
@@ -77,6 +77,13 @@ Pending independent review. No approval or merge claimed.
   **not completed**: cloud browser cannot reach localhost; Vercel preview redirects
   to authentication, and connected Vercel temporary-access request returned 403.
   Deployment status itself is successful. No protection settings were changed.
+
+## Station readability checkpoint
+Owner requested larger, distinct station signs and removal of district labels,
+river and park shading. PR #157 increases name text 10.5 → 17 and metadata 9 → 12,
+adds stable station colors and major/minor sign shapes, and removes the scenery.
+Build, lint, full Subway tests (36 simulations) and diff checks pass. Browser
+visual acceptance remains pending; no current-head independent approval claimed.
 
 ## Next Step
 Obtain an accessible preview to verify desktop/phone layouts,
