@@ -1,5 +1,9 @@
 # Subway Card Audit — 2026-08-29
 
+> Historical audit of the pre-redesign game. For the current v12 card inventory,
+> costs, points and effects, use [Subway rules and card tables](../src/games/subway/RULES.md).
+> DEC-027 supersedes the old drafting and scheduling recommendations below.
+
 **Workstream:** WS-004
 **Source audited:** `src/games/subway/config.ts` on `main` at `fa780cc`
 **Re-verified:** 2026-08-30 against `main` at `208a7d4` — the inventory below is unchanged

@@ -336,9 +336,6 @@ export function OpponentEdge({
         </span>
         <div className="ml-auto flex flex-wrap items-center gap-x-[34px] gap-y-[14px]">
           <Backs label="Engineering" count={opponent.engineeringHand.length} tone="bg-amber-700" />
-          <Backs label="Committed" count={opponent.committedEngineering.length} tone="bg-stone-700" />
-          <Backs label="Destinations" count={destinationsHeld(opponent)} tone="bg-purple-700" />
-          <Backs label="Scheduling" count={opponent.schedulingHand.length} tone="bg-sky-800" />
           <Backs label="Construction" count={opponent.constructionHand.length} tone="bg-orange-800" />
         </div>
       </div>
@@ -347,7 +344,7 @@ export function OpponentEdge({
         {opponent.lines.map((line, i) => {
           const contract = contractOf(line);
           if (!contract) return null;
-          const shelved = line.start === undefined;
+          const shelved = false;
           return (
             <span key={i} className="flex items-center gap-[12px] text-[20px]">
               <LineTile contract={contract} size={38} subdued={scheduleRevealed && shelved} />
@@ -355,11 +352,7 @@ export function OpponentEdge({
                 {line.route.length}/{contractNodes(contract)}
               </b>
               <span className="text-stone-600">
-                {scheduleRevealed
-                  ? shelved
-                    ? "shelved"
-                    : `periods ${line.start}–${line.start! + contractActions(contract) - 1}`
-                  : "schedule sealed"}
+                {lineComplete(line) ? "complete" : "available for crew activation"}
               </span>
             </span>
           );
@@ -692,15 +685,15 @@ export function ContractOffice({
       {game.phase === "ENGINEERING" && game.engineeringStep === "CARD_DRAFT" && (
         <div className="space-y-[14px]">
           <p className="text-[20px] font-bold">Build your hand · six picks</p>
-          <p className="text-[18px]">Include three distinct Engineering goals. Other categories are optional.</p>
-          {(["engineering", "scheduling", "construction"] as CardDeckId[]).map((deck) => (
+          <p className="text-[18px]">Choose any mix. All Engineering goals and Destinations can score.</p>
+          {(["engineering", "construction"] as CardDeckId[]).map((deck) => (
             <div key={deck} className="rounded-[12px] border-[2px] border-stone-300 p-[10px]">
               <p className="text-[19px] font-bold capitalize">{deck}</p>
               {(game.market.rows?.[deck] ?? []).map((id, i) => {
-                const c = deck === "engineering" ? engineeringById(id) : deck === "scheduling" ? schedulingById(id as SchedulingCardId) : constructionById(id as ConstructionCardId);
+                const c = deck === "engineering" ? (engineeringById(id) ?? destinationById(id)) : deck === "scheduling" ? schedulingById(id as SchedulingCardId) : constructionById(id as ConstructionCardId);
                 return <button key={i} onClick={() => onOpenMarket(deck, id)} className="mt-[6px] block w-full rounded-[8px] bg-white p-[10px] text-left text-[19px] font-bold hover:bg-amber-100">{c?.name} →</button>;
               })}
-              <button onClick={() => onOpenMarket(deck)} className="mt-[6px] w-full rounded-[8px] bg-stone-800 p-[10px] text-[18px] text-white">Blind draw · {deck}</button>
+              <button disabled={!game.market.decks[deck].length} onClick={() => onOpenMarket(deck)} className="mt-[6px] w-full rounded-[8px] bg-stone-800 p-[10px] text-[18px] text-white">Blind draw · {deck}</button>
             </div>
           ))}
         </div>
@@ -846,7 +839,7 @@ export function LineContractBoard({
           <Pill tone="bad">Shelved</Pill>
         ) : (
           <Pill tone="solid" color={contract.color}>
-            Periods {line.start}–{line.start! + contractActions(contract) - 1}
+            Choose a crew each round
           </Pill>
         )}
         {pendingActions > 0 && <Pill tone="warn">{pendingActions} action{pendingActions === 1 ? "" : "s"} due</Pill>}
@@ -906,7 +899,7 @@ export function LineContractBoard({
         <span className="text-stone-500">Paid</span>
         <b>
           {money(line.paid)}
-          {line.paid < contract.cost && " (yard)"}
+
         </b>
         <span className="text-stone-500">Complete</span>
         <b>+{contract.completionVp} VP</b>
@@ -1084,7 +1077,7 @@ export function PlayerTabletop({
         {!veiled && <PinSupply game={game} me={me} />}
         {me.money < 0 && (
           <p className="w-full rounded-[12px] bg-red-100 px-[16px] py-[10px] text-[19px] font-bold text-red-900">
-            In debt {money(-me.money)} from route contacts. Finishing here costs{" "}
+            In debt {money(-me.money)} from crews or contacts. Finishing here costs{" "}
             {me.money * SUBWAY_CONFIG.contact.debtVpPerMillion} VP; contacts the opposition pays you reduce it.
           </p>
         )}
@@ -1128,50 +1121,26 @@ export function PlayerTabletop({
         {!veiled && (status.length > 0 || me.engineeringHand.length > 0) && !planningStep && (
           <Printed
             title="Company objectives"
-            subtitle="Committed face down — hidden from the opposition"
+            subtitle="Every drafted goal can score — private until results"
             tone="slip"
             style={{ maxWidth: 1520 }}
           >
             <p className="mb-[12px] text-[18px] text-stone-600">
-              Engineering objectives are committed by the company, not by line, so they sit on the
-              company shelf rather than on a line board.
+              Engineering goals and Destinations apply across your company. Reach their conditions with any of your routes.
             </p>
             <div className="flex flex-wrap gap-[18px]">
               {status.map(({ cardId, met }, i) => (
                 <CardPiece
                   key={`c-${cardId}-${i}`}
-                  label={`Committed objective ${cardId}`}
+                  label={`Engineering goal ${cardId}`}
                   ring={met ? "#059669" : undefined}
                   onOpen={() => onOpenCard({ family: "engineering", id: cardId, slot: "committed" })}
                 >
-                  <EngineeringCardFace
-                    card={cardId}
-                    color={me.color}
-                    compact
-                    state={met ? "met" : "committed"}
-                    footer={
-                      <p className={`mt-1 text-[11px] font-black ${met ? "text-emerald-700" : "text-stone-400"}`}>
-                        {met ? "✓ COMPLETE" : "In progress"}
-                      </p>
-                    }
-                  />
+                  {destinationById(cardId) ? <DestinationCardFace card={cardId} color={me.color} compact state={met?"met":"idle"}/> : <EngineeringCardFace card={cardId} color={me.color} compact state={met?"met":"idle"}/>}
+                  <p className="text-lg">{met?"✓ Achieved":"In progress"}</p>
                 </CardPiece>
               ))}
-              {me.engineeringHand.map((id, i) => (
-                <CardPiece
-                  key={`h-${id}-${i}`}
-                  label={`Engineering card ${id} in hand`}
-                  dimmed
-                  onOpen={() => onOpenCard({ family: "engineering", id, slot: "hand" })}
-                >
-                  <EngineeringCardFace
-                    card={id}
-                    color={me.color}
-                    compact
-                    footer={<p className="mt-1 text-[11px] font-black text-stone-400">In hand — not scoring</p>}
-                  />
-                </CardPiece>
-              ))}
+
             </div>
           </Printed>
         )}

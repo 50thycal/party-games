@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { CrewBoard } from "./CrewBoard";
+import { constructionCardBlocker, objectiveMet } from "./config";
 import { lessonForPhase } from "./tutorial";
 import type { GameViewProps } from "@/games/views";
 import { DestinationCardFace, EngineeringCardFace } from "./CardArt";
@@ -140,7 +142,8 @@ function statusFor(game: SubwayState, me: SubwayPlayer | undefined, isHost: bool
       };
     }
     case "ENGINEERING": {
-      if (game.engineeringStep === "CARD_DRAFT") return {headline: cardDraftTurnId(game) === me.id ? `Draft your hand: ${draftPicks(me)}/6 cards.` : `${game.players[cardDraftTurnId(game) ?? ""]?.name} is drafting.`, tone: cardDraftTurnId(game) === me.id ? "act" : "wait", detail:"Two face-up cards per category or a blind draw. Keep three picks for distinct Engineering goals."};
+      if (game.engineeringStep === "BUY_SURVEYS") return {headline:me.engineeringLocked ? "Waiting for survey purchases." : "Optionally buy Survey Pins at your cards.",tone:me.engineeringLocked?"wait":"act"};
+      if (game.engineeringStep === "CARD_DRAFT") return {headline: cardDraftTurnId(game) === me.id ? `Draft your hand: ${draftPicks(me)}/6 cards.` : `${game.players[cardDraftTurnId(game) ?? ""]?.name} is drafting.`, tone: cardDraftTurnId(game) === me.id ? "act" : "wait", detail:"Two face-up cards per category or a blind draw. Choose any mix; every Engineering card can score."};
       if (game.engineeringStep === "DESTINATION_DRAFT") {
         const turn = destinationTurnId(game);
         const owed = SUBWAY_CONFIG.destinationsPerPlayer - destinationsHeld(me);
@@ -207,14 +210,14 @@ function statusFor(game: SubwayState, me: SubwayPlayer | undefined, isHost: bool
       };
     }
     case "CONSTRUCTION": {
-      const actorId = game.resolveQueue[0];
+      const actorId = game.priorityQueue[0] ?? game.resolveQueue[0];
       if (actorId === me.id) {
         return {
-          headline: `Period ${game.currentPeriod} — your build.`,
+          headline: game.priorityQueue.length ? "Use Priority Dispatch or keep your card." : !me.crewsHired ? "Choose crews at Crew dispatch." : `Round ${game.currentPeriod} — your build.`,
           tone: "act",
           detail:
             me.pendingActions.length > 1
-              ? `${me.pendingActions.length} actions scheduled this period.`
+              ? `${me.pendingActions.length} hired crews ready to build.`
               : "Tap a highlighted target to select it, then Confirm.",
         };
       }
@@ -705,8 +708,9 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     if (phase === "PROCUREMENT") return "office";
     if (phase === "SCHEDULING") return "schedule";
     if (phase === "ENGINEERING") {
-      return step === "DESTINATION_DRAFT" || step === "CARD_DRAFT" ? "office" : step === "PLAN" ? "hand" : "board";
+      return step === "CARD_DRAFT" ? "office" : step === "BUY_SURVEYS" ? "hand" : "board";
     }
+    if (phase === "CONSTRUCTION") return "schedule";
     if (phase === "RESULTS") return "results";
     if (phase === "SCORING") return "table";
     return "board";
@@ -729,8 +733,8 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
         <h2 className="mt-2 font-serif text-3xl font-black">Subway</h2>
         <p className="mx-auto my-4 max-w-xl text-sm text-stone-600">
           Build a city that connects. Each company takes three routes from a pool of twelve services. Each carries an
-          ordered recipe of segment lengths and its own line color. Commit secret objectives and
-          Destinations, buy Survey Pins, plan the whole programme on the public schedule board, then
+          ordered recipe of segment lengths and its own line color. Draft goals and Construction cards,
+          optionally buy Survey Pins, choose crews each round, then
           engineer the routes hole by hole — all on one table you pan and zoom around.
         </p>
         {stale && (
@@ -803,22 +807,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     return undefined;
   };
 
-  const constructionReason = (id: ConstructionCardId): string | undefined => {
-    if (!me) return "Spectating";
-    if (game.phase !== "CONSTRUCTION") return "Only during Construction";
-    if (me.constructionCardThisPeriod) return "One Construction card per period";
-    const queued = game.resolveQueue.includes(me.id);
-    if (!queued || me.actedThisPeriod) return "Only on a period you build";
-    if (id === "expedite" && game.resolveQueue[0] === me.id) return "You already build first";
-    if (id === "overtime" && !me.pendingActions.length) return "No scheduled action to double";
-    if (id === "surge") {
-      const others = me.lines
-        .map((_, i) => i)
-        .filter((i) => !me.pendingActions.includes(i) && !lineComplete(me.lines[i]));
-      if (!others.length) return "No other project to open";
-    }
-    return undefined;
-  };
+  const constructionReason = (id: ConstructionCardId) => constructionCardBlocker(game, playerId, id);
 
   const constructionTargets = (id: ConstructionCardId): number[] =>
     !me
@@ -922,134 +911,24 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     }
 
     if (focus.family === "market") {
-      const card = focus.cardId ? focus.id === "engineering" ? engineeringById(focus.cardId) : focus.id === "scheduling" ? schedulingById(focus.cardId as SchedulingCardId) : constructionById(focus.cardId as ConstructionCardId) : undefined;
+      const card = focus.cardId ? focus.id === "engineering" ? (engineeringById(focus.cardId) ?? destinationById(focus.cardId)) : focus.id === "scheduling" ? schedulingById(focus.cardId as SchedulingCardId) : constructionById(focus.cardId as ConstructionCardId) : undefined;
       const why = cardDraftBlocker(game, me.id, focus.id, focus.cardId);
-      const available = !focus.cardId || game.market.rows?.[focus.id].includes(focus.cardId);
+      const available = focus.cardId ? game.market.rows[focus.id].includes(focus.cardId) : game.market.decks[focus.id].length > 0;
       return <CardFocus title={card?.name ?? `Blind ${focus.id} draw`} onClose={close}
-        face={focus.id === "engineering" && focus.cardId ? <EngineeringCardFace card={focus.cardId} color={me.color}/> : <MiniCardFace family={focus.id === "construction" ? "construction" : "scheduling"} name={card?.name ?? "Mystery card"} description={card?.description ?? `Draw one random ${focus.id} card. Engineering draws always give a goal you do not already hold.`} note={focus.cardId ? "Face-up draft" : "Blind draw"}/>}
-        note={`${draftPicks(me)}/6 picks used · ${new Set(me.engineeringHand).size}/3 required Engineering goals. Scheduling and Construction are optional.`}
-        reason={why ?? (!available ? "That card has already been drafted." : undefined)}
+        face={focus.id === "engineering" && focus.cardId ? (destinationById(focus.cardId) ? <DestinationCardFace card={focus.cardId} color={me.color}/> : <EngineeringCardFace card={focus.cardId} color={me.color}/>) : <MiniCardFace family={focus.id === "construction" ? "construction" : "scheduling"} name={card?.name ?? "Mystery card"} description={card?.description ?? `Draw one random ${focus.id} card. Engineering draws always give a goal you do not already hold.`} note={focus.cardId ? "Face-up draft" : "Blind draw"}/>}
+        note={`${draftPicks(me)}/6 picks used. Choose any mix of Engineering goals and Construction cards. Every goal you hold can score.`}
+        reason={why ?? (!available ? "That card or blind pile is no longer available." : undefined)}
         actions={[{label:card ? "Draft this card" : "Draw a random card", disabled:busy || !!why || !available,
           run:() => playWithFlight(card?.name ?? "Card drafted", "#a16207", "hand", () => act("DRAFT_CARD", {deck:focus.id, cardId:focus.cardId, expectedPick:game.market.picks}))}]}/>;
     }
 
-    if (focus.family === "engineering") {
-      const card = engineeringById(focus.id);
+    if (focus.family === "engineering" || focus.family === "destination") {
+      const card = engineeringById(focus.id) ?? destinationById(focus.id);
       if (!card) return null;
-      const committed = focus.slot === "committed";
-      const met = committed && !veiled ? committedStatusFor(game, me, focus.id) : false;
-      const planning = game.phase === "ENGINEERING" && game.engineeringStep === "PLAN" && !me.engineeringLocked;
-      const picked = chosen.includes(focus.id);
-      const actions: FocusAction[] = [];
-      if (planning && !committed) {
-        actions.push({
-          label: picked ? "Take out of the plan" : "Commit to the plan",
-          tone: picked ? "plain" : "go",
-          disabled: !picked && chosen.length >= 3,
-          reason: !picked && chosen.length >= 3 ? "Three objectives are already chosen." : undefined,
-          run: () => {
-            setChosen(picked ? chosen.filter((x) => x !== focus.id) : [...chosen, focus.id]);
-            setFocus(null);
-          },
-        });
-      }
-      return (
-        <CardFocus
-          title={card.name}
-          onClose={close}
-          face={
-            <EngineeringCardFace
-              card={card}
-              color={me.color}
-              state={committed ? (met ? "met" : "committed") : picked ? "selected" : "idle"}
-            />
-          }
-          note={
-            committed
-              ? met
-                ? `✓ COMPLETE — scores +${card.vp} VP as the board stands.`
-                : "Committed and hidden from the opposition until scoring."
-              : planning
-                ? `Objectives chosen: ${chosen.length}/3. Uncommitted cards score nothing.`
-                : "In hand — it commits at Engineering plan lock and scores nothing otherwise."
-          }
-          actions={actions}
-        />
-      );
-    }
-
-    if (focus.family === "destination") {
-      const card = destinationById(focus.id);
-      if (!card) return null;
-      const drafting = game.phase === "ENGINEERING" && game.engineeringStep === "DESTINATION_DRAFT";
-      const myPick = drafting && destinationTurnId(game) === me.id;
-      const planning = game.phase === "ENGINEERING" && game.engineeringStep === "PLAN" && !me.engineeringLocked;
-      const committed = focus.slot === "committed";
-      const commitment = committed
-        ? me.destinationCommitments.find((c) => c.cardId === focus.id && c.lineIndex === focus.lineIndex)
-        : undefined;
-      const met = commitment ? destinationMet(me, commitment) : false;
-      const assignedTo = assignments[focus.id] ?? -1;
-      const actions: FocusAction[] = [];
-      if (focus.slot === "row") {
-        actions.push({
-          label: "Draft this Destination",
-          disabled: busy || !myPick,
-          reason: myPick ? undefined : "It is not your pick.",
-          run: () =>
-            playWithFlight(card.name, "#7e22ce", "hand", () =>
-              act("PICK_DESTINATION", { destinationCardId: focus.id })
-            ),
-        });
-      }
-      return (
-        <CardFocus
-          title={stationById(card.stationId)?.name ?? card.name}
-          onClose={close}
-          face={
-            <DestinationCardFace
-              card={card}
-              color={me.color}
-              state={committed ? (met ? "met" : "committed") : assignedTo >= 0 ? "selected" : "idle"}
-            />
-          }
-          note={
-            committed
-              ? `Assigned to ${
-                  commitment && me.lines[commitment.lineIndex] ? lineLabel(me.lines[commitment.lineIndex]) : "a line"
-                } · ${met ? `✓ COMPLETE — scores +${card.vp} VP` : "not connected yet"}`
-              : planning
-                ? "Assign it to a line below. Destinations never count toward your three objectives, and one line may hold at most two."
-                : "Drafted — you assign it to a line at Engineering plan lock."
-          }
-          extra={
-            planning && !committed
-              ? choiceRow({
-                  label: "Assign to",
-                  value: assignedTo,
-                  onChange: (v: number) => setAssignments({ ...assignments, [focus.id]: v }),
-                  options: [
-                    { key: "none", value: -1, label: "Not assigned" },
-                    ...me.lines.map((line, li) => {
-                      const contract = contractOf(line);
-                      return {
-                        key: String(li),
-                        value: li,
-                        label: (
-                          <span className="flex items-center gap-1.5">
-                            {contract && <LineTile contract={contract} size={18} />}
-                            {lineLabel(line)}
-                          </span>
-                        ),
-                      };
-                    }),
-                  ],
-                })
-              : undefined
-          }
-          actions={actions}
-        />
-      );
+      const met = objectiveMet(focus.id,me,opponents);
+      return <CardFocus title={card.name} onClose={close}
+        face={destinationById(focus.id)?<DestinationCardFace card={focus.id} color={me.color}/>:<EngineeringCardFace card={focus.id} color={me.color} state={met?"met":"idle"}/>}
+        note={`${met ? "✓ Achieved" : "In progress"} · +${card.vp} VP if achieved at scoring. Any of your routes can qualify. No commitment needed.`} actions={[]}/>;
     }
 
     if (focus.family === "scheduling") {
@@ -1157,7 +1036,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
         title={card.name}
         onClose={close}
         face={<MiniCardFace family="construction" name={card.name} description={card.description} note="Construction card" />}
-        note="One Construction card per company per period, on a period you build."
+        note="One Construction card per round, including Priority Dispatch. The card is discarded when played."
         reason={why}
         extra={!why && (focus.id === "overtime" || focus.id === "surge") ? lineChoice(cardLine, setCardLine, options) : undefined}
         actions={[
@@ -1170,6 +1049,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
               playWithFlight(card.name, "#b45309", "board", () =>
                 act("PLAY_CONSTRUCTION_CARD", {
                   cardId: focus.id,
+                  period: game.currentPeriod,
                   ...(!["overtime", "surge"].includes(focus.id)
                     ? {}
                     : { lineIndex: options.includes(cardLine) ? cardLine : options[0] }),
@@ -1382,138 +1262,16 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     </div>
   );
 
-  // ---- Engineering plan slip (lives on the player's own edge) -----------------
-
-  const planningStep = game.phase === "ENGINEERING" && game.engineeringStep === "PLAN";
-  const assignmentList = Object.entries(assignments)
-    .filter(([, lineIndex]) => lineIndex >= 0)
-    .map(([cardId, lineIndex]) => ({ cardId, lineIndex }));
-  const destProblems = me ? destinationProblems(me, assignmentList) : [];
-  const allAssigned = me ? assignmentList.length === me.destinationHand.length : false;
-  const surveyCost = surveys * SUBWAY_CONFIG.survey.cost;
-  const planReady =
-    !!me && chosen.length === 3 && allAssigned && !destProblems.length && surveyCost <= me.money;
-
-  const engineeringSlip =
-    me && planningStep && !veiled ? (
-      me.engineeringLocked ? (
-        <Printed title="Engineering plan" tone="slip" subtitle="Locked">
-          <p className="max-w-[900px] text-[20px] text-stone-700">
-            Three objectives and {me.destinationCommitments.length} Destination
-            {me.destinationCommitments.length === 1 ? "" : "s"} are committed face down, and{" "}
-            {me.surveysPurchased} Survey Pin{me.surveysPurchased === 1 ? "" : "s"} are paid for. The opposition
-            cannot see any of it until scoring; your own copies stay on this edge of the table with live status.
-          </p>
-        </Printed>
-      ) : (
-        <Printed
-          title="Engineering plan"
-          tone="slip"
-          subtitle={`${chosen.length}/3 objectives committed`}
-          style={{ maxWidth: 1900 }}
-        >
-          <p className="text-[20px] text-stone-700">
-            Open a card to read it and commit it. Exactly three objectives; Destinations are separate — assign as
-            many as you like, at most two per line. Uncommitted cards stay in hand and score nothing.
-          </p>
-          <div className="mt-[18px] flex flex-wrap gap-[18px]">
-            {me.engineeringHand.map((id, i) => (
-              <CardPiece
-                key={`${id}-${i}`}
-                label={`Engineering objective ${id}`}
-                ring={chosen.includes(id) ? "#f59e0b" : undefined}
-                onOpen={() => setFocus({ family: "engineering", id, slot: "hand" })}
-              >
-                <EngineeringCardFace
-                  card={id}
-                  color={me.color}
-                  compact
-                  state={chosen.includes(id) ? "selected" : "idle"}
-                  footer={
-                    <p className="mt-1 text-[11px] font-black text-stone-500">
-                      {chosen.includes(id) ? "Committing" : "Tap to read"}
-                    </p>
-                  }
-                />
-              </CardPiece>
-            ))}
-          </div>
-          {me.destinationHand.length > 0 && (
-            <div className="mt-[22px]">
-              <p className="text-[19px] font-black uppercase tracking-[.14em] text-stone-500">
-                Destinations to assign
-              </p>
-              <div className="mt-[12px] flex flex-wrap gap-[18px]">
-                {me.destinationHand.map((id, i) => {
-                  const assigned = assignments[id] ?? -1;
-                  return (
-                    <CardPiece
-                      key={`${id}-${i}`}
-                      label={`Destination ${id}`}
-                      ring={assigned >= 0 ? "#f59e0b" : undefined}
-                      onOpen={() => setFocus({ family: "destination", id, slot: "hand" })}
-                    >
-                      <DestinationCardFace
-                        card={id}
-                        color={me.color}
-                        compact
-                        state={assigned >= 0 ? "selected" : "idle"}
-                        footer={
-                          <p className="mt-1 text-[11px] font-black text-stone-500">
-                            {assigned >= 0 ? lineLabel(me.lines[assigned]) : "Tap to assign"}
-                          </p>
-                        }
-                      />
-                    </CardPiece>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-          <div className="mt-[22px] flex flex-wrap items-center gap-[20px] rounded-[16px] border-[3px] border-stone-300 bg-white/70 p-[18px]">
-            <div>
-              <p className="text-[19px] font-black uppercase tracking-wide text-stone-500">Survey pins</p>
-              <p className="text-[18px] text-stone-600">
-                {money(SUBWAY_CONFIG.survey.cost)} each, up to {SUBWAY_CONFIG.survey.max}. +{SUBWAY_CONFIG.survey.vp} VP
-                if any line you own later builds through the pinned hole.
-              </p>
-            </div>
-            <TableButton size="sm" disabled={busy || surveys === 0} onClick={() => setSurveys(Math.max(0, surveys - 1))}>
-              −
-            </TableButton>
-            <b className="w-[46px] text-center text-[34px] tabular-nums">{surveys}</b>
-            <TableButton
-              size="sm"
-              disabled={busy || surveys >= SUBWAY_CONFIG.survey.max}
-              onClick={() => setSurveys(Math.min(SUBWAY_CONFIG.survey.max, surveys + 1))}
-            >
-              +
-            </TableButton>
-            <span className="text-[19px] text-stone-600">
-              cost <b className={surveyCost <= me.money ? "" : "text-red-700"}>{money(surveyCost)}</b> · cash after{" "}
-              <b className={surveyCost <= me.money ? "" : "text-red-700"}>{money(me.money - surveyCost)}</b>
-            </span>
-          </div>
-          {(destProblems.length > 0 || !allAssigned) && (
-            <ul className="mt-[12px] space-y-[4px] text-[19px] font-bold text-red-800">
-              {!allAssigned && <li>• Every Destination you drafted must be assigned to a line.</li>}
-              {destProblems.map((p, i) => (
-                <li key={i}>• {p}</li>
-              ))}
-            </ul>
-          )}
-          <div className="mt-[18px]">
-            <TableButton
-              tone="go"
-              disabled={busy || !planReady}
-              onClick={() => act("LOCK_ENGINEERING_PLAN", { cardIds: chosen, destinations: assignmentList, surveys })}
-            >
-              Lock the plan{surveyCost > 0 ? ` & pay ${money(surveyCost)}` : ""}
-            </TableButton>
-          </div>
-        </Printed>
-      )
-    ) : null;
+  const engineeringSlip = me && game.phase === "ENGINEERING" && game.engineeringStep === "BUY_SURVEYS" && !veiled ? (
+    <Printed title="Optional Survey Pins" tone="slip">
+      <p className="text-xl">Every goal in your hand is active. Buy up to five Survey Pins for $1M each; earn +1 VP per pin your network reaches.</p>
+      {me.engineeringLocked ? <p className="text-xl">Survey purchase complete. Waiting for the other companies.</p> : <div className="mt-4 flex items-center gap-4">
+        <TableButton disabled={busy||surveys===0} onClick={()=>setSurveys(surveys-1)}>−</TableButton><b className="text-3xl">{surveys}</b>
+        <TableButton disabled={busy||surveys>=5||surveys>=me.money} onClick={()=>setSurveys(surveys+1)}>+</TableButton>
+        <TableButton disabled={busy||surveys>me.money} onClick={()=>act("BUY_SURVEYS",{surveys})}>{surveys ? `Buy for $${surveys}M` : "No pins · continue"}</TableButton>
+      </div>}
+    </Printed>
+  ) : null;
 
   // ---- The table --------------------------------------------------------------
 
@@ -1521,7 +1279,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   // narrow screen shows, the long one is the accessible name everywhere.
   const focusButtons: { zone: TableZone; label: string; short: string }[] = [
     { zone: "board", label: "Pegboard", short: "Board" },
-    { zone: "schedule", label: "Schedule", short: "Sched" },
+    { zone: "schedule", label: "Crew dispatch", short: "Crews" },
     { zone: "lines", label: "Lines", short: "Lines" },
     { zone: "hand", label: "Cards", short: "Cards" },
     { zone: "table", label: "Whole table", short: "All" },
@@ -1626,20 +1384,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
             {opponents.map((opponent) => <OpponentEdge key={opponent.id} game={game} opponent={opponent} scheduleRevealed={schedulingRevealed} />)}
           </div>
 
-          <ScheduleBoard
-            game={game}
-            viewerId={playerId}
-            revealed={schedulingRevealed}
-            editable={
-              game.phase === "SCHEDULING" &&
-              game.schedulingStep === "PLANNING" &&
-              !me?.scheduleSubmitted &&
-              !veiled
-            }
-            busy={busy}
-            act={act}
-            veiled={veiled}
-          />
+          <CrewBoard key={`${game.currentPeriod}:${playerId}`} game={game} viewerId={playerId} busy={busy} veiled={veiled} act={act} onCard={(id)=>setFocus({family:"construction",id,slot:"hand"})}/>
 
           <div className="flex items-start" style={{ gap: TABLE.gap }}>
             <ContractOffice
@@ -1803,46 +1548,13 @@ function ResultsSheet({ game }: { game: SubwayState }) {
                 </div>
               </div>
               <div className="mt-[18px] flex flex-wrap gap-[18px]">
-                {p.committedEngineering.map((cardId, i) => {
-                  const card = engineeringById(cardId);
-                  const scored = p.scoreBreakdown?.find((x) => x.label === card?.name);
-                  return (
-                    <div key={`${cardId}-${i}`} style={{ width: 360 }}>
-                      <EngineeringCardFace
-                        card={cardId}
-                        color={p.color}
-                        compact
-                        state={scored?.met ? "met" : "missed"}
-                        footer={
-                          <p className={`mt-1 text-[11px] font-black ${scored?.met ? "text-emerald-700" : "text-stone-400"}`}>
-                            {scored?.met ? `Scored +${scored.points}` : "Not met"}
-                          </p>
-                        }
-                      />
-                    </div>
-                  );
-                })}
-                {p.destinationCommitments.map((commitment, i) => {
-                  const met = destinationMet(p, commitment);
-                  const assigned = p.lines[commitment.lineIndex];
-                  const contract = assigned ? contractOf(assigned) : undefined;
-                  return (
-                    <div key={`${commitment.cardId}-${i}`} style={{ width: 360 }}>
-                      <DestinationCardFace
-                        card={commitment.cardId}
-                        color={p.color}
-                        compact
-                        state={met ? "met" : "missed"}
-                        footer={
-                          <p className={`mt-1 flex items-center gap-1 text-[11px] font-black ${met ? "text-emerald-700" : "text-stone-400"}`}>
-                            {contract && <LineTile contract={contract} size={16} />}
-                            {assigned ? lineLabel(assigned) : "unassigned"} ·{" "}
-                            {met ? `Scored +${SUBWAY_CONFIG.destinationVp}` : "Not connected"}
-                          </p>
-                        }
-                      />
-                    </div>
-                  );
+                {p.engineeringHand.map((cardId,i) => {
+                  const card=engineeringById(cardId)??destinationById(cardId);
+                  const scored=p.scoreBreakdown?.find(item=>item.label===card?.name);
+                  return <div key={i} style={{width:360}}>
+                    {destinationById(cardId)?<DestinationCardFace card={cardId} color={p.color} compact state={scored?.met?"met":"missed"}/>:<EngineeringCardFace card={cardId} color={p.color} compact state={scored?.met?"met":"missed"}/>}
+                    <p className="text-lg">{scored?.met?`Scored +${scored.points}`:"Not achieved"}</p>
+                  </div>;
                 })}
               </div>
             </div>

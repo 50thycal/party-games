@@ -7,7 +7,7 @@ import { SubwayGameView } from "@/games/subway/GameView";
 import { SUBWAY_STATE_VERSION, subwayGame, nextCompanyId, type SubwayAction, type SubwayState } from "@/games/subway/config";
 
 type Session = { room: Room; game: SubwayState; seat: string };
-const SAVE_KEY = "subway-hotseat-v11";
+const SAVE_KEY = "subway-hotseat-v12";
 
 export default function SubwayHotseat() {
   const [session, setSession] = useState<Session | null>(null);
@@ -66,7 +66,7 @@ export default function SubwayHotseat() {
         <h2 className="mt-7 text-sm font-bold uppercase tracking-widest">How many companies?</h2>
         <div className="mt-3 grid grid-cols-3 gap-3">{[2,3,4].map((n) => <button key={n} aria-pressed={count===n} onClick={()=>setCount(n)} className={`rounded-xl border-2 p-4 text-lg font-bold ${count===n ? "border-teal-300 bg-teal-800" : "border-white/20 bg-white/5"}`}>{n} players</button>)}</div>
         <div className="mt-5 grid gap-3 sm:grid-cols-2">{names.slice(0,count).map((name,i)=><label key={i} className="text-sm text-slate-300">Company {i+1}<input maxLength={24} value={name} placeholder={`Company ${i+1}`} onChange={(e)=>setNames(names.map((v,j)=>j===i?e.target.value:v))} className="mt-1 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-3 text-white" /></label>)}</div>
-        <p className="mt-5 text-sm leading-relaxed text-slate-300">Take route contracts, pick three secret goals, and schedule construction. Build from the city edge toward stations. Finished routes, stations and goals earn points; unfinished work and debt lose points.</p>
+        <p className="mt-5 text-sm leading-relaxed text-slate-300">Draft routes and goals, then choose construction crews each round. Build from the city edge toward stations. Finished routes, stations and goals earn points; unfinished work and debt lose points.</p>
         {session && <p className="mt-4 rounded-lg bg-amber-200 p-3 text-sm font-semibold text-amber-950">Starting replaces the game saved on this device.</p>}
         <button onClick={start} className="mt-6 w-full rounded-xl bg-[#ebac51] py-4 font-black text-[#10232d] hover:bg-amber-300">{session ? "Replace game & open the city" : "Open the city"} →</button>
         {session && <button onClick={()=>setNewGame(false)} className="mt-3 w-full p-3 text-teal-200">Return to current game</button>}
@@ -83,7 +83,7 @@ export default function SubwayHotseat() {
       <button onClick={()=>setNewGame(true)} className="rounded-lg bg-white/10 px-3 py-2 text-xs">New game</button>
     </header>
     {!saved && <p role="status" className="mb-2 rounded bg-amber-100 p-2 text-sm text-amber-950">Device storage is unavailable. Keep this tab open to finish your game.</p>}
-    {help && <aside className="mb-2 rounded-xl bg-[#f5f3e9] p-4 text-sm leading-relaxed text-slate-900"><b>Your first journey</b><ol className="ml-5 mt-2 list-decimal space-y-1"><li>Draft one route at list price each turn. Everyone ends with three routes; there is no pass.</li><li>Draft six cards, including three distinct Engineering goals. Then draft two Destinations and assign each to a route. Pick three Engineering goals; they apply across your company.</li><li>Schedule each route. Overlapping blocks cost extra crew money. Later starts cost less.</li><li>Place your free starter pegs on the border. Follow each route’s printed segment lengths; turns may be up to 90°.</li><li>Tap a glowing peg, inspect the next step and toll, then Confirm. You can plan ahead without committing.</li><li>Score finished routes, stations and goals. Keep debt low. Most points wins!</li></ol><p className="mt-2">Use Board, Schedule, Lines and Cards to move around the table. Drag to pan; scroll or pinch to zoom. Pass the device before revealing the next company’s cards. Geography is decorative.</p></aside>}
+    {help && <aside className="mb-2 rounded-xl bg-[#f5f3e9] p-4 text-sm leading-relaxed text-slate-900"><b>Your first journey</b><ol className="ml-5 mt-2 list-decimal space-y-1"><li>Draft one route at list price each turn. Everyone ends with three routes; there is no pass.</li><li>Draft six cards: any mix of Engineering goals (including Destinations) and Construction cards. Every goal can score. Then optionally buy surveys.</li><li>Each round, hire crews for different routes: $1M / $3M / $6M for 1 / 2 / 3 crews. Build one segment per crew. Play at most one card per round.</li><li>Place your free starter pegs on the border. Follow each route’s printed segment lengths; turns may be up to 90°.</li><li>Tap a glowing peg, inspect the next step and toll, then Confirm. You can plan ahead without committing.</li><li>Score finished routes, stations and goals. Keep debt low. Most points wins!</li></ol><p className="mt-2">Use Board, Schedule, Lines and Cards to move around the table. Drag to pan; scroll or pinch to zoom. Pass the device before revealing the next company’s cards. Geography is decorative.</p></aside>}
     <SubwayGameView room={session.room} state={session.game} playerId={session.seat} isHost={session.seat===session.room.hostId} dispatchAction={dispatchAction} />
   </main>;
 }

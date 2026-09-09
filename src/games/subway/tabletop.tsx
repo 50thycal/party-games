@@ -40,7 +40,7 @@ export function currentActorId(game: SubwayState): string | undefined {
     case "STARTER_PLACEMENT":
       return starterTurnId(game);
     case "CONSTRUCTION":
-      return game.resolveQueue[0];
+      return game.priorityQueue[0] ?? game.resolveQueue[0];
     default:
       return undefined;
   }
