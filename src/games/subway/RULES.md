@@ -5,8 +5,8 @@ deliver your contracts and complete secret goals. Most victory points wins.
 
 ## Quick start
 
-1. Take three route contracts. Buy the current offer or pass for a face-up card.
-2. Draft two Destinations. Assign them to your routes and choose three Engineering goals.
+1. Take three route contracts. Choose from the face-up row at list price; no passing.
+2. Draft six cards, then two Destinations. Assign Destinations to your routes and choose three Engineering goals.
 3. Schedule construction. The initial suggestion includes every route at the lowest cost.
 4. Place one free starter peg per scheduled route on the edge of the map.
 5. Build the printed segment lengths in order. Tap, inspect the preview, then Confirm.
@@ -18,56 +18,76 @@ current browser/device and can resume after refresh; they do not sync to other d
 
 ## Companies and contracts
 
-Each company starts with **$40M**, five Engineering cards, three Scheduling cards,
-and four Construction cards (Overtime, Surge Crew, City Grant and Access Pass).
-All companies have identical starting resources. Routes have their own permanent
-colours, letter codes and patterns; those do not indicate company ownership.
+Each company starts with **$40M and no cards**.
+Shuffle the twelve-route pool and select six routes for two players, nine for
+three, or twelve for four. Reveal a row of **2/3/4 choices**, respectively.
+Each turn, buy one visible contract at list price; refill while the deck lasts.
+There is no passing, discount, or card reward. Everyone takes three routes.
 
-Shuffle the twelve-route pool and select **six routes for 2 players, nine for 3,
-and all twelve for 4**. Reveal one at a time. First refusal rotates among the seats.
-Each offered company may buy at the displayed price or pass and draft a face-up
-Engineering, Scheduling or Construction card. Every seat gets this option, not
-just the first. Nobody may own more than three routes. Therefore everyone finishes
-procurement with exactly three.
-
-If everyone passes, reduce the price by $2M (minimum $3M) and move the route to the
-Discount Yard. Clear the yard after the deck. A floor-price route declined again
-is assigned to the eligible company with the most cash. If only one company can
-still hold a route, it must buy. Forced purchases never cost more than the buyer
-has. Procurement cannot loop forever or put a company into debt.
+Draft order runs forward, then reverse, alternating each round. Rotate the
+opening seat one place between route, card, and Destination drafts. A snake
+turnaround can give one player consecutive picks.
 
 | Route | Code | Segment recipe | Price | Complete VP | Major bonus | Unfinished VP |
 |---|---|---|---:|---:|---:|---:|
-| Short Line | S | 3,4,3,4 | 5 | 4 | 3 | −4 |
-| Branch Line | B | 5,5,3,4,4 | 6 | 5 | 3 | −5 |
-| Medium Line | M | 3,4,3,4,3,4 | 8 | 6 | 4 | −6 |
-| Express Line | E | 5,4,5,4,5 | 9 | 6 | 5 | −7 |
-| Crosstown Line | C | 4,3,4,3,4,3 | 10 | 7 | 4 | −7 |
-| Long Line | L | 4,5,4,4,5,4,4 | 12 | 9 | 4 | −8 |
-| Old Town Tram | T | 3,3,4,3 | 5 | 4 | 3 | −4 |
-| Riverside Line | R | 4,3,4,4,3 | 7 | 5 | 4 | −5 |
-| University Shuttle | U | 3,4,3,3 | 6 | 4 | 3 | −4 |
-| Orbital Line | O | 4,4,3,4,4,3 | 8 | 6 | 4 | −6 |
-| Airport Express | A | 5,4,5,4,4 | 9 | 6 | 5 | −6 |
-| Neighbourhood Local | N | 3,3,3,4,3 | 6 | 5 | 3 | −5 |
+| Market Shuttle | S | 2,3,2,3 | 5 | 4 | 3 | −4 |
+| Garden Spur | B | 4,2,3,4,2 | 6 | 5 | 3 | −5 |
+| Museum Connector | M | 3,5,2,4,3,5 | 8 | 6 | 4 | −6 |
+| Grand Central Express | E | 6,4,5,3,6 | 10 | 6 | 5 | −7 |
+| Crosstown Line | C | 5,3,4,2,5,3 | 10 | 7 | 4 | −7 |
+| Harbor Line | L | 4,6,3,5,2,4,6 | 11 | 9 | 4 | −8 |
+| Old Town Tram | T | 2,3,4,2 | 5 | 4 | 3 | −4 |
+| Riverside Line | R | 4,2,5,3,4 | 7 | 5 | 4 | −5 |
+| University Shuttle | U | 3,2,4,3 | 6 | 4 | 3 | −4 |
+| Orbital Line | O | 4,5,2,4,3,5 | 9 | 6 | 4 | −6 |
+| Airport Express | A | 6,3,5,4,2 | 10 | 6 | 5 | −6 |
+| Neighbourhood Local | N | 2,3,2,4,3 | 6 | 5 | 3 | −5 |
 
 The Major bonus pays once per contract that docks at least one Major Station,
-complete or incomplete. Express additionally scores +3 for completing a route
-connecting two different Major Stations.
+complete or incomplete. Four premium routes carry completion specials: Grand
+Central Express scores +3 for two Major Stations; Crosstown scores +3 for
+reaching within five pegs of both board edges; Orbital scores +3 for three
+stations; and Airport Express scores +4 for docking at Airport. Every recipe
+has 4–7 segments, and every printed segment is 2–6 pegs long.
 
 ## Engineering
 
-Draft two Destinations per company from a row of three. Every company gets a pick
-before anyone gets its next pick; the opening-priority company breaks ties.
+First draft six cards each, one per turn: any of two face-up Engineering,
+Scheduling or Construction cards, or a blind draw from that category. Refill
+immediately. Each shuffled category pile contains eight copies of each card.
+You must collect at least three distinct Engineering goals within six picks;
+remaining picks are reserved for goals when necessary. Face-up goals you own
+cannot be drafted; blind Engineering draws skip owned goals without spending a
+pick. Scheduling and Construction cards are optional and may have duplicates.
+Cards cannot be played during drafting.
+
+Then draft two Destinations per company from a row of three, separate from
+the six-card allowance, using the next rotated opening seat and snake order.
 There is one card for each of ten stations. Assign every drafted Destination to
 an owned line, at most two per line. Each pays **+3 VP** if that line docks its
 station, whether the line is finished or not.
 
 Choose **three different Engineering goals** from your hand. These are company-wide:
 any qualifying owned route may satisfy a goal. They are separate from Destinations.
-The card describes its precise scoring condition. Four new goals are Across Town,
-Local Service, Interchange and On Budget; the existing ten remain. Uncommitted
-cards never score. The interface shows your own progress privately.
+The card describes its precise scoring condition. Uncommitted cards never score.
+The interface shows your own progress privately.
+
+| Engineering goal | VP | Requirement |
+|---|---:|---|
+| Gentle Curve | 4 | One line has three consecutive segments where every turn is ≤30°. |
+| 45° Bend | 3 | One line turns more than 30° and at most 50° at a node. |
+| Straightaway | 4 | One line has three consecutive segments aligned within 15°. |
+| Major Connection | 4 | One completed line connects a Major and a Minor Station. |
+| Grand Tour | 5 | One completed line connects one Major and at least two Minor Stations. |
+| Network Link | 4 | One completed line connects at least three different stations. |
+| Long Haul | 4 | One completed line has six or more segments. |
+| End of the Line | 4 | A completed line ends on a station. |
+| Twin Completion | 3 | Complete at least two Line Contracts. |
+| Crossing Design | 2 | One of your segments properly crosses any existing line. |
+| Across Town | 5 | One line has a node within five pegs of both board edges. |
+| Local Service | 4 | Your company connects two different Minor Stations. |
+| Interchange | 3 | Two of your lines dock the same station. |
+| On Budget | 3 | Complete at least two lines and finish with at least $3M. |
 
 Optionally buy up to five Survey Pins for $1M each. Place them on non-station holes,
 taking turns across all companies. A pin scores +1 VP if any of your routes has a
@@ -92,8 +112,8 @@ confirm. Costs are paid when all confirm.
 | Early Mobilization | Move a block one period earlier; waive the extra mobilization cost. |
 | Float | Move a block one period earlier or later; costs adjust. |
 | Priority Permit | Take first place in one period where you and another company work. A claimed period cannot be overwritten. |
-| Ready Depot | Waive a scheduled line's full mobilization charge; timing stays fixed. |
-| Flexible Working | Move a block exactly two periods earlier or later; costs adjust. |
+| Staggered Start | Move one block one to three periods later; costs adjust. |
+| Coordination Window | Waive $2M of your crew-overlap cost. |
 
 Shifts must fit the calendar and remain affordable. Priority starts at a randomly
 chosen company and rotates each period through **every seat**. Resolution order
@@ -111,7 +131,10 @@ Follow the route's lengths **in the printed order**, within ±0.5 peg-space dist
 Turns may be at most **90°**, inclusive. The first segment has no heading constraint.
 Station docks have distinct positions; choose a particular free dock. Length and
 angle use its physical position. A taken dock is rejected, never substituted.
-Every station has two docks. A line docks each station at most once.
+Minor Stations have two docks; Major Stations have three. Each game shuffles
+the named stations among deliberately well-spaced board sites, so Destinations
+move while the city never clusters into one corner. A line docks each station at
+most once.
 
 Normal pegs may share holes, sit on strings, or be adjacent. Routes may cross and
 pass through pegs. Only collinear **string overlap** is prohibited. Stations never
@@ -161,6 +184,15 @@ scores once per company, even if two of its routes dock there. Ties break on Maj
 connections, then remaining money, then a shared victory. Scoring is final when
 the host advances to Results.
 
-State version **9** requires existing older online games to restart. Multiplayer
+State version **11** requires existing older online games to restart. Multiplayer
 balance is provisional: automated games verify completion and expose tendencies;
 human games remain the test of enjoyment and long-term strategy balance.
+
+## Guided practice
+
+Visit `/subway/tutorial` for 13 replayable lessons using isolated practice states
+and real game controls. Camera pans, area outlines, animated examples and accepted
+action feedback explain the phases. Back, Skip, Replay and lesson selection are
+available throughout. Animations respect reduced-motion preferences. The in-game
+Phase lesson link opens practice in another tab without altering the live game.
+Desktop/phone visual verification remains pending.

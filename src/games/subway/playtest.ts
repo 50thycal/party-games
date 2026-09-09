@@ -25,13 +25,13 @@ function bestTarget(s: SubwayState, id: string, lineIndex: number, starter: bool
   const me = s.players[id];
   const line = me.lines[lineIndex];
   const desired = me.destinationCommitments.filter((c)=>c.lineIndex===lineIndex).map((c)=>destinationById(c.cardId)?.stationId);
-  const unvisited = STATIONS.filter((station)=>!line.route.some((n)=>n.stationId===station.id));
+  const unvisited = s.stations.filter((station)=>!line.route.some((n)=>n.stationId===station.id));
   const clone = {...s, players:{...s.players, [id]:{...me, lines:me.lines.map((l)=>({...l, route:[...l.route]}))}}};
   const trial = clone.players[id].lines[lineIndex];
   // Prefer real station points and reachable destinations, but retain a
   // continuation. A small seeded tie-break removes fixed coordinate bias.
   return targets.map((target) => {
-    const station = stationAt(target);
+    const station = stationAt(target, s.stations);
     trial.route = [...line.route, {...target, ...(station ? {stationId:station.id,stationSlot:target.slot} : {})}];
     const finished = lineComplete(trial);
     const options = finished ? [] : legalTargets(clone,id,lineIndex,false);
@@ -51,12 +51,13 @@ export function playtestAction(s: SubwayState, random: () => number): SubwayActi
   switch(s.phase) {
     case "PROCUREMENT": {
       const offer = s.procurement.offer!;
-      return action("PROCURE", me.lines.length<3 && me.money>=offer.price ? {choice:"buy"} : {choice:"pass",deck:"engineering"});
+      return action("PROCURE", {choice:"buy",contractId:offer.contractId});
     }
     case "ENGINEERING":
+      if(s.engineeringStep==="CARD_DRAFT") return action("DRAFT_CARD",{deck:me.engineeringHand.length<3 ? "engineering" : "construction",expectedPick:s.market.picks});
       if(s.engineeringStep==="DESTINATION_DRAFT") return action("PICK_DESTINATION",{destinationCardId:s.destinationRow[0]});
       if(s.engineeringStep==="SURVEY") throw new Error("Playtester does not buy speculative survey pins.");
-      return action("LOCK_ENGINEERING_PLAN",{cardIds:["straight","bend","network"],destinations:me.destinationHand.map((cardId,i)=>({cardId,lineIndex:i%me.lines.length})),surveys:0});
+      return action("LOCK_ENGINEERING_PLAN",{cardIds:me.engineeringHand.slice(0,3),destinations:me.destinationHand.map((cardId,i)=>({cardId,lineIndex:i%me.lines.length})),surveys:0});
     case "SCHEDULING":
       return action(s.schedulingStep==="PLANNING" ? "SUBMIT_SCHEDULE" : "CONFIRM_SCHEDULE");
     case "STARTER_PLACEMENT": {
@@ -91,7 +92,7 @@ export function runPlaytest(count:number, seed:number, until="RESULTS") {
   const random=seededRandom(seed+1234);
   let game=state;
   let actions=0;
-  while(game.phase!==until && game.phase!=="RESULTS" && actions<500) {
+  while(game.phase!==until && !(game.phase==="ENGINEERING" && game.engineeringStep===until) && game.phase!=="RESULTS" && actions<500) {
     game=stepPlaytest(game,room,random);actions++;
   }
   if(actions>=500) throw new Error("Game exceeded the 500-action termination bound");

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { lessonForPhase } from "./tutorial";
 import type { GameViewProps } from "@/games/views";
 import { DestinationCardFace, EngineeringCardFace } from "./CardArt";
 import { ContractCard, MiniCardFace, money } from "./cards";
@@ -32,7 +33,9 @@ import {
   blockPeriods,
   SUBWAY_STATE_VERSION,
   basePriorityId,
-  buyBlocker,
+  cardDraftBlocker,
+  cardDraftTurnId,
+  draftPicks,
   constructionById,
   contactToll,
   contestedPeriods,
@@ -40,6 +43,7 @@ import {
   contractNodes,
   committedStatus,
   contractOf,
+  crewCost,
   contractsOutstanding,
   destinationById,
   destinationMet,
@@ -49,10 +53,6 @@ import {
   engineeringById,
   legalTargets,
   lineComplete,
-  marketConstruction,
-  marketEngineering,
-  marketScheduling,
-  mustBuyOffer,
   nextSegmentLength,
   pendingStarters,
   routeContacts,
@@ -133,27 +133,14 @@ function statusFor(game: SubwayState, me: SubwayPlayer | undefined, isHost: bool
     case "PROCUREMENT": {
       const offer = game.procurement.offer;
       if (!offer) return { headline: "Shuffling the contract deck…", tone: "wait" };
-      const contract = contractById(offer.contractId)!;
-      if (offer.activeId !== me.id) {
-        return {
-          headline: `${game.players[offer.activeId]?.name ?? "Opponent"} is deciding on the ${contract.name}.`,
-          tone: "wait",
-        };
-      }
-      if (mustBuyOffer(game, me.id)) {
-        return {
-          headline: `You must take the ${contract.name} — nobody else can.`,
-          tone: "act",
-          detail: `The opposition has hit its ${SUBWAY_CONFIG.maxContractsPerPlayer}-contract cap.`,
-        };
-      }
       return {
-        headline: `${contract.name} is on offer at ${money(offer.price)}.`,
-        tone: "act",
-        detail: "Buy the route, or open a face-up card to pass and draft it.",
+        headline: offer.activeId === me.id ? "Choose one route contract." : `${game.players[offer.activeId]?.name} is choosing a route.`,
+        tone: offer.activeId === me.id ? "act" : "wait",
+        detail: "Pick at list price. Three draft rounds, with alternating order.",
       };
     }
     case "ENGINEERING": {
+      if (game.engineeringStep === "CARD_DRAFT") return {headline: cardDraftTurnId(game) === me.id ? `Draft your hand: ${draftPicks(me)}/6 cards.` : `${game.players[cardDraftTurnId(game) ?? ""]?.name} is drafting.`, tone: cardDraftTurnId(game) === me.id ? "act" : "wait", detail:"Two face-up cards per category or a blind draw. Keep three picks for distinct Engineering goals."};
       if (game.engineeringStep === "DESTINATION_DRAFT") {
         const turn = destinationTurnId(game);
         const owed = SUBWAY_CONFIG.destinationsPerPlayer - destinationsHeld(me);
@@ -253,7 +240,7 @@ type BoardMode = "none" | "place" | "survey" | "planner";
 
 const PLAN_PHASES = new Set(["ENGINEERING", "SCHEDULING", "STARTER_PLACEMENT", "CONSTRUCTION"]);
 
-export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }: GameViewProps<SubwayState>) {
+export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, lessonZone, lessonBeat = 0 }: GameViewProps<SubwayState> & {lessonZone?: TableZone; lessonBeat?: number}) {
   const raw = state as SubwayState | undefined;
   const stale = !!raw && raw.version !== SUBWAY_STATE_VERSION;
   const game = raw && !stale ? raw : undefined;
@@ -271,7 +258,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
   // Card focus and its card-play targets.
   const [focus, setFocus] = useState<FocusRef | null>(null);
   const [cardLine, setCardLine] = useState(0);
-  const [cardDirection, setCardDirection] = useState<-1 | 1>(-1);
+  const [cardDirection, setCardDirection] = useState<number>(-1);
   const [cardPeriod, setCardPeriod] = useState(1);
   const [flight, setFlight] = useState<{ from: DOMRect; to: { x: number; y: number }; label: string; color: string } | null>(
     null
@@ -279,6 +266,11 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
 
   // The camera. Client-local by construction: no poll can move it (SA-9).
   const cam = useRef<CameraApi | null>(null);
+  useEffect(() => {
+    if (!lessonZone) return;
+    const timer = setTimeout(() => cam.current?.focus(lessonZone), 150);
+    return () => clearTimeout(timer);
+  }, [lessonZone, lessonBeat]);
   const [zoomPct, setZoomPct] = useState(100);
   const boardRef = useRef<HTMLDivElement | null>(null);
   // The HUD's real bands, measured: the camera frames zones clear of them, so
@@ -499,7 +491,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
     const clone = cloneState(game);
     const line = clone.players[me.id]?.lines[activeLineIndex];
     if (!line) return undefined;
-    const station = stationAt(preview);
+    const station = stationAt(preview, game.stations);
     line.route.push({
       x: preview.x,
       y: preview.y,
@@ -633,7 +625,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
         setNotice(reason);
         return;
       }
-      const station = stationAt(p);
+      const station = stationAt(p, game.stations);
       setNotice(null);
       setSketch([...sketch, { ...p, ...(station ? { stationId: station.id, stationSlot: slot ?? 0 } : {}) }]);
       return;
@@ -658,7 +650,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
       }
       setNotice(null);
       // Selection only — tapping never commits (OD-3 / OD-4).
-      setPreview({ x: p.x, y: p.y, ...(stationAt(p) ? { slot } : {}) });
+      setPreview({ x: p.x, y: p.y, ...(stationAt(p, game.stations) ? { slot } : {}) });
     }
   };
 
@@ -713,7 +705,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
     if (phase === "PROCUREMENT") return "office";
     if (phase === "SCHEDULING") return "schedule";
     if (phase === "ENGINEERING") {
-      return step === "DESTINATION_DRAFT" ? "office" : step === "PLAN" ? "hand" : "board";
+      return step === "DESTINATION_DRAFT" || step === "CARD_DRAFT" ? "office" : step === "PLAN" ? "hand" : "board";
     }
     if (phase === "RESULTS") return "results";
     if (phase === "SCORING") return "table";
@@ -806,6 +798,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
     if (me.schedulingCardPlayed) return "One Scheduling card per company per game";
     if (me.scheduleConfirmed) return "Your schedule is already locked";
     if (id === "priority" && !contested.length) return "No contested periods to reorder";
+    if (id === "coordination" && crewCost(me) <= 0) return "No crew-overlap cost to waive";
     if (id !== "priority" && !me.lines.some((l) => l.start !== undefined)) return "Nothing scheduled to move";
     return undefined;
   };
@@ -903,28 +896,13 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
       const contract = contractById(focus.id);
       if (!contract) return null;
       const offer = game.procurement.offer;
-      const onOffer = !!offer && offer.contractId === focus.id;
-      const mine = onOffer && offer!.activeId === me.id;
-      const forced = mine && mustBuyOffer(game, me.id);
-      const blocker = buyBlocker(game, me.id);
-      const canBuy = mine && (!blocker || (forced && blocker === "Not enough money."));
-      const actions: FocusAction[] = [];
-      if (mine) {
-        actions.push({
-          label: `Buy for ${money(forced ? Math.min(offer!.price, me.money) : offer!.price)}`,
-          disabled: busy || !canBuy,
-          reason: canBuy ? undefined : blocker,
-          run: () => playWithFlight(contract.name, contract.color, "lines", () => act("PROCURE", { choice: "buy" })),
-        });
-        if (!forced) {
-          actions.push({
-            label: "Pass & draft Engineering",
-            tone: "plain",
-            disabled: busy,
-            run: () => playWithFlight(contract.name, contract.color, "office", () => act("PROCURE", { choice: "pass", deck: "engineering" })),
-          });
-        }
-      }
+      const onOffer = game.phase === "PROCUREMENT" && game.procurement.row.includes(focus.id);
+      const mine = onOffer && offer?.activeId === me.id;
+      const actions: FocusAction[] = mine ? [{
+        label: `Sign route for ${money(contract.cost)}`,
+        disabled: busy || me.money < contract.cost,
+        run: () => playWithFlight(contract.name, contract.color, "lines", () => act("PROCURE", {choice:"buy", contractId:contract.id})),
+      }] : [];
       return (
         <CardFocus
           title={contract.name}
@@ -944,40 +922,15 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
     }
 
     if (focus.family === "market") {
-      const offer = game.procurement.offer;
-      const mine = !!offer && offer.activeId === me.id && !mustBuyOffer(game, me.id);
-      const card =
-        focus.id === "engineering"
-          ? marketEngineering(game.market)
-          : focus.id === "scheduling"
-            ? marketScheduling(game.market)
-            : marketConstruction(game.market);
-      return (
-        <CardFocus
-          title={card.name}
-          onClose={close}
-          face={
-            <MiniCardFace
-              family={focus.id === "construction" ? "construction" : "scheduling"}
-              name={card.name}
-              description={card.description}
-              note={`Face-up ${focus.id} card`}
-            />
-          }
-          note="Passing on the current contract draws this card."
-          reason={mine ? undefined : "Draft a face-up card when the current contract is offered to you."}
-          actions={[
-            {
-              label: "Pass and take this card",
-              disabled: busy || !mine,
-              run: () =>
-                playWithFlight(card.name, "#a16207", "hand", () =>
-                  act("PROCURE", { choice: "pass", deck: focus.id })
-                ),
-            },
-          ]}
-        />
-      );
+      const card = focus.cardId ? focus.id === "engineering" ? engineeringById(focus.cardId) : focus.id === "scheduling" ? schedulingById(focus.cardId as SchedulingCardId) : constructionById(focus.cardId as ConstructionCardId) : undefined;
+      const why = cardDraftBlocker(game, me.id, focus.id, focus.cardId);
+      const available = !focus.cardId || game.market.rows?.[focus.id].includes(focus.cardId);
+      return <CardFocus title={card?.name ?? `Blind ${focus.id} draw`} onClose={close}
+        face={focus.id === "engineering" && focus.cardId ? <EngineeringCardFace card={focus.cardId} color={me.color}/> : <MiniCardFace family={focus.id === "construction" ? "construction" : "scheduling"} name={card?.name ?? "Mystery card"} description={card?.description ?? `Draw one random ${focus.id} card. Engineering draws always give a goal you do not already hold.`} note={focus.cardId ? "Face-up draft" : "Blind draw"}/>}
+        note={`${draftPicks(me)}/6 picks used · ${new Set(me.engineeringHand).size}/3 required Engineering goals. Scheduling and Construction are optional.`}
+        reason={why ?? (!available ? "That card has already been drafted." : undefined)}
+        actions={[{label:card ? "Draft this card" : "Draw a random card", disabled:busy || !!why || !available,
+          run:() => playWithFlight(card?.name ?? "Card drafted", "#a16207", "hand", () => act("DRAFT_CARD", {deck:focus.id, cardId:focus.cardId, expectedPick:game.market.picks}))}]}/>;
     }
 
     if (focus.family === "engineering") {
@@ -1134,7 +1087,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
               ) : (
                 <div className="space-y-2">
                   {lineChoice(cardLine, setCardLine, options)}
-                  {(focus.id === "float" || focus.id === "flex") && (
+                  {focus.id === "float" && (
                     <div className="flex overflow-hidden rounded-lg border-2 border-stone-400 text-sm font-bold">
                       <button
                         type="button"
@@ -1150,6 +1103,20 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
                       >
                         Later
                       </button>
+                    </div>
+                  )}
+                  {focus.id === "stagger" && (
+                    <div className="flex overflow-hidden rounded-lg border-2 border-stone-400 text-sm font-bold">
+                      {[1, 2, 3].map((periods) => (
+                        <button
+                          key={periods}
+                          type="button"
+                          className={`flex-1 px-3 py-2 ${cardDirection === periods ? "bg-stone-800 text-white" : "bg-white"}`}
+                          onClick={() => setCardDirection(periods)}
+                        >
+                          +{periods}
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -1170,7 +1137,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
                       ? { period: contested.includes(cardPeriod) ? cardPeriod : contested[0] }
                       : {
                           lineIndex: options.includes(cardLine) ? cardLine : options[0],
-                          ...((focus.id === "float" || focus.id === "flex") ? { direction: cardDirection } : {}),
+                          ...((focus.id === "float" || focus.id === "stagger") ? { direction: cardDirection } : {}),
                         }),
                   })
                 ),
@@ -1307,7 +1274,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
             <span className="ml-auto text-xs font-bold">
               {preview
                 ? preview.slot !== undefined
-                  ? `Selected: ${stationAt(preview)?.name ?? "station"} dock ${preview.slot + 1}`
+                  ? `Selected: ${stationAt(preview, game.stations)?.name ?? "station"} dock ${preview.slot + 1}`
                   : `Selected: hole ${preview.x + 1},${preview.y + 1}`
                 : targets.length
                   ? "Tap a glowing target to select"
@@ -1581,6 +1548,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
         </div>
 
         <div className="pointer-events-auto flex flex-wrap items-center justify-end gap-1 rounded-xl bg-stone-900/85 p-1.5 text-amber-50 shadow-lg">
+          {!lessonZone && <Link href={`/subway/tutorial?lesson=${lessonForPhase(game.phase,game.engineeringStep)}`} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-white/15 px-2 py-1 text-xs">Phase lesson ↗</Link>}
           <button
             onClick={() => cam.current?.zoomBy(1 / 1.3)}
             aria-label="Zoom out"
@@ -1633,7 +1601,8 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
   );
 
   return (
-    <div className="relative" style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
+    <div className="relative" data-tutorial-zone={lessonZone} style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
+      {lessonZone && lessonZone !== "table" && <style>{`[data-tutorial-zone="${lessonZone}"] [data-zone="${lessonZone}"] { outline: 6px solid #14b8a6; outline-offset: 8px; }`}</style>}
       {veiled && me && <HandoffVeil name={me.name} color={me.color} onConfirm={() => setSeatedId(playerId)} />}
       {/* Screen readers hear every accepted public event, animation or not. */}
       <div aria-live="polite" className="sr-only">
@@ -1645,7 +1614,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
         apiRef={cam}
         onCamera={(scale) => setZoomPct((prev) => (Math.round(scale * 100) === prev ? prev : Math.round(scale * 100)))}
         overlay={hud}
-        openZone={phaseZone}
+        openZone={lessonZone ?? phaseZone}
         bottomInset={30}
         hudTop={bands.top}
         hudBottom={bands.bottom}
@@ -1678,7 +1647,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction }
               me={me}
               veiled={veiled}
               onOpenContract={(id, price) => setFocus({ family: "contract", id, price })}
-              onOpenMarket={(deck: CardDeckId) => setFocus({ family: "market", id: deck })}
+              onOpenMarket={(deck: CardDeckId, cardId?: string) => setFocus({ family: "market", id: deck, cardId })}
               onOpenDestination={(id) => setFocus({ family: "destination", id, slot: "row" })}
             />
 

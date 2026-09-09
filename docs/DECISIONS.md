@@ -1232,3 +1232,81 @@ Local storage may fail; a visible warning then tells players to keep the tab ope
 The visual lab uses legal reducer actions and real iframe viewports without touching
 live rooms. Build OS v0.11 is adopted in reviewed mode; no historical reviews or
 acceptances are invented. This branch must receive independent review before merge.
+
+---
+
+### DEC-025 — Subway routes use named services and a shuffled, spaced station layout
+
+**Date:** 2026-09-07
+**Status:** Accepted within the owner's delegated WS-005 implementation scope; pending PR review.
+
+**Context**
+The owner rejected generic route names and the narrow 3–5 peg recipe range. They
+requested a hard maximum of seven segments, 2–6 peg segment variation, four premium
+route specials, three Major Station connections, and station locations that vary
+between games without clustering every Destination.
+
+**Decision**
+Rename the original generic services as Market Shuttle, Garden Spur, Museum
+Connector, Grand Central Express, and Harbor Line. Every route uses four to seven
+segments whose printed lengths are 2–6 pegs. Four premium services score a visible
+completion special: Grand Central Express, Crosstown, Orbital, and Airport Express.
+
+At game start, assign the ten named stations to ten of fourteen predefined separated
+sites using reducer-provided randomness. Station identity, type and Destination card
+stay the same; only its map position changes. Major Stations have three docks and
+Minor Stations have two.
+
+**Rationale**
+The new names make contracts feel like city services rather than difficulty labels.
+Broader recipes create more readable route personalities while preserving the
+existing 16-period schedule model. A bounded site set makes the board replayable
+without allowing pathological station clumps or introducing freeform placement
+complexity.
+
+**Alternatives considered**
+- **Fixed station positions.** Rejected by the owner because repeated games make
+  Destination play too familiar.
+- **Unconstrained random coordinates.** Rejected because adjacency and blocked
+  geography would make some layouts poor before a player made a decision.
+
+**Consequences**
+State version 10 invalidates older rooms and local saves. Reducer tests verify
+unique, separated station sites, 3/2 Major/Minor dock capacity, the 2–6 segment
+range, seven-segment cap, premium route count, portfolio affordability, and full
+2/3/4-player completion simulations. Visual browser verification remains pending.
+
+---
+
+### DEC-026 — Draft routes, then build a six-card hand before plan commitment
+
+**Date:** 2026-09-08
+**Status:** Accepted by owner; pending implementation review.
+
+**Context**
+The owner approved replacing starting hands and pass-for-card procurement with
+staged choices that introduce cards gradually. This supersedes DEC-024's
+pass-and-discount procurement behavior, retaining its other gameplay decisions.
+
+**Decision**
+Draft three routes each at list price from a player-count-sized replenishing row.
+No passing or discounts. Start with no cards, then draft six cards from Engineering,
+Scheduling and Construction, with two face-up choices per family and blind draws.
+Require at least three distinct Engineering goals; tactical categories are optional.
+Draft two Destinations separately, then commit plans and purchase surveys as before.
+Alternate draft direction each round and rotate the opening seat between stages.
+Provide isolated, replayable practice lessons using the real controls.
+
+**Rationale**
+Staging reduces the initial reading burden while preserving meaningful choices.
+Goal reservation prevents a six-card hand that cannot legally commit a plan.
+
+**Alternatives considered**
+Keep starting hands and pass rewards: rejected by the owner. Require tactical
+cards: rejected; choosing none is a player's strategic choice.
+
+**Consequences**
+State version 11 requires new games. Category piles contain eight copies per card,
+shuffled only through reducer RNG. Blind Engineering draws skip owned goals.
+Tutorial practice does not alter real games. Visual testing and independent review
+remain outstanding and must not be inferred from passing reducer simulations.

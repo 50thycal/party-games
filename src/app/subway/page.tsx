@@ -7,7 +7,7 @@ import { SubwayGameView } from "@/games/subway/GameView";
 import { SUBWAY_STATE_VERSION, subwayGame, nextCompanyId, type SubwayAction, type SubwayState } from "@/games/subway/config";
 
 type Session = { room: Room; game: SubwayState; seat: string };
-const SAVE_KEY = "subway-hotseat-v9";
+const SAVE_KEY = "subway-hotseat-v11";
 
 export default function SubwayHotseat() {
   const [session, setSession] = useState<Session | null>(null);
@@ -61,6 +61,7 @@ export default function SubwayHotseat() {
         <p className="mt-12 text-xs font-bold uppercase tracking-[.3em] text-teal-300">Metropolitan Transit Authority</p>
         <h1 className="mt-3 text-6xl font-black tracking-tight">SUBWAY<span className="text-orange-400">.</span></h1>
         <p className="mt-4 text-lg text-slate-300">Three routes. One growing city. Make the connections that count.</p>
+        <Link href="/subway/tutorial" className="mt-5 inline-block rounded-xl border border-teal-300 px-5 py-3 font-bold text-teal-200">Learn by playing · guided tutorial →</Link>
         <div className="mt-8 flex gap-2 border-y border-white/15 py-4 text-sm text-teal-100"><span>2–4 companies</span><span>·</span><span>Pass & play</span><span>·</span><span>Saves on this device</span></div>
         <h2 className="mt-7 text-sm font-bold uppercase tracking-widest">How many companies?</h2>
         <div className="mt-3 grid grid-cols-3 gap-3">{[2,3,4].map((n) => <button key={n} aria-pressed={count===n} onClick={()=>setCount(n)} className={`rounded-xl border-2 p-4 text-lg font-bold ${count===n ? "border-teal-300 bg-teal-800" : "border-white/20 bg-white/5"}`}>{n} players</button>)}</div>
@@ -82,7 +83,7 @@ export default function SubwayHotseat() {
       <button onClick={()=>setNewGame(true)} className="rounded-lg bg-white/10 px-3 py-2 text-xs">New game</button>
     </header>
     {!saved && <p role="status" className="mb-2 rounded bg-amber-100 p-2 text-sm text-amber-950">Device storage is unavailable. Keep this tab open to finish your game.</p>}
-    {help && <aside className="mb-2 rounded-xl bg-[#f5f3e9] p-4 text-sm leading-relaxed text-slate-900"><b>Your first journey</b><ol className="ml-5 mt-2 list-decimal space-y-1"><li>Buy a route or pass for a face-up card. Everyone ends with three routes.</li><li>Draft two Destinations and assign each to a route. Pick three Engineering goals; they apply across your company.</li><li>Schedule each route. Overlapping blocks cost extra crew money. Later starts cost less.</li><li>Place your free starter pegs on the border. Follow each route’s printed segment lengths; turns may be up to 90°.</li><li>Tap a glowing peg, inspect the next step and toll, then Confirm. You can plan ahead without committing.</li><li>Score finished routes, stations and goals. Keep debt low. Most points wins!</li></ol><p className="mt-2">Use Board, Schedule, Lines and Cards to move around the table. Drag to pan; scroll or pinch to zoom. Pass the device before revealing the next company’s cards. Geography is decorative.</p></aside>}
+    {help && <aside className="mb-2 rounded-xl bg-[#f5f3e9] p-4 text-sm leading-relaxed text-slate-900"><b>Your first journey</b><ol className="ml-5 mt-2 list-decimal space-y-1"><li>Draft one route at list price each turn. Everyone ends with three routes; there is no pass.</li><li>Draft six cards, including three distinct Engineering goals. Then draft two Destinations and assign each to a route. Pick three Engineering goals; they apply across your company.</li><li>Schedule each route. Overlapping blocks cost extra crew money. Later starts cost less.</li><li>Place your free starter pegs on the border. Follow each route’s printed segment lengths; turns may be up to 90°.</li><li>Tap a glowing peg, inspect the next step and toll, then Confirm. You can plan ahead without committing.</li><li>Score finished routes, stations and goals. Keep debt low. Most points wins!</li></ol><p className="mt-2">Use Board, Schedule, Lines and Cards to move around the table. Drag to pan; scroll or pinch to zoom. Pass the device before revealing the next company’s cards. Geography is decorative.</p></aside>}
     <SubwayGameView room={session.room} state={session.game} playerId={session.seat} isHost={session.seat===session.room.hostId} dispatchAction={dispatchAction} />
   </main>;
 }
