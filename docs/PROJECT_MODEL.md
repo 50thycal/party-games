@@ -2,7 +2,7 @@
 
 <!-- How does this system work TODAY? Present tense. Not a roadmap, not a history. -->
 
-**Last updated:** 2026-09-06 · **Build OS v0.11** (see [50thycal/build-os](https://github.com/50thycal/build-os))
+**Last updated:** 2026-09-09 · **Build OS v0.11** (see [50thycal/build-os](https://github.com/50thycal/build-os))
 
 Project memory has three layers: this file (how the system works today),
 [`DECISIONS.md`](DECISIONS.md) (why), and [`workstreams/`](workstreams/ACTIVE.md) (what is being
@@ -92,7 +92,7 @@ Two properties define the shape of everything else:
 | Dev simulator | `src/app/test/`, `src/app/api/llm-bot/route.ts`, `src/games/cafe/bots.ts` | **Development-only.** Runs Comet Rush and Cafe reducers in the browser with scripted or LLM bots. Bypasses the API routes and the database entirely. |
 | Subway local hotseat | `src/app/subway/page.tsx` | Device-local, versioned save/resume, 2–4 seat setup and handoff. Uses the same pure reducer and GameView; no Turso/network dependency. |
 | Subway playtest lab | `src/app/test/subway/`, `src/games/subway/playtest.ts` | Seeded legal-action phase walks and iframe viewports for desktop/phone inspection. Isolated from real rooms. |
-| Subway rules harness | `scripts/subway-rules-test.ts`, `scripts/subway-multiplayer-test.ts`, `scripts/test-subway.sh` | The only automated test in the repository: compiles the Subway reducer plus engine types and asserts rules by driving the reducer directly. Covers Subway's contract recipes and route geometry, station docks, priority, procurement, Engineering plan lock, Destinations, Survey Pins, placement undo, scheduling, spatial rules, scoring, border-only starters, one-Confirm-one-action queue semantics, stale-confirm rejection, the bounded privacy-safe public event stream (append-on-accept, 20-entry cap, monotonic sequence across Undo), and state versioning. |
+| Subway rules harness | `scripts/subway-rules-test.ts`, `scripts/subway-multiplayer-test.ts`, `scripts/test-subway.sh` | The only automated test in the repository: compiles the Subway reducer plus engine types and asserts rules by driving the reducer directly. Covers Subway's contract recipes and route geometry, station docks, priority, procurement, merged goal drafting, Survey Pins, placement undo, crew billing and card timing, spatial rules, scoring, border-only starters, one-Confirm-one-action queue semantics, stale-confirm rejection, the bounded privacy-safe public event stream (append-on-accept, 20-entry cap, monotonic sequence across Undo), and state versioning. |
 
 ### How they relate
 
@@ -216,7 +216,7 @@ the room shell reads `state.phase` directly.
 | Open House | `real-estate` | `lobby → playing → round_results → … → results` |
 | HR Investigation | `performance-review` | `lobby → intro → accusation → reframing → interview → case_prep → editing → reveal → voting → round_over → … → game_over` |
 | The Desk | `the-desk` | `lobby → briefing → quote → trading → settlement → briefing … → final` |
-| Subway | `subway` | `SETUP → PROCUREMENT → ENGINEERING → SCHEDULING → STARTER_PLACEMENT → CONSTRUCTION → SCORING → RESULTS`, with `engineeringStep: CARD_DRAFT → DESTINATION_DRAFT → PLAN → SURVEY` inside `ENGINEERING` and `schedulingStep: PLANNING → RESOLUTION` inside `SCHEDULING`. One `UNDO_PLACEMENT` action can walk the latest physical placement back across a phase boundary. State v11 (WS-005) retains a bounded public event stream — `events` (latest 20) plus a monotonic `nextEventSeq` that is never rewound, Undo included — appended only by accepted actions and containing no hidden card identity; the view narrates it as overlays over the table and a site logbook. A game-start random layout assigns named stations to separated sites; Major Stations have three docks and Minor Stations have two. Starter pegs are reducer-legal only on non-station outer-border holes, and the view commits placements exclusively through an explicit Confirm dispatching `PLACE_STARTER`/`BUILD` with the one selected target. |
+| Subway | `subway` | `SETUP → PROCUREMENT → ENGINEERING → STARTER_PLACEMENT → CONSTRUCTION → SCORING → RESULTS`, with `engineeringStep: CARD_DRAFT → BUY_SURVEYS → SURVEY` inside `ENGINEERING` (SURVEY is skipped when no pins are purchased). One `UNDO_PLACEMENT` action can walk the latest physical placement back across a phase boundary. State v12 (WS-005) retains a bounded public event stream — `events` (latest 20) plus a monotonic `nextEventSeq` that is never rewound, Undo included — appended only by accepted actions and containing no hidden card identity; the view narrates it as overlays over the table and a site logbook. A game-start random layout assigns named stations to separated sites; Major Stations have three docks and Minor Stations have two. Starter pegs are reducer-legal only on non-station outer-border holes, and the view commits placements exclusively through an explicit Confirm dispatching `PLACE_STARTER`/`BUILD` with the one selected target. |
 
 **The string `"lobby"` is load-bearing in the shell.** The room page shows the room-code header,
 the player list, and the leave link only while `gameState` is null or `state.phase === "lobby"`;
@@ -322,8 +322,7 @@ These should remain true across implementations:
     has a deterministic fallback.
 11. **Hidden information is a rendering convention, not a guarantee.** `GET /api/get-room`
     returns the entire room state to every client, so a game's "secret" values — The Desk's
-    `trueValue` and the Market Maker's position band, Subway's unrevealed schedules, committed
-    Engineering cards and drafted Destinations, HR Investigation's unsealed filings — are
+    `trueValue` and the Market Maker's position band, Subway's drafted Engineering/Destination goals and Construction cards, HR Investigation's unsealed filings — are
     concealed only by the view that
     chooses not to draw them. Any player reading the poll response can see them. Games may rely
     on this for social play; they must not rely on it for anything where a determined player's
@@ -392,8 +391,7 @@ observable in the code, not as plans.
 - **`src/engine/index.ts`** re-exports the engine as a barrel that nothing imports; call sites use
   deep paths.
 - **Secrecy pressure is growing.** Three of the seven games now hold values the rules call secret,
-  and every one of them is visible in the poll response (invariant 11). Subway v0.3's private
-  scheduling phase, and v0.4's committed Destinations, are the strongest case yet for per-player
+  and every one of them is visible in the poll response (invariant 11). Subway's private drafted cards remain a case for per-player
   filtering in `get-room`; the design question is tracked in
   [WS-001](workstreams/WS-001-subway-v0-3-redesign.md) and
   [WS-002](workstreams/WS-002-subway-route-engineering.md) as a non-goal, not a plan. Subway's
@@ -431,25 +429,36 @@ Subway has 2–4 companies, exactly three selected contracts each from twelve, a
 stations. Shared pure reducer helpers own the full-seat draft/placement rotation,
 rotating construction queue and owner-specific contact payments. Access Pass covers
 the next build this period; undo restores the allowance and every recipient balance.
-Each company starts with $40M. A bounded search over the three schedule blocks finds
-the cheapest complete schedule, and never silently shelves a contract. A player may
-still choose different timing or deliberately shelve a route.
+Each company starts with $60M and chooses zero to three unfinished routes each turn
+over 16 construction rounds. Crew bills are $0/$1/$3/$6M, paid before building one
+segment on each chosen route. No advance timetable or shelving phase exists.
+Final debt costs four VP per $1M. CrewBoard renders dispatch and delegates all
+billing, discounts and card timing to the reducer. An opening Priority Dispatch
+queue resolves before hiring; claiming first consumes that player's one card for
+the round. Other cards are played on the owner's construction turn. Placement Undo
+refunds placement tolls but retains the already-paid crew bill.
 
-`/subway` stores a versioned local session under `subway-hotseat-v11`. It is separate
+`/subway` stores a versioned local session under `subway-hotseat-v12`. It is separate
 from network rooms and uses no server authority; same-device social play is the only
 intended mode. Storage errors show a keep-tab-open warning. `/test/subway` creates
 isolated scenarios through real reducer actions, rendering the same GameView inside
 true phone/desktop iframe viewports. It never writes the local player's saved game.
 
-### Staged Subway drafting (DEC-026)
+### Flexible Subway drafting (DEC-027)
 
 Procurement presents a refillable player-count-sized route row. Three mandatory
 list-price picks per player replace first refusal, passing and discount sales.
 Empty starting hands are filled during Engineering's CARD_DRAFT: six picks per
-player, two face-up cards per family plus blind draws, with three distinct goals
-required. Shared snake-order helpers rotate opening seats between draft stages.
-The reducer rejects stale card-pick tokens and duplicate goals. Destination draft,
-plan commitment, optional surveys and subsequent phases follow afterward.
+player, two face-up cards per category plus blind draws. Engineering contains one
+global copy of each of 14 goals and ten Destinations. Construction contains eight
+copies of each of five effects; duplicate Construction cards are allowed.
+Any category mix is legal, with no required goals or separate Destination draft.
+Shared snake-order helpers rotate opening seats between stages. Stale card-pick
+tokens and duplicate goals are rejected. Every held goal is active automatically
+and scores once if any qualifying owned route achieves it. BUY_SURVEYS follows
+drafting, then optional pin placement and all three route starters.
+Legacy schedule/commitment types and some dormant presentation helpers remain for
+incremental cleanup, but their actions and phases are unreachable in v12 games.
 
 The isolated `/subway/tutorial` route prepares lesson snapshots through the legal
 playtest driver. It controls the real GameView with optional camera lesson props;

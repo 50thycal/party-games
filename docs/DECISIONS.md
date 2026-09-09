@@ -1310,3 +1310,49 @@ State version 11 requires new games. Category piles contain eight copies per car
 shuffled only through reducer RNG. Blind Engineering draws skip owned goals.
 Tutorial practice does not alter real games. Visual testing and independent review
 remain outstanding and must not be inferred from passing reducer simulations.
+
+---
+
+### DEC-027 — Flexible goals and escalating per-round crews
+
+**Date:** 2026-09-09
+**Status:** Accepted by owner; pending implementation review.
+
+**Context**
+The owner approved removing goal commitment and advance route scheduling after
+the staged-draft implementation. This supersedes DEC-026's category reservation,
+separate Destination draft and commitment flow, and the older schedule/debt rules.
+
+**Decision**
+Draft six cards in any mix from two categories: Engineering (14 unique goals plus
+ten unique Destinations, one copy of each globally), and Construction (repeatable
+cards, eight copies of each of five effects). All held goals score automatically
+against qualifying owned routes. Purchase optional survey pins after drafting.
+Keep three route picks and alternating draft order.
+
+Build over 16 rounds. Choose zero to three unfinished routes each turn and pay a
+total $0/$1/$3/$6M crew bill, then build one segment on each chosen route. Start
+with $60M; final debt costs four VP per $1M. No timetable or commitment is required.
+Play at most one Construction card per round: Advance Booking ($1 off next round),
+Relief Crew (first crew free), Priority Dispatch (opening opportunity to go first),
+City Grant (+$3M), or Access Pass (next placement toll subsidy). Priority follows
+normal rotating opportunities; after a claim other players retain their cards.
+Discounts expire without cash or carryover and cannot make a bill negative.
+
+**Rationale**
+Players can adapt their network as space changes. Escalating crew bills make speed
+a choice rather than a free advantage; scarce tactical cards compete with points
+during drafting. Unique goals prevent repeated achievement payouts, while duplicate
+Construction cards provide enough supply for unrestricted four-player drafts.
+
+**Alternatives considered**
+Flat $1M per crew: rejected by the owner because simultaneous construction would
+have no extra total cost. Unique Construction cards: corrected by the owner;
+duplicates are allowed. Retaining commitments and timetables: rejected as too narrow.
+
+**Consequences**
+State version 12 requires new games and local saves. $60M is a provisional balance
+setting supported by 220 portfolio affordability checks and deterministic
+simulations, not a human-balance claim. Shared reducer behavior applies to online
+rooms and hotseat; further multiplayer UX work remains deferred. Visual validation
+and independent current-head review are still required.
