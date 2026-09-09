@@ -4,8 +4,8 @@ Build OS: v0.11
 Phase: BUILDING
 Status: Blocked
 Updated: 2026-09-09
-Implementation State: Flexible goals and crews merged in PR #156; station cleanup, active-route/ghost previews, immediate exhausted-board ending, and AI playtest export implemented on PR #157; visual verification blocked
-Related PRs: [#154](https://github.com/50thycal/party-games/pull/154) (merged), [#155](https://github.com/50thycal/party-games/pull/155) (merged); [#156](https://github.com/50thycal/party-games/pull/156) (merged); [#157](https://github.com/50thycal/party-games/pull/157) (station readability)
+Implementation State: Flexible goals and crews merged in PR #156; station cleanup merged in PR #157; active-route/ghost previews, immediate exhausted-board ending, and AI playtest export implemented on PR #158; visual verification blocked
+Related PRs: [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
 ## Goal and approved scope
 After this change, Subway supports complete 2-, 3- and 4-player games, with more
@@ -86,7 +86,8 @@ Build, lint, full Subway tests (36 simulations) and diff checks pass. Browser
 visual acceptance remains pending; no current-head independent approval claimed.
 
 ## Construction clarity and playtest-data checkpoint
-The owner added four requirements to PR #157: pulse the complete active line,
+After PR #157 merged, the owner added four requirements for follow-up PR #158:
+pulse the complete active line,
 draw the selected next segment before Confirm, stop immediately when no legal
 construction remains, and provide a copy/paste AI playtest report. State v13
 stores a finite full ledger of every accepted action with timestamps, payloads,
