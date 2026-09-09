@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  cardDraftTurnId,
   destinationTurnId,
   starterTurnId,
   surveyTurnId,
@@ -32,6 +33,7 @@ export function currentActorId(game: SubwayState): string | undefined {
     case "PROCUREMENT":
       return game.procurement.offer?.activeId;
     case "ENGINEERING":
+      if (game.engineeringStep === "CARD_DRAFT") return cardDraftTurnId(game);
       if (game.engineeringStep === "DESTINATION_DRAFT") return destinationTurnId(game);
       if (game.engineeringStep === "SURVEY") return surveyTurnId(game);
       return undefined; // both plan simultaneously

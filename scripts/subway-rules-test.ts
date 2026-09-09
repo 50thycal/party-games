@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import type { GameContext, Player, Room } from "../src/engine/types";
 import {
+  cardDraftTurnId,
   DESTINATION_CARDS,
   STATIONS,
   LINE_CONTRACTS,
@@ -24,17 +25,14 @@ import {
   lengthMatches,
   lineComplete,
   lineMobilization,
-  marketEngineering,
   mobilizationCost,
   mobilizationFor,
-  mustBuyOffer,
   nextSegmentLength,
   objectiveMet,
   routeContacts,
   properCrossingCount,
   contactToll,
   contractActions,
-  ownershipFeasible,
   pendingStarters,
   periodPriorityId,
   scheduleCost,
@@ -71,9 +69,18 @@ const dispatch = (
   type: SubwayAction["type"],
   payload?: SubwayAction["payload"],
   random?: () => number
-) => subwayGame.reducer(s, { type, playerId, payload }, context(playerId, random));
+) => subwayGame.reducer(s, { type, playerId, payload: type === "PROCURE" && payload?.choice === "buy" ? {...payload, contractId:payload.contractId ?? s.procurement.row[0]} : payload }, context(playerId, random));
 
-const base = () => subwayGame.initialState(players);
+// Isolated downstream fixtures explicitly provision hands; real setup starts empty.
+const base = () => {
+  const s = subwayGame.initialState(players);
+  for (const p of Object.values(s.players)) {
+    p.engineeringHand = ["straight","bend","network","terminal","crossing"];
+    p.schedulingHand = ["early","float","priority"];
+    p.constructionHand = ["overtime","surge","grant","access"];
+  }
+  return s;
+};
 
 /** A started game. random()=0 gives a fixed shuffle and priority, so the deck
  *  order below is deterministic. */
@@ -81,7 +88,10 @@ const base = () => subwayGame.initialState(players);
 // The multiplayer suite separately exercises the actual shuffled 12-route pool.
 const started = () => {
   const s = dispatch(base(), "red", "START_GAME");
-  s.procurement.deck = ["medium", "express", "crosstown", "long", "short"];
+  s.procurement.row = ["branch","medium"];
+  s.procurement.deck = ["express","crosstown","long","short"];
+  s.procurement.offer = {contractId:"branch",price:6,activeId:"red"};
+  s.oddPriorityId = "red";
   return s;
 };
 
@@ -102,9 +112,22 @@ const lockPlan = (
   extra: Partial<NonNullable<SubwayAction["payload"]>> = {}
 ) => dispatch(s, playerId, "LOCK_ENGINEERING_PLAN", { cardIds: OPENING_THREE, ...extra });
 
+/** Provision known draws through real actions for downstream goal fixtures. */
+function runCardDraft(state: SubwayState): SubwayState {
+  let s = state;
+  while(s.phase === "ENGINEERING" && s.engineeringStep === "CARD_DRAFT") {
+    const id = cardDraftTurnId(s)!;
+    const p = s.players[id];
+    const wanted = ["straight","bend","terminal","network","crossing"][p.engineeringHand.length];
+    if(wanted) s.market.decks!.engineering = [wanted, ...s.market.decks!.engineering];
+    s = dispatch(s,id,"DRAFT_CARD",{deck:wanted ? "engineering" : "construction",expectedPick:s.market.picks});
+  }
+  return s;
+}
+
 /** Plays the Destination draft out so a test can reach the planning step. */
 function runDraft(s: SubwayState): SubwayState {
-  let out = s;
+  let out = runCardDraft(s);
   let guard = 0;
   while (out.engineeringStep === "DESTINATION_DRAFT" && guard++ < 10) {
     const actor = destinationTurnId(out);
@@ -133,7 +156,7 @@ function engineeringDraft(): SubwayState {
             deck: "engineering" as const,
           });
   }
-  return s;
+  return runCardDraft(s);
 }
 
 // With random()=0 the Fisher-Yates shuffle is fully determined.
@@ -365,8 +388,8 @@ const DECK_ORDER = ["branch", "medium", "express", "crosstown", "long", "short"]
   assert.ok(engineeringById("network"), "Network Link took its place");
   assert.equal(engineeringById("network")!.vp, 4, "worth +4 VP");
   assert.ok(
-    SUBWAY_CONFIG.startingHands.engineering.includes("network"),
-    "and it is what the opening hand holds instead"
+    SUBWAY_CONFIG.startingHands.engineering.length === 0,
+    "players start without cards"
   );
 
   const complete = (route: PlayerLine["route"]) => {
@@ -1113,159 +1136,7 @@ function construction(red: PlayerLine[], blue: PlayerLine[]): SubwayState {
 // PART 9 — Procurement
 // ============================================================================
 
-// 14. procurement alternates the first-refusal player
-{
-  let s = started();
-  assert.equal(s.phase, "PROCUREMENT", "the host starts straight into procurement");
-  assert.equal(s.oddPriorityId, "red", "odd-period priority is assigned at setup");
-  assert.equal(offerOf(s).contractId, DECK_ORDER[0], "one contract is revealed at a time, from a shuffled deck");
-  assert.equal(contractsOutstanding(s), 6, "all six contracts need an owner");
-
-  const seen: string[] = [];
-  for (let i = 0; i < 4; i++) {
-    seen.push(offerOf(s).firstRefusalId);
-    s = dispatch(s, offerOf(s).firstRefusalId, "PROCURE", { choice: "buy" });
-  }
-  assert.deepEqual(seen, ["red", "blue", "red", "blue"], "first refusal alternates contract by contract");
-}
-
-// 1. first player buys immediately
-{
-  const s = started();
-  const before = s.players.red.money;
-  const next = dispatch(s, "red", "PROCURE", { choice: "buy" });
-  assert.deepEqual(contractNames(next.players.red), ["branch"], "the contract joins the buyer's company");
-  assert.equal(next.players.red.money, before - contractById("branch")!.cost, "the list price is paid");
-  assert.equal(next.players.red.lines[0].paid, contractById("branch")!.cost, "what was paid is recorded");
-  assert.equal(offerOf(next).contractId, DECK_ORDER[1], "the next contract is revealed");
-}
-
-// 2. first player passes and drafts an Engineering card
-// 13. the face-up slot refills afterwards
-{
-  const s = started();
-  const nextUp = marketEngineering(s.market).id;
-  assert.equal(dispatch(s, "blue", "PROCURE", { choice: "pass", deck: "engineering" }), s, "only the active company decides");
-  const after = dispatch(s, "red", "PROCURE", { choice: "pass", deck: "engineering" });
-  assert.equal(after.players.red.engineeringHand.length, 6, "the pass is paid for with a face-up card");
-  assert.equal(after.players.red.engineeringHand[5], nextUp, "the drafted card is the one that was face up");
-  assert.notEqual(marketEngineering(after.market).id, nextUp, "the slot refills from the deck");
-  assert.equal(offerOf(after).stage, "second", "the contract is then offered to the opposition");
-  assert.equal(offerOf(after).activeId, "blue", "…who now decides");
-  assert.equal(offerOf(after).contractId, "branch", "it is still the same contract");
-}
-
-// 3. first player passes and the opponent buys
-{
-  let s = dispatch(started(), "red", "PROCURE", { choice: "pass", deck: "scheduling" });
-  s = dispatch(s, "blue", "PROCURE", { choice: "buy" });
-  assert.deepEqual(contractNames(s.players.blue), ["branch"], "the second refusal can take it");
-  assert.equal(s.players.red.schedulingHand.length, 4, "the first company keeps its drafted card");
-  assert.equal(offerOf(s).contractId, DECK_ORDER[1], "play moves to the next contract");
-}
-
-// 4. both pass → the Discount Yard
-// 5. the yard price is discounted
-{
-  let s = dispatch(started(), "red", "PROCURE", { choice: "pass", deck: "construction" });
-  assert.equal(dispatch(s, "blue", "PROCURE", { choice: "pass", deck: "engineering" }).players.blue.engineeringHand.length, 6, "every seat gets the same pass-and-draft option");
-  s = dispatch(s, "blue", "PROCURE", { choice: "pass", deck: "engineering" });
-  assert.equal(s.procurement.yard.length, 1, "a doubly-declined contract is not discarded");
-  assert.equal(s.procurement.yard[0].contractId, "branch", "it goes to the Discount Yard");
-  assert.equal(
-    s.procurement.yard[0].price,
-    contractById("branch")!.cost - SUBWAY_CONFIG.discountStep,
-    "and is marked down"
-  );
-  assert.equal(contractsOutstanding(s), 6, "it still needs an owner");
-}
-
-// 6. repeated passes discount it again
-// 7. a yard contract is eventually purchased
-// 8. every contract is owned when procurement ends
-{
-  let s = started();
-  // Everyone declines every contract on its first pass round.
-  for (let i = 0; i < 6; i++) {
-    s = dispatch(s, offerOf(s).activeId, "PROCURE", { choice: "pass", deck: "engineering" });
-    s = dispatch(s, offerOf(s).activeId, "PROCURE", { choice: "pass", deck: "engineering" });
-  }
-  assert.equal(s.phase, "PROCUREMENT", "procurement cannot end with contracts unowned");
-  assert.equal(s.procurement.cleanup, true, "the Discount Yard cleanup begins");
-  assert.equal(offerOf(s).fromYard, true, "yard contracts come back out one at a time");
-
-  const firstYardPrice = offerOf(s).price;
-  const yardId = offerOf(s).contractId;
-  s = dispatch(s, offerOf(s).activeId, "PROCURE", { choice: "pass", deck: "engineering" });
-  s = dispatch(s, offerOf(s).activeId, "PROCURE", { choice: "pass", deck: "engineering" });
-  const requeued = s.procurement.yard.find((e) => e.contractId === yardId) ?? offerOf(s);
-  assert.ok(
-    requeued.price < firstYardPrice || firstYardPrice === SUBWAY_CONFIG.minContractPrice,
-    "declining again in the yard cuts the price further"
-  );
-
-  // Let the cheapest offers get taken until the phase closes out.
-  let guard = 0;
-  while (s.phase === "PROCUREMENT" && guard++ < 60) {
-    const offer = offerOf(s);
-    const active = s.players[offer.activeId];
-    const canBuy = active.lines.length < SUBWAY_CONFIG.maxContractsPerPlayer && active.money >= offer.price;
-    s = canBuy
-      ? dispatch(s, offer.activeId, "PROCURE", { choice: "buy" })
-      : dispatch(s, offer.activeId, "PROCURE", {
-          choice: "pass",
-          deck: "engineering" as const,
-        });
-  }
-  assert.equal(s.phase, "ENGINEERING", "procurement ends once every contract is owned");
-  assert.equal(s.engineeringStep, "DESTINATION_DRAFT", "and opens on the Destination draft");
-  assert.equal(
-    s.players.red.lines.length + s.players.blue.lines.length,
-    6,
-    "all six selected contracts found an owner"
-  );
-  assert.ok(s.players.red.money >= 0 && s.players.blue.money >= 0, "nobody ends procurement in debt");
-}
-
-// 9. a company may not exceed the contract cap
-// 10. the split therefore cannot leave anyone below the minimum
-// 12. a forced owner cannot refuse
-{
-  let s = started();
-  s = dispatch(s, "red", "PROCURE", { choice: "buy" }); // branch  $6 → red 1
-  s = dispatch(s, "blue", "PROCURE", { choice: "pass", deck: "engineering" });
-  s = dispatch(s, "red", "PROCURE", { choice: "buy" }); // medium  $8 → red 2
-  s = dispatch(s, "red", "PROCURE", { choice: "buy" }); // express $9 → red 3 (cap)
-  assert.equal(s.players.red.lines.length, SUBWAY_CONFIG.maxContractsPerPlayer, "red is at the cap");
-  assert.equal(dispatch(s, "red", "PROCURE", { choice: "buy" }), s, "a capped company cannot buy again");
-
-  // Offer 4 (crosstown) — blue has first refusal and is now the only possible owner.
-  assert.equal(offerOf(s).firstRefusalId, "blue", "the alternation is unaffected by the cap");
-  assert.equal(mustBuyOffer(s, "blue"), true, "blue is the only company that can still own it");
-  assert.equal(dispatch(s, "blue", "PROCURE", { choice: "pass", deck: "engineering" }), s, "so blue may not refuse");
-  s = dispatch(s, "blue", "PROCURE", { choice: "buy" });
-
-  // Offer 5 (long) — red has first refusal but is capped, so it may still pass for a card.
-  assert.equal(offerOf(s).firstRefusalId, "red", "first refusal still alternates");
-  s = dispatch(s, "red", "PROCURE", { choice: "pass", deck: "engineering" });
-  s = dispatch(s, "blue", "PROCURE", { choice: "buy" });
-  s = dispatch(s, "blue", "PROCURE", { choice: "buy" }); // short — forced again
-
-  assert.equal(s.phase, "ENGINEERING", "the draft completes");
-  assert.equal(s.players.red.lines.length, 3, "neither company exceeds three contracts");
-  assert.equal(s.players.blue.lines.length, 3, "and six contracts across a cap of three forces an even split");
-  assert.ok(ownershipFeasible(s, { red: 3, blue: 3 }), "3/3 satisfies the ownership range");
-  assert.equal(ownershipFeasible(s, { red: 4, blue: 2 }), false, "4/2 no longer does");
-}
-
-// 11. a company that cannot pay cannot buy
-{
-  const s = started();
-  s.players.red.money = contractById("branch")!.cost - 1;
-  assert.equal(dispatch(s, "red", "PROCURE", { choice: "buy" }), s, "you cannot buy what you cannot afford");
-  const passed = dispatch(s, "red", "PROCURE", { choice: "pass", deck: "engineering" });
-  assert.equal(passed.procurement.offer!.stage, "second", "but you may always pass it along");
-}
+// Procurement and card-draft acceptance checks live in subway-multiplayer-test.ts.
 
 // ============================================================================
 // PART 10 — Scheduling
@@ -1855,7 +1726,7 @@ function scheduling(red: string[], blue: string[]): SubwayState {
 
 // Shape, sequencing, and the acceptance-only append rule.
 {
-  assert.equal(SUBWAY_STATE_VERSION, 10, "random station layouts use state version 10");
+  assert.equal(SUBWAY_STATE_VERSION, 11, "staged drafts use state version 11");
   const fresh = base();
   assert.deepEqual(fresh.events, [], "a fresh room has no events");
   assert.equal(fresh.nextEventSeq, 1, "and the sequence starts at 1");
@@ -2068,7 +1939,7 @@ console.log(
   "Subway rules checks passed (ordered contract recipes, ±0.5 segment lengths, the 90° turn cap, " +
     "explicit station docks and dock races, alternating odd/even priority, Network Link, Destination " +
     "drafting/assignment/scoring, Survey purchase/placement/fulfilment, one-deep placement undo, " +
-    "single-pass loop, six-contract first-refusal procurement, Discount Yard, ownership range, Gantt " +
+    "staged draft fixtures, Gantt " +
     "scheduling, mobilization + second-crew economics, simultaneous reveal, schedule lock, construction " +
     "execution, skipping, scoring, spatial rules, border-only starters, one-Confirm-one-action, stale " +
     "confirm rejection, the bounded privacy-safe public event stream, monotonic undo narration, state " +

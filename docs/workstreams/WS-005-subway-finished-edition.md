@@ -3,8 +3,8 @@
 Build OS: v0.11
 Phase: BUILDING
 Status: Blocked
-Updated: 2026-09-07
-Implementation State: Content pass in progress on the published branch; automated reducer checks pass; browser verification remains blocked by preview access
+Updated: 2026-09-08
+Implementation State: Content, staged drafting and guided tutorial implemented; final automated validation and publication checkpoint recorded in PR #155; visual verification remains blocked
 Related PRs: [#154](https://github.com/50thycal/party-games/pull/154) (merged), [#155](https://github.com/50thycal/party-games/pull/155) (content pass)
 
 ## Goal and approved scope
@@ -21,8 +21,13 @@ that blocks this goal.
 
 ## Build Card / specification
 - 2–4 seats, three routes per company, sampled from twelve unique contracts.
-- All seats get a pass-and-draft decision; offers go round the entire table before
-  discounting. Forced allocation guarantees finite procurement and equal portfolios.
+- Three mandatory route picks at list price from a 2/3/4-card refillable row; no pass or discounts.
+- Empty starting hands, then six card picks with three distinct Engineering goals required.
+  Two face-up choices per category or a blind draw; tactical categories optional.
+- Separate Destination draft, then plan commitment and optional survey purchase.
+  Draft directions alternate and opening seats rotate between stages.
+- Thirteen isolated practice lessons use real controls, camera pans, highlights,
+  animated examples and Back/Skip/Replay; phase lesson links are available in-game.
 - Drafts, starter pegs, surveys and construction queues visit every seat fairly.
   Priority rotates every period; any two overlapping companies create contention.
 - Contact payments belong to the actual route owners. Shared vertices charge once
@@ -60,17 +65,16 @@ Pending independent review. No approval or merge claimed.
 - Existing geometry/rules regressions and new multiplayer, content, actual-owner
   toll, subsidy, undo, priority and finite-procurement checks pass.
 - All 220 three-route portfolios can fund a complete schedule at list price.
-- 36 deterministic full games (12 each at 2/3/4 players) reached RESULTS without
-  debt. Average completed routes per company: 2.96 / 2.97 / 2.96. Seat wins:
-  [5,7] / [5,2,5] / [2,4,3,3]. These heuristic bots do not prove human balance.
+- 36 deterministic full games (12 each at 2/3/4 players) reached RESULTS in the
+  pre-publication run. Heuristic simulations do not prove human balance. Earlier
+  no-debt and seat-win statistics describe a superseded rules version.
 - Original live prototype inspected in browser. Updated branch visual playtest is
   **not completed**: cloud browser cannot reach localhost; Vercel preview redirects
   to authentication, and connected Vercel temporary-access request returned 403.
   Deployment status itself is successful. No protection settings were changed.
 
 ## Next Step
-Complete the owner-directed contract/card review and retest affordability and
-simulations. Then obtain an accessible preview to verify desktop/phone layouts,
+Obtain an accessible preview to verify desktop/phone layouts,
 card dialogs, placement preview/Confirm, all-seat handoff and local save/resume.
 Use `/subway` for local hotseat and `/test/subway` for responsive phase fixtures.
 Fix any defects on this branch, then request independent review. Do not merge

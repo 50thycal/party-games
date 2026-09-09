@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { SUBWAY_CONFIG, LINE_CONTRACTS, ENGINEERING_CARDS, SCHEDULING_CARDS, CONSTRUCTION_CARDS, STATIONS, subwayGame, basePriorityId, contestedPeriods, destinationTurnId, starterTurnId, surveyTurnId, scheduleCost, lineComplete, autoSchedule, objectiveMet, nextCompanyId, routeContacts, contractById, type SubwayState, type SubwayAction } from "../src/games/subway/config";
+import { cardDraftTurnId, draftTurnId, draftPicks, SUBWAY_CONFIG, LINE_CONTRACTS, ENGINEERING_CARDS, SCHEDULING_CARDS, CONSTRUCTION_CARDS, STATIONS, subwayGame, basePriorityId, contestedPeriods, destinationTurnId, starterTurnId, surveyTurnId, scheduleCost, lineComplete, autoSchedule, objectiveMet, nextCompanyId, routeContacts, contractById, type SubwayState, type SubwayAction } from "../src/games/subway/config";
 import { startPlaytest, testRoom, runPlaytest } from "../src/games/subway/playtest";
 
 let checks=0;
@@ -11,21 +11,48 @@ for(const count of [2,3,4]) {
   assert.equal(new Set(state.stations.map((station)=>`${station.x},${station.y}`)).size,STATIONS.length,"station sites never overlap");
   assert.ok(state.stations.every((station)=>station.kind==='major' ? station.capacity===3 : station.capacity===2),"major stations have three docks and minors have two");
   assert.ok(state.stations.every((station,i)=>state.stations.slice(i+1).every((other)=>Math.hypot(station.x-other.x,station.y-other.y)>=3)),"random station sites remain spread apart");
-  assert.equal(state.procurement.deck.length+1,count*3);
-  assert.equal(new Set([...state.procurement.deck,state.procurement.offer!.contractId]).size,count*3);
+  assert.equal(state.procurement.deck.length+state.procurement.row.length,count*3);
+  assert.equal(new Set([...state.procurement.deck,...state.procurement.row]).size,count*3);
   assert.equal(new Set(state.playerOrder.map((id)=>state.players[id].color)).size,count);
   for(let cycle=0;cycle<3;cycle++) assert.equal(new Set(Array.from({length:count},(_,i)=>basePriorityId(state,cycle*count+i+1))).size,count);
   let s=state;
   let decisions=0;
-  // Adversarial all-pass policy must finish with equal portfolios and no debt.
-  while(s.phase==="PROCUREMENT" && decisions++<300) {
-    const id=s.procurement.offer!.activeId;
-    const passed=dispatch(s,id,"PROCURE",{choice:"pass",deck:"construction"});
-    s=passed===s ? dispatch(s,id,"PROCURE",{choice:"buy"}) : passed;
+  assert.ok(Object.values(s.players).every(p => draftPicks(p) === 0), "no starting cards");
+  const routeOrder:string[] = [];
+  while(s.phase === "PROCUREMENT") {
+    const id = nextCompanyId(s)!;
+    routeOrder.push(id);
+    assert.equal(id,draftTurnId(state,decisions,0));
+    assert.equal(s.procurement.row.length,Math.min(count,count*3-decisions));
+    assert.equal(dispatch(s,id,"PROCURE",{choice:"pass",deck:"engineering"}),s,"passing is removed");
+    assert.equal(dispatch(s,s.playerOrder.find(other=>other!==id)!,"PROCURE",{choice:"buy",contractId:s.procurement.row[0]}),s,"out-of-turn route pick rejected");
+    const contractId=s.procurement.row.at(-1)!;
+    const before=s.players[id].money;
+    s=dispatch(s,id,"PROCURE",{choice:"buy",contractId});
+    assert.equal(s.players[id].money,before-contractById(contractId)!.cost,"list price, no discount");
+    decisions++;
   }
-  assert.equal(s.phase,"ENGINEERING");
-  assert.ok(decisions<300);
-  assert.ok(s.playerOrder.every((id)=>s.players[id].lines.length===3 && s.players[id].money>=0));
+  assert.equal(decisions,count*3);
+  assert.deepEqual(routeOrder.slice(count,count*2),routeOrder.slice(0,count).reverse(),"second round reverses");
+  assert.ok(Object.values(s.players).every(p=>p.lines.length===3));
+  assert.equal(s.engineeringStep,"CARD_DRAFT");
+  for(let pick=0;pick<count*6;pick++){
+    const id=cardDraftTurnId(s)!;
+    assert.equal(id,draftTurnId(s,pick,1));
+    const p=s.players[id];
+    const deck=draftPicks(p)<3 ? "construction" : "engineering";
+    if(draftPicks(p)===3) assert.equal(dispatch(s,id,"DRAFT_CARD",{deck:"scheduling",expectedPick:pick}),s,"remaining three picks reserved for goals");
+    assert.equal(dispatch(s,id,"DRAFT_CARD",{deck,expectedPick:pick-1}),s,"stale pick token rejected");
+    const row=s.market.rows![deck];
+    const cardId=pick%2===0 ? row.find(card=>deck!=="engineering" || !p.engineeringHand.includes(card)) : undefined;
+    const prev=s;
+    s=dispatch(s,id,"DRAFT_CARD",{deck,cardId,expectedPick:pick});
+    assert.notEqual(s,prev,"face-up and blind draft succeeds");
+    assert.equal(s.market.rows![deck].length,2,"row refills");
+    assert.equal(dispatch(s,id,"DRAFT_CARD",{deck,cardId,expectedPick:pick}),s,"retry cannot spend a second pick at snake turnaround");
+    checks+=5;
+  }
+  assert.ok(Object.values(s.players).every(p=>draftPicks(p)===6 && new Set(p.engineeringHand).size===3 && p.schedulingHand.length===0));
   const picks:string[]=[];
   while(s.engineeringStep==="DESTINATION_DRAFT") {
     const id=destinationTurnId(s)!;picks.push(id);
@@ -69,6 +96,7 @@ for(let a=0;a<12;a++) for(let b=a+1;b<12;b++) for(let c=b+1;c<12;c++) {
   s.players['seat-2'].lines=[{contractId:'branch',paid:6,route:[{x:1,y:0}]}];
   s.players['seat-3'].lines=[{contractId:'medium',paid:8,route:[{x:2,y:0}]}];
   s.players['seat-4'].lines=[{contractId:'long',paid:12,route:[{x:3,y:0}]}];
+  s.players["seat-1"].constructionHand = ["access","grant"];
   s.resolveQueue=['seat-1'];s.players['seat-1'].pendingActions=[0,0];
   const dispatch=(state:SubwayState,type:SubwayAction['type'],payload?:SubwayAction['payload'])=>subwayGame.reducer(state,{type,payload,playerId:'seat-1'},{room,playerId:'seat-1',now:()=>1,random:()=>.5});
   assert.deepEqual(new Set(routeContacts(s,'seat-1',{x:0,y:0},{x:3,y:0}).map(c=>c.ownerId)),new Set(['seat-2','seat-3','seat-4']));

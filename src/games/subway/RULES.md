@@ -5,8 +5,8 @@ deliver your contracts and complete secret goals. Most victory points wins.
 
 ## Quick start
 
-1. Take three route contracts. Buy the current offer or pass for a face-up card.
-2. Draft two Destinations. Assign them to your routes and choose three Engineering goals.
+1. Take three route contracts. Choose from the face-up row at list price; no passing.
+2. Draft six cards, then two Destinations. Assign Destinations to your routes and choose three Engineering goals.
 3. Schedule construction. The initial suggestion includes every route at the lowest cost.
 4. Place one free starter peg per scheduled route on the edge of the map.
 5. Build the printed segment lengths in order. Tap, inspect the preview, then Confirm.
@@ -18,23 +18,15 @@ current browser/device and can resume after refresh; they do not sync to other d
 
 ## Companies and contracts
 
-Each company starts with **$40M**, five Engineering cards, three Scheduling cards,
-and four Construction cards (Overtime, Surge Crew, City Grant and Access Pass).
-All companies have identical starting resources. Routes have their own permanent
-colours, letter codes and patterns; those do not indicate company ownership.
+Each company starts with **$40M and no cards**.
+Shuffle the twelve-route pool and select six routes for two players, nine for
+three, or twelve for four. Reveal a row of **2/3/4 choices**, respectively.
+Each turn, buy one visible contract at list price; refill while the deck lasts.
+There is no passing, discount, or card reward. Everyone takes three routes.
 
-Shuffle the twelve-route pool and select **six routes for 2 players, nine for 3,
-and all twelve for 4**. Reveal one at a time. First refusal rotates among the seats.
-Each offered company may buy at the displayed price or pass and draft a face-up
-Engineering, Scheduling or Construction card. Every seat gets this option, not
-just the first. Nobody may own more than three routes. Therefore everyone finishes
-procurement with exactly three.
-
-If everyone passes, reduce the price by $2M (minimum $3M) and move the route to the
-Discount Yard. Clear the yard after the deck. A floor-price route declined again
-is assigned to the eligible company with the most cash. If only one company can
-still hold a route, it must buy. Forced purchases never cost more than the buyer
-has. Procurement cannot loop forever or put a company into debt.
+Draft order runs forward, then reverse, alternating each round. Rotate the
+opening seat one place between route, card, and Destination drafts. A snake
+turnaround can give one player consecutive picks.
 
 | Route | Code | Segment recipe | Price | Complete VP | Major bonus | Unfinished VP |
 |---|---|---|---:|---:|---:|---:|
@@ -60,8 +52,17 @@ has 4–7 segments, and every printed segment is 2–6 pegs long.
 
 ## Engineering
 
-Draft two Destinations per company from a row of three. Every company gets a pick
-before anyone gets its next pick; the opening-priority company breaks ties.
+First draft six cards each, one per turn: any of two face-up Engineering,
+Scheduling or Construction cards, or a blind draw from that category. Refill
+immediately. Each shuffled category pile contains eight copies of each card.
+You must collect at least three distinct Engineering goals within six picks;
+remaining picks are reserved for goals when necessary. Face-up goals you own
+cannot be drafted; blind Engineering draws skip owned goals without spending a
+pick. Scheduling and Construction cards are optional and may have duplicates.
+Cards cannot be played during drafting.
+
+Then draft two Destinations per company from a row of three, separate from
+the six-card allowance, using the next rotated opening seat and snake order.
 There is one card for each of ten stations. Assign every drafted Destination to
 an owned line, at most two per line. Each pays **+3 VP** if that line docks its
 station, whether the line is finished or not.
@@ -183,6 +184,15 @@ scores once per company, even if two of its routes dock there. Ties break on Maj
 connections, then remaining money, then a shared victory. Scoring is final when
 the host advances to Results.
 
-State version **10** requires existing older online games to restart. Multiplayer
+State version **11** requires existing older online games to restart. Multiplayer
 balance is provisional: automated games verify completion and expose tendencies;
 human games remain the test of enjoyment and long-term strategy balance.
+
+## Guided practice
+
+Visit `/subway/tutorial` for 13 replayable lessons using isolated practice states
+and real game controls. Camera pans, area outlines, animated examples and accepted
+action feedback explain the phases. Back, Skip, Replay and lesson selection are
+available throughout. Animations respect reduced-motion preferences. The in-game
+Phase lesson link opens practice in another tab without altering the live game.
+Desktop/phone visual verification remains pending.

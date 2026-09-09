@@ -22,9 +22,7 @@ import {
   destinationsHeld,
   lineComplete,
   lineMobilization,
-  marketConstruction,
-  marketEngineering,
-  marketScheduling,
+  engineeringById,
   mobilizationCost,
   nextSegmentLength,
   periodPriorityId,
@@ -668,99 +666,42 @@ export function ContractOffice({
   me?: SubwayPlayer;
   veiled: boolean;
   onOpenContract: (contractId: string, price?: number) => void;
-  onOpenMarket: (deck: CardDeckId) => void;
+  onOpenMarket: (deck: CardDeckId, cardId?: string) => void;
   onOpenDestination: (id: string) => void;
   /** Phase controls that belong on this piece (buy/pass, and so on). */
   children?: ReactNode;
 }) {
   const offer = game.procurement.offer;
-  const contract = offer ? contractById(offer.contractId) : undefined;
   const drafting = game.phase === "ENGINEERING" && game.engineeringStep === "DESTINATION_DRAFT";
-
   return (
     <Printed zone="office" title="Contract office" className="w-full" style={{ width: TABLE.side }}>
-      {contract && offer ? (
-        <div>
-          <p className="text-[19px] font-bold uppercase tracking-wide text-stone-500">
-            On offer{offer.fromYard ? " · Discount Yard" : ""}
-          </p>
-          <button
-            type="button"
-            onClick={() => onOpenContract(contract.id, offer.price)}
-            className="mt-[10px] w-full rounded-[18px] border-[5px] bg-[#fffaf0] p-[18px] text-left shadow-lg transition hover:-translate-y-[4px] focus-visible:outline-none focus-visible:ring-[6px] focus-visible:ring-amber-400"
-            style={{ borderColor: contract.color }}
-          >
-            <span className="flex items-center gap-[14px]">
-              <LineTile contract={contract} size={46} />
-              <b className="text-[26px]">{contract.name}</b>
-              <b className="ml-auto text-[26px]">{money(offer.price)}</b>
-            </span>
-            <span className="mt-[10px] flex flex-wrap gap-[8px]">
-              {contract.recipe.map((n, i) => (
-                <span
-                  key={i}
-                  className="inline-flex h-[38px] min-w-[38px] items-center justify-center rounded-[8px] bg-stone-900/10 text-[21px] font-black tabular-nums"
-                >
-                  {n}
-                </span>
-              ))}
-            </span>
-          </button>
-        </div>
-      ) : (
-        <p className="text-[20px] italic text-stone-500">
-          {game.phase === "PROCUREMENT" ? "Shuffling the contract deck…" : "Every contract has an owner."}
-        </p>
-      )}
-
-      {game.procurement.yard.length > 0 && (
-        <div className="mt-[20px]">
-          <p className="text-[19px] font-bold uppercase tracking-wide text-stone-500">Discount Yard</p>
-          <ul className="mt-[8px] space-y-[6px] text-[19px]">
-            {game.procurement.yard.map((entry, i) => {
-              const c = contractById(entry.contractId)!;
-              return (
-                <li key={i}>
-                  <button
-                    type="button"
-                    onClick={() => onOpenContract(c.id, entry.price)}
-                    className="flex w-full items-center gap-[10px] rounded-[10px] px-[8px] py-[4px] text-left hover:bg-stone-900/5 focus-visible:outline-none focus-visible:ring-[4px] focus-visible:ring-amber-400"
-                  >
-                    <LineTile contract={c} size={32} />
-                    <span>{c.name}</span>
-                    <span className="ml-auto">
-                      <span className="mr-[8px] text-stone-400 line-through">{money(c.cost)}</span>
-                      <b>{money(entry.price)}</b>
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
-
-      {/* The three face-up market cards a passing company may draft. */}
       {game.phase === "PROCUREMENT" && (
-        <div className="mt-[20px] space-y-[10px]">
-          <p className="text-[19px] font-bold uppercase tracking-wide text-stone-500">Face-up market</p>
-          {(
-            [
-              { id: "engineering" as CardDeckId, name: marketEngineering(game.market).name, tone: "bg-amber-700" },
-              { id: "scheduling" as CardDeckId, name: marketScheduling(game.market).name, tone: "bg-sky-800" },
-              { id: "construction" as CardDeckId, name: marketConstruction(game.market).name, tone: "bg-orange-800" },
-            ] as const
-          ).map((card) => (
-            <button
-              key={card.id}
-              type="button"
-              onClick={() => onOpenMarket(card.id)}
-              className="flex w-full items-center gap-[14px] rounded-[14px] border-[3px] border-stone-400 bg-[#fffaf0] px-[14px] py-[10px] text-left transition hover:-translate-y-[3px] focus-visible:outline-none focus-visible:ring-[5px] focus-visible:ring-amber-400"
-            >
-              <span className={`h-[54px] w-[38px] rounded-[8px] ${card.tone}`} />
-              <span className="text-[20px] font-bold">{card.name}</span>
-              <span className="ml-auto text-[17px] uppercase tracking-wide text-stone-500">{card.id}</span>
-            </button>
+        <div className="space-y-[12px]">
+          <p className="text-[20px] font-bold">Route draft · {Math.floor(game.procurement.offerIndex / game.playerOrder.length) + 1}/3</p>
+          <p className="text-[18px]">Choose one. List price · no passing.</p>
+          {game.procurement.row.map((id) => {
+            const c = contractById(id)!;
+            return <button key={id} onClick={() => onOpenContract(id, c.cost)} className="w-full rounded-[14px] border-[3px] bg-[#fffaf0] p-[14px] text-left hover:bg-amber-50 focus-visible:ring-4 focus-visible:ring-amber-500" style={{borderColor:c.color}}>
+              <span className="flex items-center gap-[12px] text-[23px] font-bold"><LineTile contract={c} size={36}/>{c.name}<span className="ml-auto">{money(c.cost)}</span></span>
+              <span className="mt-[6px] block text-[19px]">Recipe {c.recipe.join(" · ")} · {c.completionVp} VP</span>
+            </button>;
+          })}
+          <p className="text-[18px]">{game.players[offer?.activeId ?? ""]?.name} chooses next.</p>
+        </div>
+      )}
+      {game.phase === "ENGINEERING" && game.engineeringStep === "CARD_DRAFT" && (
+        <div className="space-y-[14px]">
+          <p className="text-[20px] font-bold">Build your hand · six picks</p>
+          <p className="text-[18px]">Include three distinct Engineering goals. Other categories are optional.</p>
+          {(["engineering", "scheduling", "construction"] as CardDeckId[]).map((deck) => (
+            <div key={deck} className="rounded-[12px] border-[2px] border-stone-300 p-[10px]">
+              <p className="text-[19px] font-bold capitalize">{deck}</p>
+              {(game.market.rows?.[deck] ?? []).map((id, i) => {
+                const c = deck === "engineering" ? engineeringById(id) : deck === "scheduling" ? schedulingById(id as SchedulingCardId) : constructionById(id as ConstructionCardId);
+                return <button key={i} onClick={() => onOpenMarket(deck, id)} className="mt-[6px] block w-full rounded-[8px] bg-white p-[10px] text-left text-[19px] font-bold hover:bg-amber-100">{c?.name} →</button>;
+              })}
+              <button onClick={() => onOpenMarket(deck)} className="mt-[6px] w-full rounded-[8px] bg-stone-800 p-[10px] text-[18px] text-white">Blind draw · {deck}</button>
+            </div>
           ))}
         </div>
       )}
@@ -1268,13 +1209,13 @@ export function PlayerTabletop({
                   className="w-[300px] rounded-[18px] border-[4px] border-sky-700 bg-[#fffaf0] p-[16px] text-left shadow-[0_12px_24px_rgba(0,0,0,.3)] transition hover:-translate-y-[5px] focus-visible:outline-none focus-visible:ring-[6px] focus-visible:ring-amber-400"
                 >
                   <span className="flex items-start justify-between gap-[10px]">
-                    <b className="text-[22px] leading-tight">{schedulingById(id)?.name}</b>
+                    <b className="text-[22px] leading-tight">{schedulingById(id as SchedulingCardId)?.name}</b>
                     <Pill tone="solid" color="#075985">
                       Sched
                     </Pill>
                   </span>
                   <p className="mt-[10px] text-[17px] leading-snug text-stone-600">
-                    {schedulingById(id)?.description}
+                    {schedulingById(id as SchedulingCardId)?.description}
                   </p>
                 </button>
               ))}
@@ -1286,13 +1227,13 @@ export function PlayerTabletop({
                   className="w-[300px] rounded-[18px] border-[4px] border-amber-700 bg-[#fffaf0] p-[16px] text-left shadow-[0_12px_24px_rgba(0,0,0,.3)] transition hover:-translate-y-[5px] focus-visible:outline-none focus-visible:ring-[6px] focus-visible:ring-amber-400"
                 >
                   <span className="flex items-start justify-between gap-[10px]">
-                    <b className="text-[22px] leading-tight">{constructionById(id)?.name}</b>
+                    <b className="text-[22px] leading-tight">{constructionById(id as ConstructionCardId)?.name}</b>
                     <Pill tone="solid" color="#b45309">
                       Constr
                     </Pill>
                   </span>
                   <p className="mt-[10px] text-[17px] leading-snug text-stone-600">
-                    {constructionById(id)?.description}
+                    {constructionById(id as ConstructionCardId)?.description}
                   </p>
                 </button>
               ))}
@@ -1321,7 +1262,7 @@ export type FocusRef =
   | { family: "scheduling"; id: SchedulingCardId; slot: "hand" }
   | { family: "construction"; id: ConstructionCardId; slot: "hand" }
   | { family: "contract"; id: string; price?: number }
-  | { family: "market"; id: CardDeckId };
+  | { family: "market"; id: CardDeckId; cardId?: string };
 
 export type FocusAction = {
   label: string;
