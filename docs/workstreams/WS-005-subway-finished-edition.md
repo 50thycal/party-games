@@ -4,8 +4,8 @@ Build OS: v0.11
 Phase: BUILDING
 Status: Blocked
 Updated: 2026-09-09
-Implementation State: Flexible goals, merged drafts and per-round crews implemented and automatically tested; follow-up publication pending; visual verification blocked
-Related PRs: [#154](https://github.com/50thycal/party-games/pull/154) (merged), [#155](https://github.com/50thycal/party-games/pull/155) (merged); follow-up PR pending
+Implementation State: Flexible goals, merged drafts and per-round crews implemented and automatically tested; published in PR #156; visual verification blocked
+Related PRs: [#154](https://github.com/50thycal/party-games/pull/154) (merged), [#155](https://github.com/50thycal/party-games/pull/155) (merged); [#156](https://github.com/50thycal/party-games/pull/156) (flexible goals and crews)
 
 ## Goal and approved scope
 After this change, Subway supports complete 2-, 3- and 4-player games, with more
