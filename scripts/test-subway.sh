@@ -23,6 +23,7 @@ cat >"$config" <<EOF
     "$repo_root/scripts/subway-rules-test.ts",
     "$repo_root/scripts/subway-multiplayer-test.ts",
     "$repo_root/src/games/subway/config.ts",
+    "$repo_root/src/games/subway/report.ts",
     "$repo_root/src/engine/**/*.ts"
   ]
 }

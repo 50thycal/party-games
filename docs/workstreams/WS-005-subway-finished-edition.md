@@ -4,7 +4,7 @@ Build OS: v0.11
 Phase: BUILDING
 Status: Blocked
 Updated: 2026-09-09
-Implementation State: Flexible goals and crews merged in PR #156; station readability and clean-board changes published in PR #157; visual verification blocked
+Implementation State: Flexible goals and crews merged in PR #156; station cleanup, active-route/ghost previews, immediate exhausted-board ending, and AI playtest export implemented on PR #157; visual verification blocked
 Related PRs: [#154](https://github.com/50thycal/party-games/pull/154) (merged), [#155](https://github.com/50thycal/party-games/pull/155) (merged); [#156](https://github.com/50thycal/party-games/pull/156) (merged); [#157](https://github.com/50thycal/party-games/pull/157) (station readability)
 
 ## Goal and approved scope
@@ -84,6 +84,22 @@ river and park shading. PR #157 increases name text 10.5 â†’ 17 and metadata 9 â
 adds stable station colors and major/minor sign shapes, and removes the scenery.
 Build, lint, full Subway tests (36 simulations) and diff checks pass. Browser
 visual acceptance remains pending; no current-head independent approval claimed.
+
+## Construction clarity and playtest-data checkpoint
+The owner added four requirements to PR #157: pulse the complete active line,
+draw the selected next segment before Confirm, stop immediately when no legal
+construction remains, and provide a copy/paste AI playtest report. State v13
+stores a finite full ledger of every accepted action with timestamps, payloads,
+phase/round changes, and before/after player economy snapshots. Undo preserves
+the reverted action in that ledger and appends its own action. Results export
+structured Markdown plus JSON, final routes, cards/resources, scoring, station
+layout, settings, rankings, end reason, and the complete action ledger. Rejected
+actions remain untracked because the pure reducer returns the original state.
+
+Reducer and export regressions cover immediate final-segment termination, normal
+round-16 termination, Undo telemetry continuity, and report content. The ghost
+segment was verified in the desktop construction fixture. Active-route animation,
+the Results report control, and phone layouts remain in the browser visual gate.
 
 ## Next Step
 Obtain an accessible preview to verify desktop/phone layouts,

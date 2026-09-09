@@ -1356,3 +1356,51 @@ setting supported by 220 portfolio affordability checks and deterministic
 simulations, not a human-balance claim. Shared reducer behavior applies to online
 rooms and hotseat; further multiplayer UX work remains deferred. Visual validation
 and independent current-head review are still required.
+
+---
+
+### DEC-028 — Construction stops when the board is exhausted and results retain a full playtest ledger
+
+**Date:** 2026-09-09
+**Status:** Accepted by owner; pending implementation review.
+
+**Context**
+The 16-round horizon could force players through turns where no legal construction
+remained. The bounded public narration stream intentionally retained only twenty
+privacy-safe events, so it could not support a complete post-game balance review.
+The owner also requested clearer visual continuity between route selection and
+placement confirmation.
+
+**Decision**
+Construction advances immediately to scoring when every incomplete route is
+blocked from making a legal next placement; otherwise round 16 remains the hard
+limit. During a construction turn, pulse the whole active route and render the
+selected next segment translucently until Confirm.
+
+Add a separate finite accepted-action telemetry ledger to Subway state. Each
+entry records action order and time, actor, action and payload, phase/round before
+and after, and before/after player economy/resource snapshots. Undo keeps the
+reverted placement in history and appends an Undo event. Results expose a
+copyable structured Markdown report containing final state and the JSON ledger.
+Rejected actions are not recorded because reducer rejection must return the
+original state unchanged.
+
+**Rationale**
+Ending on the last meaningful placement removes dead time without changing the
+strategic 16-round pressure. The visual treatment makes the currently edited
+route and prospective commitment legible on a dense shared board. A complete,
+structured ledger makes AI-assisted playtest diagnosis reproducible; separating
+it from public narration preserves the concise in-game logbook.
+
+**Alternatives considered**
+Continue empty rounds to 16: rejected by the owner. Expand the public event stream:
+rejected because it is deliberately short and privacy-safe. Track rejected client
+attempts in reducer state: rejected because that would make invalid actions mutate
+authoritative game state and complicate retry semantics.
+
+**Consequences**
+State version 13 requires new rooms and local games. Room payloads grow with each
+accepted action, but the game has finite drafts, three routes per company, and a
+16-round cap. The report contains private card identities and therefore appears
+only at Results. Browser verification of pulse, ghost preview, and copy behavior
+remains part of PR #157's merge gate.

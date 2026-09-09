@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
-import { activationCost, buildableLines, lineActionsRemaining, LINE_CONTRACTS, ENGINEERING_CARDS, DESTINATION_CARDS, STATIONS, SUBWAY_CONFIG, SUBWAY_STATE_VERSION, subwayGame, nextCompanyId, draftPicks, draftTurnId, objectiveMet, scoreGame, legalTargets, lineComplete, contractById, constructionCardBlocker, type SubwayState, type SubwayAction } from "../src/games/subway/config";
+import { activationCost, buildableLines, constructionExhausted, lineActionsRemaining, LINE_CONTRACTS, ENGINEERING_CARDS, DESTINATION_CARDS, STATIONS, SUBWAY_CONFIG, SUBWAY_STATE_VERSION, subwayGame, nextCompanyId, draftPicks, draftTurnId, objectiveMet, scoreGame, legalTargets, lineComplete, contractById, constructionCardBlocker, type SubwayState, type SubwayAction } from "../src/games/subway/config";
+import { generateAiPlaytestReport } from "../src/games/subway/report";
 import { startPlaytest, testRoom, runPlaytest, seededRandom, stepPlaytest } from "../src/games/subway/playtest";
 
 const dispatch=(s:SubwayState,id:string,type:SubwayAction["type"],payload?:SubwayAction["payload"])=>subwayGame.reducer(s,{playerId:id,type,payload},{room:testRoom(s.playerOrder.length),playerId:id,now:()=>s.nextEventSeq,random:()=>.4});
 let checks=0;
 for(const count of [2,3,4]) for(const category of ["engineering","construction"] as const) {
   let {state:s}=startPlaytest(count,42);
-  assert.equal(SUBWAY_STATE_VERSION,12);
+  assert.equal(SUBWAY_STATE_VERSION,13);
   assert.ok(Object.values(s.players).every(p=>draftPicks(p)===0));
   assert.equal(s.stations.length,10);
   assert.equal(new Set(s.stations.map(p=>`${p.x},${p.y}`)).size,10);
@@ -103,6 +104,8 @@ for(const count of [0,1,2,3]) assert.equal(activationCost(construction().players
   assert.deepEqual(undo.players[id].pendingActions,[0]);
   assert.equal(undo.players[id].crewsHired,true);
   assert.ok(undo.nextEventSeq>s.nextEventSeq);
+  assert.equal(undo.telemetry.at(-2)?.action,"BUILD","Undo keeps the reverted build in the playtest ledger");
+  assert.equal(undo.telemetry.at(-1)?.action,"UNDO_PLACEMENT");
   assert.equal(dispatch(before,id,"BUILD",{lineIndex:0,x:12,y:8}),before,"illegal target costs nothing");
 }
 {
@@ -165,6 +168,28 @@ for(const count of [0,1,2,3]) assert.equal(activationCost(construction().players
   let s=construction();s.currentPeriod=16;
   for(const id of s.playerOrder)s=dispatch(s,id,"HIRE_CREWS",{lineIndexes:[],period:16});
   assert.equal(s.phase,"SCORING","zero crews cannot extend the horizon");
+  assert.equal(s.endReason,"ROUND_LIMIT");
+}
+// Construction ends immediately once the final legal segment is built.
+{
+  let s=construction();
+  s.resolveQueue=["seat-1","seat-2","seat-3","seat-4"];
+  s.players["seat-1"].lines=[{contractId:"short",paid:5,start:1,route:[{x:0,y:0},{x:2,y:0},{x:5,y:0},{x:7,y:0}]}];
+  for(const id of ["seat-2","seat-3","seat-4"]) {
+    s.players[id].lines=[{contractId:"short",paid:5,start:1,route:[{x:0,y:8},{x:2,y:8},{x:5,y:8},{x:7,y:8},{x:10,y:8}]}];
+  }
+  assert.equal(constructionExhausted(s),false);
+  s=dispatch(s,"seat-1","HIRE_CREWS",{lineIndexes:[0],period:1});
+  s=dispatch(s,"seat-1","BUILD",{lineIndex:0,x:10,y:0});
+  assert.equal(s.phase,"SCORING");
+  assert.equal(s.currentPeriod,1,"empty rounds are not advanced");
+  assert.equal(s.endReason,"NO_LEGAL_CONSTRUCTION");
+  assert.equal(constructionExhausted(s),true);
+  const report=generateAiPlaytestReport(scoreGame(s,999),{roomCode:"TEST",mode:"simulation"});
+  assert.match(report,/Copy|Subway AI Playtest Report/);
+  assert.match(report,/NO_LEGAL_CONSTRUCTION/);
+  assert.match(report,/Structured accepted-action log/);
+  assert.match(report,/"action": "BUILD"/);
 }
 // Full games exercise real drafting, activation, placement, turns, cards and scoring.
 const summary=[];
