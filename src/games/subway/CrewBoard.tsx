@@ -13,8 +13,8 @@ export function CrewBoard({game,viewerId,busy,veiled,act,onCard}:{game:SubwaySta
   const available=p?buildableLines(game,viewerId):[];
   const indexes=selected.filter(i=>available.includes(i));
   const cost=p?activationCost(p,indexes.length):0;
-  return <Printed zone="schedule" title="Crew dispatch" subtitle={`Round ${game.currentPeriod} / ${SUBWAY_CONFIG.timelinePeriods}`}>
-    <div className="flex gap-2" aria-label={`Round ${game.currentPeriod} of 16`}>{Array.from({length:16},(_,i)=><span key={i} className={`rounded px-3 py-2 text-xl font-bold ${i+1===game.currentPeriod?"bg-teal-700 text-white":"bg-stone-200"}`}>{i+1}</span>)}</div>
+  return <Printed style={{width:1100, maxWidth:"100%"}} zone="schedule" title="Crew dispatch" subtitle={`Round ${game.currentPeriod} / ${SUBWAY_CONFIG.timelinePeriods}`}>
+    <div className="flex flex-wrap gap-2" aria-label={`Round ${game.currentPeriod} of 16`}>{Array.from({length:16},(_,i)=><span key={i} className={`rounded px-3 py-2 text-xl font-bold ${i+1===game.currentPeriod?"bg-teal-700 text-white":"bg-stone-200"}`}>{i+1}</span>)}</div>
     <p className="mt-4 text-xl">1 crew $1M · 2 crews $3M · 3 crews $6M. One segment per chosen route. Unpaid debt: −4 VP per $1M.</p>
     {game.phase!=="CONSTRUCTION"?<p className="mt-3 text-xl">Choose routes afresh each construction round. There is no advance timetable.</p>:<>
       <p className="mt-3 text-2xl font-bold">{game.players[actor]?.name}: {priority?"Priority Dispatch opportunity":hiring?"choose your crews":"construction turn"}</p>

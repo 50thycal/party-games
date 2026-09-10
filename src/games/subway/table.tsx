@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { DestinationCardFace, EngineeringCardFace } from "./CardArt";
-import { money } from "./cards";
+import { DestinationCardFace, EngineeringCardFace, ConstructionArt } from "./CardArt";
+import { money, ContractCard } from "./cards";
 import {
   SUBWAY_CONFIG,
   basePriorityId,
@@ -675,8 +675,8 @@ export function ContractOffice({
           {game.procurement.row.map((id) => {
             const c = contractById(id)!;
             return <button key={id} onClick={() => onOpenContract(id, c.cost)} className="w-full rounded-[14px] border-[3px] bg-[#fffaf0] p-[14px] text-left hover:bg-amber-50 focus-visible:ring-4 focus-visible:ring-amber-500" style={{borderColor:c.color}}>
-              <span className="flex items-center gap-[12px] text-[23px] font-bold"><LineTile contract={c} size={36}/>{c.name}<span className="ml-auto">{money(c.cost)}</span></span>
-              <span className="mt-[6px] block text-[19px]">Recipe {c.recipe.join(" · ")} · {c.completionVp} VP</span>
+              <div className="[&_strong]:text-[24px] [&_p]:text-[17px] [&_span]:text-[18px] [&_.grid]:text-[18px]"><ContractCard contract={c} price={c.cost}/></div>
+              <span className="block text-[18px] font-bold">Inspect contract →</span>
             </button>;
           })}
           <p className="text-[18px]">{game.players[offer?.activeId ?? ""]?.name} chooses next.</p>
@@ -689,10 +689,13 @@ export function ContractOffice({
           {(["engineering", "construction"] as CardDeckId[]).map((deck) => (
             <div key={deck} className="rounded-[12px] border-[2px] border-stone-300 p-[10px]">
               <p className="text-[19px] font-bold capitalize">{deck}</p>
-              {(game.market.rows?.[deck] ?? []).map((id, i) => {
+              <div className="grid grid-cols-2 gap-[12px]">{(game.market.rows?.[deck] ?? []).map((id, slot) => {
                 const c = deck === "engineering" ? (engineeringById(id) ?? destinationById(id)) : deck === "scheduling" ? schedulingById(id as SchedulingCardId) : constructionById(id as ConstructionCardId);
-                return <button key={i} onClick={() => onOpenMarket(deck, id)} className="mt-[6px] block w-full rounded-[8px] bg-white p-[10px] text-left text-[19px] font-bold hover:bg-amber-100"><b>{c?.name}</b><span className="block font-normal">{c?.description}</span><span className="block text-teal-800">Draft →</span></button>;
-              })}
+                return <div key={`${id}-${slot}`} className="mt-[12px] rounded-[14px] border-2 border-amber-800/40 bg-[#fffaf0] p-[8px] shadow-lg [&_strong]:text-[20px] [&_p]:text-[18px] [&_span]:text-[16px]">
+                  {deck === "engineering" ? (destinationById(id) ? <DestinationCardFace card={id} color={me?.color ?? "#334155"}/> : <EngineeringCardFace card={id} color={me?.color ?? "#334155"}/>) : <><ConstructionArt /><b className="text-[24px]">{c?.name}</b><p className="text-[20px]">{c?.description}</p></>}
+                  <button onClick={() => onOpenMarket(deck, id)} className="mt-[10px] w-full rounded-lg bg-teal-800 p-[12px] text-[20px] font-bold text-white">Draft {c?.name} →</button>
+                </div>;
+              })}</div>
               <button disabled={!game.market.decks[deck].length} onClick={() => onOpenMarket(deck)} className="mt-[6px] w-full rounded-[8px] bg-stone-800 p-[10px] text-[18px] text-white">Blind draw · {deck}</button>
             </div>
           ))}
@@ -1194,6 +1197,7 @@ export function PlayerTabletop({
                   onClick={() => onOpenCard({ family: "construction", id, slot: "hand" })}
                   className="w-[300px] rounded-[18px] border-[4px] border-amber-700 bg-[#fffaf0] p-[16px] text-left shadow-[0_12px_24px_rgba(0,0,0,.3)] transition hover:-translate-y-[5px] focus-visible:outline-none focus-visible:ring-[6px] focus-visible:ring-amber-400"
                 >
+                  <ConstructionArt />
                   <span className="flex items-start justify-between gap-[10px]">
                     <b className="text-[22px] leading-tight">{constructionById(id as ConstructionCardId)?.name}</b>
                     <Pill tone="solid" color="#b45309">

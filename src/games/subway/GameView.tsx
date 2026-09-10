@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { MobileTable } from "./MobileTable";
 import { CrewBoard } from "./CrewBoard";
 import { constructionCardBlocker, objectiveMet } from "./config";
 import { lessonForPhase } from "./tutorial";
@@ -1107,7 +1106,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
               value={plannerLine ?? -1}
               onChange={(e) => openPlanner(Number(e.target.value))}
               className="rounded border border-stone-400 bg-white px-1.5 py-0.5 text-xs"
-              aria-label="Plan a different line"
+              style={{fontSize:16}} aria-label="Plan a different line"
             >
               {me?.lines.map((l, i) => (
                 <option key={i} value={i}>
@@ -1120,7 +1119,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
             </span>
 
           </div>
-          <p className="text-xs text-stone-600">
+          <p className={`${mobile ? "hidden" : ""} text-xs text-stone-600`}>
             Temporary preview — nothing is saved or reserved. Confirm builds only your selected real peg.{" "}
             {sketch.length === 0
               ? "Tap a border hole to start the phantom route."
@@ -1288,6 +1287,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   // Quick-focus controls, one-handed on a phone: the short label is what a
   // narrow screen shows, the long one is the accessible name everywhere.
   const focusButtons: { zone: TableZone; label: string; short: string }[] = [
+    { zone: "office", label: "Market", short: "Market" },
     { zone: "board", label: "Pegboard", short: "Board" },
     { zone: "schedule", label: "Crew dispatch", short: "Crews" },
     { zone: "lines", label: "Lines", short: "Lines" },
@@ -1300,7 +1300,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-2 sm:p-3">
       <div ref={hudTopRef} className="flex flex-wrap items-start justify-between gap-2">
         <div
-          className={`pointer-events-auto max-w-[52%] rounded-xl border-l-4 bg-[#fffaf0]/95 px-2.5 py-1.5 shadow-lg sm:max-w-[42%] sm:px-3 sm:py-2 ${
+          className={`${mobile ? "hidden" : ""} pointer-events-auto max-w-[52%] rounded-xl border-l-4 bg-[#fffaf0]/95 px-2.5 py-1.5 shadow-lg sm:max-w-[42%] sm:px-3 sm:py-2 ${
             status.tone === "act" ? "border-emerald-600" : status.tone === "wait" ? "border-stone-400" : "border-amber-500"
           }`}
         >
@@ -1318,7 +1318,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
 
         <div className="pointer-events-auto flex flex-wrap items-center justify-end gap-1 rounded-xl bg-stone-900/85 p-1.5 text-amber-50 shadow-lg">
           {settingsButton}
-          {!lessonZone && <Link href={`/subway/tutorial?lesson=${lessonForPhase(game.phase,game.engineeringStep)}`} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-white/15 px-2 py-1 text-xs">Phase lesson ↗</Link>}
+          {!lessonZone && !mobile && <Link href={`/subway/tutorial?lesson=${lessonForPhase(game.phase,game.engineeringStep)}`} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-white/15 px-2 py-1 text-xs">Phase lesson ↗</Link>}
           <button
             onClick={() => cam.current?.zoomBy(1 / 1.3)}
             aria-label="Zoom out"
@@ -1335,16 +1335,16 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
             +
           </button>
           <button
-            onClick={() => cam.current?.reset()}
-            aria-label="Reset view"
+            onClick={() => cam.current?.focus("board", {fit:true})}
+            aria-label="Fit entire board"
             className="rounded-lg bg-white/15 px-2 py-1 text-[11px] font-bold hover:bg-white/25 sm:text-xs"
           >
-            Reset<span className="hidden sm:inline"> view</span>
+            Fit board
           </button>
         </div>
       </div>
 
-      <NarrationOverlay event={narration.overlay} onDismiss={narration.dismiss} />
+      <NarrationOverlay event={mobile ? null : narration.overlay} onDismiss={narration.dismiss} />
 
       <div
         ref={hudBottomRef}
@@ -1360,8 +1360,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
               aria-label={`Focus ${b.label}`}
               className="rounded-lg bg-white/15 px-2.5 py-1 text-[11px] font-bold hover:bg-white/25 sm:text-xs"
             >
-              <span className="sm:hidden">{b.short}</span>
-              <span className="hidden sm:inline">{b.label}</span>
+              <span>{mobile ? b.short : b.label}</span>
             </button>
           ))}
         </div>
@@ -1373,15 +1372,6 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
 
   const settingsPanel = settingsOpen && <div role="dialog" aria-modal="true" aria-label="Table settings" className="fixed inset-0 z-50 overflow-auto bg-stone-950/80 p-3"><div className="mx-auto max-w-xl rounded-xl bg-[#fff7e5] p-4 text-stone-900"><button autoFocus className="float-right rounded border px-3 py-2" onClick={()=>setSettingsOpen(false)}>Close settings</button><h2 className="text-xl font-bold">Table settings</h2><p className="my-4"><Link href="/subway/tutorial">How to play</Link></p><button className="rounded border px-3 py-2" onClick={()=>setShowLog(v=>!v)}>Action log</button>{showLog && <ol className="mt-3 space-y-2 text-sm">{game.events.map(e=><li key={e.seq}>{e.text}</li>)}</ol>}</div></div>;
   const resultsPanel = game.phase === "RESULTS" && showResults && <div role="dialog" aria-modal="true" aria-label="Final results" className="fixed inset-0 z-40 overflow-auto bg-[#fff7e5] p-3 text-stone-900"><button autoFocus className="mb-3 rounded border px-4 py-2" onClick={()=>setShowResults(false)}>Back to board</button><ResultsSheet game={game} roomCode={room.roomCode} mode={room.mode}/></div>;
-  if (mobile && !lessonZone) return <div className="relative">
-    {veiled && me && <HandoffVeil name={me.name} color={me.color} onConfirm={()=>setSeatedId(playerId)}/>}
-    <MobileTable game={game} playerId={playerId} busy={busy} veiled={veiled} act={act}
-      settings={settingsButton} survey={engineeringSlip} actions={actionStrip}
-      selectLine={i=>{exitPlanner();setPreview(null);setSelectedLine(i);}} previewLine={openPlanner} playCard={id=>quickCard(id as ConstructionCardId)}
-      board={<div ref={boardRef}><Board game={game} targets={canAct?targets:[]} following={mode === "place"?following:[]} selected={mode === "place"?preview??undefined:undefined} canAct={canAct} drawn={drawn} onTapHole={onTapHole}/></div>}/>
-    {game.phase === "RESULTS" && <button onClick={()=>setShowResults(true)}>Show results</button>}
-    {focusPanel}{settingsPanel}{resultsPanel}
-  </div>;
 
   return (
     <div className="relative" data-tutorial-zone={lessonZone} style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
@@ -1398,7 +1388,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
         onCamera={(scale) => setZoomPct((prev) => (Math.round(scale * 100) === prev ? prev : Math.round(scale * 100)))}
         overlay={hud}
         openZone={lessonZone ?? phaseZone}
-        bottomInset={30}
+        bottomInset={0}
         hudTop={bands.top}
         hudBottom={bands.bottom}
         label="Subway tabletop — drag to pan, pinch or scroll to zoom"

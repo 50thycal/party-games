@@ -1412,3 +1412,11 @@ Date: 2026-09-10. Status: owner-authorized; implementation review pending.
 The owner approved a landscape-first phone table with a dismissible portrait prompt, readable cards, Settings-only log, direct ordinary drafting/card play, and explicit real peg confirmation. Mobile pieces occupy a screen-sized tray independent of map zoom. Temporary planning supersedes the save-plan interaction: start from the real endpoint or selected pending peg; Confirm commits that real peg only. Sketches spend/reserve nothing and clear on authoritative route or turn changes. Existing stored plans are left untouched but not loaded. Desktop retains its tabletop camera.
 
 Consequence: separate responsive presentation shares the same reducer and placement logic; both surfaces require browser verification.
+
+### DEC-030 — Restore the full touch tabletop
+
+Date: 2026-09-10. Status: owner-authorized; implementation review pending.
+
+Owner screenshots and feedback supersede DEC-029's fixed mobile tray. All devices use the full tabletop camera; cards and board pan and zoom together inside the game viewport. The outer page keeps normal browser accessibility zoom. Existing illustrated goal/destination faces appear in the draft market and hand; Construction uses a printed depot motif. Compact Confirm and camera controls remain overlays. Touch gestures may begin on table pieces without activating them after a drag. Ghost planning remains temporary and unchanged.
+
+Consequence: one presentation path replaces the separate phone layout. Real iPhone pinch/pan and portrait/landscape acceptance remain required; desktop automation alone is insufficient evidence.
