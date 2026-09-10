@@ -87,6 +87,7 @@ All goals stay private until results; the owner can inspect live progress.
 ## Surveys
 
 After card drafting, each company may buy zero to five Survey Pins for $1M each.
+Survey Pins must be placed on interior, non-station holes. All outer-border holes are reserved for starter pegs.
 This purchase is paid once and must be affordable; it cannot create debt.
 Then take turns placing purchased pins on non-station holes, not stacked on your
 own pins. They reserve nothing. Each pays +1 VP if one of your routes has a node

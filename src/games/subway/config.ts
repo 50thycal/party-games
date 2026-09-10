@@ -1326,6 +1326,7 @@ export function surveyBlocker(s: SubwayState, playerId: string, p: Point): strin
   ) {
     return "Outside the pegboard.";
   }
+  if (p.x === 0 || p.y === 0 || p.x === SUBWAY_CONFIG.board.columns - 1 || p.y === SUBWAY_CONFIG.board.rows - 1) return "Starter areas are reserved: place Survey Pins inside the border.";
   if (stationAt(p, s.stations)) return "Survey Pins cannot be placed on a station.";
   if (s.surveyPins.some((pin) => pin.playerId === playerId && pin.x === p.x && pin.y === p.y)) {
     return "You already surveyed that hole.";

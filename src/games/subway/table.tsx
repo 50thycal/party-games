@@ -323,13 +323,13 @@ export function OpponentEdge({
   const pins = game.surveyPins.filter((pin) => pin.playerId === opponent.id);
 
   return (
-    <Printed tone="mat" className="w-full">
+    <Printed tone="mat" style={{width:1050,maxWidth:"100%"}}>
       <div className="flex flex-wrap items-center gap-x-[40px] gap-y-[18px]">
         <span className="flex items-center gap-[16px]">
           <span className="h-[38px] w-[38px] rounded-full shadow-inner" style={{ background: opponent.color }} />
           <b className="text-[34px] font-black text-stone-800">{opponent.name}</b>
           <Pill>Opposition</Pill>
-          <Pill>Priority: {priorityPeriods.join(" · ")}</Pill>
+
         </span>
         <span className={`text-[34px] font-black ${opponent.money < 0 ? "text-red-700" : "text-stone-800"}`}>
           {opponent.money < 0 ? `−${money(-opponent.money)}` : money(opponent.money)}
@@ -692,7 +692,7 @@ export function ContractOffice({
               <div className="grid grid-cols-2 gap-[12px]">{(game.market.rows?.[deck] ?? []).map((id, slot) => {
                 const c = deck === "engineering" ? (engineeringById(id) ?? destinationById(id)) : deck === "scheduling" ? schedulingById(id as SchedulingCardId) : constructionById(id as ConstructionCardId);
                 return <div key={`${id}-${slot}`} className="mt-[12px] rounded-[14px] border-2 border-amber-800/40 bg-[#fffaf0] p-[8px] shadow-lg [&_strong]:text-[20px] [&_p]:text-[18px] [&_span]:text-[16px]">
-                  {deck === "engineering" ? (destinationById(id) ? <DestinationCardFace card={id} color={me?.color ?? "#334155"}/> : <EngineeringCardFace card={id} color={me?.color ?? "#334155"}/>) : <><ConstructionArt /><b className="text-[24px]">{c?.name}</b><p className="text-[20px]">{c?.description}</p></>}
+                  {deck === "engineering" ? (destinationById(id) ? <DestinationCardFace card={id} color={me?.color ?? "#334155"}/> : <EngineeringCardFace card={id} color={me?.color ?? "#334155"}/>) : <><ConstructionArt card={id} /><b className="text-[24px]">{c?.name}</b><p className="text-[20px]">{c?.description}</p></>}
                   <button onClick={() => onOpenMarket(deck, id)} className="mt-[10px] w-full rounded-lg bg-teal-800 p-[12px] text-[20px] font-bold text-white">Draft {c?.name} →</button>
                 </div>;
               })}</div>
@@ -1060,7 +1060,7 @@ export function PlayerTabletop({
       {/* Company plaque */}
       <div
         className="flex flex-wrap items-center gap-x-[36px] gap-y-[16px] rounded-[26px] border-[6px] p-[22px] shadow-[0_16px_34px_rgba(0,0,0,.4)]"
-        style={{ borderColor: me.color, background: "#f7efdb" }}
+        style={{ width:1050, maxWidth:"100%", borderColor: me.color, background: "#f7efdb" }}
       >
         <span className="flex items-center gap-[16px]">
           <span className="h-[42px] w-[42px] rounded-full shadow-inner" style={{ background: me.color }} />
@@ -1073,7 +1073,7 @@ export function PlayerTabletop({
           {me.money < 0 ? `−${money(-me.money)}` : money(me.money)}
         </span>
         <span className="text-[20px] text-stone-600">
-          Builds first in <b>{Array.from({length: SUBWAY_CONFIG.timelinePeriods}, (_, i) => i + 1).filter((q) => basePriorityId(game, q) === me.id).join(", ")}</b> periods
+          {me.lines.length} lines
           {me.tollsPaid > 0 && <> · paid {money(me.tollsPaid)} in contacts</>}
         </span>
         {!veiled && <PinSupply game={game} me={me} />}
@@ -1197,7 +1197,7 @@ export function PlayerTabletop({
                   onClick={() => onOpenCard({ family: "construction", id, slot: "hand" })}
                   className="w-[300px] rounded-[18px] border-[4px] border-amber-700 bg-[#fffaf0] p-[16px] text-left shadow-[0_12px_24px_rgba(0,0,0,.3)] transition hover:-translate-y-[5px] focus-visible:outline-none focus-visible:ring-[6px] focus-visible:ring-amber-400"
                 >
-                  <ConstructionArt />
+                  <ConstructionArt card={id} />
                   <span className="flex items-start justify-between gap-[10px]">
                     <b className="text-[22px] leading-tight">{constructionById(id as ConstructionCardId)?.name}</b>
                     <Pill tone="solid" color="#b45309">
