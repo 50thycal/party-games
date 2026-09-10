@@ -4,7 +4,7 @@ Build OS: v0.12
 Phase: BUILDING
 Status: Blocked
 Updated: 2026-09-10
-Implementation State: PR #161 merged; saved planning and Engineering artwork implemented. Production build (including type validation), lint, saved-plan tests, 220 affordability checks and 36 full simulations passed. Publishing follow-up; browser acceptance blocked and independent review pending.
+Implementation State: PR #162 open with saved planning and Engineering artwork implemented. Production build (including type validation), lint, saved-plan tests, 220 affordability checks and 36 full simulations passed. Browser acceptance blocked and independent review pending.
 Related PRs: [#161](https://github.com/50thycal/party-games/pull/161) (merged); saved-planning follow-up on codex/subway-saved-planning; [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
 ## Goal and approved scope
@@ -63,6 +63,8 @@ and intake/result rules. Reviewed mode retained; historical work is not reopened
 
 ## Review State
 Pending independent review. No approval or merge claimed.
+
+PR #162: Pending independent review. Published through connected GitHub with an exact matching validated implementation tree. Browser acceptance remains blocked; no finalization or merge claimed.
 
 ## Validation checkpoint
 - `npm run build`, `npm run lint`, `./scripts/test-subway.sh`, and `git diff --check` pass.
