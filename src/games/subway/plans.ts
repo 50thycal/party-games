@@ -5,6 +5,7 @@ import {
   validateNode,
   type RouteNode,
   type SubwayState,
+  type PlacementTarget,
 } from "./config";
 
 // ============================================================================
@@ -102,12 +103,25 @@ export function savePlan(
   }
 }
 
-export function clearPlan(roomCode: string, playerId: string, contractId: string): void {
+export function clearPlan(roomCode: string, playerId: string, contractId: string): boolean {
   try {
     window.localStorage.removeItem(planStorageKey(roomCode, playerId, contractId));
+    return true;
   } catch {
-    // Nothing to do: with storage unavailable there is nothing stored either.
+    return false;
   }
+}
+
+/** Start from a viable saved route or the real prefix; never silently use stale intent. */
+export function preparePlan(game: SubwayState, playerId: string, lineIndex: number, saved?: SavedPlan | null) {
+  const base = game.players[playerId]?.lines[lineIndex]?.route ?? [];
+  const nodes = saved && !reconcilePlan(game, playerId, lineIndex, saved.nodes).stale ? saved.nodes : base;
+  const next = nodes[base.length];
+  const preview: PlacementTarget | null = next ? {
+    x: next.x, y: next.y,
+    ...(next.stationId ? {slot:next.stationSlot ?? 0} : {}),
+  } : null;
+  return {base:base.map(cleanNode), nodes:nodes.map(cleanNode), preview};
 }
 
 /** How one saved plan relates to the line's real route right now. */

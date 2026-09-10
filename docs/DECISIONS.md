@@ -1426,3 +1426,13 @@ Consequence: one presentation path replaces the separate phone layout. Real iPho
 Date: 2026-09-10. Status: owner-authorized; implementation review pending.
 
 All outer-border holes are starter areas and reject new Survey Pins. Existing saved pins are preserved. The owner requested an interactive Construction schedule: it records actual round order and builds, rather than reintroducing advance scheduling. The public projection includes undone builds but excludes hidden card identities. Opponent details default closed; board routes remain visible. Phone drag gets a short decelerating glide and scoped selection/callout suppression, respecting reduced motion.
+
+### DEC-032 — Active-line planning opens automatically and saved ghosts return
+
+Date: 2026-09-10. Status: owner-authorized; implementation review pending.
+
+The owner supersedes DEC-029's temporary-only planning choice. Starter and build turns open with planning enabled for the active line, without a line picker. The first unbuilt node is a solid pending real placement; subsequent nodes are pale dashed construction guides. Only Confirm commits the single pending placement. Explicit Plan opens cross-line planning with a picker and no automatic build target. Save ghost stores the full intended route privately per game, player and contract on this browser; loading reconciles it against real construction. A stale saved plan remains visible and labeled but never automatically supplies a build target. Clear saved removes only that plan and reports storage failure honestly. Unsaved edits remain temporary. This restores DEC-022's storage semantics without changing reducer state or rules.
+
+Engineering goals and Destinations share a 24-panel vintage transit illustration atlas matching Construction. Names, exact requirements, point values and the existing geometry diagrams remain rendered by code, not baked into generated artwork.
+
+Consequences: saved plans do not sync across devices and do not reserve board space. Current-head independent review and physical phone acceptance remain required. Alternatives considered: retaining manual-only temporary planning was rejected by the owner's current request.

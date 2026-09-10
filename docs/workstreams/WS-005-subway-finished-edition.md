@@ -2,10 +2,10 @@
 
 Build OS: v0.12
 Phase: BUILDING
-Status: Active
+Status: Blocked
 Updated: 2026-09-10
-Implementation State: PR #160 merged; follow-up glide, compact company panels, illustrated cards, interior surveys and interactive construction schedule implemented; build/lint/rules and responsive browser checks passed; publishing for independent review
-Related PRs: [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; open); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
+Implementation State: PR #161 merged; saved planning and Engineering artwork implemented. Production build (including type validation), lint, saved-plan tests, 220 affordability checks and 36 full simulations passed. Publishing follow-up; browser acceptance blocked and independent review pending.
+Related PRs: [#161](https://github.com/50thycal/party-games/pull/161) (merged); saved-planning follow-up on codex/subway-saved-planning; [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
 ## Goal and approved scope
 After this change, Subway supports complete 2-, 3- and 4-player games, with more
@@ -103,11 +103,20 @@ segment was verified in the desktop construction fixture. Active-route animation
 the Results report control, and phone layouts remain in the browser visual gate.
 
 ## Next Step
-Obtain an accessible preview to verify desktop/phone layouts,
-card dialogs, placement preview/Confirm, all-seat handoff and local save/resume.
-Use `/subway` for local hotseat and `/test/subway` for responsive phase fixtures.
-Fix any defects on this branch, then request independent review. Do not merge
-before the outstanding visual gate and independent review are satisfied.
+Implement and verify automatic active-line planning, saved private ghosts and themed Engineering artwork; publish a follow-up PR for independent review. Do not merge.
+
+## Saved planning and Engineering artwork continuation — 2026-09-10
+
+Owner authorization: implement the requested automatic planner for the currently built line and starter peg, saved ghost routes, no line picker during ordinary placement, an explicit cross-line planner, and Engineering artwork matching Construction.
+Non-goals: rule/balance changes, automatic placement confirmation, cross-device plan sync, backend changes, and changes to tabletop camera behavior.
+Acceptance: active starter/build opens with planning ready; only explicit Plan exposes line switching; Save retains a private per-game/player/contract ghost through reload and turns; stale plans remain clearly identified; Confirm commits exactly one legal real placement and never a future tail; plans stay hidden at hotseat handoff; planned paths are pale/dashed while the pending real step is solid and labeled; all Engineering goals and Destinations retain exact code-rendered rules with themed illustration. Build, lint, rules tests, persistence regressions and phone/desktop browser checks required.
+Framework preflight: canonical VERSION.md checked through GitHub; v0.12 matches adoption. Continue WS-005; no new mission admitted. PR #161 is merged; its post-merge COMMENT explicitly was not an approval and does not retrospectively clear the gate.
+
+Implementation checkpoint: active placement opens the locked Build + plan controls; explicit Plan enables cross-line switching. Save ghost/clear controls use versioned storage plus a session fallback. Pending real pegs have solid route styling and NOW selection; planned targets use P/dashed markers, and future routes use lighter dashed strokes. New pure preparePlan helper refuses stale saved build targets. Engineering/Destination cards retain rules and geometry beneath a 24-panel illustration atlas.
+
+Validation: saved-plan regressions cover 2/3/4-seat starter plans, reload, room/player/contract isolation, defensive copies, built-prefix reconciliation, stale plans, malformed/versioned/oversized storage and unavailable storage. All 36 complete simulations and 220 affordability checks pass. All 24 card IDs have a distinct artwork mapping. Browser verification blocked: Browser Use refused the local preview URL with ERR_BLOCKED_BY_CLIENT. No responsive browser pass, physical iPhone pass, or independent approval is claimed. No permission/protection settings were changed. Next Step: obtain an accessible preview, verify Save/reload/Confirm/handoff on phone and desktop, and independently review the follow-up PR; do not merge.
+
+Artwork: public/subway/engineering-cards.png, generated with the built-in image-generation tool using Construction art as style reference. Prompt specified a full-bleed 6-column × 4-row atlas with 24 square vintage screenprinted transit scenes in parchment, mustard, orange and petrol teal; row-major subjects match the exact ENGINEERING_ART_IDS mapping. No embedded words or rule diagrams; all text and rule geometry remain code-rendered.
 
 ## Mobile tabletop continuation — 2026-09-10
 
