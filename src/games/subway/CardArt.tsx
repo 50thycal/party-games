@@ -21,6 +21,23 @@ const OPPONENT = "#64748b";
 const PEG = "#d8c3a0";
 const RULE = "#a1887f";
 
+/** Row-major mapping of the 24-panel vintage transit illustration atlas. */
+export const ENGINEERING_ART_IDS = [
+  "gentle", "bend", "straight", "approach", "through", "network",
+  "parallel", "terminal", "minimal", "crossing", "crosstown-service", "local-service",
+  "interchange", "solvent", "dest-market", "dest-grand", "dest-museum", "dest-garden",
+  "dest-stadium", "dest-university", "dest-library", "dest-theatre", "dest-airport", "dest-harbor",
+] as const;
+
+function EngineeringIllustration({id}:{id:string}) {
+  const index = ENGINEERING_ART_IDS.findIndex(value => value === id);
+  if (index < 0) return null;
+  return <div aria-hidden="true" data-engineering-art={id} className="mt-2 w-full rounded-lg" style={{
+    aspectRatio:"1", backgroundImage:"url(/subway/engineering-cards.png)",
+    backgroundSize:"600% 400%", backgroundPosition:`${(index % 6)*20}% ${Math.floor(index/6)*100/3}%`,
+  }} />;
+}
+
 const PEG_COLUMNS = 7;
 const PEG_ROWS = 3;
 
@@ -298,6 +315,7 @@ export function EngineeringCardFace({
           +{resolved.vp}
         </span>
       </div>
+      <EngineeringIllustration id={resolved.id}/>
       <div className="mt-1.5">
         <EngineeringArt id={resolved.id} color={color} />
       </div>
@@ -393,6 +411,7 @@ export function DestinationCardFace({
         </span>
       </div>
       <p className="text-[10px] font-black uppercase tracking-wider text-purple-700">Destination</p>
+      <EngineeringIllustration id={resolved.id}/>
       <div className="mt-1.5">
         <DestinationArt stationId={resolved.stationId} color={color} />
       </div>

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import "./subway-plans-test";
 import { constructionHistory } from "../src/games/subway/constructionHistory";
 import { activationCost, buildableLines, constructionExhausted, lineActionsRemaining, LINE_CONTRACTS, ENGINEERING_CARDS, DESTINATION_CARDS, STATIONS, SUBWAY_CONFIG, SUBWAY_STATE_VERSION, subwayGame, nextCompanyId, draftPicks, draftTurnId, objectiveMet, scoreGame, legalTargets, lineComplete, contractById, constructionCardBlocker, type SubwayState, type SubwayAction } from "../src/games/subway/config";
 import { generateAiPlaytestReport } from "../src/games/subway/report";

@@ -48,6 +48,8 @@ export type DrawnLine = {
   active: boolean;
   growing: boolean;
   ghost?: boolean;
+  /** Solid but uncommitted next placement; never occupies a real station dock. */
+  pending?: boolean;
   /** A saved plan that no longer matches reality; drawn extra-faint. */
   stale?: boolean;
   /** route[0] is a real node used only to anchor the first phantom segment. */
@@ -61,6 +63,7 @@ export function Board({
   targets,
   following,
   selected,
+  planningTargets = false,
   canAct,
   drawn,
   onTapHole,
@@ -70,6 +73,8 @@ export function Board({
   /** Where the line could go *after* the selected target. Informational only. */
   following: PlacementTarget[];
   selected?: PlacementTarget;
+  /** These clickable targets extend a sketch, not the next real placement. */
+  planningTargets?: boolean;
   canAct: boolean;
   drawn: DrawnLine[];
   onTapHole: (p: Point, slot?: number) => void;
@@ -87,7 +92,7 @@ export function Board({
   /** Which contract, if any, is docked in a given station slot. */
   const dockedIn = (stationId: string, slot: number) =>
     drawn.find(
-      (d) => !d.ghost && d.route.some((n) => n.stationId === stationId && (n.stationSlot ?? 0) === slot)
+      (d) => !d.ghost && !d.pending && d.route.some((n) => n.stationId === stationId && (n.stationSlot ?? 0) === slot)
     );
 
   // A click that survives the camera's drag filter is a real tap. The element's
@@ -270,10 +275,10 @@ export function Board({
                       cx={dx}
                       cy={dy}
                       r="13"
-                      fill="#4ade80"
+                      fill={planningTargets ? "#c4b5fd" : "#4ade80"}
                       opacity={hasSelection ? 0.12 : 0.35}
                       data-target={key}
-                      data-step="1"
+                      data-step={planningTargets ? "plan" : "1"}
                     >
                       {!hasSelection && (
                         <animate attributeName="opacity" values="0.65;0.2;0.65" dur="1.6s" repeatCount="indefinite" />
@@ -299,9 +304,9 @@ export function Board({
                     cy={dy}
                     r="9"
                     fill={docked ? docked.contract.color : "#00000055"}
-                    stroke={open && !hasSelection ? "#4ade80" : docked ? "#ffffff" : "#f5d98a"}
+                    stroke={open ? (planningTargets ? "#c4b5fd" : "#4ade80") : docked ? "#ffffff" : "#f5d98a"}
                     strokeWidth={open && !hasSelection ? 3 : 2}
-                    strokeDasharray={docked || open ? "0" : "3 3"}
+                    strokeDasharray={planningTargets && open ? "3 3" : docked || open ? "0" : "3 3"}
                   />
                   <text y={dy - 13} x={dx} textAnchor="middle" fontSize="8" fontWeight="800" fill="#f5d98a">
                     {slot + 1}
@@ -356,18 +361,18 @@ export function Board({
                   cx={p.x}
                   cy={p.y}
                   r="13"
-                  fill="#4ade80"
+                  fill={planningTargets ? "#c4b5fd" : "#4ade80"}
                   opacity={hasSelection ? 0.15 : 0.28}
                   data-target={`${c.x},${c.y}`}
-                  data-step="1"
+                  data-step={planningTargets ? "plan" : "1"}
                 />
-                <circle cx={p.x} cy={p.y} r="13" fill="none" stroke="#4ade80" strokeWidth="2.5">
+                <circle cx={p.x} cy={p.y} r="13" fill="none" stroke={planningTargets ? "#a78bfa" : "#4ade80"} strokeWidth="2.5" strokeDasharray={planningTargets ? "4 4" : undefined}>
                   {!hasSelection && (
                     <animate attributeName="opacity" values="0.9;0.35;0.9" dur="1.6s" repeatCount="indefinite" />
                   )}
                 </circle>
-                <text x={p.x} y={p.y + 4} textAnchor="middle" fontSize="11" fontWeight="800" fill="#14532d">
-                  1
+                <text x={p.x} y={p.y + 4} textAnchor="middle" fontSize="11" fontWeight="800" fill={planningTargets ? "#6d28d9" : "#14532d"}>
+                  {planningTargets ? "P" : "1"}
                 </text>
               </g>
             );
@@ -434,7 +439,7 @@ export function Board({
       {/* Strings: pale casing pass, then the line's own color. Each contract
           carries a distinct dash pattern so color is never the only cue.
           Phantom plans draw dashed and translucent; stale ones fainter still. */}
-      {drawn.filter((d) => d.active && !d.ghost).flatMap((d) =>
+      {drawn.filter((d) => d.active && !d.ghost && !d.pending).flatMap((d) =>
         d.route.slice(1).map((n, i) => {
           const a = nodePx(d.route[i]);
           const b = nodePx(n);
@@ -488,7 +493,8 @@ export function Board({
               strokeWidth={d.ghost ? 6 : 8}
               strokeLinecap="round"
               strokeDasharray={d.ghost ? "10 12" : d.contract.dash}
-              opacity={d.ghost ? (d.stale ? 0.35 : 0.7) : 1}
+              opacity={d.ghost ? (d.stale ? 0.25 : 0.45) : 1}
+              data-route-kind={d.ghost ? "plan" : d.pending ? "pending" : "built"}
             />
           );
         })
@@ -502,7 +508,7 @@ export function Board({
           const isEndpoint = i === d.route.length - 1;
           const r = n.stationId ? 7.5 : 11;
           return (
-            <g key={`n-${d.key}-${i}`} opacity={d.ghost ? (d.stale ? 0.45 : 0.75) : 1}>
+            <g key={`n-${d.key}-${i}`} data-peg-kind={d.ghost ? "plan" : d.pending ? "pending" : "built"} opacity={d.ghost ? (d.stale ? 0.35 : 0.55) : 1}>
               {isEndpoint && d.growing && !d.ghost && (
                 <circle
                   cx={p.x}

@@ -29,7 +29,7 @@ import {
   type PlanChip,
 } from "./table";
 import { HandoffVeil, NarrationOverlay, currentActorId, useNarration } from "./tabletop";
-import { reconcilePlan, type PlanStatus, type SavedPlan } from "./plans";
+import { loadPlan, savePlan, clearPlan, planStorageKey, preparePlan, reconcilePlan, type PlanStatus, type SavedPlan } from "./plans";
 import { generateAiPlaytestReport } from "./report";
 import {
   SUBWAY_CONFIG,
@@ -314,10 +314,12 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
 
   // Saved Plan Mode (DEC-022): all client-local, keyed per room/player/line.
   const [planMode, setPlanMode] = useState(false);
+  const [manualPlanner, setManualPlanner] = useState(false);
   const [plannerLine, setPlannerLine] = useState<number | null>(null);
   const [sketch, setSketch] = useState<RouteNode[]>([]);
   const [sketchBase, setSketchBase] = useState<RouteNode[]>([]);
   const [plans, setPlans] = useState<Record<string, SavedPlan>>({});
+  const sessionPlans = useRef<Record<string, SavedPlan>>({});
 
 
   // Hotseat handoff veil: a changed controlling player keeps every private
@@ -331,9 +333,6 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
 
   const realRouteKey = me?.lines.map(l=>JSON.stringify(l.route)).join("|");
   const turnKey = game ? currentActorId(game) : undefined;
-  useEffect(() => {
-    setPlanMode(false); setPlannerLine(null); setSketch([]); setSketchBase([]); setPreview(null);
-  }, [playerId, room.roomCode, game?.phase, game?.currentPeriod, turnKey, realRouteKey]);
 
   const narration = useNarration(game, room.roomCode, playerId);
 
@@ -359,7 +358,12 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       setPlans({});
       return;
     }
-    setPlans({});
+    const loaded: Record<string, SavedPlan> = {};
+    for (const id of contractIds.split(",")) {
+      const plan = sessionPlans.current[planStorageKey(room.roomCode, playerId, id)] ?? loadPlan(room.roomCode, playerId, id);
+      if (plan) loaded[id] = plan;
+    }
+    setPlans(loaded);
     // A different player (hotseat) or portfolio starts from a closed planner.
     setPlanMode(false);
     setPlannerLine(null);
@@ -399,19 +403,20 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     if (!game || !me) return;
     const line = me.lines[lineIndex];
     if (!line) return;
-    // A temporary tail starts at the pending real peg, when one is selected.
-    const start = [...line.route];
-    if (lineIndex === activeLineIndex && preview) start.push({...preview});
-    setSketchBase(start);
+    const initial = preparePlan(game, playerId, lineIndex, plans[line.contractId]);
+    setSketchBase(initial.base);
     setPlannerLine(lineIndex);
-    setSketch(start);
+    setSketch(initial.nodes);
     setPlanMode(true);
+    setManualPlanner(true);
+    setPreview(null);
     setNotice(null);
     cam.current?.focus("board");
   };
 
   const exitPlanner = () => {
     setPlanMode(false);
+    setManualPlanner(false);
     setPlannerLine(null);
     setSketch([]);
   };
@@ -432,6 +437,25 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
         ? selectedLine
         : me.pendingActions[0]
       : -1;
+
+  // Open once per actual placement context, never on ordinary state polls or taps.
+  const automaticContext = `${room.roomCode}:${playerId}:${game?.phase}:${game?.currentPeriod}:${turnKey}:${activeLineIndex}:${realRouteKey}:${veiled}`;
+  const openedContext = useRef("");
+  useEffect(() => {
+    if (openedContext.current === automaticContext) return;
+    openedContext.current = automaticContext;
+    setPlanMode(false); setManualPlanner(false); setPlannerLine(null); setSketch([]); setSketchBase([]); setPreview(null);
+    if (!planAvailable || !game || !me || activeLineIndex < 0) return;
+    const line = me.lines[activeLineIndex];
+    const saved = sessionPlans.current[planStorageKey(room.roomCode, playerId, line.contractId)] ?? loadPlan(room.roomCode, playerId, line.contractId);
+    const initial = preparePlan(game, playerId, activeLineIndex, saved);
+    setSketchBase(initial.base);
+    setSketch(initial.nodes);
+    setPlannerLine(activeLineIndex);
+    setManualPlanner(false);
+    setPlanMode(true);
+    setPreview(initial.preview);
+  }, [automaticContext, planAvailable, game, me, activeLineIndex, room.roomCode, playerId]);
 
   const plannerActive =
     planMode && plannerLine !== null && !!game && !!me && planAvailable && !!me.lines[plannerLine];
@@ -507,16 +531,6 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     return routeContacts(game, me.id, from, { x: preview.x, y: preview.y });
   }, [game, me, preview, activeLineIndex, placingStarter]);
 
-  // A routine poll must never cancel a selection in progress. A line or mode
-  // change does; Confirm still revalidates the exact target against the latest
-  // authoritative state and rejects a stale selection without cost (R 5.3).
-  const previewContext = mode === "place" || mode === "planner" ? `placement:${activeLineIndex}` : mode;
-  const previousPreviewContext = useRef(previewContext);
-  useEffect(() => {
-    if (previousPreviewContext.current !== previewContext) setPreview(null);
-    previousPreviewContext.current = previewContext;
-  }, [previewContext]);
-
   const privateVisible = !!me && !veiled;
 
   const drawn = useMemo<DrawnLine[]>(() => {
@@ -542,16 +556,16 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     // in route colour. It follows selection changes and disappears on Cancel,
     // Confirm, Cancel, or a line switch. Confirm revalidates against current
     // state, so routine multiplayer polls cannot erase a valid selection.
-    if (privateVisible && me && mode === "place" && preview && !placingStarter && activeLineIndex >= 0) {
+    if (privateVisible && me && preview && (mode === "place" || (mode === "planner" && !manualPlanner)) && activeLineIndex >= 0) {
       const line = me.lines[activeLineIndex];
       const contract = line && contractOf(line);
       const anchor = line?.route.at(-1);
-      if (line && contract && anchor) {
+      if (line && contract) {
         const station = stationAt(preview, game.stations);
         out.push({
           key: `live-preview-${activeLineIndex}`,
           route: [
-            anchor,
+            ...(anchor ? [anchor] : []),
             {
               x: preview.x,
               y: preview.y,
@@ -562,9 +576,9 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
           ownerColor: me.color,
           active: true,
           growing: true,
-          ghost: true,
-          anchored: true,
-          numberOffset: line.route.length - 1,
+          pending: true,
+          anchored: !!anchor,
+          numberOffset: Math.max(0, line.route.length - 1),
         });
       }
     }
@@ -575,7 +589,14 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
         const contract = contractOf(line);
         if (!contract) return;
         const editing = plannerActive && plannerLine === li;
-        if (editing) {
+        if (editing && sketch.length > line.route.length) {
+          // The first unbuilt node is the solid pending placement in auto mode.
+          const visibleSketch = !manualPlanner && preview ? sketch.slice(line.route.length) : sketch;
+          const startOffset = !manualPlanner && preview ? line.route.length : 0;
+          if (!manualPlanner && preview) {
+            if (visibleSketch.length > 1) out.push({key:`sketch-${li}`,route:visibleSketch,contract,ownerColor:me.color,active:true,growing:true,ghost:true,anchored:true,numberOffset:startOffset});
+            return;
+          }
           if (line.route.length === 0) {
             if (sketch.length) {
               out.push({
@@ -637,7 +658,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       });
     }
     return out;
-  }, [game, playerId, activeLineIndex, privateVisible, me, mode, preview, placingStarter, plannerActive, plannerLine, sketch, planStatuses]);
+  }, [game, playerId, activeLineIndex, privateVisible, me, mode, preview, plannerActive, plannerLine, sketch, planStatuses, manualPlanner]);
 
   const onTapHole = (p: Point, slot?: number) => {
     if (!game || !me || !canAct) return;
@@ -650,6 +671,9 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       }
       const station = stationAt(p, game.stations);
       setNotice(null);
+      if (!manualPlanner && sketch.length === me.lines[plannerLine].route.length) {
+        setPreview({x:p.x,y:p.y,...(station ? {slot:slot ?? 0} : {})});
+      }
       setSketch([...sketch, { ...p, ...(station ? { stationId: station.id, stationSlot: slot ?? 0 } : {}) }]);
       return;
     }
@@ -792,6 +816,22 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   const plannerContract = plannerLineObj ? contractOf(plannerLineObj) : undefined;
   const sketchedSegments = Math.max(0, sketch.length - 1);
   const minSketch = sketchBase.length;
+  const saveSketch = () => {
+    if (plannerLine === null || !me || !sketch.length) return;
+    const contractId = me.lines[plannerLine].contractId;
+    const saved = savePlan(room.roomCode, playerId, contractId, sketch);
+    const value = {nodes:[...sketch],savedAt:Date.now()};
+    sessionPlans.current[planStorageKey(room.roomCode, playerId, contractId)] = value;
+    setPlans(prev => ({...prev, [contractId]:value}));
+    setNotice(saved ? "Ghost route saved on this device. Nothing built or reserved." : "Storage unavailable: ghost kept for this session only.");
+  };
+  const resetSketch = (nodes: RouteNode[]) => {
+    setSketch(nodes);
+    if (!manualPlanner) {
+      const next = nodes[minSketch];
+      setPreview(next ? {x:next.x,y:next.y,...(next.stationId ? {slot:next.stationSlot ?? 0} : {})} : null);
+    }
+  };
   const contested = contestedPeriods(game).filter((period) => !!me && me.lines.some((l) => blockPeriods(l).includes(period)) && !game.priorityOverrides[period]);
 
   // ---- Card focus: read a card, and do the legal thing with it ---------------
@@ -1100,10 +1140,10 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
         <div className="space-y-1.5">
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span className="rounded bg-purple-700 px-1.5 py-0.5 text-[10px] font-black uppercase text-white">
-              Plan Mode
+              {manualPlanner ? "Plan Mode" : "Build + plan"}
             </span>
             <b>{plannerContract.name}</b>
-            <select
+            {manualPlanner && <select
               value={plannerLine ?? -1}
               onChange={(e) => openPlanner(Number(e.target.value))}
               className="rounded border border-stone-400 bg-white px-1.5 py-0.5 text-xs"
@@ -1114,16 +1154,16 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
                   {lineLabel(l)}
                 </option>
               ))}
-            </select>
+            </select>}
             <span className="text-xs text-stone-500">
               {sketchedSegments}/{plannerContract.recipe.length} segments sketched
             </span>
 
           </div>
-          <p className={`${mobile ? "hidden" : ""} text-xs text-stone-600`}>
-            Temporary preview — nothing is saved or reserved. Confirm builds only your selected real peg.{" "}
+          <p className="text-xs text-stone-600">
+            {manualPlanner ? "Dashed = plan only. Save keeps your ghost route." : "Solid = next real peg. Pale dashed = future plan. Confirm builds one peg only."}{" "}
             {sketch.length === 0
-              ? "Tap a border hole to start the phantom route."
+              ? "Tap a border hole to start."
               : sketchedSegments >= plannerContract.recipe.length
                 ? "The whole recipe fits against the board as it stands."
                 : `Next: a ${plannerContract.recipe[sketchedSegments]}-peg segment, turning ≤ ${SUBWAY_CONFIG.geometry.maxTurnDegrees}°.`}
@@ -1133,20 +1173,37 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
             <StripButton onClick={() => cycleTarget(1)} disabled={!targets.length}>
               Next legal hole
             </StripButton>
-            <StripButton disabled={sketch.length <= minSketch} onClick={() => setSketch(sketch.slice(0, -1))}>
+            <StripButton disabled={sketch.length <= minSketch} onClick={() => resetSketch(sketch.slice(0, -1))}>
               Undo step
             </StripButton>
             <StripButton
               disabled={sketch.length <= minSketch}
-              onClick={() => setSketch([...sketchBase])}
+              onClick={() => resetSketch([...sketchBase])}
             >
-              Restart sketch
+              {manualPlanner ? "Restart sketch" : "Change next peg"}
             </StripButton>
-            {preview && plannerLine === activeLineIndex && <StripButton tone="go" disabled={busy} onClick={confirmPlacement}>Confirm real peg only</StripButton>}
+            <StripButton tone="plan" disabled={sketch.length <= minSketch} onClick={saveSketch}>Save ghost</StripButton>
+            {plans[plannerLineObj.contractId] && <StripButton onClick={() => {
+              if (!clearPlan(room.roomCode, playerId, plannerLineObj.contractId)) {
+                setNotice("Storage unavailable: could not remove the saved ghost. Try again when storage is available.");
+                return;
+              }
+              delete sessionPlans.current[planStorageKey(room.roomCode, playerId, plannerLineObj.contractId)];
+              setPlans(prev => {const next={...prev}; delete next[plannerLineObj.contractId]; return next;});
+              resetSketch([...sketchBase]);
+              setNotice("Saved ghost cleared.");
+            }}>Clear saved</StripButton>}
+            {!manualPlanner && <StripButton tone="plan" onClick={() => openPlanner(plannerLine!)}>Plan other lines</StripButton>}
+            {planStatuses[plannerLineObj.contractId]?.stale && <span className="text-xs font-bold text-amber-800">Saved plan needs revision</span>}
+            {preview && plannerLine === activeLineIndex && <StripButton tone="go" disabled={busy} onClick={confirmPlacement} data-confirm-placement>Confirm real peg only</StripButton>}
             <StripButton tone="dark" className="ml-auto" onClick={exitPlanner}>
               {placingStarter || myBuild ? "Back to placement" : "Close Plan Mode"}
             </StripButton>
           </div>
+          {!manualPlanner && preview && <p className="text-xs text-stone-700">
+            Next real peg: {preview.x + 1},{preview.y + 1}{preview.slot !== undefined ? ` · dock ${preview.slot + 1}` : ""}.
+            {!placingStarter && <> Contact toll: {money(contactToll(previewContacts))}{me?.accessPass ? " (city pays)" : ""}.</>}
+          </p>}
         </div>
       )}
 
@@ -1434,7 +1491,8 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
                 game={game}
                 targets={canAct ? targets : []}
                 following={mode === "place" ? following : []}
-                selected={mode === "place" ? preview ?? undefined : undefined}
+                selected={mode === "place" || (mode === "planner" && !manualPlanner) ? preview ?? undefined : undefined}
+                planningTargets={mode === "planner" && (manualPlanner || !!preview)}
                 canAct={canAct}
                 drawn={drawn}
                 onTapHole={onTapHole}
