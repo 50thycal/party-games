@@ -10,7 +10,8 @@ A light-strategy route-building game for **2–4 companies**. Most victory point
 3. Draft **six cards each**, choosing any mix of Engineering and Construction.
 4. Optionally buy Survey Pins, then place them.
 5. Place one free starter for each route on a non-station outer-border hole.
-6. Play **16 construction rounds**, choosing crews anew each turn.
+6. Play up to **16 construction rounds**, choosing crews anew each turn. End
+   immediately if no incomplete route has a legal next segment.
 7. Score all held goals, routes, stations and surveys; subtract unfinished-route
    penalties and **4 VP per $1M of final debt**.
 
@@ -115,8 +116,10 @@ choose different routes next round. Hiring and contact payments can create debt.
 The displayed bill previews remaining cash and the final penalty at that balance.
 
 Every company gets a turn each round, including a company choosing no crews.
-Construction ends after round 16. A blocked or skipped placement does not refund
-its hired crew. Normal placement legality remains unchanged.
+Construction ends after round 16, or immediately after a placement leaves no
+legal next segment on any incomplete route. Empty rounds are never played. A
+blocked or skipped placement does not refund its hired crew. Normal placement
+legality remains unchanged.
 
 ## Construction cards
 
@@ -150,7 +153,8 @@ most once.
 
 Normal pegs may share holes, sit on strings, or be adjacent. Routes may cross and
 pass through pegs. Only collinear **string overlap** is prohibited. Stations never
-block strings passing over them. Printed river/park/districts are decorative.
+block strings passing over them. The current route glows during construction; a
+selected next node draws a translucent route-colored segment until Confirm.
 
 Each distinct contact with another company's normal network costs **$1M to that
 owner**. Multiple incident strings at one vertex cost once per owner. If several
@@ -181,6 +185,11 @@ lessons using isolated states and real controls. It never alters a real room or
 hotseat save. Camera focus, outlines and schematic animations explain the phases;
 Back, Skip, Replay and phase-specific links remain available.
 
-State version **12** requires new games; old local saves are not migrated.
+Results include **Copy AI Report**, which exports structured Markdown plus the
+complete accepted-action ledger: setup, cards, routes, placements, crew and toll
+economy, Undo actions, scoring, timing, and the construction end reason. Rejected
+actions are not tracked because they never change reducer state.
+
+State version **13** requires new games; old local saves are not migrated.
 Automated games test termination and rule behavior, not human enjoyment or
 statistically proven balance. Desktop/phone visual verification is still pending.

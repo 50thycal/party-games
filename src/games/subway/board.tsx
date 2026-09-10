@@ -141,6 +141,19 @@ export function Board({
       className={`block ${canAct ? "cursor-crosshair" : ""}`}
       style={{ touchAction: "none" }}
     >
+      <style>{`
+        @keyframes subway-active-route-pulse {
+          0%, 100% { opacity: .28; stroke-width: 22px; }
+          50% { opacity: .72; stroke-width: 30px; }
+        }
+        .subway-active-route-glow {
+          animation: subway-active-route-pulse 1.45s ease-in-out infinite;
+          filter: drop-shadow(0 0 8px currentColor);
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .subway-active-route-glow { animation: none; opacity: .55; stroke-width: 25px; }
+        }
+      `}</style>
       <rect x="0" y="0" width={VB_W} height={VB_H} rx="26" fill="#eaece2" />
       <rect
         x="16"
@@ -421,6 +434,26 @@ export function Board({
       {/* Strings: pale casing pass, then the line's own color. Each contract
           carries a distinct dash pattern so color is never the only cue.
           Phantom plans draw dashed and translucent; stale ones fainter still. */}
+      {drawn.filter((d) => d.active && !d.ghost).flatMap((d) =>
+        d.route.slice(1).map((n, i) => {
+          const a = nodePx(d.route[i]);
+          const b = nodePx(n);
+          return (
+            <line
+              key={`active-${d.key}-${i}`}
+              className="subway-active-route-glow"
+              x1={a.x}
+              y1={a.y}
+              x2={b.x}
+              y2={b.y}
+              stroke={d.contract.color}
+              strokeLinecap="round"
+              pointerEvents="none"
+              style={{ color: d.contract.color }}
+            />
+          );
+        })
+      )}
       {drawn.flatMap((d) =>
         d.route.slice(1).map((n, i) => {
           const a = nodePx(d.route[i]);

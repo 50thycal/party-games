@@ -25,7 +25,7 @@ import type { BaseAction, GameContext, Player } from "@/engine/types";
 // ============================================================================
 
 /** Bumped when the state shape changes; older rooms must restart. */
-export const SUBWAY_STATE_VERSION = 12;
+export const SUBWAY_STATE_VERSION = 13;
 
 // ----------------------------------------------------------------------------
 // Tunable configuration
@@ -619,6 +619,39 @@ export type SubwayEvent = {
   emphasis: "banner" | "notice";
 };
 
+export type SubwayEndReason = "ROUND_LIMIT" | "NO_LEGAL_CONSTRUCTION";
+
+export type SubwayTelemetryPlayer = {
+  money: number;
+  crewPaid: number;
+  tollsPaid: number;
+  surveysPurchased: number;
+  engineeringCards: string[];
+  constructionCards: ConstructionCardId[];
+  lineNodeCounts: number[];
+  completedLines: string[];
+};
+
+/**
+ * Complete accepted-action ledger used only by the post-game playtest export.
+ * Unlike the short public narration stream, this intentionally retains card
+ * identities and before/after player snapshots so a playtest can be replayed
+ * and its economy inspected after the game.
+ */
+export type SubwayTelemetryEvent = {
+  actionNumber: number;
+  acceptedAt: number;
+  actorId: string;
+  action: SubwayActionType;
+  payload?: Record<string, unknown>;
+  phaseBefore: SubwayPhase;
+  phaseAfter: SubwayPhase;
+  periodBefore: number;
+  periodAfter: number;
+  playersBefore: Record<string, SubwayTelemetryPlayer>;
+  playersAfter: Record<string, SubwayTelemetryPlayer>;
+};
+
 /** Public events kept in state; older ones fall off the front. */
 export const SUBWAY_EVENT_LIMIT = 20;
 
@@ -656,6 +689,12 @@ export interface SubwayState {
   events: SubwayEvent[];
   /** Monotonic event sequence. Never rewound — an Undo appends, it never erases. */
   nextEventSeq: number;
+  /** Full, finite accepted-action history for the post-game AI report. */
+  telemetry: SubwayTelemetryEvent[];
+  nextTelemetrySeq: number;
+  startedAt?: number;
+  constructionEndedAt?: number;
+  endReason?: SubwayEndReason;
   winnerIds: string[];
   message: string;
 }
@@ -1617,6 +1656,8 @@ function initialState(players: Player[]): SubwayState {
     priorityQueue: [],
     events: [],
     nextEventSeq: 1,
+    telemetry: [],
+    nextTelemetrySeq: 1,
     winnerIds: [],
     message: "Waiting for the host to start.",
   };
@@ -1725,13 +1766,30 @@ function toScheduling(s: SubwayState, now: number): SubwayState {
 // Construction flow
 // ----------------------------------------------------------------------------
 
-function toScoring(s: SubwayState, now: number): SubwayState {
+function toScoring(s: SubwayState, now: number, reason: SubwayEndReason): SubwayState {
   s.phase = "SCORING";
+  s.constructionEndedAt = now;
+  s.endReason = reason;
   s.resolveQueue = [];
   s.priorityQueue = [];
   for (const p of seats(s)) p.pendingActions = [];
-  pushEvent(s, now, "PHASE", "banner", "Construction is over. Reveal Engineering and score.");
+  pushEvent(
+    s,
+    now,
+    "PHASE",
+    "banner",
+    reason === "NO_LEGAL_CONSTRUCTION"
+      ? "No legal construction remains. Construction ends immediately."
+      : `Round ${SUBWAY_CONFIG.timelinePeriods} is complete. Reveal Engineering and score.`
+  );
   return s;
+}
+
+/** True once no incomplete route owned by any company has a legal next segment. */
+export function constructionExhausted(s: SubwayState): boolean {
+  return seats(s).every((p) =>
+    p.lines.every((line, lineIndex) => lineComplete(line) || !hasLegalMove(s, p.id, lineIndex))
+  );
 }
 
 /** Which line indexes this company is scheduled to build in a period. */
@@ -1759,7 +1817,8 @@ export function constructionCardBlocker(s: SubwayState, id: string, card: Constr
   return undefined;
 }
 function beginConstructionPeriod(s: SubwayState, now: number, opening = false): SubwayState {
-  if (s.currentPeriod > SUBWAY_CONFIG.timelinePeriods) return toScoring(s, now);
+  if (constructionExhausted(s)) return toScoring(s, now, "NO_LEGAL_CONSTRUCTION");
+  if (s.currentPeriod > SUBWAY_CONFIG.timelinePeriods) return toScoring(s, now, "ROUND_LIMIT");
   for (const p of seats(s)) {
     p.pendingActions = [];
     p.actedThisPeriod = false;
@@ -1826,7 +1885,7 @@ function undoRecord(before: SubwayState, playerId: string, kind: UndoRecord["kin
 // Reducer
 // ----------------------------------------------------------------------------
 
-function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): SubwayState {
+function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext): SubwayState {
   // A state saved by an older version can only be restarted.
   const legacy = state.version !== SUBWAY_STATE_VERSION;
   if (action.type !== "START_GAME" && (legacy || !state.players[action.playerId])) return state;
@@ -1847,6 +1906,7 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
       // Rebuild seats from the live room so lazily-initialized state can never
       // strand a player outside the game. First four joiners become companies.
       const fresh = initialState(ctx.room.players);
+      fresh.startedAt = ctx.now();
       fresh.phase = "PROCUREMENT";
       fresh.market.rows = {engineering:[], scheduling:[], construction:[]};
       fresh.market.decks = {engineering:[], scheduling:[], construction:[]};
@@ -2070,6 +2130,11 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
       const record = undoRecord(state, me.id, "build", `${contract.name} node`);
 
       prunePendingActions(s, me.id);
+      if (constructionExhausted(s)) {
+        const next = toScoring(s, ctx.now(), "NO_LEGAL_CONSTRUCTION");
+        next.undo = record;
+        return next;
+      }
       const next = me.pendingActions.length ? s : endPlayerTurn(s, me.id, ctx.now());
       next.undo = record; // survives a period or phase advance until someone else acts
       return next;
@@ -2101,6 +2166,8 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
       // number. The undo is narrated as its own event on top of the history.
       restored.events = structuredClone(state.events);
       restored.nextEventSeq = state.nextEventSeq;
+      restored.telemetry = structuredClone(state.telemetry);
+      restored.nextTelemetrySeq = state.nextTelemetrySeq;
       pushEvent(
         restored,
         ctx.now(),
@@ -2120,6 +2187,48 @@ function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): Su
     default:
       return state;
   }
+}
+
+function telemetryPlayers(state: SubwayState): Record<string, SubwayTelemetryPlayer> {
+  return Object.fromEntries(
+    state.playerOrder.map((id) => {
+      const p = state.players[id];
+      return [id, {
+        money: p.money,
+        crewPaid: p.crewPaid ?? 0,
+        tollsPaid: p.tollsPaid,
+        surveysPurchased: p.surveysPurchased,
+        engineeringCards: [...p.engineeringHand],
+        constructionCards: [...p.constructionHand],
+        lineNodeCounts: p.lines.map((line) => line.route.length),
+        completedLines: p.lines.filter(lineComplete).map((line) => line.contractId),
+      }];
+    })
+  );
+}
+
+/** Records every accepted reducer action without changing rejected-action semantics. */
+function reducer(state: SubwayState, action: SubwayAction, ctx: GameContext): SubwayState {
+  const playersBefore = telemetryPlayers(state);
+  const next = reduceAction(state, action, ctx);
+  if (next === state) return state;
+
+  next.telemetry ??= [];
+  next.nextTelemetrySeq ??= 1;
+  next.telemetry.push({
+    actionNumber: next.nextTelemetrySeq++,
+    acceptedAt: ctx.now(),
+    actorId: action.playerId,
+    action: action.type,
+    ...(action.payload ? { payload: structuredClone(action.payload) as Record<string, unknown> } : {}),
+    phaseBefore: state.phase,
+    phaseAfter: next.phase,
+    periodBefore: state.currentPeriod,
+    periodAfter: next.currentPeriod,
+    playersBefore,
+    playersAfter: telemetryPlayers(next),
+  });
+  return next;
 }
 
 /** Line indexes that were actually scheduled, so are owed a starter peg. */

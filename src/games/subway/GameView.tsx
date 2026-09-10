@@ -30,6 +30,7 @@ import {
 } from "./table";
 import { HandoffVeil, NarrationOverlay, currentActorId, useNarration } from "./tabletop";
 import { clearPlan, loadPlan, reconcilePlan, savePlan, type PlanStatus, type SavedPlan } from "./plans";
+import { generateAiPlaytestReport } from "./report";
 import {
   SUBWAY_CONFIG,
   blockPeriods,
@@ -517,15 +518,15 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     return routeContacts(game, me.id, from, { x: preview.x, y: preview.y });
   }, [game, me, preview, activeLineIndex, placingStarter]);
 
-  // A routine poll must never cancel a selection in progress: only a change
-  // that actually affects this selection clears it (R 5.3).
-  const previewKey = preview ? targetKey(preview) : "";
-  const targetKeys = targets.map(targetKey).join("|");
+  // A routine poll must never cancel a selection in progress. A line or mode
+  // change does; Confirm still revalidates the exact target against the latest
+  // authoritative state and rejects a stale selection without cost (R 5.3).
+  const previewContext = mode === "place" || mode === "planner" ? `placement:${activeLineIndex}` : mode;
+  const previousPreviewContext = useRef(previewContext);
   useEffect(() => {
-    if (!preview) return;
-    if (mode === "planner") return; // paused, not surrendered
-    if (mode !== "place" || !targets.some((t) => targetKey(t) === previewKey)) setPreview(null);
-  }, [mode, activeLineIndex, previewKey, targetKeys, preview, targets]);
+    if (previousPreviewContext.current !== previewContext) setPreview(null);
+    previousPreviewContext.current = previewContext;
+  }, [previewContext]);
 
   const privateVisible = !!me && !veiled;
 
@@ -547,6 +548,36 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
           growing: !lineComplete(line),
         });
       });
+    }
+    // Selecting the next construction node draws the exact unconfirmed segment
+    // in route colour. It follows selection changes and disappears on Cancel,
+    // Confirm, Cancel, or a line switch. Confirm revalidates against current
+    // state, so routine multiplayer polls cannot erase a valid selection.
+    if (privateVisible && me && mode === "place" && preview && !placingStarter && activeLineIndex >= 0) {
+      const line = me.lines[activeLineIndex];
+      const contract = line && contractOf(line);
+      const anchor = line?.route.at(-1);
+      if (line && contract && anchor) {
+        const station = stationAt(preview, game.stations);
+        out.push({
+          key: `live-preview-${activeLineIndex}`,
+          route: [
+            anchor,
+            {
+              x: preview.x,
+              y: preview.y,
+              ...(station ? { stationId: station.id, stationSlot: preview.slot ?? 0 } : {}),
+            },
+          ],
+          contract,
+          ownerColor: me.color,
+          active: true,
+          growing: true,
+          ghost: true,
+          anchored: true,
+          numberOffset: line.route.length - 1,
+        });
+      }
     }
     // Phantom plans and the live sketch draw only on their owner's UI, and
     // never while the hotseat veil is up.
@@ -617,7 +648,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       });
     }
     return out;
-  }, [game, playerId, activeLineIndex, privateVisible, me, plannerActive, plannerLine, sketch, planStatuses]);
+  }, [game, playerId, activeLineIndex, privateVisible, me, mode, preview, placingStarter, plannerActive, plannerLine, sketch, planStatuses]);
 
   const onTapHole = (p: Point, slot?: number) => {
     if (!game || !me || !canAct) return;
@@ -1439,7 +1470,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
             </PlayerTabletop>
           )}
 
-          {game.phase === "RESULTS" && <ResultsSheet game={game} />}
+          {game.phase === "RESULTS" && <ResultsSheet game={game} roomCode={room.roomCode} mode={room.mode} />}
 
           <footer className="flex items-center justify-between text-[20px] text-[#e6d7b4]">
             <span>
@@ -1502,10 +1533,32 @@ function StripButton({
 }
 
 /** The final scoring sheet, laid on the table like everything else. */
-function ResultsSheet({ game }: { game: SubwayState }) {
+function ResultsSheet({ game, roomCode, mode }: { game: SubwayState; roomCode: string; mode: string }) {
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+  const copyReport = async () => {
+    try {
+      await navigator.clipboard.writeText(generateAiPlaytestReport(game, { roomCode, mode }));
+      setCopyState("copied");
+    } catch {
+      setCopyState("failed");
+    }
+  };
   return (
     <Printed zone="results" title="Final scoring" subtitle={game.message} className="w-full">
       <div className="flex flex-col gap-[26px]">
+        <div className="flex flex-wrap items-center justify-between gap-[14px] rounded-[18px] border-[4px] border-[#1b3945] bg-[#eaf3f2] p-[18px]">
+          <div>
+            <p className="text-[24px] font-black">AI playtest report</p>
+            <p className="text-[17px] text-stone-600">Copies the full action log, routes, cards, budgets, scoring, and end condition.</p>
+          </div>
+          <button
+            type="button"
+            onClick={copyReport}
+            className="rounded-[12px] bg-[#1b3945] px-[20px] py-[12px] text-[18px] font-black text-white hover:bg-[#2d6170] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-500"
+          >
+            {copyState === "copied" ? "Copied!" : copyState === "failed" ? "Copy failed — try again" : "Copy AI Report"}
+          </button>
+        </div>
         {game.playerOrder.map((id) => {
           const p = game.players[id];
           if (!p) return null;
