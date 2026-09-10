@@ -468,6 +468,8 @@ export function TabletopCanvas({
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
+    // Buttons and form fields own their taps; never start a camera drag on them.
+    if ((e.target as HTMLElement).closest("button, input, select, textarea, a, [role=button]")) return;
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     suppressClick.current = false;
     stopAnimation();

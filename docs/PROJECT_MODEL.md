@@ -464,3 +464,7 @@ The isolated `/subway/tutorial` route prepares lesson snapshots through the lega
 playtest driver. It controls the real GameView with optional camera lesson props;
 practice actions remain in component state and never write a network room or
 hotseat save. Real games link to phase-specific lessons in a separate tab.
+
+## Phone tabletop presentation (mobile continuation)
+
+MobileTable renders screen-sized route/card pieces outside the map zoom, while GameView owns the same targets, validation, pending peg, temporary sketches and reducer dispatch on both layouts. Desktop retains TabletopCanvas. Settings contains public logbook entries; results also have a readable screen sheet and report text/download fallback. No state-version migration is required: presentation and temporary previews are client-local.

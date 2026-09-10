@@ -3,8 +3,8 @@
 ## Build OS
 
 - Canonical framework: [50thycal/build-os](https://github.com/50thycal/build-os)
-- Adopted version: v0.11
-- Last compatibility check: v0.11 on 2026-09-09
+- Adopted version: v0.12
+- Last compatibility check: v0.12 on 2026-09-10
 - Operating mode: reviewed
 
 Before substantial design or architectural work, compare the adopted version against
@@ -126,3 +126,7 @@ the implementation agent on the same PR. The handoff uses one Owner Result when
 terminal, never an additional Owner Summary. Do not claim SHIP before validation,
 independent current-head approval and finalization are complete. Never pre-write
 a verdict in a finalization commit. No historical acceptance is inferred or backfilled.
+
+## Build OS v0.12 finite work
+
+Resume the current mission. Record goal, non-goals and acceptance checks in its workstream. Findings use FIX NOW (acceptance or immediate material risk), PARK (one line, no ticket), DISCARD, or OWNER DECISION. Do not create adjacent work without admission. Default active limit is three; do not admit a fourth mission without completing, pausing or abandoning one. Existing legacy board entries are not silently reclassified. Completed missions use Next Step: None. Owner result defaults to 100 words, ceiling 150 for material risk/deviation.

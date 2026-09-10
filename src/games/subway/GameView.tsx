@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { MobileTable } from "./MobileTable";
 import { CrewBoard } from "./CrewBoard";
 import { constructionCardBlocker, objectiveMet } from "./config";
 import { lessonForPhase } from "./tutorial";
@@ -29,7 +30,7 @@ import {
   type PlanChip,
 } from "./table";
 import { HandoffVeil, NarrationOverlay, currentActorId, useNarration } from "./tabletop";
-import { clearPlan, loadPlan, reconcilePlan, savePlan, type PlanStatus, type SavedPlan } from "./plans";
+import { reconcilePlan, type PlanStatus, type SavedPlan } from "./plans";
 import { generateAiPlaytestReport } from "./report";
 import {
   SUBWAY_CONFIG,
@@ -257,6 +258,16 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   const [selectedLine, setSelectedLine] = useState(0);
   const [preview, setPreview] = useState<PlacementTarget | null>(null);
   const [busy, setBusy] = useState(false);
+  const [mobile, setMobile] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showLog, setShowLog] = useState(false);
+  const [showResults, setShowResults] = useState(true);
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 1024px)");
+    const update = () => setMobile(query.matches);
+    update(); query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
   const [notice, setNotice] = useState<string | null>(null);
 
   // Card focus and its card-play targets.
@@ -305,8 +316,9 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   const [planMode, setPlanMode] = useState(false);
   const [plannerLine, setPlannerLine] = useState<number | null>(null);
   const [sketch, setSketch] = useState<RouteNode[]>([]);
+  const [sketchBase, setSketchBase] = useState<RouteNode[]>([]);
   const [plans, setPlans] = useState<Record<string, SavedPlan>>({});
-  const [planStorageOk, setPlanStorageOk] = useState(true);
+
 
   // Hotseat handoff veil: a changed controlling player keeps every private
   // surface unrendered until the newcomer confirms. Derived during render, so
@@ -316,6 +328,12 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   useEffect(() => {
     if (!isHotseat) setSeatedId(playerId);
   }, [isHotseat, playerId]);
+
+  const realRouteKey = me?.lines.map(l=>JSON.stringify(l.route)).join("|");
+  const turnKey = game ? currentActorId(game) : undefined;
+  useEffect(() => {
+    setPlanMode(false); setPlannerLine(null); setSketch([]); setSketchBase([]); setPreview(null);
+  }, [playerId, room.roomCode, game?.phase, game?.currentPeriod, turnKey, realRouteKey]);
 
   const narration = useNarration(game, room.roomCode, playerId);
 
@@ -341,12 +359,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       setPlans({});
       return;
     }
-    const next: Record<string, SavedPlan> = {};
-    for (const id of contractIds.split(",")) {
-      const plan = loadPlan(room.roomCode, playerId, id);
-      if (plan) next[id] = plan;
-    }
-    setPlans(next);
+    setPlans({});
     // A different player (hotseat) or portfolio starts from a closed planner.
     setPlanMode(false);
     setPlannerLine(null);
@@ -386,14 +399,10 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     if (!game || !me) return;
     const line = me.lines[lineIndex];
     if (!line) return;
-    const saved = plans[line.contractId];
-    // A viable saved plan reopens for editing; a stale or missing one starts
-    // from the line's real route (its endpoint, or a fresh border starter).
-    let start = [...line.route];
-    if (saved) {
-      const status = reconcilePlan(game, playerId, lineIndex, saved.nodes);
-      if (!status.stale) start = [...saved.nodes];
-    }
+    // A temporary tail starts at the pending real peg, when one is selected.
+    const start = [...line.route];
+    if (lineIndex === activeLineIndex && preview) start.push({...preview});
+    setSketchBase(start);
     setPlannerLine(lineIndex);
     setSketch(start);
     setPlanMode(true);
@@ -405,26 +414,6 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     setPlanMode(false);
     setPlannerLine(null);
     setSketch([]);
-  };
-
-  const savePlanNow = () => {
-    if (!me || plannerLine === null) return;
-    const line = me.lines[plannerLine];
-    if (!line || !sketch.length) return;
-    const persisted = savePlan(room.roomCode, playerId, line.contractId, sketch);
-    setPlans({ ...plans, [line.contractId]: { nodes: sketch.map((n) => ({ ...n })), savedAt: Date.now() } });
-    setPlanStorageOk(persisted);
-  };
-
-  const clearPlanNow = () => {
-    if (!me || plannerLine === null) return;
-    const line = me.lines[plannerLine];
-    if (!line) return;
-    clearPlan(room.roomCode, playerId, line.contractId);
-    const next = { ...plans };
-    delete next[line.contractId];
-    setPlans(next);
-    setSketch([...line.route]);
   };
 
   // ---- What the board is for right now ---------------------------------------
@@ -689,7 +678,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   };
 
   const confirmPlacement = () => {
-    if (!game || !me || !preview || activeLineIndex < 0 || mode !== "place") return;
+    if (!game || !me || !preview || activeLineIndex < 0 || (mode !== "place" && !(mode === "planner" && plannerLine === activeLineIndex))) return;
     // Revalidate the exact target against current state before dispatching; the
     // reducer revalidates again and a rejection costs nothing (R 5.3).
     const reason = validateNode(game, me.id, activeLineIndex, preview, placingStarter, preview.slot);
@@ -699,6 +688,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       return;
     }
     const target = preview;
+    exitPlanner();
     setPreview(null);
     act(placingStarter ? "PLACE_STARTER" : "BUILD", {
       lineIndex: activeLineIndex,
@@ -801,8 +791,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   const plannerLineObj = plannerActive && me && plannerLine !== null ? me.lines[plannerLine] : undefined;
   const plannerContract = plannerLineObj ? contractOf(plannerLineObj) : undefined;
   const sketchedSegments = Math.max(0, sketch.length - 1);
-  const plannerSavedStatus = plannerLineObj && plannerActive ? planStatuses[plannerLineObj.contractId] : undefined;
-  const minSketch = plannerLineObj ? plannerLineObj.route.length : 0;
+  const minSketch = sketchBase.length;
   const contested = contestedPeriods(game).filter((period) => !!me && me.lines.some((l) => blockPeriods(l).includes(period)) && !game.priorityOverrides[period]);
 
   // ---- Card focus: read a card, and do the legal thing with it ---------------
@@ -907,6 +896,13 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
           }),
         })
       : null;
+
+  const quickCard = (id: ConstructionCardId) => {
+    const why = constructionReason(id);
+    if (why || busy || veiled) { if (why) setNotice(why); return; }
+    if (id === "overtime" || id === "surge") { setFocus({family:"construction", id, slot:"hand"}); return; }
+    act("PLAY_CONSTRUCTION_CARD", {cardId:id, period:game.currentPeriod});
+  };
 
   const focusPanel = (() => {
     if (!focus || !me) return null;
@@ -1122,26 +1118,16 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
             <span className="text-xs text-stone-500">
               {sketchedSegments}/{plannerContract.recipe.length} segments sketched
             </span>
-            {plannerSavedStatus && (
-              <span
-                className={`rounded px-1.5 py-0.5 text-[10px] font-black uppercase ${
-                  plannerSavedStatus.stale ? "bg-red-100 text-red-800" : "bg-purple-100 text-purple-800"
-                }`}
-              >
-                {plannerSavedStatus.stale ? "Saved plan stale" : "Saved"}
-              </span>
-            )}
+
           </div>
           <p className="text-xs text-stone-600">
-            Private, non-binding sketch — nothing is dispatched or reserved, and only you see it.{" "}
+            Temporary preview — nothing is saved or reserved. Confirm builds only your selected real peg.{" "}
             {sketch.length === 0
               ? "Tap a border hole to start the phantom route."
               : sketchedSegments >= plannerContract.recipe.length
                 ? "The whole recipe fits against the board as it stands."
                 : `Next: a ${plannerContract.recipe[sketchedSegments]}-peg segment, turning ≤ ${SUBWAY_CONFIG.geometry.maxTurnDegrees}°.`}
-            {!planStorageOk && (
-              <b className="text-red-800"> Storage unavailable — this plan lasts only this session.</b>
-            )}
+
           </p>
           <div className="flex flex-wrap gap-1.5">
             <StripButton onClick={() => cycleTarget(1)} disabled={!targets.length}>
@@ -1152,18 +1138,11 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
             </StripButton>
             <StripButton
               disabled={sketch.length <= minSketch}
-              onClick={() => setSketch(plannerLineObj ? [...plannerLineObj.route] : [])}
+              onClick={() => setSketch([...sketchBase])}
             >
               Restart sketch
             </StripButton>
-            <StripButton tone="plan" disabled={sketch.length <= Math.max(1, minSketch)} onClick={savePlanNow}>
-              Save plan
-            </StripButton>
-            {plannerSavedStatus && (
-              <StripButton tone="danger" onClick={clearPlanNow}>
-                Clear saved
-              </StripButton>
-            )}
+            {preview && plannerLine === activeLineIndex && <StripButton tone="go" disabled={busy} onClick={confirmPlacement}>Confirm real peg only</StripButton>}
             <StripButton tone="dark" className="ml-auto" onClick={exitPlanner}>
               {placingStarter || myBuild ? "Back to placement" : "Close Plan Mode"}
             </StripButton>
@@ -1316,6 +1295,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     { zone: "table", label: "Whole table", short: "All" },
   ];
 
+  const settingsButton = <button className="rounded-lg bg-stone-800 px-3 py-2 text-xs text-white" onClick={()=>setSettingsOpen(true)}>Settings</button>;
   const hud = (
     <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-2 sm:p-3">
       <div ref={hudTopRef} className="flex flex-wrap items-start justify-between gap-2">
@@ -1337,6 +1317,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
         </div>
 
         <div className="pointer-events-auto flex flex-wrap items-center justify-end gap-1 rounded-xl bg-stone-900/85 p-1.5 text-amber-50 shadow-lg">
+          {settingsButton}
           {!lessonZone && <Link href={`/subway/tutorial?lesson=${lessonForPhase(game.phase,game.engineeringStep)}`} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-white/15 px-2 py-1 text-xs">Phase lesson ↗</Link>}
           <button
             onClick={() => cam.current?.zoomBy(1 / 1.3)}
@@ -1389,6 +1370,19 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     </div>
   );
 
+
+  const settingsPanel = settingsOpen && <div role="dialog" aria-modal="true" aria-label="Table settings" className="fixed inset-0 z-50 overflow-auto bg-stone-950/80 p-3"><div className="mx-auto max-w-xl rounded-xl bg-[#fff7e5] p-4 text-stone-900"><button autoFocus className="float-right rounded border px-3 py-2" onClick={()=>setSettingsOpen(false)}>Close settings</button><h2 className="text-xl font-bold">Table settings</h2><p className="my-4"><Link href="/subway/tutorial">How to play</Link></p><button className="rounded border px-3 py-2" onClick={()=>setShowLog(v=>!v)}>Action log</button>{showLog && <ol className="mt-3 space-y-2 text-sm">{game.events.map(e=><li key={e.seq}>{e.text}</li>)}</ol>}</div></div>;
+  const resultsPanel = game.phase === "RESULTS" && showResults && <div role="dialog" aria-modal="true" aria-label="Final results" className="fixed inset-0 z-40 overflow-auto bg-[#fff7e5] p-3 text-stone-900"><button autoFocus className="mb-3 rounded border px-4 py-2" onClick={()=>setShowResults(false)}>Back to board</button><ResultsSheet game={game} roomCode={room.roomCode} mode={room.mode}/></div>;
+  if (mobile && !lessonZone) return <div className="relative">
+    {veiled && me && <HandoffVeil name={me.name} color={me.color} onConfirm={()=>setSeatedId(playerId)}/>}
+    <MobileTable game={game} playerId={playerId} busy={busy} veiled={veiled} act={act}
+      settings={settingsButton} survey={engineeringSlip} actions={actionStrip}
+      selectLine={i=>{exitPlanner();setPreview(null);setSelectedLine(i);}} previewLine={openPlanner} playCard={id=>quickCard(id as ConstructionCardId)}
+      board={<div ref={boardRef}><Board game={game} targets={canAct?targets:[]} following={mode === "place"?following:[]} selected={mode === "place"?preview??undefined:undefined} canAct={canAct} drawn={drawn} onTapHole={onTapHole}/></div>}/>
+    {game.phase === "RESULTS" && <button onClick={()=>setShowResults(true)}>Show results</button>}
+    {focusPanel}{settingsPanel}{resultsPanel}
+  </div>;
+
   return (
     <div className="relative" data-tutorial-zone={lessonZone} style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
       {lessonZone && lessonZone !== "table" && <style>{`[data-tutorial-zone="${lessonZone}"] [data-zone="${lessonZone}"] { outline: 6px solid #14b8a6; outline-offset: 8px; }`}</style>}
@@ -1415,7 +1409,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
             {opponents.map((opponent) => <OpponentEdge key={opponent.id} game={game} opponent={opponent} scheduleRevealed={schedulingRevealed} />)}
           </div>
 
-          <CrewBoard key={`${game.currentPeriod}:${playerId}`} game={game} viewerId={playerId} busy={busy} veiled={veiled} act={act} onCard={(id)=>setFocus({family:"construction",id,slot:"hand"})}/>
+          <CrewBoard key={`${game.currentPeriod}:${playerId}`} game={game} viewerId={playerId} busy={busy} veiled={veiled} act={act} onCard={quickCard}/>
 
           <div className="flex items-start" style={{ gap: TABLE.gap }}>
             <ContractOffice
@@ -1423,7 +1417,12 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
               me={me}
               veiled={veiled}
               onOpenContract={(id, price) => setFocus({ family: "contract", id, price })}
-              onOpenMarket={(deck: CardDeckId, cardId?: string) => setFocus({ family: "market", id: deck, cardId })}
+              onOpenMarket={(deck: CardDeckId, cardId?: string) => {
+                if (busy || veiled || !me) return;
+                const why = cardDraftBlocker(game, me.id, deck, cardId);
+                if (why) { setNotice(why); return; }
+                act("DRAFT_CARD", {deck, cardId, expectedPick:game.market.picks});
+              }}
               onOpenDestination={(id) => setFocus({ family: "destination", id, slot: "row" })}
             />
 
@@ -1450,7 +1449,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
               />
             </div>
 
-            <Logbook game={game} actorId={currentActorId(game)} />
+
           </div>
 
           {me && (
@@ -1464,13 +1463,13 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
               onOpenPlanner={openPlanner}
               onSelectLine={(i) => setSelectedLine(i)}
               selectableLines={myBuild && !veiled}
-              onOpenCard={(ref) => setFocus(ref)}
+              onOpenCard={(ref) => ref.family === "construction" ? quickCard(ref.id) : setFocus(ref)}
             >
               {engineeringSlip}
             </PlayerTabletop>
           )}
 
-          {game.phase === "RESULTS" && <ResultsSheet game={game} roomCode={room.roomCode} mode={room.mode} />}
+          {game.phase === "RESULTS" && <button onClick={()=>setShowResults(true)}>Show results</button>}
 
           <footer className="flex items-center justify-between text-[20px] text-[#e6d7b4]">
             <span>
@@ -1483,6 +1482,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
         </div>
       </TabletopCanvas>
 
+      {settingsPanel}{resultsPanel}
       {focusPanel}
       {flight && <CardFlight from={flight.from} to={flight.to} label={flight.label} color={flight.color} />}
     </div>
@@ -1535,9 +1535,10 @@ function StripButton({
 /** The final scoring sheet, laid on the table like everything else. */
 function ResultsSheet({ game, roomCode, mode }: { game: SubwayState; roomCode: string; mode: string }) {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+  const report = useMemo(() => generateAiPlaytestReport(game, {roomCode, mode}), [game, roomCode, mode]);
   const copyReport = async () => {
     try {
-      await navigator.clipboard.writeText(generateAiPlaytestReport(game, { roomCode, mode }));
+      await navigator.clipboard.writeText(report);
       setCopyState("copied");
     } catch {
       setCopyState("failed");
@@ -1559,6 +1560,8 @@ function ResultsSheet({ game, roomCode, mode }: { game: SubwayState; roomCode: s
             {copyState === "copied" ? "Copied!" : copyState === "failed" ? "Copy failed — try again" : "Copy AI Report"}
           </button>
         </div>
+        <details><summary className="cursor-pointer font-bold">View report text</summary><textarea aria-label="AI playtest report text" readOnly className="mt-2 h-64 w-full border p-2 text-sm" value={report}/></details>
+        <a className="font-bold underline" download="subway-playtest.md" href={`data:text/markdown;charset=utf-8,${encodeURIComponent(report)}`}>Download AI Report</a>
         {game.playerOrder.map((id) => {
           const p = game.players[id];
           if (!p) return null;
