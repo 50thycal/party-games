@@ -348,7 +348,7 @@ export function TabletopCanvas({
       const top = el.getBoundingClientRect().top;
       const available =
         (window.visualViewport?.height ?? window.innerHeight) - top - bottomInset - 10;
-      setHeight(Math.max(320, Math.round(available)));
+      setHeight(Math.max(180, Math.round(available)));
     };
     measure();
     window.addEventListener("resize", measure);
@@ -468,8 +468,10 @@ export function TabletopCanvas({
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
-    // Buttons and form fields own their taps; never start a camera drag on them.
-    if ((e.target as HTMLElement).closest("button, input, select, textarea, a, [role=button]")) return;
+    // Table pieces accept taps and touch drags; overlay controls own their gestures.
+    if (!worldRef.current?.contains(e.target as Node)) return;
+    if ((e.target as HTMLElement).closest("input, select, textarea")) return;
+    if (e.pointerType === "mouse" && (e.target as HTMLElement).closest("button, a, [role=button]")) return;
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     suppressClick.current = false;
     stopAnimation();
@@ -506,7 +508,11 @@ export function TabletopCanvas({
         );
         const ax = (d.pinch.midX - start.x) / start.scale;
         const ay = (d.pinch.midY - start.y) / start.scale;
-        setCam({ scale, x: d.pinch.midX - ax * scale, y: d.pinch.midY - ay * scale });
+        const bounds = viewportRef.current!.getBoundingClientRect();
+        const midX = (a.x + b.x) / 2 - bounds.left;
+        const midY = (a.y + b.y) / 2 - bounds.top;
+        userMoved.current = true;
+        setCam({ scale, x: midX - ax * scale, y: midY - ay * scale });
       }
       return;
     }
@@ -570,7 +576,7 @@ export function TabletopCanvas({
     vp.scrollTop = 0;
     vp.scrollLeft = 0;
     const target = e.target as HTMLElement;
-    if (target && target !== vp && worldRef.current?.contains(target)) ensureVisible(target);
+    if (target && target !== vp && target.matches(":focus-visible") && worldRef.current?.contains(target)) ensureVisible(target);
   };
 
   return (
@@ -585,7 +591,7 @@ export function TabletopCanvas({
       onPointerCancel={onPointerUp}
       onKeyDown={onKeyDown}
       onFocusCapture={onFocusCapture}
-      className="relative w-full touch-none select-none overflow-hidden rounded-2xl outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-amber-500"
+      className="relative w-full touch-none select-none overscroll-none overflow-hidden rounded-2xl outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-amber-500"
       style={{
         height: height ?? 520,
         cursor: "grab",

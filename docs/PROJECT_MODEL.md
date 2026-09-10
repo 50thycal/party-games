@@ -467,4 +467,4 @@ hotseat save. Real games link to phase-specific lessons in a separate tab.
 
 ## Phone tabletop presentation (mobile continuation)
 
-MobileTable renders screen-sized route/card pieces outside the map zoom, while GameView owns the same targets, validation, pending peg, temporary sketches and reducer dispatch on both layouts. Desktop retains TabletopCanvas. Settings contains public logbook entries; results also have a readable screen sheet and report text/download fallback. No state-version migration is required: presentation and temporary previews are client-local.
+All devices use TabletopCanvas: board, illustrated card faces and company pieces share one locally zoomable/pannable world. Phone overlays are limited to camera shortcuts and current placement controls. GameView owns targets, validation, pending peg, temporary sketches and reducer dispatch. Settings contains public logbook entries; results also have a readable screen sheet and report text/download fallback. No state-version migration is required: presentation and temporary previews are client-local.

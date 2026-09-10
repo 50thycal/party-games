@@ -4,8 +4,8 @@ Build OS: v0.12
 Phase: BUILDING
 Status: Active
 Updated: 2026-09-10
-Implementation State: PR #158 landed on main; mobile tabletop and temporary planning implemented, validation passing; preview and independent review pending
-Related PRs: [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; open); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
+Implementation State: PR #159 merged; owner screenshot feedback implemented on codex/subway-touch-tabletop; validation and visual review in progress
+Related PRs: [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
 ## Goal and approved scope
 After this change, Subway supports complete 2-, 3- and 4-player games, with more
@@ -123,3 +123,11 @@ Review State: Not reviewed.
 Next Step: verify PR #159 preview and independently review.
 
 Publication checkpoint: owner explicitly authorized Push. Terminal credentials had expired; connected GitHub upload succeeded with an exact matching implementation tree. PR #159: https://github.com/50thycal/party-games/pull/159. Local rules/lint/build validation passed; preview visual checks and independent review remain pending.
+
+## Touch tabletop correction — 2026-09-10
+
+Goal: restore a full navigable table on mobile after owner screenshots exposed a tiny map, oversized fixed controls and lost illustrated card faces. Non-goals: game rules, scoring, persistent state and room networking.
+
+Implemented: one TabletopCanvas for all devices, illustrations in the card market, compact phone overlays/header, 16px native selects, touch drag from cards, midpoint-anchored pinch/pan, and keyboard-only focus camera movement. Temporary previews and real peg Confirm remain unchanged. Canonical VERSION.md rechecked: v0.12, compatible.
+
+Acceptance: inside-table pan/zoom leaves page controls unchanged; cards readable by navigating the table; Confirm does not commit ghost tails; phone portrait/landscape and two-player browser flow verified before merge. Automated gates and browser preview pending. Review State: pending independent review. Next Step: validate and publish correction, then verify deployed preview.
