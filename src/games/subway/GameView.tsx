@@ -1335,8 +1335,8 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
             +
           </button>
           <button
-            onClick={() => cam.current?.focus("board")}
-            aria-label="Reset view"
+            onClick={() => cam.current?.focus("board", {fit:true})}
+            aria-label="Fit entire board"
             className="rounded-lg bg-white/15 px-2 py-1 text-[11px] font-bold hover:bg-white/25 sm:text-xs"
           >
             Fit board

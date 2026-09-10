@@ -689,9 +689,9 @@ export function ContractOffice({
           {(["engineering", "construction"] as CardDeckId[]).map((deck) => (
             <div key={deck} className="rounded-[12px] border-[2px] border-stone-300 p-[10px]">
               <p className="text-[19px] font-bold capitalize">{deck}</p>
-              <div className="grid grid-cols-2 gap-[12px]">{(game.market.rows?.[deck] ?? []).map((id) => {
+              <div className="grid grid-cols-2 gap-[12px]">{(game.market.rows?.[deck] ?? []).map((id, slot) => {
                 const c = deck === "engineering" ? (engineeringById(id) ?? destinationById(id)) : deck === "scheduling" ? schedulingById(id as SchedulingCardId) : constructionById(id as ConstructionCardId);
-                return <div key={id} className="mt-[12px] rounded-[14px] border-2 border-amber-800/40 bg-[#fffaf0] p-[8px] shadow-lg [&_strong]:text-[20px] [&_p]:text-[18px] [&_span]:text-[16px]">
+                return <div key={`${id}-${slot}`} className="mt-[12px] rounded-[14px] border-2 border-amber-800/40 bg-[#fffaf0] p-[8px] shadow-lg [&_strong]:text-[20px] [&_p]:text-[18px] [&_span]:text-[16px]">
                   {deck === "engineering" ? (destinationById(id) ? <DestinationCardFace card={id} color={me?.color ?? "#334155"}/> : <EngineeringCardFace card={id} color={me?.color ?? "#334155"}/>) : <><ConstructionArt /><b className="text-[24px]">{c?.name}</b><p className="text-[20px]">{c?.description}</p></>}
                   <button onClick={() => onOpenMarket(deck, id)} className="mt-[10px] w-full rounded-lg bg-teal-800 p-[12px] text-[20px] font-bold text-white">Draft {c?.name} →</button>
                 </div>;

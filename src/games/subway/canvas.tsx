@@ -33,7 +33,7 @@ export type CameraApi = {
   /** Multiply the zoom about the middle of the screen. */
   zoomBy: (factor: number) => void;
   /** Frame a zone by its `data-zone` marker. `table` fits the whole surface. */
-  focus: (zone: TableZone, opts?: { animate?: boolean }) => boolean;
+  focus: (zone: TableZone, opts?: { animate?: boolean; fit?: boolean }) => boolean;
   /** Back to the default framing: the pegboard, with the table around it. */
   reset: (opts?: { animate?: boolean }) => boolean;
   /** Pan the smallest amount that brings a focused element on screen. */
@@ -253,7 +253,7 @@ export function TabletopCanvas({
   );
 
   const focus = useCallback(
-    (zone: TableZone, opts?: { animate?: boolean }) => {
+    (zone: TableZone, opts?: { animate?: boolean; fit?: boolean }) => {
       const rect = zoneRect(zone);
       if (!rect || !rect.w) return false;
       frameRect(rect, {
@@ -261,7 +261,7 @@ export function TabletopCanvas({
         // The pegboard keeps its physical size: framing it never blows it up.
         maxScale: zone === "board" ? DEFAULT_MAX_SCALE : MAX_SCALE,
         align: rect.h > rect.w * 0.9 ? "top" : "center",
-        ...(zone === "board" ? { fillBelow: 0.45 } : {}),
+        ...(zone !== "table" && !opts?.fit ? { fillBelow: 0.45 } : {}),
       });
       return true;
     },
@@ -276,8 +276,8 @@ export function TabletopCanvas({
       frameRect(rect, {
         animate: opts?.animate ?? true,
         maxScale: DEFAULT_MAX_SCALE,
-        // Only the pegboard is worth working at when it cannot be contained.
-        ...(openZone === "board" ? { fillBelow: 0.45 } : {}),
+        // Focus opens a usable work zoom; All remains the full-table overview.
+        ...(openZone !== "table" ? { fillBelow: 0.45 } : {}),
         align: rect.h > rect.w * 0.9 ? "top" : "center",
       });
       return true;
@@ -573,10 +573,11 @@ export function TabletopCanvas({
   const onFocusCapture = (e: React.FocusEvent<HTMLDivElement>) => {
     const vp = viewportRef.current;
     if (!vp) return;
+    const target = e.target as HTMLElement;
+    if (!target.matches(":focus-visible")) return;
     vp.scrollTop = 0;
     vp.scrollLeft = 0;
-    const target = e.target as HTMLElement;
-    if (target && target !== vp && target.matches(":focus-visible") && worldRef.current?.contains(target)) ensureVisible(target);
+    if (target !== vp && worldRef.current?.contains(target)) ensureVisible(target);
   };
 
   return (
@@ -585,6 +586,15 @@ export function TabletopCanvas({
       role="application"
       aria-label={label}
       tabIndex={0}
+      onPointerDownCapture={(e) => {
+        // Buttons act on click, not focus. Avoid native focus scrolling the
+        // clipped camera viewport before that click can reach its target.
+        if ((e.target as HTMLElement).closest("button, a, [role=button]")) e.preventDefault();
+      }}
+      onScroll={(e) => {
+        e.currentTarget.scrollTop = 0;
+        e.currentTarget.scrollLeft = 0;
+      }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

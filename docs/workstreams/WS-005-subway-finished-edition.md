@@ -4,8 +4,8 @@ Build OS: v0.12
 Phase: BUILDING
 Status: Active
 Updated: 2026-09-10
-Implementation State: PR #159 merged; owner screenshot feedback implemented on codex/subway-touch-tabletop; validation and visual review in progress
-Related PRs: [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
+Implementation State: PR #160 open; full touch tabletop restored; automated validation passed; responsive browser checks found and corrected focus scrolling and oversized crew board; independent review pending
+Related PRs: [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; open); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
 ## Goal and approved scope
 After this change, Subway supports complete 2-, 3- and 4-player games, with more
@@ -131,3 +131,9 @@ Goal: restore a full navigable table on mobile after owner screenshots exposed a
 Implemented: one TabletopCanvas for all devices, illustrations in the card market, compact phone overlays/header, 16px native selects, touch drag from cards, midpoint-anchored pinch/pan, and keyboard-only focus camera movement. Temporary previews and real peg Confirm remain unchanged. Canonical VERSION.md rechecked: v0.12, compatible.
 
 Acceptance: inside-table pan/zoom leaves page controls unchanged; cards readable by navigating the table; Confirm does not commit ghost tails; phone portrait/landscape and two-player browser flow verified before merge. Automated gates and browser preview pending. Review State: pending independent review. Next Step: validate and publish correction, then verify deployed preview.
+
+### PR #160 browser findings
+
+Local supervised preview available. In two-player 390px portrait, illustrated goal/destination cards render and one click drafts a goal. In 844px landscape, crew hiring, target selection, temporary planning and Confirm were exercised. Two segments sketched then Confirm left exactly one real segment built (1/5). Browser inspection caught a full-width crew board shrinking controls, duplicate Construction market keys, and pointer focus scrolling before click; all corrected. Camera viewport suppresses native scrolling and button pointer focus; keyboard navigation retains automatic visibility. Production build/lint and 36 simulations passed before the final focus-boundary adjustment; final validation recorded in PR.
+
+No physical iPhone multitouch test or new complete manual game is claimed. Automated simulations cover full games; browser work here targets the reported interaction regressions. Vercel branch preview requires sign-in and the supplied share token does not unlock it; connected Vercel access returns 403. The local supervised browser is usable. Review State: PR #160 pending independent review. Final pointer regression: one click on Next legal target selected hole 1,1 and enabled Confirm; hiring charged the expected $1M. Focus shortcuts now use work zoom for readable pieces; Fit entire board explicitly fits the map. Physical multitouch remains unverified. Next Step: independent review and physical-phone gesture acceptance for PR #160; no merge by implementation actor.
