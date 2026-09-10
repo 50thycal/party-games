@@ -691,7 +691,7 @@ export function ContractOffice({
               <p className="text-[19px] font-bold capitalize">{deck}</p>
               {(game.market.rows?.[deck] ?? []).map((id, i) => {
                 const c = deck === "engineering" ? (engineeringById(id) ?? destinationById(id)) : deck === "scheduling" ? schedulingById(id as SchedulingCardId) : constructionById(id as ConstructionCardId);
-                return <button key={i} onClick={() => onOpenMarket(deck, id)} className="mt-[6px] block w-full rounded-[8px] bg-white p-[10px] text-left text-[19px] font-bold hover:bg-amber-100">{c?.name} →</button>;
+                return <button key={i} onClick={() => onOpenMarket(deck, id)} className="mt-[6px] block w-full rounded-[8px] bg-white p-[10px] text-left text-[19px] font-bold hover:bg-amber-100"><b>{c?.name}</b><span className="block font-normal">{c?.description}</span><span className="block text-teal-800">Draft →</span></button>;
               })}
               <button disabled={!game.market.decks[deck].length} onClick={() => onOpenMarket(deck)} className="mt-[6px] w-full rounded-[8px] bg-stone-800 p-[10px] text-[18px] text-white">Blind draw · {deck}</button>
             </div>
@@ -716,7 +716,6 @@ export function ContractOffice({
 
       <div className="mt-[20px] flex flex-wrap items-center gap-[24px] border-t-[3px] border-[#6b4b2c]/20 pt-[16px]">
         <DeckStack label="Engineering" tone="bg-amber-700" />
-        <DeckStack label="Scheduling" tone="bg-sky-800" />
         <DeckStack label="Construction" tone="bg-orange-800" />
       </div>
 

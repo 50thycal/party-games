@@ -1,11 +1,11 @@
 # WS-005 — Subway finished edition
 
-Build OS: v0.11
+Build OS: v0.12
 Phase: BUILDING
-Status: Blocked
-Updated: 2026-09-09
-Implementation State: Flexible goals and crews merged in PR #156; station cleanup merged in PR #157; active-route/ghost previews, immediate exhausted-board ending, and AI playtest export implemented on PR #158; visual verification blocked
-Related PRs: [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
+Status: Active
+Updated: 2026-09-10
+Implementation State: PR #158 landed on main; mobile tabletop and temporary planning implemented, validation passing; preview and independent review pending
+Related PRs: [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; open); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
 ## Goal and approved scope
 After this change, Subway supports complete 2-, 3- and 4-player games, with more
@@ -108,3 +108,18 @@ card dialogs, placement preview/Confirm, all-seat handoff and local save/resume.
 Use `/subway` for local hotseat and `/test/subway` for responsive phase fixtures.
 Fix any defects on this branch, then request independent review. Do not merge
 before the outstanding visual gate and independent review are satisfied.
+
+## Mobile tabletop continuation — 2026-09-10
+
+Owner authorized the playtest specification and implementation in this conversation (Yes please proceed; Continue your work). Goal: phone-readable tabletop play and temporary future-route sketches. Non-goals: rule/balance changes, authentication or backend room changes.
+
+Acceptance checks: board fits independently of readable card text; ordinary drafting/play is direct; real pegs require Confirm; temporary ghost tail begins at pending peg and never commits future nodes or saves; Settings owns log; readable results and copy/download fallback. Typecheck, build, lint and Subway suite required. Browser phone/desktop verification and independent review required before merge.
+
+Implementation state: MobileTable uses a separate phone tray and fit/magnify map; shared rules/action strip remain authoritative. Pointer drags exclude interactive controls. Existing persisted plans are no longer loaded by GameView; the new sketch is temporary. No existing stored plan data is deleted.
+
+Framework: checked canonical v0.12 at 815e6a19c2ae243d5435282bee822b86fb823775. Applying finite-work intake and acceptance rules to this existing mission; no new workstream. Older workstream board dispositions are not changed without owner decisions.
+
+Review State: Not reviewed.
+Next Step: verify PR #159 preview and independently review.
+
+Publication checkpoint: owner explicitly authorized Push. Terminal credentials had expired; connected GitHub upload succeeded with an exact matching implementation tree. PR #159: https://github.com/50thycal/party-games/pull/159. Local rules/lint/build validation passed; preview visual checks and independent review remain pending.
