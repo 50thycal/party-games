@@ -102,6 +102,7 @@ export function TabletopCanvas({
   const worldHeight = useRef(1000);
   const framed = useRef(false);
   const raf = useRef<number | null>(null);
+  const velocity = useRef({x:0,y:0,time:0});
   // The opening shot keeps re-framing while the table is still laying itself
   // out (fonts, card art, the pegboard). It stops the moment the player moves
   // the camera, and in any case once the table has settled — after that only
@@ -450,10 +451,25 @@ export function TabletopCanvas({
     };
   }, [minScale, setCam]);
 
-  const endDrag = useCallback((id: number) => {
+  const endDrag = useCallback((id: number, cancel = false) => {
+    const moved = drag.current?.moved;
+    const v = velocity.current;
+    const glide = !cancel && moved && pointers.current.size === 1 && performance.now()-v.time < 90 && !prefersReducedMotion();
     pointers.current.delete(id);
     if (pointers.current.size === 0) {
       drag.current = null;
+      if (glide) {
+        let vx=v.x, vy=v.y, last=performance.now();
+        const tick=(now:number)=>{
+          const dt=Math.min(32,now-last); last=now;
+          const c=camRef.current;
+          setCam({...c,x:c.x+vx*dt,y:c.y+vy*dt});
+          vx*=Math.exp(-dt/180); vy*=Math.exp(-dt/180);
+          if(Math.hypot(vx,vy)>.025) raf.current=requestAnimationFrame(tick);
+          else raf.current=null;
+        };
+        raf.current=requestAnimationFrame(tick);
+      }
     } else if (drag.current) {
       const [first] = Array.from(pointers.current.entries());
       drag.current = {
@@ -464,7 +480,7 @@ export function TabletopCanvas({
         pinch: null,
       };
     }
-  }, []);
+  }, [setCam]);
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
@@ -473,6 +489,7 @@ export function TabletopCanvas({
     if ((e.target as HTMLElement).closest("input, select, textarea")) return;
     if (e.pointerType === "mouse" && (e.target as HTMLElement).closest("button, a, [role=button]")) return;
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    velocity.current={x:0,y:0,time:performance.now()};
     suppressClick.current = false;
     stopAnimation();
     if (pointers.current.size === 1) {
@@ -498,6 +515,7 @@ export function TabletopCanvas({
     if (!d) return;
 
     if (pointers.current.size >= 2 && d.pinch) {
+      velocity.current={x:0,y:0,time:0};
       const [a, b] = Array.from(pointers.current.values());
       const dist = Math.hypot(a.x - b.x, a.y - b.y);
       if (dist > 0 && d.pinch.dist > 0) {
@@ -521,6 +539,9 @@ export function TabletopCanvas({
     const dx = e.clientX - d.lastX;
     const dy = e.clientY - d.lastY;
     if (!d.moved && Math.hypot(dx, dy) < 7) return;
+    if (!d.moved) e.currentTarget.setPointerCapture(e.pointerId);
+    const now=performance.now(), dt=Math.max(8,now-velocity.current.time);
+    velocity.current={x:Math.max(-2.5,Math.min(2.5,dx/dt)),y:Math.max(-2.5,Math.min(2.5,dy/dt)),time:now};
     d.moved = true;
     userMoved.current = true;
     suppressClick.current = true;
@@ -587,6 +608,7 @@ export function TabletopCanvas({
       aria-label={label}
       tabIndex={0}
       onPointerDownCapture={(e) => {
+        stopAnimation();
         // Buttons act on click, not focus. Avoid native focus scrolling the
         // clipped camera viewport before that click can reach its target.
         if ((e.target as HTMLElement).closest("button, a, [role=button]")) e.preventDefault();
@@ -598,13 +620,17 @@ export function TabletopCanvas({
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
+      onPointerCancel={(e)=>endDrag(e.pointerId,true)}
+      onContextMenu={(e)=>{if(!isTextEntry(e.target))e.preventDefault();}}
       onKeyDown={onKeyDown}
       onFocusCapture={onFocusCapture}
       className="relative w-full touch-none select-none overscroll-none overflow-hidden rounded-2xl outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-amber-500"
       style={{
         height: height ?? 520,
         cursor: "grab",
+        WebkitUserSelect: "none",
+        userSelect: "none",
+        WebkitTouchCallout: "none",
         background:
           "radial-gradient(circle at 50% 12%, #2f5860 0%, #18343f 55%, #10232d 100%)",
       }}

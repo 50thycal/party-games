@@ -1420,3 +1420,9 @@ Date: 2026-09-10. Status: owner-authorized; implementation review pending.
 Owner screenshots and feedback supersede DEC-029's fixed mobile tray. All devices use the full tabletop camera; cards and board pan and zoom together inside the game viewport. The outer page keeps normal browser accessibility zoom. Existing illustrated goal/destination faces appear in the draft market and hand; Construction uses a printed depot motif. Compact Confirm and camera controls remain overlays. Touch gestures may begin on table pieces without activating them after a drag. Ghost planning remains temporary and unchanged.
 
 Consequence: one presentation path replaces the separate phone layout. Real iPhone pinch/pan and portrait/landscape acceptance remain required; desktop automation alone is insufficient evidence.
+
+### DEC-031 — Interior surveys and a retrospective construction schedule
+
+Date: 2026-09-10. Status: owner-authorized; implementation review pending.
+
+All outer-border holes are starter areas and reject new Survey Pins. Existing saved pins are preserved. The owner requested an interactive Construction schedule: it records actual round order and builds, rather than reintroducing advance scheduling. The public projection includes undone builds but excludes hidden card identities. Opponent details default closed; board routes remain visible. Phone drag gets a short decelerating glide and scoped selection/callout suppression, respecting reduced motion.

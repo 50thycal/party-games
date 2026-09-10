@@ -3,9 +3,13 @@
 import { useState } from "react";
 import { activationCost, buildableLines, constructionById, constructionCardBlocker, contractOf, SUBWAY_CONFIG, type ConstructionCardId, type SubwayState } from "./config";
 import { Printed, TableButton } from "./table";
+import { constructionHistory } from "./constructionHistory";
 
 export function CrewBoard({game,viewerId,busy,veiled,act,onCard}:{game:SubwayState;viewerId:string;busy:boolean;veiled:boolean;act:(type:string,payload?:Record<string,unknown>)=>unknown;onCard:(id:ConstructionCardId)=>void}) {
   const [selected,setSelected]=useState<number[]>([]);
+  const [historyRound,setHistoryRound]=useState(game.currentPeriod);
+  const [historyPlayer,setHistoryPlayer]=useState<string|null>(null);
+  const history=constructionHistory(game,historyRound);
   const p=game.players[viewerId];
   const priority=game.priorityQueue[0];
   const actor=priority??game.resolveQueue[0];
@@ -13,8 +17,23 @@ export function CrewBoard({game,viewerId,busy,veiled,act,onCard}:{game:SubwaySta
   const available=p?buildableLines(game,viewerId):[];
   const indexes=selected.filter(i=>available.includes(i));
   const cost=p?activationCost(p,indexes.length):0;
-  return <Printed style={{width:1100, maxWidth:"100%"}} zone="schedule" title="Crew dispatch" subtitle={`Round ${game.currentPeriod} / ${SUBWAY_CONFIG.timelinePeriods}`}>
-    <div className="flex flex-wrap gap-2" aria-label={`Round ${game.currentPeriod} of 16`}>{Array.from({length:16},(_,i)=><span key={i} className={`rounded px-3 py-2 text-xl font-bold ${i+1===game.currentPeriod?"bg-teal-700 text-white":"bg-stone-200"}`}>{i+1}</span>)}</div>
+  return <Printed style={{width:1100, maxWidth:"100%"}} zone="schedule" title="Construction schedule" subtitle={`Round ${game.currentPeriod} / ${SUBWAY_CONFIG.timelinePeriods}`}>
+    <div className="flex flex-wrap gap-2" aria-label="Construction rounds">{Array.from({length:16},(_,i)=><button key={i} aria-label={`View round ${i+1}`} aria-pressed={historyRound===i+1} onClick={()=>setHistoryRound(i+1)} className={`rounded px-3 py-2 text-xl font-bold ${historyRound===i+1?"bg-teal-700 text-white":"bg-stone-200"}`}>{i+1}</button>)}</div>
+    <p className="mt-3 text-lg">Round {historyRound} · {historyRound>game.currentPeriod?"Projected order (Priority Dispatch can change it)":"Construction order"}</p>
+    <div className="mt-3 grid gap-2">{history.order.map((id,rank)=>{
+      const company=game.players[id];
+      const builds=history.builds.filter(b=>b.actorId===id);
+      return <div key={id} className="rounded-lg border-2 border-stone-300 bg-white/70 p-3">
+        <button className="flex w-full items-center gap-3 text-left text-xl" aria-expanded={historyPlayer===id} onClick={()=>setHistoryPlayer(historyPlayer===id?null:id)}>
+          <b className="rounded-full px-3 py-1 text-white" style={{background:company.color}}>{rank+1}</b><b>{company.name}</b><span>{company.lines.length} lines</span>
+          <span className="ml-auto">{historyRound===game.currentPeriod&&actor===id?"Building now → ":""}{builds.filter(b=>!b.undone).length} built</span>
+        </button>
+        {historyPlayer===id&&<div className="mt-3 text-lg">{company.lines.map((line,i)=>{
+          const entries=builds.filter(b=>b.lineIndex===i);
+          return <p key={i}><b>{contractOf(line)?.name}</b>: {entries.length?entries.map(b=>`#${b.actionNumber}${b.undone?" undone":" built"}`).join(" · "):"No build recorded"}</p>;
+        })}</div>}
+      </div>;
+    })}</div>
     <p className="mt-4 text-xl">1 crew $1M · 2 crews $3M · 3 crews $6M. One segment per chosen route. Unpaid debt: −4 VP per $1M.</p>
     {game.phase!=="CONSTRUCTION"?<p className="mt-3 text-xl">Choose routes afresh each construction round. There is no advance timetable.</p>:<>
       <p className="mt-3 text-2xl font-bold">{game.players[actor]?.name}: {priority?"Priority Dispatch opportunity":hiring?"choose your crews":"construction turn"}</p>

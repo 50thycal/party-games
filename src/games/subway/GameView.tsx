@@ -214,7 +214,7 @@ function statusFor(game: SubwayState, me: SubwayPlayer | undefined, isHost: bool
       const actorId = game.priorityQueue[0] ?? game.resolveQueue[0];
       if (actorId === me.id) {
         return {
-          headline: game.priorityQueue.length ? "Use Priority Dispatch or keep your card." : !me.crewsHired ? "Choose crews at Crew dispatch." : `Round ${game.currentPeriod} — your build.`,
+          headline: game.priorityQueue.length ? "Use Priority Dispatch or keep your card." : !me.crewsHired ? "Choose crews at Construction schedule." : `Round ${game.currentPeriod} — your build.`,
           tone: "act",
           detail:
             me.pendingActions.length > 1
@@ -260,6 +260,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   const [mobile, setMobile] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showLog, setShowLog] = useState(false);
+  const [showOpponents, setShowOpponents] = useState(false);
   const [showResults, setShowResults] = useState(true);
   useEffect(() => {
     const query = window.matchMedia("(max-width: 1024px)");
@@ -1289,7 +1290,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   const focusButtons: { zone: TableZone; label: string; short: string }[] = [
     { zone: "office", label: "Market", short: "Market" },
     { zone: "board", label: "Pegboard", short: "Board" },
-    { zone: "schedule", label: "Crew dispatch", short: "Crews" },
+    { zone: "schedule", label: "Construction schedule", short: "Crews" },
     { zone: "lines", label: "Lines", short: "Lines" },
     { zone: "hand", label: "Cards", short: "Cards" },
     { zone: "table", label: "Whole table", short: "All" },
@@ -1396,7 +1397,8 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
         {/* Printed pieces carry dark ink whatever the surrounding page theme is. */}
         <div className="flex flex-col text-stone-900" style={{ gap: TABLE.gap, padding: TABLE.margin }}>
           <div data-zone="opponent" className="grid gap-[24px]">
-            {opponents.map((opponent) => <OpponentEdge key={opponent.id} game={game} opponent={opponent} scheduleRevealed={schedulingRevealed} />)}
+            <button className="w-fit rounded-xl bg-white/10 px-5 py-3 text-[22px] text-white" aria-expanded={showOpponents} onClick={()=>setShowOpponents(v=>!v)}>{showOpponents ? "Hide opponents" : "Show opponents"}</button>
+            {showOpponents && opponents.map((opponent) => <OpponentEdge key={opponent.id} game={game} opponent={opponent} scheduleRevealed={schedulingRevealed} />)}
           </div>
 
           <CrewBoard key={`${game.currentPeriod}:${playerId}`} game={game} viewerId={playerId} busy={busy} veiled={veiled} act={act} onCard={quickCard}/>

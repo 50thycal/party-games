@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { constructionHistory } from "../src/games/subway/constructionHistory";
 import { activationCost, buildableLines, constructionExhausted, lineActionsRemaining, LINE_CONTRACTS, ENGINEERING_CARDS, DESTINATION_CARDS, STATIONS, SUBWAY_CONFIG, SUBWAY_STATE_VERSION, subwayGame, nextCompanyId, draftPicks, draftTurnId, objectiveMet, scoreGame, legalTargets, lineComplete, contractById, constructionCardBlocker, type SubwayState, type SubwayAction } from "../src/games/subway/config";
 import { generateAiPlaytestReport } from "../src/games/subway/report";
 import { startPlaytest, testRoom, runPlaytest, seededRandom, stepPlaytest } from "../src/games/subway/playtest";
@@ -58,7 +59,8 @@ for(const count of [2,3,4]) for(const category of ["engineering","construction"]
   assert.equal(s.engineeringStep,"SURVEY");
   const station=s.stations[0];
   assert.equal(dispatch(s,id,"PLACE_SURVEY",{x:station.x,y:station.y}),s);
-  const target=Array.from({length:27},(_,x)=>({x,y:0})).find(p=>!s.stations.some(st=>st.x===p.x&&st.y===p.y))!;
+  for (const pt of [{x:0,y:4},{x:26,y:4},{x:12,y:0},{x:12,y:8}]) assert.equal(dispatch(s,id,"PLACE_SURVEY",pt),s,"Starter borders reject surveys");
+  const target=Array.from({length:25},(_,i)=>({x:i+1,y:1})).find(p=>!s.stations.some(st=>st.x===p.x&&st.y===p.y))!;
   s=dispatch(s,id,"PLACE_SURVEY",target);
   assert.equal(s.phase,"STARTER_PLACEMENT");
   const undone=dispatch(s,id,"UNDO_PLACEMENT");
@@ -207,3 +209,17 @@ for(const count of [2,3,4]){
 console.log("Draft, crew billing, cards, priority, toll/undo, debt, scoring and 220 portfolio affordability checks passed.",checks);
 console.log(JSON.stringify(summary));
 console.log("36 complete 2/3/4-player simulations reached RESULTS.");
+
+// Schedule history follows public builds and their Undo, without card disclosures.
+{
+  let {state:s}=runPlaytest(2,7,"CONSTRUCTION");
+  const room=testRoom(2);
+  for(let i=0;i<100&&!s.telemetry.some(e=>e.action==="BUILD");i++)s=stepPlaytest(s,room,seededRandom(i+1));
+  const event=s.telemetry.find(e=>e.action==="BUILD")!;
+  assert.ok(event);
+  assert.equal(constructionHistory(s,event.periodBefore).builds.filter(b=>!b.undone).length,1);
+  const undone=dispatch(s,event.actorId,"UNDO_PLACEMENT");
+  assert.notEqual(undone,s);
+  assert.equal(constructionHistory(undone,event.periodBefore).builds.filter(b=>!b.undone).length,0);
+  assert.equal(constructionHistory(undone,event.periodBefore).builds[0].undone,true);
+}

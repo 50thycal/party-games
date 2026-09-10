@@ -417,15 +417,8 @@ export function DestinationCardFace({
   );
 }
 
-/** Shared printed construction-deck motif, kept separate from objective diagrams. */
-export function ConstructionArt() {
-  return <svg aria-hidden="true" viewBox="0 0 240 120" className="mb-3 w-full rounded-lg bg-[#ead8b2]">
-    <path d="M15 96H225M15 108H225" stroke="#765234" strokeWidth="4" />
-    {[30,60,90,120,150,180,210].map(x=><path key={x} d={`M${x} 90v24`} stroke="#765234" strokeWidth="5"/>)}
-    <path d="M48 80V30h100v50M40 30l58-18 58 18" fill="#b56837" stroke="#593e2e" strokeWidth="4"/>
-    <path d="M65 80V45h65v35" fill="#193b40"/>
-    <rect x="84" y="54" width="105" height="33" rx="6" fill="#d89b36" stroke="#593e2e" strokeWidth="4"/>
-    <path d="M148 54V33h29l12 21" fill="#547d80" stroke="#593e2e" strokeWidth="4"/>
-    <circle cx="108" cy="88" r="9" fill="#283536"/><circle cx="173" cy="88" r="9" fill="#283536"/>
-  </svg>;
+/** One illustrated face per live Construction card, cropped from the printed sheet. */
+export function ConstructionArt({card}:{card:string}) {
+  const index:Record<string,number>={booking:0,relief:1,expedite:2,grant:3,access:4};
+  return <div aria-hidden="true" className="mb-3 w-full rounded-lg" style={{aspectRatio:"4 / 5",backgroundImage:"url(/subway/construction-cards.png)",backgroundSize:"500% 136%",backgroundPosition:`${(index[card]??1)*25}% center`}} />;
 }
