@@ -4,7 +4,7 @@ import "./subway-objectives-test";
 import { constructionHistory } from "../src/games/subway/constructionHistory";
 import { quoteBuildCost } from "../src/games/subway/buildCost";
 import { routeContacts } from "../src/games/subway/config";
-import { activationCost, buildableLines, constructionExhausted, lineActionsRemaining, LINE_CONTRACTS, ENGINEERING_CARDS, DESTINATION_CARDS, STATIONS, SUBWAY_CONFIG, SUBWAY_STATE_VERSION, subwayGame, nextCompanyId, draftPicks, draftTurnId, objectiveMet, scoreGame, legalTargets, lineComplete, contractById, constructionCardBlocker, type SubwayState, type SubwayAction } from "../src/games/subway/config";
+import { activationCost, buildableLines, constructionExhausted, lineActionsRemaining, LINE_CONTRACTS, ENGINEERING_CARDS, DESTINATION_CARDS, STATIONS, SUBWAY_CONFIG, SUBWAY_STATE_VERSION, subwayGame, nextCompanyId, draftPicks, draftTurnId, objectiveMet, scoreGame, legalTargets, lineComplete, contractById, type SubwayState, type SubwayAction } from "../src/games/subway/config";
 import { generateAiPlaytestReport } from "../src/games/subway/report";
 import { startPlaytest, testRoom, runPlaytest, seededRandom, stepPlaytest } from "../src/games/subway/playtest";
 
@@ -12,7 +12,10 @@ const dispatch=(s:SubwayState,id:string,type:SubwayAction["type"],payload?:Subwa
 let checks=0;
 for(const count of [2,3,4]) for(const category of ["engineering"] as const) {
   let {state:s}=startPlaytest(count,42);
-  assert.equal(SUBWAY_STATE_VERSION,14);
+  assert.equal(SUBWAY_STATE_VERSION,15);
+  assert.ok(!("construction" in s.market.rows) && !("construction" in s.market.decks));
+  assert.ok(!("priorityQueue" in s));
+  assert.ok(Object.values(s.players).every(p=>!("constructionHand" in p)));
   assert.ok(Object.values(s.players).every(p=>draftPicks(p)===0));
   assert.equal(s.stations.length,10);
   assert.equal(new Set(s.stations.map(p=>`${p.x},${p.y}`)).size,10);
@@ -92,20 +95,19 @@ assert.ok(LINE_CONTRACTS.every(c=>c.recipe.length<=7&&c.recipe.every(n=>n>=2&&n<
 // Direct construction fixture: first route spans 3, with multiple contacts.
 function construction():SubwayState {
   const s=subwayGame.initialState(testRoom(4).players);
-  s.phase="CONSTRUCTION";s.priorityQueue=[];s.resolveQueue=[...s.playerOrder];s.currentPeriod=1;
+  s.phase="CONSTRUCTION";s.resolveQueue=[...s.playerOrder];s.currentPeriod=1;
   s.players["seat-1"].lines=[{contractId:"university",paid:6,start:1,route:[{x:0,y:0}]}];
   for(let i=2;i<=4;i++)s.players[`seat-${i}`].lines=[{contractId:"short",paid:5,start:1,route:[{x:i-1,y:0}]}];
   return s;
 }
 for(const count of [0,1,2,3]) assert.equal(activationCost(construction().players["seat-1"],count),[0,1,3,6][count]);
-// The displayed quote must agree with actual BUILD transfers, including subsidy
-// and already-negative balances. Quotes do not charge or consume an Access Pass.
-for (const cash of [10, 1, -2]) for (const accessPass of [false, true]) for (const hasContacts of [false, true]) {
+// The displayed quote must agree with actual BUILD transfers, including
+// already-negative balances. Quotes never mutate state.
+for (const cash of [10, 1, -2]) for (const hasContacts of [false, true]) {
   let s = construction();
   if (!hasContacts) for (const id of s.playerOrder.slice(1)) s.players[id].lines = [];
   s = dispatch(s, "seat-1", "HIRE_CREWS", {lineIndexes:[0], period:1});
   s.players["seat-1"].money = cash;
-  s.players["seat-1"].accessPass = accessPass;
   const before = structuredClone(s);
   const quote = quoteBuildCost(s.players["seat-1"], routeContacts(s, "seat-1", {x:0,y:0}, {x:3,y:0}));
   assert.deepEqual(s, before, "quoting cannot mutate the game");
@@ -116,13 +118,12 @@ for (const cash of [10, 1, -2]) for (const accessPass of [false, true]) for (con
   assert.equal(quote.debtPenalty, Math.min(0,built.players["seat-1"].money)*4);
   for (const id of s.playerOrder.slice(1)) assert.equal(quote.recipients.find(p=>p.ownerId===id)?.amount ?? 0, built.players[id].money - s.players[id].money);
   assert.equal(quote.totalToll, hasContacts ? 3 : 0);
-  assert.equal(built.players["seat-1"].accessPass, false, "free builds also consume Access Pass");
 }
 assert.deepEqual(quoteBuildCost({money:5}, [
   {ownerId:"one", key:"a", kind:"peg", x:1,y:0},
   {ownerId:"one", key:"b", kind:"crossing", x:2,y:0},
 ]).recipients, [{ownerId:"one", amount:2}], "multiple contacts aggregate per recipient");
-console.log("Build-cost previews: 12 reducer comparisons and recipient aggregation passed.");
+console.log("Build-cost previews: 6 reducer comparisons and recipient aggregation passed.");
 {
   let s=construction();const id="seat-1";
   assert.equal(dispatch(s,id,"BUILD",{lineIndex:0,x:3,y:0}),s,"hire first");
@@ -144,51 +145,6 @@ console.log("Build-cost previews: 12 reducer comparisons and recipient aggregati
   assert.equal(undo.telemetry.at(-2)?.action,"BUILD","Undo keeps the reverted build in the playtest ledger");
   assert.equal(undo.telemetry.at(-1)?.action,"UNDO_PLACEMENT");
   assert.equal(dispatch(before,id,"BUILD",{lineIndex:0,x:12,y:8}),before,"illegal target costs nothing");
-}
-{
-  let s=construction();const p=s.players["seat-1"];p.constructionHand=["grant","grant","relief","access","booking"];
-  s=dispatch(s,"seat-1","PLAY_CONSTRUCTION_CARD",{cardId:"relief",period:1});
-  assert.equal(activationCost(s.players["seat-1"],1),0);
-  assert.equal(activationCost(s.players["seat-1"],2),2);
-  assert.equal(activationCost(s.players["seat-1"],3),5);
-  assert.equal(dispatch(s,"seat-1","PLAY_CONSTRUCTION_CARD",{cardId:"grant",period:1}),s,"one card per round");
-  s=dispatch(s,"seat-1","HIRE_CREWS",{lineIndexes:[0],period:1});
-  assert.equal(s.players["seat-1"].money,50);
-}
-{
-  let s=construction();s.players["seat-1"].constructionHand=["booking"];
-  s=dispatch(s,"seat-1","PLAY_CONSTRUCTION_CARD",{cardId:"booking",period:1});
-  assert.equal(s.players["seat-1"].nextCrewDiscount,1);
-  for(const id of s.playerOrder)s=dispatch(s,id,"HIRE_CREWS",{lineIndexes:[],period:1});
-  assert.equal(s.currentPeriod,2);
-  assert.equal(s.players["seat-1"].crewDiscount,1);
-  assert.equal(s.players["seat-1"].money,50,"unused discount never pays cash");
-  for(const id of [...s.resolveQueue])s=dispatch(s,id,"HIRE_CREWS",{lineIndexes:[],period:2});
-  assert.equal(s.players["seat-1"].crewDiscount,0,"discount expires unused");
-}
-{
-  let s=construction();s.priorityQueue=["seat-2","seat-3"];
-  s.players["seat-2"].constructionHand=["expedite","grant"];s.players["seat-3"].constructionHand=["expedite"];
-  assert.equal(dispatch(s,"seat-1","HIRE_CREWS",{lineIndexes:[0],period:1}),s);
-  assert.equal(dispatch(s,"seat-3","PLAY_CONSTRUCTION_CARD",{cardId:"expedite",period:1}),s,"opening opportunities follow rotation");
-  s=dispatch(s,"seat-2","PLAY_CONSTRUCTION_CARD",{cardId:"expedite",period:1});
-  assert.equal(s.resolveQueue[0],"seat-2");
-  assert.deepEqual(s.priorityQueue,[]);
-  assert.equal(s.players["seat-2"].constructionCardThisPeriod,true);
-  assert.equal(dispatch(s,"seat-2","PLAY_CONSTRUCTION_CARD",{cardId:"grant",period:1}),s);
-  assert.equal(dispatch(s,"seat-3","PLAY_CONSTRUCTION_CARD",{cardId:"expedite",period:1}),s);
-  assert.deepEqual(s.players["seat-3"].constructionHand,["expedite"],"second priority card not consumed");
-}
-{
-  let s=construction();s.players["seat-1"].constructionHand=["access"];
-  s=dispatch(s,"seat-1","HIRE_CREWS",{lineIndexes:[0],period:1});
-  s=dispatch(s,"seat-1","PLAY_CONSTRUCTION_CARD",{cardId:"access",period:1});
-  s=dispatch(s,"seat-1","BUILD",{lineIndex:0,x:3,y:0});
-  assert.equal(s.players["seat-1"].money,49);
-  assert.equal(s.players["seat-2"].money,51);
-  const undo=dispatch(s,"seat-1","UNDO_PLACEMENT");
-  assert.equal(undo.players["seat-1"].accessPass,true);
-  assert.equal(undo.players["seat-2"].money,50);
 }
 {
   let s=construction();s.players["seat-1"].money=0;
@@ -243,7 +199,7 @@ for(const count of [2,3,4]){
   assert.ok(finished>0,"simulation must exercise actual route completions");
   summary.push({players:count,games:12,averageFinished:finished/(count*12),debtCompanies:debt,lowestCash:lowest});
 }
-console.log("Draft, crew billing, cards, priority, toll/undo, debt, scoring and 220 portfolio economy checks passed.",checks);
+console.log("Draft, crew billing, fixed priority, toll/undo, debt, scoring and 220 portfolio economy checks passed.",checks);
 console.log(JSON.stringify(summary));
 console.log("36 complete 2/3/4-player simulations reached RESULTS.");
 

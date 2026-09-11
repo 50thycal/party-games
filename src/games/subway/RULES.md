@@ -26,7 +26,7 @@ row after each purchase while the deck lasts. Every player must take one per tur
 
 The Engineering pile contains **one copy of each of 16 goals**. Each player drafts
 three goals. Show two face-up goals, refilling after each pick, or draw blind.
-Destinations and Construction cards are not part of this draft.
+Destination missions are not part of this draft.
 
 Pick order alternates forward and reverse each draft round. Rotate the opening
 seat between route and card drafts. Snake turnarounds may give consecutive picks;
@@ -131,11 +131,8 @@ on that hole at scoring.
 
 ## Construction rounds
 
-At each round's beginning, normal starting priority rotates one company.
-Companies holding Priority Dispatch get an opening opportunity in that order:
-play it or keep it. The first claimant takes first turn and closes the window.
-Other players keep their cards. Priority Dispatch uses that company's one-card
-allowance for this round. If nobody claims, normal order applies.
+At each round's beginning, starting priority rotates one company. Companies act
+once in that fixed order for the round.
 
 On your turn, optionally buy your extra Destination mission, then choose zero to three different
 unfinished, buildable routes and hire their crews:
@@ -157,30 +154,6 @@ Construction ends after round 9, or immediately after a placement leaves no
 legal next segment on any incomplete route. Empty rounds are never played. A
 blocked or skipped placement does not refund its hired crew. Normal placement
 legality remains unchanged.
-
-## Construction cards (retained ability rules)
-
-The new Engineering-only draft does not supply Construction cards. They are not
-dealt or purchased in this edition. Their reducer mechanics remain for isolated
-fixtures and a future supply/design decision; no new dealing rule is implied.
-
-
-Play **at most one card per company per round**, discarded when played. Priority
-Dispatch is the only opening-window exception; all other cards are played during
-your own turn at their printed timing. Cards cannot be played during drafting.
-
-| Card | Effect | Timing |
-|---|---|---|
-| Advance Booking | Reserve $1M off your crew bill next round. Expires unused; never pays cash. Unavailable in the final round. | Before hiring |
-| Relief Crew | Waive the first crew's $1M this turn: totals $0M / $2M / $5M for 1 / 2 / 3 crews. | Before hiring |
-| Priority Dispatch | Take first turn this round; other potential claimants keep their cards. | Opening window |
-| City Grant | Receive $3M, including to repay debt. | Before hiring |
-| Access Pass | City pays all contact tolls on your next segment this turn. Route owners still receive payment. | After hiring, before building |
-
-A reserved Advance Booking discount can combine with a Relief Crew played next
-round, but never reduce a bill below zero. A discount expires if you hire no crews.
-Old timetable shifts and extra-build Construction effects have been replaced by
-this five-card ability set.
 
 ## Placement and contact rules
 
@@ -208,8 +181,7 @@ at the end costs **−4 VP**.
 
 Each Confirm consumes one hired action. Undo restores the latest physical placement,
 its toll transfers and pending action, until another accepted action occurs.
-It does **not** refund the crew-hiring transaction. A restored Access Pass can
-cover that restored placement again; the already-played card stays spent.
+It does **not** refund the crew-hiring transaction.
 
 ## Scoring and the table
 

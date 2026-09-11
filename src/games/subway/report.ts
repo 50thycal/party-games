@@ -116,7 +116,6 @@ export function generateAiPlaytestReport(game: SubwayState, context: SubwayRepor
       "### Cards and resources",
       "",
       `- Engineering and Destination cards held: ${p.engineeringHand.length + p.destinationHand.length ? [...p.engineeringHand, ...p.destinationHand].map(cardName).join("; ") : "None"}`,
-      `- Construction cards unused: ${p.constructionHand.length ? p.constructionHand.join("; ") : "None"}`,
       `- Survey Pins: ${p.surveysPurchased} purchased; ${game.surveyPins.filter((pin) => pin.playerId === p.id).length} placed`,
       "",
       "### Score sources",

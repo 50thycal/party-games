@@ -11,9 +11,8 @@ export function CrewBoard({game,viewerId,busy,veiled,act}:{game:SubwayState;view
   const [historyPlayer,setHistoryPlayer]=useState<string|null>(null);
   const history=constructionHistory(game,historyRound);
   const p=game.players[viewerId];
-  const priority=game.priorityQueue[0];
-  const actor=priority??game.resolveQueue[0];
-  const hiring=game.phase==="CONSTRUCTION"&&!priority&&actor===viewerId&&!p?.crewsHired;
+  const actor=game.resolveQueue[0];
+  const hiring=game.phase==="CONSTRUCTION"&&actor===viewerId&&!p?.crewsHired;
   const available=p?buildableLines(game,viewerId):[];
   const indexes=selected.filter(i=>available.includes(i));
   const cost=p?activationCost(p,indexes.length):0;
@@ -21,11 +20,8 @@ export function CrewBoard({game,viewerId,busy,veiled,act}:{game:SubwayState;view
     <div className="grid grid-cols-[640px_1fr] items-start gap-8">
     <div data-turn-controls={game.phase === "CONSTRUCTION" ? "true" : undefined}>
     {game.phase!=="CONSTRUCTION"?<p className="mt-3 text-xl">Choose routes afresh each construction round. There is no advance timetable.</p>:<>
-      <p className="mt-3 text-2xl font-bold">{game.players[actor]?.name}: {priority?"Priority Dispatch opportunity":hiring?"choose your crews":"construction turn"}</p>
+      <p className="mt-3 text-2xl font-bold">{game.players[actor]?.name}: {hiring?"choose your crews":"construction turn"}</p>
       {p&&!veiled&&<>
-        {!!p.nextCrewDiscount&&<p className="mt-2 text-xl font-bold text-teal-800">Next round: $1M crew discount reserved.</p>}
-        {!!p.crewDiscount&&!p.crewsHired&&<p className="mt-2 text-xl font-bold text-teal-800">This round: ${p.crewDiscount}M off your crew bill. Expires unused.</p>}
-        {priority===viewerId&&<div className="mt-4 grid grid-cols-2 gap-4"><TableButton disabled={busy} onClick={()=>act("PLAY_CONSTRUCTION_CARD",{cardId:"expedite",period:game.currentPeriod})}>Play Priority Dispatch</TableButton><TableButton disabled={busy} onClick={()=>act("PASS_PRIORITY",{period:game.currentPeriod})}>Keep card · pass priority</TableButton></div>}
         {hiring&&<div className="mt-4 space-y-4">
           {!p.destinationPurchased && <div>
             <TableButton disabled={busy || p.money < SUBWAY_CONFIG.destinationPurchaseCost || !game.destinationDeck.length} onClick={() => act("BUY_DESTINATION", {period:game.currentPeriod})}>Buy Destination · $5M</TableButton>
@@ -35,7 +31,7 @@ export function CrewBoard({game,viewerId,busy,veiled,act}:{game:SubwayState;view
           <p className="text-xl">Hire {indexes.length} crew(s): <b>${cost}M</b> · Cash afterward: <b>${p.money-cost}M</b>{p.money-cost<0&&<strong className="ml-4 text-red-700">Final debt penalty at this balance: {(p.money-cost)*4} VP</strong>}</p>
           <TableButton disabled={busy} onClick={()=>act("HIRE_CREWS",{lineIndexes:indexes,period:game.currentPeriod})}>{indexes.length?`Pay $${cost}M & build` : "No crews · end turn"}</TableButton>
         </div>}
-        {!priority&&actor===viewerId&&p.crewsHired&&p.pendingActions.length>0&&<div className="mt-4">
+        {actor===viewerId&&p.crewsHired&&p.pendingActions.length>0&&<div className="mt-4">
           <TableButton disabled={busy} onClick={()=>act("SKIP_ACTION")}>Give up remaining builds</TableButton>
         </div>}
         {game.undo?.playerId===viewerId&&<div className="mt-4">
@@ -48,7 +44,7 @@ export function CrewBoard({game,viewerId,busy,veiled,act}:{game:SubwayState;view
     <div className="border-l-2 border-stone-300 pl-8">
     <p className="mb-3 text-lg">Longest continuous company network: +5 VP, or +3 each if tied. Peg-space length; transfers at shared pegs/stations, no segment twice.</p>
     <div className="flex flex-wrap gap-2" aria-label="Construction rounds">{Array.from({length:SUBWAY_CONFIG.timelinePeriods},(_,i)=><button key={i} aria-label={`View round ${i+1}`} aria-pressed={historyRound===i+1} onClick={()=>setHistoryRound(i+1)} className={`rounded px-3 py-2 text-xl font-bold ${historyRound===i+1?"bg-teal-700 text-white":"bg-stone-200"}`}>{i+1}</button>)}</div>
-    <p className="mt-3 text-lg">Round {historyRound} · {historyRound>game.currentPeriod?"Projected order (Priority Dispatch can change it)":"Construction order"}</p>
+    <p className="mt-3 text-lg">Round {historyRound} · {historyRound>game.currentPeriod?"Projected construction order":"Construction order"}</p>
     <div className="mt-3 grid grid-cols-2 items-start gap-3">{history.order.map((id,rank)=>{
       const company=game.players[id];
       const builds=history.builds.filter(b=>b.actorId===id);

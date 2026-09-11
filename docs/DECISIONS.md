@@ -1513,3 +1513,26 @@ Alternatives considered: the owner chose exact borders over nearest-side regions
 company connections over single-line destinations, and economy levers before a
 larger construction redesign. This supersedes DEC-027's mixed six-card draft and
 previous easy objective/route bonus rules.
+
+### DEC-040 — Remove Construction cards from Subway
+
+Date: 2026-09-11. Status: owner-authorized; implementation review pending.
+
+The owner removed Construction cards from the current game to reduce rules and
+interface complexity. Subway no longer has a Construction deck or hand, card-play
+action, per-round card allowance, Priority Dispatch window, crew discounts, City
+Grant, or Access Pass toll subsidy. Construction begins each round in the normal
+rotating order and proceeds directly to crew selection. Scheduling cards remain a
+separate existing system.
+
+State version 15 and the hotseat save key prevent older rooms, device saves and
+saved ghost plans from adopting the smaller state shape. The unused Construction
+sprite and card UI are removed, and post-game telemetry no longer reports a
+Construction hand. Historical decisions remain as records of earlier editions;
+this decision supersedes their current Construction-card rules.
+
+Consequences: every crew uses the standard $0M/$1M/$3M/$6M bill and every contact
+toll is paid by the building company. The effects can be redesigned and reintroduced
+later through a new owner decision. Alternatives considered: retaining unreachable
+mechanics for a future supply rule was rejected because it preserved design and
+maintenance complexity without contributing to play.

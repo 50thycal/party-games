@@ -163,7 +163,6 @@ export function ContractCard({
 
 const FAMILY_CHROME: Record<string, { tag: string; border: string; accent: string }> = {
   scheduling: { tag: "Scheduling", border: "border-sky-700", accent: "bg-sky-800 text-sky-50" },
-  construction: { tag: "Construction", border: "border-amber-700", accent: "bg-amber-700 text-amber-50" },
 };
 
 export function MiniCardFace({
@@ -174,7 +173,7 @@ export function MiniCardFace({
   onClick,
   compact,
 }: {
-  family: "scheduling" | "construction";
+  family: "scheduling";
   name: string;
   description: string;
   /** Current-state line, e.g. "Played" or "In hand". */

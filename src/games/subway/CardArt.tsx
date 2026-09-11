@@ -287,9 +287,3 @@ export function DestinationCardFace({
     </button>
   );
 }
-
-/** One illustrated face per live Construction card, cropped from the printed sheet. */
-export function ConstructionArt({card}:{card:string}) {
-  const index:Record<string,number>={booking:0,relief:1,expedite:2,grant:3,access:4};
-  return <div aria-hidden="true" className="mb-3 w-full rounded-lg" style={{aspectRatio:"4 / 5",backgroundImage:"url(/subway/construction-cards.png)",backgroundSize:"500% 136%",backgroundPosition:`${(index[card]??1)*25}% center`}} />;
-}

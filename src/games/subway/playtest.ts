@@ -67,20 +67,15 @@ export function playtestAction(s: SubwayState, random: () => number): SubwayActi
       return action("PLACE_STARTER",{lineIndex,...target});
     }
     case "CONSTRUCTION": {
-      if(s.priorityQueue.length) return action("PASS_PRIORITY",{period:s.currentPeriod});
       if(!me.crewsHired) {
-        if(!me.constructionCardThisPeriod && me.constructionHand.includes("grant")) return action("PLAY_CONSTRUCTION_CARD",{cardId:"grant",period:s.currentPeriod});
         const available=buildableLines(s,playerId).sort((a,b)=>lineActionsRemaining(me.lines[b])-lineActionsRemaining(me.lines[a]));
         const total=me.lines.reduce((n,l)=>n+lineActionsRemaining(l),0);
         const count=Math.min(3,Math.max(1,Math.ceil(total/(SUBWAY_CONFIG.timelinePeriods + 1 - s.currentPeriod))));
-        if(!me.constructionCardThisPeriod && available.length && me.constructionHand.includes("relief")) return action("PLAY_CONSTRUCTION_CARD",{cardId:"relief",period:s.currentPeriod});
         return action("HIRE_CREWS",{lineIndexes:available.slice(0,count),period:s.currentPeriod});
       }
       const lineIndex=me.pendingActions[0];
       const target=bestTarget(s,playerId,lineIndex,false,random);
       if(!target) return action("SKIP_ACTION",{lineIndex});
-      const from=me.lines[lineIndex].route.at(-1)!;
-      if(!me.constructionCardThisPeriod && !me.accessPass && me.constructionHand.includes("access") && routeContacts(s,playerId,from,target).length) return action("PLAY_CONSTRUCTION_CARD",{cardId:"access",period:s.currentPeriod});
       return action("BUILD",{lineIndex,...target});
     }
     case "SCORING": return action("ADVANCE_SCORING");

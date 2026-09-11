@@ -78,7 +78,6 @@ const base = () => {
     p.crewsHired = true; // Geometry fixtures begin after crew activation.
     p.engineeringHand = ["straight","bend","network","terminal","crossing"];
     p.schedulingHand = ["early","float","priority"];
-    p.constructionHand = ["overtime","surge","grant","access"];
   }
   return s;
 };
@@ -121,7 +120,7 @@ function runCardDraft(state: SubwayState): SubwayState {
     const p = s.players[id];
     const wanted = ["straight","bend","terminal","network","crossing"][p.engineeringHand.length];
     if(wanted) s.market.decks!.engineering = [wanted, ...s.market.decks!.engineering];
-    s = dispatch(s,id,"DRAFT_CARD",{deck:wanted ? "engineering" : "construction",expectedPick:s.market.picks});
+    s = dispatch(s,id,"DRAFT_CARD",{deck:"engineering",expectedPick:s.market.picks});
   }
   return s;
 }

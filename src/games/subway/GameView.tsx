@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { CrewBoard } from "./CrewBoard";
-import { constructionCardBlocker, objectiveMet } from "./config";
+import { objectiveMet } from "./config";
 import { lessonForPhase } from "./tutorial";
 import type { GameViewProps } from "@/games/views";
 import { DestinationCardFace, EngineeringCardFace } from "./CardArt";
@@ -40,7 +40,6 @@ import {
   cardDraftBlocker,
   cardDraftTurnId,
   draftPicks,
-  constructionById,
   contestedPeriods,
   contractById,
   contractNodes,
@@ -68,7 +67,6 @@ import {
   surveysPending,
   validateNode,
   type CardDeckId,
-  type ConstructionCardId,
   type PlacementTarget,
   type PlayerLine,
   type Point,
@@ -209,10 +207,10 @@ function statusFor(game: SubwayState, me: SubwayPlayer | undefined, isHost: bool
       };
     }
     case "CONSTRUCTION": {
-      const actorId = game.priorityQueue[0] ?? game.resolveQueue[0];
+      const actorId = game.resolveQueue[0];
       if (actorId === me.id) {
         return {
-          headline: game.priorityQueue.length ? "Use Priority Dispatch or keep your card." : !me.crewsHired ? "Choose crews at Construction schedule." : `Round ${game.currentPeriod} — your build.`,
+          headline: !me.crewsHired ? "Choose crews at Construction schedule." : `Round ${game.currentPeriod} — your build.`,
           tone: "act",
           detail:
             me.pendingActions.length > 1
@@ -873,15 +871,6 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     return undefined;
   };
 
-  const constructionReason = (id: ConstructionCardId) => constructionCardBlocker(game, playerId, id);
-
-  const constructionTargets = (id: ConstructionCardId): number[] =>
-    !me
-      ? []
-      : id === "overtime"
-        ? Array.from(new Set(me.pendingActions))
-        : me.lines.map((_, i) => i).filter((i) => !me.pendingActions.includes(i) && !lineComplete(me.lines[i]));
-
   /** A row of choices as real buttons. Native <select> menus draw outside the
    *  dialog, so picking one reads as a click on the backdrop and closes the
    *  card before the choice lands — and they are poor targets on touch. */
@@ -943,13 +932,6 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
         })
       : null;
 
-  const quickCard = (id: ConstructionCardId) => {
-    const why = constructionReason(id);
-    if (why || busy || veiled) { if (why) setNotice(why); return; }
-    if (id === "overtime" || id === "surge") { setFocus({family:"construction", id, slot:"hand"}); return; }
-    act("PLAY_CONSTRUCTION_CARD", {cardId:id, period:game.currentPeriod});
-  };
-
   const focusPanel = (() => {
     if (!focus || !me) return null;
     const close = () => setFocus(null);
@@ -984,11 +966,11 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     }
 
     if (focus.family === "market") {
-      const card = focus.cardId ? focus.id === "engineering" ? (engineeringById(focus.cardId) ?? destinationById(focus.cardId)) : focus.id === "scheduling" ? schedulingById(focus.cardId as SchedulingCardId) : constructionById(focus.cardId as ConstructionCardId) : undefined;
+      const card = focus.cardId ? focus.id === "engineering" ? (engineeringById(focus.cardId) ?? destinationById(focus.cardId)) : schedulingById(focus.cardId as SchedulingCardId) : undefined;
       const why = cardDraftBlocker(game, me.id, focus.id, focus.cardId);
       const available = focus.cardId ? game.market.rows[focus.id].includes(focus.cardId) : game.market.decks[focus.id].length > 0;
       return <CardFocus title={card?.name ?? `Blind ${focus.id} draw`} onClose={close}
-        face={focus.id === "engineering" && focus.cardId ? (destinationById(focus.cardId) ? <DestinationCardFace card={focus.cardId} color={me.color}/> : <EngineeringCardFace card={focus.cardId} color={me.color}/>) : <MiniCardFace family={focus.id === "construction" ? "construction" : "scheduling"} name={card?.name ?? "Mystery card"} description={card?.description ?? `Draw one random ${focus.id} card. Engineering draws always give a goal you do not already hold.`} note={focus.cardId ? "Face-up draft" : "Blind draw"}/>}
+        face={focus.id === "engineering" && focus.cardId ? (destinationById(focus.cardId) ? <DestinationCardFace card={focus.cardId} color={me.color}/> : <EngineeringCardFace card={focus.cardId} color={me.color}/>) : <MiniCardFace family="scheduling" name={card?.name ?? "Mystery card"} description={card?.description ?? `Draw one random ${focus.id} card. Engineering draws always give a goal you do not already hold.`} note={focus.cardId ? "Face-up draft" : "Blind draw"}/>}
         note={`${draftPicks(me)}/3 picks used. Draft three Engineering goals. Your Destination missions are separate.`}
         reason={why ?? (!available ? "That card or blind pile is no longer available." : undefined)}
         actions={[{label:card ? "Draft this card" : "Draw a random card", disabled:busy || !!why || !available,
@@ -1099,39 +1081,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       );
     }
 
-    // Construction card
-    const card = constructionById(focus.id);
-    if (!card) return null;
-    const why = constructionReason(focus.id);
-    const options = constructionTargets(focus.id);
-    return (
-      <CardFocus
-        title={card.name}
-        onClose={close}
-        face={<MiniCardFace family="construction" name={card.name} description={card.description} note="Construction card" />}
-        note="One Construction card per round, including Priority Dispatch. The card is discarded when played."
-        reason={why}
-        extra={!why && (focus.id === "overtime" || focus.id === "surge") ? lineChoice(cardLine, setCardLine, options) : undefined}
-        actions={[
-          {
-            label: `Play ${card.name}`,
-            tone: "warn",
-            disabled: busy || !!why,
-            reason: why,
-            run: () =>
-              playWithFlight(card.name, "#b45309", "board", () =>
-                act("PLAY_CONSTRUCTION_CARD", {
-                  cardId: focus.id,
-                  period: game.currentPeriod,
-                  ...(!["overtime", "surge"].includes(focus.id)
-                    ? {}
-                    : { lineIndex: options.includes(cardLine) ? cardLine : options[0] }),
-                })
-              ),
-          },
-        ]}
-      />
-    );
+    return null;
   })();
 
   // ---- The screen-level strip: the only commitment control -------------------
@@ -1446,7 +1396,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
               onOpenPlanner={openPlanner}
               onSelectLine={(i) => setSelectedLine(i)}
               selectableLines={myBuild && !veiled}
-              onOpenCard={(ref) => ref.family === "construction" ? quickCard(ref.id) : setFocus(ref)}
+              onOpenCard={setFocus}
             >
               {engineeringSlip}
             </PlayerTabletop>

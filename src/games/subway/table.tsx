@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { DestinationCardFace, EngineeringCardFace, ConstructionArt } from "./CardArt";
+import { DestinationCardFace, EngineeringCardFace } from "./CardArt";
 import { money, ContractCard } from "./cards";
 import {
   SUBWAY_CONFIG,
@@ -11,8 +11,6 @@ import {
   blockPeriods,
   committedStatus,
   concurrentBlocks,
-  constructionById,
-  constructionCardBlocker,
   cardDraftBlocker,
   contractActions,
   contractById,
@@ -35,7 +33,6 @@ import {
   stationById,
   surveyFulfilled,
   type CardDeckId,
-  type ConstructionCardId,
   type LineContract,
   type PlayerLine,
   type SchedulingCardId,
@@ -338,7 +335,6 @@ export function OpponentEdge({
         </span>
         <div className="ml-auto flex flex-wrap items-center gap-x-[34px] gap-y-[14px]">
           <Backs label="Engineering" count={opponent.engineeringHand.length} tone="bg-amber-700" />
-          <Backs label="Construction" count={opponent.constructionHand.length} tone="bg-orange-800" />
         </div>
       </div>
 
@@ -697,9 +693,9 @@ export function ContractOffice({
             <div key={deck} className="rounded-[12px] border-[2px] border-stone-300 p-[10px]">
               <p className="text-[19px] font-bold capitalize">{deck}</p>
               <div className="grid grid-cols-2 gap-[12px]">{(game.market.rows?.[deck] ?? []).map((id, slot) => {
-                const c = deck === "engineering" ? (engineeringById(id) ?? destinationById(id)) : deck === "scheduling" ? schedulingById(id as SchedulingCardId) : constructionById(id as ConstructionCardId);
+                const c = deck === "engineering" ? (engineeringById(id) ?? destinationById(id)) : schedulingById(id as SchedulingCardId);
                 return <div key={`${id}-${slot}`} className="mt-[12px] rounded-[14px] border-2 border-amber-800/40 bg-[#fffaf0] p-[8px] shadow-lg [&_strong]:text-[20px] [&_p]:text-[18px] [&_span]:text-[16px]">
-                  {deck === "engineering" ? (destinationById(id) ? <DestinationCardFace card={id} color={me?.color ?? "#334155"}/> : <EngineeringCardFace card={id} color={me?.color ?? "#334155"}/>) : <><ConstructionArt card={id} /><b className="text-[24px]">{c?.name}</b><p className="text-[20px]">{c?.description}</p></>}
+                  {deck === "engineering" ? (destinationById(id) ? <DestinationCardFace card={id} color={me?.color ?? "#334155"}/> : <EngineeringCardFace card={id} color={me?.color ?? "#334155"}/>) : <><b className="text-[24px]">{c?.name}</b><p className="text-[20px]">{c?.description}</p></>}
                   <button disabled={busy || veiled || !me || !!cardDraftBlocker(game, me.id, deck, id)} onClick={() => onOpenMarket(deck, id)} className="mt-[10px] min-h-[74px] w-full rounded-lg bg-teal-800 p-[12px] text-[22px] font-bold text-white disabled:opacity-45">Draft {c?.name} →</button>
                 </div>;
               })}</div>
@@ -1047,22 +1043,6 @@ function PinSupply({ game, me }: { game: SubwayState; me: SubwayPlayer }) {
 
 export type PlanChip = { saved: boolean; stale: boolean };
 
-/** Read the effect, then play on the card itself; panning the face never spends it. */
-export function ConstructionPiece({ game, playerId, id, busy, onPlay }: {
-  game: SubwayState; playerId: string; id: ConstructionCardId; busy: boolean;
-  onPlay: (id: ConstructionCardId) => void;
-}) {
-  const card = constructionById(id);
-  const reason = constructionCardBlocker(game, playerId, id);
-  return <article className="w-[300px] rounded-[18px] border-[4px] border-amber-700 bg-[#fffaf0] p-[16px] text-left shadow-lg">
-    <ConstructionArt card={id} />
-    <b className="text-[24px] leading-tight">{card?.name}</b>
-    <p className="mt-[10px] text-[20px] leading-snug text-stone-700">{card?.description}</p>
-    <button disabled={busy || !!reason} onClick={() => onPlay(id)} className="mt-[12px] min-h-[74px] w-full rounded-lg bg-teal-800 p-[12px] text-[22px] font-bold text-white disabled:opacity-45">Play {card?.name}</button>
-    <p className="mt-[8px] text-[18px] text-stone-600">{reason ?? "Uses your one card this round."}</p>
-  </article>;
-}
-
 export function PlayerTabletop({
   game,
   me,
@@ -1200,8 +1180,8 @@ export function PlayerTabletop({
           </Printed>
         )}
 
-        {!veiled && (me.schedulingHand.length > 0 || me.constructionHand.length > 0) && (
-          <Printed title="Action cards" tone="slip" style={{width:Math.max(660,(me.schedulingHand.length + me.constructionHand.length) * 378 + 48)}}>
+        {!veiled && me.schedulingHand.length > 0 && (
+          <Printed title="Action cards" tone="slip" style={{width:Math.max(660,me.schedulingHand.length * 378 + 48)}}>
             <div data-card-row="construction" className="flex flex-nowrap items-start gap-[18px] [&>*]:shrink-0">
               {me.schedulingHand.map((id, i) => (
                 <button
@@ -1220,9 +1200,6 @@ export function PlayerTabletop({
                     {schedulingById(id as SchedulingCardId)?.description}
                   </p>
                 </button>
-              ))}
-              {me.constructionHand.map((id, i) => (
-                <ConstructionPiece key={`x-${id}-${i}`} game={game} playerId={me.id} id={id} busy={busy} onPlay={() => onOpenCard({family:"construction",id,slot:"hand"})}/>
               ))}
             </div>
             {me.schedulingCardPlayed && (
@@ -1246,7 +1223,6 @@ export type FocusRef =
   | { family: "engineering"; id: string; slot: "hand" | "committed" }
   | { family: "destination"; id: string; slot: "hand" | "committed" | "row"; lineIndex?: number }
   | { family: "scheduling"; id: SchedulingCardId; slot: "hand" }
-  | { family: "construction"; id: ConstructionCardId; slot: "hand" }
   | { family: "contract"; id: string; price?: number }
   | { family: "market"; id: CardDeckId; cardId?: string };
 

@@ -427,18 +427,16 @@ game. This file is the current source of truth for architecture; `docs/DECISIONS
 
 Subway has 2–4 companies, exactly three selected contracts each from twelve, and ten
 stations. Shared pure reducer helpers own the full-seat draft/placement rotation,
-rotating construction queue and owner-specific contact payments. Access Pass covers
-the next build this period; undo restores the allowance and every recipient balance.
+rotating construction queue and owner-specific contact payments. Undo restores
+every recipient balance.
 Each company starts with $50M and chooses zero to three unfinished routes each turn
 over nine construction rounds. Crew bills are $0/$1/$3/$6M, paid before building one
 segment on each chosen route. No advance timetable or shelving phase exists.
-Final debt costs four VP per $1M. CrewBoard renders dispatch and delegates all
-billing, discounts and card timing to the reducer. An opening Priority Dispatch
-queue resolves before hiring; claiming first consumes that player's one card for
-the round. Other cards are played on the owner's construction turn. Placement Undo
-refunds placement tolls but retains the already-paid crew bill.
+Final debt costs four VP per $1M. CrewBoard renders crew selection and round
+history while the reducer owns billing, turn order and placement authority.
+Placement Undo refunds placement tolls but retains the already-paid crew bill.
 
-`/subway` stores a versioned local session under `subway-hotseat-v12`. It is separate
+`/subway` stores a versioned local session under `subway-hotseat-v15`. It is separate
 from network rooms and uses no server authority; same-device social play is the only
 intended mode. Storage errors show a keep-tab-open warning. `/test/subway` creates
 isolated scenarios through real reducer actions, rendering the same GameView inside
@@ -457,13 +455,12 @@ unfinished routes can contribute. One extra random mission costs $5M before hiri
 on the owner's construction turn, once per game, with reducer-enforced affordability,
 phase/actor/period guards. Public events disclose the purchase but not the mission.
 The post-game telemetry export includes destination identities and purchase flags.
-Construction cards are no longer drafted; no new supply is introduced in this pass.
-Their existing abilities remain implemented and tested in isolated fixtures.
+Construction cards and their special timing/economy effects have been removed.
 
 Shared snake-order helpers rotate opening seats between stages. Stale card-pick
 tokens and duplicate goals are rejected. BUY_SURVEYS follows drafting, then optional
 pin placement and all three route starters. There is no commitment or assignment.
-Legacy schedule/commitment types and dormant helpers remain unreachable in v14.
+Legacy schedule/commitment types and dormant helpers remain unreachable in v15.
 
 `network.ts` provides own-node connectivity and longest edge-simple trails. Shared
 station IDs join dock slots; identical normal route nodes transfer; raw intersections
@@ -477,7 +474,7 @@ Contracts keep stable internal IDs, recipes and prices, but display twelve color
 names with unique two-letter codes. Two-player stations have one minor/two major
 docks, compared with two/three for 3–4 players. Placed and planned station nodes
 retain `stationCapacity` so physical geometry matches the state's dock layout.
-State version 14 requires restart for old rooms/saves and isolates old local plans.
+State version 15 requires restart for old rooms/saves and isolates old local plans.
 
 The isolated `/subway/tutorial` route prepares lesson snapshots through the legal
 playtest driver. It controls the real GameView with optional camera lesson props;
@@ -488,7 +485,7 @@ hotseat save. Real games link to phase-specific lessons in a separate tab.
 
 Placement uses Save ghost and Confirm peg with the committed-route build guide. Selecting a pending real peg immediately shows bright yellow legal ghost targets; tapping an unbuilt peg removes it and its tail so a replacement can be selected directly. Confirm commits only the pending real step. The owner removed the Next hole/Plan tools controls, coordinates, legend and build-cost receipt; quoteBuildCost and its reducer-comparison tests remain available, but GameView no longer renders the receipt. BUILD still calculates legality and transfers at confirmation.
 
-Construction schedule is centered above the pegboard and contains order/hiring/history controls without duplicated hand cards. Its wide tabletop layout places crew controls beside round history, with companies in two columns. Engineering, Destination and any retained Construction hands each occupy a horizontal row in the same zoomable tabletop; Cards focuses the first card at a usable zoom. Contract office and Market navigation exist only during route procurement and card drafting.
+Construction schedule is centered above the pegboard and contains order/hiring/history controls without duplicated hand cards. Its wide tabletop layout places crew controls beside round history, with companies in two columns. Engineering and Destination hands each occupy a horizontal row in the same zoomable tabletop; Cards focuses the first card at a usable zoom. Contract office and Market navigation exist only during route procurement and card drafting.
 
 Undo step reverses one unconfirmed sketch node, preserving the committed prefix and recalculating the pending real target. It changes the working sketch only; Save ghost persists revisions. Committed-placement Undo remains a separate reducer action. On a later turn, a valid saved ghost is restored as guidance only: there is no pending real peg and Confirm remains disabled until the player taps a legal target. Tapping the first saved ghost peg follows the stored route; choosing another legal peg replaces the unbuilt sketch from that point. The bottom controls have opaque backing and a measured gap, and camera bounds allow roughly 60% of a viewport of pan buffer around the table so edge cards can reach the unobscured centre at any zoom.
 
@@ -498,8 +495,8 @@ Automatic framing also follows completed company handoffs and new construction r
 
 All devices use TabletopCanvas: board, illustrated card faces and company pieces share one locally zoomable/pannable world. Phone overlays are limited to camera shortcuts and current placement controls. GameView owns targets, validation, pending peg, sketches and reducer dispatch. Settings contains public logbook entries; results also have a readable screen sheet and report text/download fallback. No state-version migration is required: presentation and previews are client-local.
 
-Active starter/build contexts automatically open a line-locked planner. A fresh tap creates the solid pending real placement; the remaining tail is pale and dashed. Explicit Plan permits choosing another owned line. Save ghost persists a full intended route through plans.ts, keyed by state version, room, player and contract; the in-session cache also retains saves across turns if browser storage fails. preparePlan reconciles stored intent against real construction but never supplies a pending live peg. Diverged plans remain visible and labeled until revised or cleared. Confirm revalidates and dispatches exactly one player-selected placement; saved or unsaved tails never enter a reducer payload. Hotseat veils hide private sketches and saved routes. All 14 Engineering goals and 10 Destinations have themed illustration panels, while exact rules and diagrams remain code-rendered.
+Active starter/build contexts automatically open a line-locked planner. A fresh tap creates the solid pending real placement; the remaining tail is pale and dashed. Explicit Plan permits choosing another owned line. Save ghost persists a full intended route through plans.ts, keyed by state version, room, player and contract; the in-session cache also retains saves across turns if browser storage fails. preparePlan reconciles stored intent against real construction but never supplies a pending live peg. Diverged plans remain visible and labeled until revised or cleared. Confirm revalidates and dispatches exactly one player-selected placement; saved or unsaved tails never enter a reducer payload. Hotseat veils hide private sketches and saved routes. All 16 Engineering goals and Destination missions have themed illustration panels, while exact rules and diagrams remain code-rendered.
 
-Subway touch/table continuation: the camera adds reduced-motion-aware momentum after drag, with new-touch cancellation and scoped WebKit selection/callout suppression. Opponent panels begin collapsed and company plaques have bounded widths. Construction schedule presents selected-round order and per-line build/Undo facts through constructionHistory, projecting only public fields from telemetry. Survey placement is reducer-restricted to interior non-station holes; existing border pins in saved games are not deleted. Five live Construction card illustrations share one sprite asset. No persisted-state shape changes.
+Subway touch/table continuation: the camera adds reduced-motion-aware momentum after drag, with new-touch cancellation and scoped WebKit selection/callout suppression. Opponent panels begin collapsed and company plaques have bounded widths. Construction schedule presents selected-round order and per-line build/Undo facts through constructionHistory, projecting only public fields from telemetry. Survey placement is reducer-restricted to interior non-station holes; existing border pins in saved games are not deleted.
 
-Ordinary route purchases dispatch directly from a priced button on the offer. Card drafting and the shared ConstructionPiece show disabled availability on the face; current Engineering goals are readable inline. GameView serializes pending UI dispatches and reports rejected actions in its status strip. Planner context alone initializes automatic planning, including React's mount-effect replay; loading saved plans does not reset it. Hiring and subsequent active routes focus the pegboard. Target navigation respects the measured HUD bands. The camera opens the first hand/line piece, the survey slip, or current construction controls at a consistent working zoom. Construction history follows the current actions in visual and keyboard order. Results wrap for narrow screens and put the score breakdown before report export (DEC-033).
+Ordinary route purchases dispatch directly from a priced button on the offer. Card drafting shows disabled availability on the face; current Engineering goals are readable inline. GameView serializes pending UI dispatches and reports rejected actions in its status strip. Planner context alone initializes automatic planning, including React's mount-effect replay; loading saved plans does not reset it. Hiring and subsequent active routes focus the pegboard. Target navigation respects the measured HUD bands. The camera opens the first hand/line piece, the survey slip, or current construction controls at a consistent working zoom. Construction history follows the current actions in visual and keyboard order. Results wrap for narrow screens and put the score breakdown before report export (DEC-033).

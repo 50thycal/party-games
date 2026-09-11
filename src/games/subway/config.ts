@@ -27,7 +27,7 @@ import type { BaseAction, GameContext, Player } from "@/engine/types";
 // ============================================================================
 
 /** Bumped when the state shape changes; older rooms must restart. */
-export const SUBWAY_STATE_VERSION = 14;
+export const SUBWAY_STATE_VERSION = 15;
 
 // ----------------------------------------------------------------------------
 // Tunable configuration
@@ -92,7 +92,6 @@ export const SUBWAY_CONFIG = {
   startingHands: {
     engineering: [] as string[],
     scheduling: [] as SchedulingCardId[],
-    construction: [] as ConstructionCardId[],
   },
 } as const;
 
@@ -456,18 +455,6 @@ SCHEDULING_CARDS.push(
 
 export const schedulingById = (id: SchedulingCardId) => SCHEDULING_CARDS.find((c) => c.id === id);
 
-export type ConstructionCardId = "overtime" | "expedite" | "surge" | "grant" | "access" | "booking" | "relief";
-
-export const CONSTRUCTION_CARDS: {id:ConstructionCardId; name:string; description:string}[] = [
-  {id:"booking",name:"Advance Booking",description:"Before hiring, reserve $1M off your crew bill next round. Expires unused; never pays cash."},
-  {id:"relief",name:"Relief Crew",description:"Before hiring, your first crew is free this turn. Pay $0M / $2M / $5M for 1 / 2 / 3 crews."},
-  {id:"expedite",name:"Priority Dispatch",description:"During the opening priority window, take the first turn this round. Counts as your one card this round."},
-  {id:"grant",name:"City Grant",description:"Before hiring, receive $3M."},
-  {id:"access",name:"Access Pass",description:"Before building, the city pays all contact tolls on your next segment this turn. Route owners still receive payment."},
-];
-
-export const constructionById = (id: ConstructionCardId) => CONSTRUCTION_CARDS.find((c) => c.id === id);
-
 /**
  * Card families used to seed shuffled piles at setup. Contracts and
  * Destinations have separate drafts.
@@ -476,7 +463,6 @@ export const MARKET_DECKS = {
   // Objectives only. Destinations have their own Engineering draft (DEC-019).
   engineering: ENGINEERING_CARDS.map((c) => c.id),
   scheduling: SCHEDULING_CARDS.map((c) => c.id),
-  construction: CONSTRUCTION_CARDS.map((c) => c.id),
 } as const;
 
 export type CardDeckId = keyof typeof MARKET_DECKS;
@@ -548,8 +534,6 @@ export type SubwayPlayer = {
   color: string;
   money: number;
   crewsHired?: boolean;
-  crewDiscount?: number;
-  nextCrewDiscount?: number;
   crewPaid?: number;
   engineeringHand: string[];
   committedEngineering: string[];
@@ -562,7 +546,6 @@ export type SubwayPlayer = {
   /** Survey Pins bought at plan lock; paid for once, placed publicly after. */
   surveysPurchased: number;
   schedulingHand: SchedulingCardId[];
-  constructionHand: ConstructionCardId[];
   lines: PlayerLine[];
   /** Procurement decisions spent in the normal market phase. */
   decisionsUsed: number;
@@ -576,9 +559,6 @@ export type SubwayPlayer = {
   /** Line indexes this company may still build this period. */
   pendingActions: number[];
   actedThisPeriod: boolean;
-  constructionCardThisPeriod: boolean;
-  /** Access Pass covers the next placement this period; the city pays the owners. */
-  accessPass?: boolean;
   /**
    * Proper interior-to-interior crossings this company has made of an opposing
    * segment. Crossing needs no permit (DEC-018); this only drives the Crossing
@@ -653,7 +633,6 @@ export type SubwayTelemetryPlayer = {
   engineeringCards: string[];
   destinationCards: string[];
   destinationPurchased: boolean;
-  constructionCards: ConstructionCardId[];
   lineNodeCounts: number[];
   completedLines: string[];
 };
@@ -709,7 +688,6 @@ export interface SubwayState {
   currentPeriod: number;
   /** Companies still to build this period, in resolution order. */
   resolveQueue: string[];
-  priorityQueue: string[];
   /** The one placement that may still be taken back, if any. */
   undo?: UndoRecord;
   /** Bounded public narration, newest last. Only accepted actions append. */
@@ -733,7 +711,6 @@ export type SubwayActionType =
   | "BUY_DESTINATION"
   | "BUY_SURVEYS"
   | "HIRE_CREWS"
-  | "PASS_PRIORITY"
   | "PICK_DESTINATION"
   | "LOCK_ENGINEERING_PLAN"
   | "PLACE_SURVEY"
@@ -743,7 +720,6 @@ export type SubwayActionType =
   | "PLAY_SCHEDULING_CARD"
   | "CONFIRM_SCHEDULE"
   | "PLACE_STARTER"
-  | "PLAY_CONSTRUCTION_CARD"
   | "BUILD"
   | "SKIP_ACTION"
   | "UNDO_PLACEMENT"
@@ -1615,14 +1591,12 @@ function makePlayer(p: Player, index: number): SubwayPlayer {
     destinationCommitments: [],
     surveysPurchased: 0,
     schedulingHand: [...SUBWAY_CONFIG.startingHands.scheduling],
-    constructionHand: [...SUBWAY_CONFIG.startingHands.construction],
     lines: [],
     decisionsUsed: 0,
     scheduleSubmitted: false,
     scheduleConfirmed: false,
     pendingActions: [],
     actedThisPeriod: false,
-    constructionCardThisPeriod: false,
     properCrossings: 0,
     tollsPaid: 0,
   };
@@ -1644,7 +1618,7 @@ function initialState(players: Player[]): SubwayState {
     oddPriorityId: order[0] ?? "",
     priorityOverrides: {},
     procurement: { row: [], deck: [], offerIndex: 0 },
-    market: {rows:{engineering:[], scheduling:[], construction:[]}, decks:{engineering:[], scheduling:[], construction:[]}, picks:0},
+    market: {rows:{engineering:[], scheduling:[]}, decks:{engineering:[], scheduling:[]}, picks:0},
     engineeringStep: "DESTINATION_DRAFT",
     destinationDeck: [],
     destinationRow: [],
@@ -1652,7 +1626,6 @@ function initialState(players: Player[]): SubwayState {
     surveyPins: [],
     currentPeriod: 1,
     resolveQueue: [],
-    priorityQueue: [],
     events: [],
     nextEventSeq: 1,
     telemetry: [],
@@ -1770,7 +1743,6 @@ function toScoring(s: SubwayState, now: number, reason: SubwayEndReason): Subway
   s.constructionEndedAt = now;
   s.endReason = reason;
   s.resolveQueue = [];
-  s.priorityQueue = [];
   for (const p of seats(s)) p.pendingActions = [];
   pushEvent(
     s,
@@ -1799,21 +1771,8 @@ export function scheduledLines(p: SubwayPlayer, period: number): number[] {
 }
 
 /** Incremental costs: first crew $1M, second adds $2M, third adds $3M. */
-export function activationCost(p: SubwayPlayer, count: number): number {
-  return count === 0 ? 0 : Math.max(0, count * (count + 1) / 2 - (p.crewDiscount ?? 0));
-}
-export function constructionCardBlocker(s: SubwayState, id: string, card: ConstructionCardId): string | undefined {
-  const p = s.players[id];
-  if (s.phase !== "CONSTRUCTION" || !p) return "Only during Construction.";
-  if (!p.constructionHand.includes(card)) return "You do not hold this card.";
-  if (p.constructionCardThisPeriod) return "One Construction card per round.";
-  if (card === "expedite") return s.priorityQueue[0] === id ? undefined : "Only during your opening priority opportunity.";
-  if (s.priorityQueue.length || s.resolveQueue[0] !== id) return "Wait for your construction turn.";
-  if (!constructionById(card)) return "This card is no longer in the game.";
-  if (["booking","relief","grant"].includes(card) && p.crewsHired) return "Play before hiring crews.";
-  if (card === "booking" && s.currentPeriod === SUBWAY_CONFIG.timelinePeriods) return "There is no next round.";
-  if (card === "access" && !p.pendingActions.length) return "Hire a crew before playing Access Pass.";
-  return undefined;
+export function activationCost(_p: SubwayPlayer, count: number): number {
+  return count === 0 ? 0 : count * (count + 1) / 2;
 }
 function beginConstructionPeriod(s: SubwayState, now: number, opening = false): SubwayState {
   if (constructionExhausted(s)) return toScoring(s, now, "NO_LEGAL_CONSTRUCTION");
@@ -1821,15 +1780,10 @@ function beginConstructionPeriod(s: SubwayState, now: number, opening = false): 
   for (const p of seats(s)) {
     p.pendingActions = [];
     p.actedThisPeriod = false;
-    p.constructionCardThisPeriod = false;
-    p.accessPass = false;
     p.crewsHired = false;
-    p.crewDiscount = p.nextCrewDiscount ?? 0;
-    p.nextCrewDiscount = 0;
   }
   s.resolveQueue = s.playerOrder.map((_,i) => basePriorityId(s,s.currentPeriod+i));
-  s.priorityQueue = s.resolveQueue.filter(id => s.players[id].constructionHand.includes("expedite"));
-  pushEvent(s, now, "PERIOD", "banner", `${opening ? "Construction begins. " : ""}Round ${s.currentPeriod}: ${s.priorityQueue.length ? "Priority Dispatch opportunity." : "Choose crews on your turn."}`);
+  pushEvent(s, now, "PERIOD", "banner", `${opening ? "Construction begins. " : ""}Round ${s.currentPeriod}: choose crews on your turn.`);
   return s;
 }
 
@@ -1908,8 +1862,8 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       const fresh = initialState(ctx.room.players);
       fresh.startedAt = ctx.now();
       fresh.phase = "PROCUREMENT";
-      fresh.market.rows = {engineering:[], scheduling:[], construction:[]};
-      fresh.market.decks = {engineering:[], scheduling:[], construction:[]};
+      fresh.market.rows = {engineering:[], scheduling:[]};
+      fresh.market.decks = {engineering:[], scheduling:[]};
       fresh.market.picks = 0;
       fresh.market.decks.engineering = shuffle(ENGINEERING_CARDS.map(c => c.id), ctx.random);
       fresh.market.rows.engineering = fresh.market.decks.engineering.splice(0, 2);
@@ -1973,7 +1927,7 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
     }
 
     case "BUY_DESTINATION": {
-      if (s.phase !== "CONSTRUCTION" || !me || s.priorityQueue.length || s.resolveQueue[0] !== me.id || me.crewsHired || me.destinationPurchased || me.money < SUBWAY_CONFIG.destinationPurchaseCost || !s.destinationDeck.length || action.payload?.period !== s.currentPeriod) return state;
+      if (s.phase !== "CONSTRUCTION" || !me || s.resolveQueue[0] !== me.id || me.crewsHired || me.destinationPurchased || me.money < SUBWAY_CONFIG.destinationPurchaseCost || !s.destinationDeck.length || action.payload?.period !== s.currentPeriod) return state;
       me.money -= SUBWAY_CONFIG.destinationPurchaseCost;
       me.destinationHand.push(s.destinationDeck.shift()!);
       me.destinationPurchased = true;
@@ -2043,43 +1997,21 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       return s;
     }
 
-    case "PASS_PRIORITY": {
-      if (s.phase !== "CONSTRUCTION" || s.priorityQueue[0] !== me?.id || action.payload?.period !== s.currentPeriod) return state;
-      s.priorityQueue.shift();
-      return s;
-    }
     case "HIRE_CREWS": {
-      if (s.phase !== "CONSTRUCTION" || s.priorityQueue.length || s.resolveQueue[0] !== me?.id || me.crewsHired || action.payload?.period !== s.currentPeriod) return state;
+      if (s.phase !== "CONSTRUCTION" || s.resolveQueue[0] !== me?.id || me.crewsHired || action.payload?.period !== s.currentPeriod) return state;
       const indexes = action.payload?.lineIndexes;
       if (!Array.isArray(indexes) || indexes.length > 3 || new Set(indexes).size !== indexes.length || indexes.some(i => !Number.isInteger(i) || !buildableLines(s,me.id).includes(i))) return state;
       const cost = activationCost(me,indexes.length);
       me.money -= cost;
       me.crewPaid = (me.crewPaid ?? 0) + cost;
-      me.crewDiscount = 0;
       me.crewsHired = true;
       me.pendingActions = [...indexes];
       pushEvent(s, ctx.now(), "TURN", "notice", `${me.name} hired ${indexes.length} crew(s) for $${cost}M.`, me.id);
       return indexes.length ? s : endPlayerTurn(s,me.id,ctx.now());
     }
-    case "PLAY_CONSTRUCTION_CARD": {
-      const id = action.payload?.cardId as ConstructionCardId;
-      if (!me || action.payload?.period !== s.currentPeriod || constructionCardBlocker(s,me.id,id)) return state;
-      if (id === "expedite") {
-        s.resolveQueue = [me.id,...s.resolveQueue.filter(pid=>pid!==me.id)];
-        s.priorityQueue = [];
-      } else if (id === "grant") me.money += 3;
-      else if (id === "access") me.accessPass = true;
-      else if (id === "booking") me.nextCrewDiscount = 1;
-      else if (id === "relief") me.crewDiscount = (me.crewDiscount ?? 0) + 1;
-      me.constructionHand = removeOne(me.constructionHand,id);
-      me.constructionCardThisPeriod = true;
-      pushEvent(s,ctx.now(),"CARD","notice",`${me.name} played ${constructionById(id)!.name}.`,me.id);
-      return s;
-    }
-
     case "BUILD": {
       if (state.phase !== "CONSTRUCTION" || !me) return state;
-      if (s.priorityQueue.length || !me.crewsHired || s.resolveQueue[0] !== me.id || !me.pendingActions.length) return state;
+      if (!me.crewsHired || s.resolveQueue[0] !== me.id || !me.pendingActions.length) return state;
       const lineIndex = action.payload?.lineIndex ?? -1;
       if (!me.pendingActions.includes(lineIndex)) return state;
       const line = me.lines[lineIndex];
@@ -2098,14 +2030,10 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       const contacts = routeContacts(s, me.id, from, pt);
       const toll = contactToll(contacts);
       if (toll > 0) {
-        if (!me.accessPass) {
-          me.money -= toll;
-          me.tollsPaid += toll;
-        }
+        me.money -= toll;
+        me.tollsPaid += toll;
         for (const contact of contacts) s.players[contact.ownerId].money += SUBWAY_CONFIG.contact.toll;
       }
-      const subsidized = me.accessPass;
-      me.accessPass = false;
       me.properCrossings += countAnyCrossings(s, nodePoint(from), targetPoint(pt, slot, station));
       line.route.push({
         ...pt,
@@ -2121,7 +2049,7 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
         ? `${station.name} dock ${(slot ?? 0) + 1}`
         : `hole ${pt.x + 1},${pt.y + 1}`;
       const tollNote = toll > 0
-        ? ` ${contacts.length} contact${contacts.length === 1 ? "" : "s"} with ${Array.from(new Set(contacts.map((c) => s.players[c.ownerId].name))).join(", ")}: $${toll}M${subsidized ? " paid by the city" : ""}.`
+        ? ` ${contacts.length} contact${contacts.length === 1 ? "" : "s"} with ${Array.from(new Set(contacts.map((c) => s.players[c.ownerId].name))).join(", ")}: $${toll}M.`
         : "";
       pushEvent(
         s,
@@ -2148,7 +2076,7 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
 
     case "SKIP_ACTION": {
       if (state.phase !== "CONSTRUCTION" || !me) return state;
-      if (s.priorityQueue.length || !me.crewsHired || s.resolveQueue[0] !== me.id) return state;
+      if (!me.crewsHired || s.resolveQueue[0] !== me.id) return state;
       const lineIndex = action.payload?.lineIndex;
       // A skipped action is simply lost; it never rolls into a later period.
       if (lineIndex === undefined || lineIndex === null) {
@@ -2207,7 +2135,6 @@ function telemetryPlayers(state: SubwayState): Record<string, SubwayTelemetryPla
         engineeringCards: [...p.engineeringHand],
         destinationCards: [...p.destinationHand],
         destinationPurchased: !!p.destinationPurchased,
-        constructionCards: [...p.constructionHand],
         lineNodeCounts: p.lines.map((line) => line.route.length),
         completedLines: p.lines.filter(lineComplete).map((line) => line.contractId),
       }];
@@ -2290,7 +2217,7 @@ export function nextCompanyId(s: SubwayState): string | undefined {
       return s.playerOrder.find((id) => !s.players[id].engineeringLocked);
     case "SCHEDULING": return s.playerOrder.find((id) => s.schedulingStep === "PLANNING" ? !s.players[id].scheduleSubmitted : !s.players[id].scheduleConfirmed);
     case "STARTER_PLACEMENT": return starterTurnId(s);
-    case "CONSTRUCTION": return s.priorityQueue[0] ?? s.resolveQueue[0];
+    case "CONSTRUCTION": return s.resolveQueue[0];
     default: return s.playerOrder[0];
   }
 }
