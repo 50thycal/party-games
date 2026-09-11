@@ -135,15 +135,15 @@ export function TabletopCanvas({
       const scale = Math.min(MAX_SCALE, Math.max(minScale(), cam.scale));
       const cw = worldWidth * scale;
       const ch = worldHeight.current * scale;
-      // Content narrower than the screen is centred rather than free-floating;
-      // otherwise the table may overshoot by a little, never by a screenful.
-      const slackX = w * 0.12;
-      const slackY = h * 0.12;
-      const x = cw <= w ? (w - cw) / 2 : Math.min(slackX, Math.max(w - cw - slackX, cam.x));
-      const y = ch <= h ? (h - ch) / 2 : Math.min(slackY, Math.max(h - ch - slackY, cam.y));
+      // Screen-space buffer lets edge pieces reach the usable centre even at
+      // low zoom, including the cards behind the bottom controls.
+      const slackX = w * 0.6;
+      const slackY = Math.max(h * 0.6, (h + hudBottom - hudTop) / 2);
+      const x = Math.min(Math.max(slackX, (w - cw) / 2), Math.max(Math.min(w - cw - slackX, (w - cw) / 2), cam.x));
+      const y = Math.min(Math.max(slackY, (h - ch) / 2), Math.max(Math.min(h - ch - slackY, (h - ch) / 2), cam.y));
       return { scale, x, y };
     },
-    [minScale, worldWidth]
+    [minScale, worldWidth, hudBottom, hudTop]
   );
 
   const apply = useCallback(

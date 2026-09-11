@@ -1464,3 +1464,9 @@ Date: 2026-09-11. Status: owner-authorized; implementation review pending.
 Latest physical-phone feedback supersedes DEC-033's Next hole/Plan tools controls and DEC-035's visible build receipt. Keep only the active route, real build guide, Save ghost and Confirm peg in automatic planning. Legal ghost targets appear immediately in bright yellow after the pending starter or real segment is selected. Tap an unbuilt peg to remove it and its tail, then choose a replacement directly on the board. No coordinate readout or solid/dashed legend. Manual cross-line Plan retains its route selector; closing it restores the active line when a build is pending. Confirmation still commits exactly one real placement; saving ghosts remains private and device-local.
 
 Center Construction schedule over the board and remove duplicate card faces from it. Each Engineering/Construction hand is horizontal on the shared zoomable tabletop, with Cards focusing its first card. Hide Contract office and Market after drafting completes. Tradeoff accepted by the owner: a simpler placement surface omits the pre-confirmation toll receipt; toll/debt rules and reducer validation are unchanged.
+
+### DEC-037 — Visible sketch Undo and room around tabletop edges
+
+Date: 2026-09-11. Status: owner-authorized; implementation review pending.
+
+The owner's next playtest supersedes DEC-036's two-button placement strip: add Undo step for the last unconfirmed real/ghost node, while preserving the separate committed-placement Undo. Keep Save ghost and Confirm peg; no planning dropdown returns. Opaque bottom-control backing prevents underlying pieces showing through, and viewport-scaled pan slack lets the outermost cards reach the usable centre. The Construction schedule uses side-by-side crew/history sections and horizontal route choices. No reducer or persistence changes. Alternatives considered: Unknown / not documented.
