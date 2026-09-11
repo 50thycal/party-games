@@ -5,7 +5,7 @@ Phase: REVIEW
 Status: Active
 Updated: 2026-09-11
 Implementation State: PR #163 merged. Active-route guidance implemented on codex/subway-active-route-guide: shared real-progress instructions, labeled endpoint, active-contract focus, and explicit next-ghost wording. Phone/desktop browser checks passed; automated validation checkpoint below. Independent current-head review and physical iPhone acceptance remain pending.
-Related PRs: [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
+Related PRs: [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; open); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
 ## Goal and approved scope
 Active-route final validation: production build/type validation, lint, rules/saved-plan regressions, 220 affordability checks and 36 complete 2/3/4-player simulations passed. Browser evidence below covers the presentation change; no new automated visual test added. Preview stopped after checks. Independent review pending.
@@ -110,7 +110,7 @@ segment was verified in the desktop construction fixture. Active-route animation
 the Results report control, and phone layouts remain in the browser visual gate.
 
 ## Next Step
-Independent review of the direct-piece follow-up's current head and physical iPhone pinch/pan/callout acceptance. No self-approval or merge.
+Independent review of PR #164's current head and physical iPhone pinch/pan/callout acceptance. No self-approval or merge.
 
 ## Direct-piece playtest continuation — 2026-09-11
 
