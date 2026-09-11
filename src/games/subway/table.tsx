@@ -788,6 +788,19 @@ export function Logbook({ game, actorId }: { game: SubwayState; actorId?: string
 // Line contract boards — one printed board per owned line.
 // ---------------------------------------------------------------------------
 
+/** Real construction only: never count uncommitted sketch nodes as progress. */
+export function RouteBuildGuide({ line, compact = false }: { line: PlayerLine; compact?: boolean }) {
+  const contract = contractOf(line);
+  if (!contract) return null;
+  const remaining = Math.max(0, contract.recipe.length - segmentsBuilt(line));
+  const starter = line.route.length === 0;
+  return <div aria-label={`Build guide for ${contract.name}`} className={`rounded-lg border-l-4 bg-amber-50 ${compact ? "px-2 py-1 text-xs" : "mt-[16px] px-[16px] py-[12px] text-[24px]"}`} style={{ borderColor: contract.color }}>
+    <b>{starter ? "Place starter on a border hole" : remaining ? `Build ${nextSegmentLength(line)} pegs` : "Route complete"}</b>
+    <span> · {remaining} segment{remaining === 1 ? "" : "s"} left</span>
+    {starter && <span> · First segment: {contract.recipe[0]} pegs</span>}
+  </div>;
+}
+
 export function LineContractBoard({
   line,
   lineIndex,
@@ -831,6 +844,7 @@ export function LineContractBoard({
 
   return (
     <section
+      data-active-route={active && !veiled ? "true" : undefined}
       className="rounded-[26px] border-[6px] bg-[#fffaf0] p-[22px] shadow-[0_16px_34px_rgba(0,0,0,.4)]"
       style={{
         width: 660,
@@ -842,7 +856,9 @@ export function LineContractBoard({
       <div className="flex flex-wrap items-center gap-[14px]">
         <LineTile contract={contract} size={54} subdued={shelved} />
         <b className="text-[30px]">{contract.name}</b>
-        {complete ? (
+        {active && !veiled ? (
+          <Pill tone="warn">Building now</Pill>
+        ) : complete ? (
           <Pill tone="good">✓ Complete</Pill>
         ) : shelved ? (
           <Pill tone="bad">Shelved</Pill>
@@ -856,6 +872,8 @@ export function LineContractBoard({
           {line.route.length}/{nodes} <span className="text-[19px] font-bold text-stone-500">nodes</span>
         </span>
       </div>
+
+      {active && !veiled && <RouteBuildGuide line={line} />}
 
       {/* The recipe, big enough to read as the line's shape. */}
       <div className="mt-[18px]">

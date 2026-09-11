@@ -1444,3 +1444,9 @@ Date: 2026-09-11. Status: owner-authorized; implementation review pending.
 The owner requested a thorough mobile playtest and delegated fixes that reduce popup windows. Route offers show a Buy button, price and remaining cash directly on the printed route. Draft and Construction-card buttons show their availability on the piece; current Engineering goals show their complete rules and progress without opening a dialog. Explicit buttons were chosen over dragging a purchase onto a player mat because dragging already pans the shared tabletop.
 
 Construction schedule opens at current-turn controls, with round history below. Cards and Lines focus their first piece; survey purchase has a dedicated focus target. Oversized zones use a consistent working zoom instead of magnifying to fill one axis. Compact planning keeps Next hole, Save ghost and Confirm visible, with secondary editing in inline Plan tools. Real peg confirmation and the privacy handoff remain. Results wrap at phone width and place scores before optional report export. These are presentation changes, with no rule or saved-state shape changes.
+
+### DEC-034 — Active-route guidance separates real work from sketches
+
+Date: 2026-09-11. Status: owner-delegated; implementation review pending.
+
+Of active-route guidance, blocked-move explanations and scoring highlights, choose active-route guidance for this iteration: it benefits every placement without making balance assumptions. A shared inline guide uses only committed route progress, with starter border/first-length instructions. The real endpoint receives a static FROM marker; future sketch instructions say Next ghost once a real placement is selected. Lines focuses the active contract before falling back to the first. Keep unrelated map information readable, manual planning distinct, and Confirm authoritative; no new popup, animation, rule or persisted field.
