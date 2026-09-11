@@ -78,7 +78,6 @@ const base = () => {
     p.crewsHired = true; // Geometry fixtures begin after crew activation.
     p.engineeringHand = ["straight","bend","network","terminal","crossing"];
     p.schedulingHand = ["early","float","priority"];
-    p.constructionHand = ["overtime","surge","grant","access"];
   }
   return s;
 };
@@ -121,7 +120,7 @@ function runCardDraft(state: SubwayState): SubwayState {
     const p = s.players[id];
     const wanted = ["straight","bend","terminal","network","crossing"][p.engineeringHand.length];
     if(wanted) s.market.decks!.engineering = [wanted, ...s.market.decks!.engineering];
-    s = dispatch(s,id,"DRAFT_CARD",{deck:wanted ? "engineering" : "construction",expectedPick:s.market.picks});
+    s = dispatch(s,id,"DRAFT_CARD",{deck:"engineering",expectedPick:s.market.picks});
   }
   return s;
 }
@@ -387,7 +386,7 @@ const DECK_ORDER = ["branch", "medium", "express", "crosstown", "long", "short"]
 {
   assert.equal(engineeringById("long-segment"), undefined, "Long Segment is gone");
   assert.ok(engineeringById("network"), "Network Link took its place");
-  assert.equal(engineeringById("network")!.vp, 4, "worth +4 VP");
+  assert.equal(engineeringById("network")!.vp, 7, "network overhaul is worth +7 VP");
   assert.ok(
     SUBWAY_CONFIG.startingHands.engineering.length === 0,
     "players start without cards"
@@ -404,7 +403,7 @@ const DECK_ORDER = ["branch", "medium", "express", "crosstown", "long", "short"]
     { x: 1, y: 3 }, { x: 4, y: 3, stationId: "market", stationSlot: 0 }, { x: 5, y: 3, stationId: "grand", stationSlot: 0 },
     { x: 8, y: 3 }, { x: 10, y: 6, stationId: "museum", stationSlot: 0 },
   ]);
-  assert.equal(objectiveMet("network", three, []), true, "three distinct stations on a completed line scores");
+  assert.equal(objectiveMet("network", three, []), false, "one completed line does not satisfy the three-line network objective");
 
   const one = complete([
     { x: 1, y: 3 }, { x: 4, y: 3 }, { x: 5, y: 3, stationId: "grand", stationSlot: 0 },

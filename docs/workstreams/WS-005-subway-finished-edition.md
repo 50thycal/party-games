@@ -4,10 +4,42 @@ Build OS: v0.12
 Phase: REVIEW
 Status: Active
 Updated: 2026-09-11
-Implementation State: PR #169 is open with the validated manual Plan panel viewport correction. The tabletop remeasures after a wrapping hotseat header changes its top edge, keeping the complete bottom HUD inside the visual viewport. Production build/type validation, lint, full Subway suite, 220 affordability checks and 36 simulations passed. Independent current-head review remains pending.
-Related PRs: [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; open); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
+Implementation State: PR #170 is open with the network/card/economy overhaul and the owner-authorized removal of Construction cards. Production build/type validation, lint, full Subway regressions, 220 portfolio economy checks and 36 complete 2/3/4-player simulations pass at state v15. The cloud browser could not reach the local preview; fresh phone/desktop visual verification and independent current-head review remain pending.
+Related PRs: [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy; open); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
-## Goal and approved scope
+## Current mission — network objectives and economy
+
+Owner authorization: latest 2026-09-11 instruction approves implementation. Canonical Build OS v0.12 checked; reviewed mode retained.
+Goal: replace easy single-station goals with connected company missions and 16 Engineering goals; three Engineering-only picks; two private Destination missions dealt at start and one optional $5M construction purchase; $50M/9 rounds; two-player station capacities 1 minor/2 major; twelve color names with unique two-letter symbols; remove route bonuses; add global longest network award.
+Directional cards use literal border pegs, including the owner's modified Three Fronts and opposite-corner, three-line Four Corners. Conflicting objectives are intentional. Corner pegs may represent either adjoining side, once per distinct-side count. Network transfers use own shared pegs/stations, never raw crossings or opponents.
+Non-goals: iPad companion, overtime, camera/planner changes. Construction cards, their state, effects, timing windows and artwork are removed from this edition.
+Acceptance: authoritative deterministic rules; fresh private deals and purchase validation; all goal predicates including negative cases; station geometry/render consistency at 2/3/4 seats; undo-safe race award; deck exhaustion safety; phone/desktop card flows; build/lint/Subway tests and complete simulations. Independent current-head review required before merge.
+
+## Network overhaul validation — PR #170
+
+Build (including type/lint), standalone lint and full Subway suite passed. New scoring
+fixtures cover all 16 goals, exact border positives/negatives, corner assignment,
+connected pair/triple missions, transfers across station slots/normal pegs,
+disconnected/crossing/opponent exclusions, destination purchase guards, earliest
+completion and Undo, longest branches/circuits/ties, and two-player dock geometry.
+Existing recipe, occupancy, saved-plan, toll and Undo tests pass.
+The 220 portfolio checks now measure purchase affordability and intentional full-
+programme pressure; they no longer promise every portfolio funds all optional items.
+
+36 complete simulations (12 each at 2/3/4 seats) reached RESULTS within nine rounds.
+Mean completed lines per company: 2.96 / 3.00 / 2.98. Indebted companies: 6/24,
+10/36, 13/48, with lowest final cash -$8M / -$13M / -$13M. The bot pursues route
+completion, not new Engineering shapes; these figures are not human-balance proof.
+Its crew planner now uses the configured horizon rather than a hardcoded 16 rounds.
+
+React checklist: derived card status, no new synchronization effects, explicit
+button disabled states, private hands hidden under veil, matching code/diagram/text.
+The cloud browser returned ERR_BLOCKED_BY_CLIENT for the local preview; no fresh
+desktop, phone, physical-device or network transport acceptance is claimed. New cards reuse
+existing illustration crops and updated code-rendered diagrams. Construction cards were subsequently removed at the owner’s direction.
+State v15 and the v15 hotseat key require old games to restart. The Construction deck/hand, priority window, special economy effects, telemetry field, card UI and sprite are removed. Standard crew bills and player-paid contact tolls remain. PR remains unmerged and unapproved.
+
+## Previous approved continuations (historical)
 Current continuation after PR #168 merged: owner reports that the taller manual Plan panel is clipped at the bottom of an iPhone viewport after the hotseat header wraps. Keep the existing panel and tabletop interaction, but make the camera surface follow post-render changes to its top edge so the whole bottom HUD moves upward. Non-goals: planner behavior, reducer rules, saved plans, panel redesign or new controls. Acceptance: every manual Plan action remains visible in 390px portrait and 844px landscape; build, lint and full Subway suite pass; independent review remains required.
 
 Current continuation after PR #167 merged: owner reports that a saved plan automatically selects the next real segment on a later turn. Restore the saved ghost visually, but require the player to tap the next peg before Confirm becomes available; following the saved peg preserves its tail, while another legal peg replaces the future sketch. Non-goals: changing reducer legality, confirmation, plan storage or other tabletop UI. Acceptance: a legal two-round browser flow shows ghost/no pending/no Confirm before tap, then one pending and exactly one committed build after tap/Confirm; saved-plan tests, build, lint and Subway suite. Independent review remains required.
@@ -79,7 +111,7 @@ FRAMEWORK_SYNC and CLAUDE_HANDOFF. Migrated the framework block, current templat
 and intake/result rules. Reviewed mode retained; historical work is not reopened.
 
 ## Review State
-Pending independent review. No approval or merge claimed.
+PR #170: independent current-head review pending; latest code commit 0790cc773721d47d80c8bbeb2732c944726b052b, followed by the documentation handoff. No review verdict or current visual acceptance claimed. PR #169 merged, confirmed through GitHub. No historical review verdict inferred.
 
 PR #169: Independent current-head review pending. The tabletop height now remeasures after committed layouts, covering hotseat header wrapping that does not emit a window resize. In the legal four-seat construction fixture, the complete manual Plan action row remained inside the embedded phone viewport: portrait placed Close plan at y=760–804 with 38px viewport clearance, and landscape at y=302–346 with 42px clearance. Production build/type validation, lint, diff check, full rules/saved-plan suite, 220 affordability checks and 36 complete simulations passed. No physical-device acceptance claimed or self-approval performed.
 
@@ -136,7 +168,7 @@ segment was verified in the desktop construction fixture. Active-route animation
 the Results report control, and phone layouts remain in the browser visual gate.
 
 ## Next Step
-Independent current-head review of PR #169, then physical iPhone acceptance. No self-approval or merge.
+Obtain phone/desktop visual verification and independent current-head review of PR #170, then owner playtest of card difficulty/economy. Construction-card supply remains an owner follow-up; no new supply was invented. No self-approval or merge.
 
 ## Direct-piece playtest continuation — 2026-09-11
 

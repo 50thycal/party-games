@@ -7,7 +7,7 @@ import { SubwayGameView } from "@/games/subway/GameView";
 import { SUBWAY_STATE_VERSION, subwayGame, nextCompanyId, type SubwayAction, type SubwayState } from "@/games/subway/config";
 
 type Session = { room: Room; game: SubwayState; seat: string };
-const SAVE_KEY = "subway-hotseat-v12";
+const SAVE_KEY = "subway-hotseat-v15";
 
 export default function SubwayHotseat() {
   const [session, setSession] = useState<Session | null>(null);
@@ -87,7 +87,7 @@ export default function SubwayHotseat() {
       <button onClick={()=>setNewGame(true)} className="rounded-lg bg-white/10 px-3 py-2 text-xs">New game</button></div></details>
     </header>
     {!saved && <p role="status" className="mb-2 rounded bg-amber-100 p-2 text-sm text-amber-950">Device storage is unavailable. Keep this tab open to finish your game.</p>}
-    {help && <aside className="mb-2 rounded-xl bg-[#f5f3e9] p-4 text-sm leading-relaxed text-slate-900"><b>Your first journey</b><ol className="ml-5 mt-2 list-decimal space-y-1"><li>Draft one route at list price each turn. Everyone ends with three routes; there is no pass.</li><li>Draft six cards: any mix of Engineering goals (including Destinations) and Construction cards. Every goal can score. Then optionally buy surveys.</li><li>Each round, hire crews for different routes: $1M / $3M / $6M for 1 / 2 / 3 crews. Build one segment per crew. Play at most one card per round.</li><li>Place your free starter pegs on the border. Follow each route’s printed segment lengths; turns may be up to 90°.</li><li>Tap a glowing peg, inspect the next step and toll, then Confirm. You can plan ahead without committing.</li><li>Score finished routes, stations and goals. Keep debt low. Most points wins!</li></ol><p className="mt-2">Use Board, Schedule, Lines and Cards to move around the table. Drag to pan; scroll or pinch to zoom. Pass the device before revealing the next company’s cards. Geography is decorative.</p></aside>}
+    {help && <aside className="mb-2 rounded-xl bg-[#f5f3e9] p-4 text-sm leading-relaxed text-slate-900"><b>Your first journey</b><ol className="ml-5 mt-2 list-decimal space-y-1"><li>Draft one route at list price each turn. Everyone ends with three routes; there is no pass.</li><li>Receive two private Destination missions at start. Draft three Engineering goals from two face-up choices or a blind draw, then optionally buy surveys.</li><li>Each round, hire crews for different routes: $1M / $3M / $6M for 1 / 2 / 3 crews. Build one segment per crew. Start with $50M; construction lasts at most nine rounds. Buy one extra Destination for $5M before hiring, once per game.</li><li>Place your free starter pegs on the border. Follow each route’s printed segment lengths; turns may be up to 90°.</li><li>Tap a glowing peg, inspect the next step and toll, then Confirm. You can plan ahead without committing.</li><li>Score finished routes, stations, connected missions and Engineering goals. Longest continuous network earns 5 VP (3 each if tied). Keep debt low. Most points wins!</li></ol><p className="mt-2">Use Board, Schedule, Lines and Cards to move around the table. Drag to pan; scroll or pinch to zoom. Pass the device before revealing the next company’s cards. Geography is decorative.</p></aside>}
     <SubwayGameView room={session.room} state={session.game} playerId={session.seat} isHost={session.seat===session.room.hostId} dispatchAction={dispatchAction} />
   </main>;
 }

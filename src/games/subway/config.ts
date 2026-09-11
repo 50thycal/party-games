@@ -1,3 +1,5 @@
+import { borderSides, distinctSides, companyNetwork, linesConnected, networkNodeKey, longestNetwork } from "./network";
+export { longestNetwork } from "./network";
 import { defineGame } from "@/engine/defineGame";
 import type { BaseAction, GameContext, Player } from "@/engine/types";
 
@@ -25,7 +27,7 @@ import type { BaseAction, GameContext, Player } from "@/engine/types";
 // ============================================================================
 
 /** Bumped when the state shape changes; older rooms must restart. */
-export const SUBWAY_STATE_VERSION = 13;
+export const SUBWAY_STATE_VERSION = 15;
 
 // ----------------------------------------------------------------------------
 // Tunable configuration
@@ -33,11 +35,11 @@ export const SUBWAY_STATE_VERSION = 13;
 
 export const SUBWAY_CONFIG = {
   /**
-   * Starting capital covers every three-route portfolio and its cheapest full
-   * schedule. Reserve cash remains valuable for survey pins and route contacts.
+   * A tighter budget creates choices between construction speed, missions
+   * and debt. Every portfolio is affordable to purchase; completion is not free.
    */
-  startingMoney: 60,
-  timelinePeriods: 16,
+  startingMoney: 50,
+  timelinePeriods: 9,
   minContractsPerPlayer: 3,
   maxContractsPerPlayer: 3,
   /** $M per period per extra concurrent block of your own (second crew). */
@@ -71,8 +73,11 @@ export const SUBWAY_CONFIG = {
     /** VP for a pin the assigned line actually builds through. */
     vp: 1,
   },
-  /** VP for a fulfilled Destination card. */
-  destinationVp: 3,
+  /** Destination mission rewards and optional purchase. */
+  destinationVp: 4,
+  threeStationDestinationVp: 7,
+  destinationPurchaseCost: 5,
+  engineeringPicks: 3,
   /** Construction interaction with the opposing network (WS-003, DEC-018). */
   contact: {
     /** $M paid to the opponent per distinct contact with their normal route. */
@@ -87,7 +92,6 @@ export const SUBWAY_CONFIG = {
   startingHands: {
     engineering: [] as string[],
     scheduling: [] as SchedulingCardId[],
-    construction: [] as ConstructionCardId[],
   },
 } as const;
 
@@ -173,94 +177,71 @@ export type LineContract = {
   recipe: number[];
   cost: number; // $M list price
   completionVp: number;
-  stationBonus: number; // once per contract, if that line connects a Major Station
   incompletePenalty: number; // negative VP
-  /** A premium route's optional completion bonus, shown directly on the contract. */
-  special?: string;
 };
 
 export const LINE_CONTRACTS: LineContract[] = [
   {
     id: "short",
-    name: "Market Shuttle",
-    code: "S",
-    color: "#d4380d",
+    name: "Red Line", code: "RE", color: "#b91c1c",
     recipe: [2, 3, 2, 3],
     cost: 5,
     completionVp: 4,
-    stationBonus: 3,
     incompletePenalty: -4,
   },
   {
     id: "branch",
-    name: "Garden Spur",
-    code: "B",
-    color: "#c2410c",
+    name: "Orange Line", code: "OR", color: "#c2410c",
     dash: "20 10",
     recipe: [4, 2, 3, 4, 2],
     cost: 6,
     completionVp: 5,
-    stationBonus: 3,
     incompletePenalty: -5,
   },
   {
     id: "medium",
-    name: "Museum Connector",
-    code: "M",
-    color: "#15803d",
+    name: "Green Line", code: "GR", color: "#15803d",
     recipe: [3, 5, 2, 4, 3, 5],
     cost: 8,
     completionVp: 6,
-    stationBonus: 4,
     incompletePenalty: -6,
   },
   {
     id: "express",
-    name: "Grand Central Express",
-    code: "E",
-    color: "#1d4ed8",
+    name: "Blue Line", code: "BL", color: "#1d4ed8",
     dash: "26 8 6 8",
     recipe: [6, 4, 5, 3, 6],
     cost: 10,
     completionVp: 6,
-    stationBonus: 5,
     incompletePenalty: -7,
-    special: "+3 VP if this completed line connects two Major Stations.",
   },
   {
     id: "crosstown",
-    name: "Crosstown Line",
-    code: "C",
-    color: "#7e22ce",
+    name: "Purple Line", code: "PU", color: "#7e22ce",
     dash: "6 9",
     recipe: [5, 3, 4, 2, 5, 3],
     cost: 10,
     completionVp: 7,
-    stationBonus: 4,
     incompletePenalty: -7,
-    special: "+3 VP if this completed line reaches within five pegs of both east and west board edges.",
   },
   {
     id: "long",
-    name: "Harbor Line",
-    code: "L",
-    color: "#0f766e",
+    name: "Teal Line", code: "TE", color: "#0f766e",
     recipe: [4, 6, 3, 5, 2, 4, 6],
     cost: 11,
     completionVp: 9,
-    stationBonus: 4,
     incompletePenalty: -8,
   },
 ];
 
 /** Six new services. Each seat receives three contracts from a shared shuffled pool. */
 LINE_CONTRACTS.push(
-  { id: "tram", name: "Old Town Tram", code: "T", color: "#be185d", recipe: [2, 3, 4, 2], cost: 5, completionVp: 4, stationBonus: 3, incompletePenalty: -4 },
-  { id: "river", name: "Riverside Line", code: "R", color: "#0369a1", dash: "14 7", recipe: [4, 2, 5, 3, 4], cost: 7, completionVp: 5, stationBonus: 4, incompletePenalty: -5 },
-  { id: "university", name: "University Shuttle", code: "U", color: "#a16207", dash: "4 6", recipe: [3, 2, 4, 3], cost: 6, completionVp: 4, stationBonus: 3, incompletePenalty: -4 },
-  { id: "orbital", name: "Orbital Line", code: "O", color: "#475569", dash: "18 6 4 6", recipe: [4, 5, 2, 4, 3, 5], cost: 9, completionVp: 6, stationBonus: 4, incompletePenalty: -6, special: "+3 VP if this completed line connects three different stations." },
-  { id: "airport", name: "Airport Express", code: "A", color: "#4f46e5", dash: "28 10", recipe: [6, 3, 5, 4, 2], cost: 10, completionVp: 6, stationBonus: 5, incompletePenalty: -6, special: "+4 VP if this completed line docks at Airport." },
-  { id: "local", name: "Neighbourhood Local", code: "N", color: "#65a30d", dash: "10 5", recipe: [2, 3, 2, 4, 3], cost: 6, completionVp: 5, stationBonus: 3, incompletePenalty: -5 },
+  { id: "tram", name: "Pink Line", code: "PI", color: "#be185d", recipe: [2, 3, 4, 2], cost: 5, completionVp: 4, incompletePenalty: -4 },
+  { id: "river", name: "Black Line", code: "BK", color: "#171717", dash: "14 7", recipe: [4, 2, 5, 3, 4], cost: 7, completionVp: 5, incompletePenalty: -5 },
+  { id: "university", name: "Yellow Line", code: "YE", color: "#a16207", dash: "4 6", recipe: [3, 2, 4, 3], cost: 6, completionVp: 4, incompletePenalty: -4 },
+  { id: "orbital", name: "Gray Line", code: "GY", color: "#64748b", dash: "18 6 4 6", recipe: [4, 5, 2, 4, 3, 5], cost: 9, completionVp: 6, incompletePenalty: -6, },
+  { id: "airport", name: "White Line", code: "WH", color: "#e2e8f0", dash: "28 10", recipe: [6, 3, 5, 4, 2], cost: 10, completionVp: 6, incompletePenalty: -6, },
+  { id: "local", name: "Brown Line", code: "BR", color: "#78350f", dash: "10 5", recipe: [2, 3, 2, 4, 3], cost: 6, completionVp: 5, incompletePenalty: -5 },
 );
 
 export const contractById = (id: string): LineContract | undefined =>
@@ -288,119 +269,158 @@ export type EngineeringCard = {
 
 export const ENGINEERING_CARDS: EngineeringCard[] = [
   {
-    id: "gentle",
-    name: "Gentle Curve",
-    description: "Sweep three segments without a sharp turn.",
-    requirement: "One line has three consecutive segments where every turn is ≤30°.",
-    vp: 4,
-    kind: "objective",
+    "id": "gentle",
+    "name": "Three-Way Service",
+    "description": "Complete all three lines with their final pegs on three different board sides.",
+    "requirement": "Complete all three lines with their final pegs on three different board sides.",
+    "vp": 6,
+    "kind": "objective"
   },
   {
-    id: "bend",
-    name: "45° Bend",
-    description: "Work a deliberate dogleg into the alignment.",
-    requirement: "One line turns more than 30° and at most 50° at a node.",
-    vp: 3,
-    kind: "objective",
+    "id": "bend",
+    "name": "Turning the Corner",
+    "description": "Complete all three lines: each starts on the east or west border and ends on the north or south border.",
+    "requirement": "Complete all three lines: each starts on the east or west border and ends on the north or south border.",
+    "vp": 6,
+    "kind": "objective"
   },
   {
-    id: "straight",
-    name: "Straightaway",
-    description: "Hold a true alignment across three segments.",
-    requirement: "One line has three consecutive segments aligned within 15°.",
-    vp: 4,
-    kind: "objective",
+    "id": "straight",
+    "name": "Loop",
+    "description": "Complete all three lines: each ends on the same board side as its starter.",
+    "requirement": "Complete all three lines: each ends on the same board side as its starter.",
+    "vp": 7,
+    "kind": "objective"
   },
   {
-    id: "approach",
-    name: "Major Connection",
-    description: "Link a civic destination into the wider network.",
-    requirement: "One completed line connects a Major Station and a Minor Station.",
-    vp: 4,
-    kind: "objective",
+    "id": "approach",
+    "name": "Major Connection",
+    "description": "One completed line connects two different Major Stations.",
+    "requirement": "One completed line connects two different Major Stations.",
+    "vp": 6,
+    "kind": "objective"
   },
   {
-    id: "through",
-    name: "Grand Tour",
-    description: "Make one line do real city work.",
-    requirement: "One completed line connects one Major Station and at least two Minor Stations.",
-    vp: 5,
-    kind: "objective",
+    "id": "through",
+    "name": "North–South Lines",
+    "description": "All three lines each have a node on both the north and south borders.",
+    "requirement": "All three lines each have a node on both the north and south borders.",
+    "vp": 7,
+    "kind": "objective"
   },
   {
-    id: "network",
-    name: "Network Link",
-    description: "Tie two parts of the city together on one finished line.",
-    requirement: "One completed line connects at least three different stations.",
-    vp: 4,
-    kind: "objective",
+    "id": "network",
+    "name": "Integrated Network",
+    "description": "Connect all three completed lines into one company network through shared stations or pegs.",
+    "requirement": "Connect all three completed lines into one company network through shared stations or pegs.",
+    "vp": 7,
+    "kind": "objective"
   },
   {
-    id: "parallel",
-    name: "Long Haul",
-    description: "Commit to a proper cross-city project.",
-    requirement: "One completed line has six or more segments.",
-    vp: 4,
-    kind: "objective",
+    "id": "terminal",
+    "name": "Terminal Network",
+    "description": "Complete all three lines with their final nodes at stations. The same station may serve multiple lines.",
+    "requirement": "Complete all three lines with their final nodes at stations. The same station may serve multiple lines.",
+    "vp": 6,
+    "kind": "objective"
   },
   {
-    id: "terminal",
-    name: "End of the Line",
-    description: "Finish at a station, not in open ground.",
-    requirement: "A completed line ends on a station.",
-    vp: 4,
-    kind: "objective",
+    "id": "minimal",
+    "name": "Surveyed System",
+    "description": "Complete all three lines and build through at least one of your purchased Survey Pins.",
+    "requirement": "Complete all three lines and build through at least one of your purchased Survey Pins.",
+    "vp": 7,
+    "kind": "objective"
   },
   {
-    id: "minimal",
-    name: "Twin Completion",
-    description: "Deliver more than one promise.",
-    requirement: "Complete at least two of your Line Contracts.",
-    vp: 3,
-    kind: "objective",
+    "id": "crossing",
+    "name": "First to Open",
+    "description": "Be the first company to complete all three lines.",
+    "requirement": "Be the first company to complete all three lines.",
+    "vp": 7,
+    "kind": "objective"
   },
   {
-    id: "crossing",
-    name: "Crossing Design",
-    description: "Take your alignment straight over the competition's.",
-    requirement: "One of your segments properly crosses any existing line.",
-    vp: 2,
-    kind: "objective",
+    "id": "crosstown-service",
+    "name": "Across Town",
+    "description": "One completed line has a node in the first three columns and another in the last three columns.",
+    "requirement": "One completed line has a node in the first three columns and another in the last three columns.",
+    "vp": 6,
+    "kind": "objective"
   },
+  {
+    "id": "local-service",
+    "name": "Local Service",
+    "description": "Connect four different Minor Stations across your company. Your lines need not connect to one another.",
+    "requirement": "Connect four different Minor Stations across your company. Your lines need not connect to one another.",
+    "vp": 5,
+    "kind": "objective"
+  },
+  {
+    "id": "interchange",
+    "name": "Central Interchange",
+    "description": "Dock two separate lines at the same Major Station in a two-player game; three lines in a three- or four-player game.",
+    "requirement": "Dock two separate lines at the same Major Station in a two-player game; three lines in a three- or four-player game.",
+    "vp": 6,
+    "kind": "objective"
+  },
+  {
+    "id": "solvent",
+    "name": "On Budget",
+    "description": "Complete all three lines and finish with at least $5M.",
+    "requirement": "Complete all three lines and finish with at least $5M.",
+    "vp": 6,
+    "kind": "objective"
+  },
+  {
+    "id": "perimeter",
+    "name": "Perimeter Service",
+    "description": "One completed line has three distinct pegs on three different board sides.",
+    "requirement": "One completed line has three distinct pegs on three different board sides.",
+    "vp": 6,
+    "kind": "objective"
+  },
+  {
+    "id": "three-fronts",
+    "name": "Three Fronts",
+    "description": "Complete all three lines: their starters occupy three different board sides and their final pegs all occupy the same side.",
+    "requirement": "Complete all three lines: their starters occupy three different board sides and their final pegs all occupy the same side.",
+    "vp": 7,
+    "kind": "objective"
+  },
+  {
+    "id": "four-corners",
+    "name": "Four Corners",
+    "description": "Connect all three lines into a company network joining the northwest and southeast corner pegs, or the northeast and southwest corner pegs.",
+    "requirement": "Connect all three lines into a company network joining the northwest and southeast corner pegs, or the northeast and southwest corner pegs.",
+    "vp": 6,
+    "kind": "objective"
+  }
 ];
-
-ENGINEERING_CARDS.push(
-  { id: "crosstown-service", name: "Across Town", description: "Connect the city's far edges.", requirement: "One line has a node within five pegs of both the west and east board edges.", vp: 5, kind: "objective" },
-  { id: "local-service", name: "Local Service", description: "Make everyday journeys easier.", requirement: "Your company connects two different Minor Stations.", vp: 4, kind: "objective" },
-  { id: "interchange", name: "Interchange", description: "Give passengers a connection.", requirement: "Two of your lines dock the same station.", vp: 3, kind: "objective" },
-  { id: "solvent", name: "On Budget", description: "Deliver a railway with a reserve.", requirement: "Complete at least two lines and finish with at least $3M.", vp: 3, kind: "objective" },
-);
 
 export const engineeringById = (id: string): EngineeringCard | undefined =>
   ENGINEERING_CARDS.find((c) => c.id === id);
 
-/**
- * Destination cards — one per station. They share the face-up Engineering
- * market but are a separate commitment: each is assigned to one owned line and
- * pays out when that line connects the named station, complete or not.
- */
+/** Private network missions. Each distinct pair or triple occurs once. */
 export type DestinationCard = {
   id: string;
-  stationId: string;
+  stationIds: string[];
   name: string;
   description: string;
   requirement: string;
   vp: number;
 };
-
-export const DESTINATION_CARDS: DestinationCard[] = STATIONS.map((s) => ({
-  id: `dest-${s.id}`,
-  stationId: s.id,
-  name: `Destination: ${s.name}`,
-  description: `Serve ${s.name} with any of your routes.`,
-  requirement: `Any owned line connects ${s.name}, complete or not.`,
-  vp: SUBWAY_CONFIG.destinationVp,
-}));
+export const DESTINATION_CARDS: DestinationCard[] = [];
+for (let a = 0; a < STATIONS.length; a++) for (let b = a + 1; b < STATIONS.length; b++) {
+  const add = (stations: Station[]) => {
+    const names = stations.map(s => s.name).join(" ↔ ");
+    DESTINATION_CARDS.push({id: `dest-${stations.map(s => s.id).join("-")}`, stationIds: stations.map(s => s.id), name: names,
+      description: "Connect these stations through your own network.",
+      requirement: `Connect ${names} with a continuous company route. Transfer at shared stations or pegs; crossings alone do not connect.`, vp: stations.length === 2 ? SUBWAY_CONFIG.destinationVp : SUBWAY_CONFIG.threeStationDestinationVp});
+  };
+  add([STATIONS[a], STATIONS[b]]);
+  for (let c = b + 1; c < STATIONS.length; c++) add([STATIONS[a], STATIONS[b], STATIONS[c]]);
+}
 
 const DESTINATION_BY_ID = new Map(DESTINATION_CARDS.map((c) => [c.id, c]));
 
@@ -435,18 +455,6 @@ SCHEDULING_CARDS.push(
 
 export const schedulingById = (id: SchedulingCardId) => SCHEDULING_CARDS.find((c) => c.id === id);
 
-export type ConstructionCardId = "overtime" | "expedite" | "surge" | "grant" | "access" | "booking" | "relief";
-
-export const CONSTRUCTION_CARDS: {id:ConstructionCardId; name:string; description:string}[] = [
-  {id:"booking",name:"Advance Booking",description:"Before hiring, reserve $1M off your crew bill next round. Expires unused; never pays cash."},
-  {id:"relief",name:"Relief Crew",description:"Before hiring, your first crew is free this turn. Pay $0M / $2M / $5M for 1 / 2 / 3 crews."},
-  {id:"expedite",name:"Priority Dispatch",description:"During the opening priority window, take the first turn this round. Counts as your one card this round."},
-  {id:"grant",name:"City Grant",description:"Before hiring, receive $3M."},
-  {id:"access",name:"Access Pass",description:"Before building, the city pays all contact tolls on your next segment this turn. Route owners still receive payment."},
-];
-
-export const constructionById = (id: ConstructionCardId) => CONSTRUCTION_CARDS.find((c) => c.id === id);
-
 /**
  * Card families used to seed shuffled piles at setup. Contracts and
  * Destinations have separate drafts.
@@ -455,7 +463,6 @@ export const MARKET_DECKS = {
   // Objectives only. Destinations have their own Engineering draft (DEC-019).
   engineering: ENGINEERING_CARDS.map((c) => c.id),
   scheduling: SCHEDULING_CARDS.map((c) => c.id),
-  construction: CONSTRUCTION_CARDS.map((c) => c.id),
 } as const;
 
 export type CardDeckId = keyof typeof MARKET_DECKS;
@@ -487,6 +494,8 @@ export type RouteNode = Point & {
   stationId?: string;
   /** Which docking slot of the station this connection occupies. */
   stationSlot?: number;
+  /** Physical dock geometry retained with the node for every player count. */
+  stationCapacity?: number;
 };
 
 export type PlayerLine = {
@@ -525,20 +534,18 @@ export type SubwayPlayer = {
   color: string;
   money: number;
   crewsHired?: boolean;
-  crewDiscount?: number;
-  nextCrewDiscount?: number;
   crewPaid?: number;
   engineeringHand: string[];
   committedEngineering: string[];
   engineeringLocked: boolean;
-  /** Destination cards drafted but not yet assigned; they score nothing. */
+  /** Private missions scored across the connected company network. */
   destinationHand: string[];
+  destinationPurchased?: boolean;
   /** Destination cards locked to a line at Engineering plan lock. */
   destinationCommitments: DestinationCommitment[];
   /** Survey Pins bought at plan lock; paid for once, placed publicly after. */
   surveysPurchased: number;
   schedulingHand: SchedulingCardId[];
-  constructionHand: ConstructionCardId[];
   lines: PlayerLine[];
   /** Procurement decisions spent in the normal market phase. */
   decisionsUsed: number;
@@ -552,9 +559,6 @@ export type SubwayPlayer = {
   /** Line indexes this company may still build this period. */
   pendingActions: number[];
   actedThisPeriod: boolean;
-  constructionCardThisPeriod: boolean;
-  /** Access Pass covers the next placement this period; the city pays the owners. */
-  accessPass?: boolean;
   /**
    * Proper interior-to-interior crossings this company has made of an opposing
    * segment. Crossing needs no permit (DEC-018); this only drives the Crossing
@@ -627,7 +631,8 @@ export type SubwayTelemetryPlayer = {
   tollsPaid: number;
   surveysPurchased: number;
   engineeringCards: string[];
-  constructionCards: ConstructionCardId[];
+  destinationCards: string[];
+  destinationPurchased: boolean;
   lineNodeCounts: number[];
   completedLines: string[];
 };
@@ -657,6 +662,7 @@ export const SUBWAY_EVENT_LIMIT = 20;
 
 export interface SubwayState {
   version: number;
+  firstCompletedPlayerId?: string;
   phase: SubwayPhase;
   playerOrder: string[];
   players: Record<string, SubwayPlayer>;
@@ -682,7 +688,6 @@ export interface SubwayState {
   currentPeriod: number;
   /** Companies still to build this period, in resolution order. */
   resolveQueue: string[];
-  priorityQueue: string[];
   /** The one placement that may still be taken back, if any. */
   undo?: UndoRecord;
   /** Bounded public narration, newest last. Only accepted actions append. */
@@ -703,9 +708,9 @@ export type SubwayActionType =
   | "START_GAME"
   | "PROCURE"
   | "DRAFT_CARD"
+  | "BUY_DESTINATION"
   | "BUY_SURVEYS"
   | "HIRE_CREWS"
-  | "PASS_PRIORITY"
   | "PICK_DESTINATION"
   | "LOCK_ENGINEERING_PLAN"
   | "PLACE_SURVEY"
@@ -715,7 +720,6 @@ export type SubwayActionType =
   | "PLAY_SCHEDULING_CARD"
   | "CONFIRM_SCHEDULE"
   | "PLACE_STARTER"
-  | "PLAY_CONSTRUCTION_CARD"
   | "BUILD"
   | "SKIP_ACTION"
   | "UNDO_PLACEMENT"
@@ -957,7 +961,7 @@ export function nodePoint(n: RouteNode): Point {
     if (station) {
       const slot = n.stationSlot ?? 0;
       return {
-        x: n.x + (slot - (station.capacity - 1) / 2) * STATION_SLOT_SPACING,
+        x: n.x + (slot - ((n.stationCapacity ?? station.capacity) - 1) / 2) * STATION_SLOT_SPACING,
         y: n.y + STATION_SLOT_DROP,
       };
     }
@@ -1360,10 +1364,13 @@ export function surveyFulfilled(p: SubwayPlayer, pin: SurveyPin): boolean {
 // Destinations
 // ----------------------------------------------------------------------------
 
-/** True when the assigned line connects the card's station, complete or not. */
-export function destinationMet(p: SubwayPlayer, commitment: DestinationCommitment): boolean {
-  const line = p.lines[commitment.lineIndex];
-  return !!line && line.route.some((n) => n.stationId === commitment.stationId);
+/** The mission's stations must belong to one connected OWN network. */
+export function destinationMet(p: SubwayPlayer, mission: string | DestinationCommitment): boolean {
+  const card = destinationById(typeof mission === "string" ? mission : mission.cardId);
+  if (!card) return false;
+  const graph = companyNetwork(p);
+  const components = card.stationIds.map(id => graph.get(`station:${id}`));
+  return components[0] !== undefined && components.every(id => id === components[0]);
 }
 
 /** Destination cards this company has drafted, assigned or not. */
@@ -1410,11 +1417,11 @@ export function destinationProblems(
       problems.push(`${contractOf(p.lines[a.lineIndex])?.name ?? "That line"} may carry only two Destinations.`);
       continue;
     }
-    if (stations.includes(card.stationId)) {
+    if (stations.includes(card.id)) {
       problems.push(`${card.name} is already assigned to that line.`);
       continue;
     }
-    stations.push(card.stationId);
+    stations.push(card.id);
     perLine.set(a.lineIndex, stations);
   }
   return problems;
@@ -1424,61 +1431,36 @@ export function destinationProblems(
 // Engineering objective evaluation (approximate geometry, see RULES.md)
 // ----------------------------------------------------------------------------
 
-function lineMeets(id: string, line: PlayerLine, me: SubwayPlayer, opponents: SubwayPlayer[]): boolean {
-  const tol = SUBWAY_CONFIG.tolerances;
-  const r = line.route;
-  const pts = routePoints(line);
-  const complete = lineComplete(line);
-  // angles[i] is the direction change between segment i and segment i+1.
-  const angles = pts.slice(2).map((_, i) => angleChange(pts[i], pts[i + 1], pts[i + 2]));
-  const runOfTwo = (max: number) =>
-    angles.some((_, i) => i + 1 < angles.length && angles[i] <= max && angles[i + 1] <= max);
-
+export function objectiveMet(id: string, me: SubwayPlayer, opponents: SubwayPlayer[], state?: SubwayState): boolean {
+  if (destinationById(id)) return destinationMet(me, id);
+  const all = me.lines.length === 3 && allLinesComplete(me);
+  const starts = me.lines.flatMap(line => line.route.slice(0, 1));
+  const ends = me.lines.flatMap(line => line.route.slice(-1));
+  const graph = () => companyNetwork(me);
   switch (id) {
-    case "crosstown-service":
-      return r.some((n) => n.x <= 5) && r.some((n) => n.x >= SUBWAY_CONFIG.board.columns - 6);
-    case "gentle":
-      return runOfTwo(tol.gentleCurve);
-    case "straight":
-      return runOfTwo(tol.straight);
-    case "bend":
-      return angles.some((a) => a > tol.gentleCurve && a <= tol.bend);
-    case "approach": {
-      if (!complete) return false;
-      const connected = r.map((n) => n.stationId).filter(Boolean).map((id) => stationById(id!));
-      return connected.some((station) => station?.kind === "major") && connected.some((station) => station?.kind === "minor");
+    case "gentle": return all && distinctSides(ends, 3);
+    case "bend": return all && starts.every(p => borderSides(p).some(s => s === "east" || s === "west")) && ends.every(p => borderSides(p).some(s => s === "north" || s === "south"));
+    case "straight": return all && me.lines.every(line => borderSides(line.route[0]).some(s => borderSides(line.route.at(-1)!).includes(s)));
+    case "approach": return me.lines.some(line => lineComplete(line) && lineMajors(line).length >= 2);
+    case "through": return me.lines.length === 3 && me.lines.every(line => line.route.some(n => n.y === 0) && line.route.some(n => n.y === SUBWAY_CONFIG.board.rows - 1));
+    case "network": return all && linesConnected(me.lines, graph());
+    case "terminal": return all && ends.every(n => !!n.stationId);
+    case "minimal": return all && !!state?.surveyPins.some(pin => pin.playerId === me.id && surveyFulfilled(me, pin));
+    case "crossing": return state?.firstCompletedPlayerId === me.id && all;
+    case "crosstown-service": return me.lines.some(line => lineComplete(line) && line.route.some(n => n.x <= 2) && line.route.some(n => n.x >= SUBWAY_CONFIG.board.columns - 3));
+    case "local-service": return connectedStations(me).filter(s => s.kind === "minor").length >= 4;
+    case "interchange": return STATIONS.some(station => station.kind === "major" && me.lines.filter(line => line.route.some(n => n.stationId === station.id)).length >= ((state?.playerOrder.length ?? opponents.length + 1) === 2 ? 2 : 3));
+    case "solvent": return all && me.money >= 5;
+    case "perimeter": return me.lines.some(line => lineComplete(line) && distinctSides(line.route, 3));
+    case "three-fronts": return all && distinctSides(starts, 3) && borderSides(ends[0]).some(side => ends.every(n => borderSides(n).includes(side)));
+    case "four-corners": {
+      const component = graph();
+      if (!linesConnected(me.lines, component)) return false;
+      const own = component.get(networkNodeKey(me.lines[0].route[0]));
+      return [["0,0", "26,8"], ["26,0", "0,8"]].some(pair => pair.every(key => component.get(key) === own));
     }
-    case "through": {
-      if (!complete) return false;
-      const connected = r.map((n) => n.stationId).filter(Boolean).map((id) => stationById(id!));
-      return connected.some((station) => station?.kind === "major") && connected.filter((station) => station?.kind === "minor").length >= 2;
-    }
-    case "network": {
-      if (!complete) return false;
-      const stations = new Set(r.filter((n) => n.stationId).map((n) => n.stationId));
-      return stations.size >= 3;
-    }
-    case "parallel":
-      return complete && contractOf(line)!.recipe.length >= 6;
-    case "terminal":
-      return complete && r[r.length - 1]?.stationId !== undefined;
-    case "crossing":
-      return me.properCrossings > 0;
-    default:
-      return false;
+    default: return false;
   }
-}
-
-export function objectiveMet(id: string, me: SubwayPlayer, opponents: SubwayPlayer[]): boolean {
-  const destination = destinationById(id);
-  if (destination) return me.lines.some(line => line.route.some(node => node.stationId === destination.stationId));
-  // Portfolio objectives are judged across the whole company, not per line.
-  if (id === "solvent") return me.money >= 3 && me.lines.filter(lineComplete).length >= 2;
-  if (id === "local-service") return STATIONS.filter((station) => station.kind === "minor" && me.lines.some((line) => line.route.some((n) => n.stationId === station.id))).length >= 2;
-  if (id === "interchange") return STATIONS.some((station) => me.lines.filter((line) => line.route.some((n) => n.stationId === station.id)).length >= 2);
-  if (id === "minimal") return me.lines.filter(lineComplete).length >= 2;
-  if (id === "crossing") return me.properCrossings > 0;
-  return me.lines.some((line) => lineMeets(id, line, me, opponents));
 }
 
 /** Live private status of one company's committed cards, for its own UI. */
@@ -1486,7 +1468,7 @@ export function committedStatus(s: SubwayState, playerId: string): { cardId: str
   const me = s.players[playerId];
   if (!me) return [];
   const opponents = seats(s).filter((p) => p.id !== playerId);
-  return me.engineeringHand.map((cardId) => ({ cardId, met: objectiveMet(cardId, me, opponents) }));
+  return me.engineeringHand.map((cardId) => ({ cardId, met: objectiveMet(cardId, me, opponents, s) }));
 }
 
 // ----------------------------------------------------------------------------
@@ -1504,6 +1486,9 @@ const majorCount = (p: SubwayPlayer): number =>
 
 export function scoreGame(state: SubwayState, now: number): SubwayState {
   const players = structuredClone(state.players);
+  const lengths = Object.values(players).map(p => ({id:p.id, length:longestNetwork(p)}));
+  const max = Math.max(0, ...lengths.map(entry => entry.length));
+  const longest = lengths.filter(entry => max > 0 && Math.abs(entry.length - max) < EPS);
 
   for (const p of Object.values(players)) {
     const items: ScoreItem[] = [];
@@ -1524,28 +1509,14 @@ export function scoreGame(state: SubwayState, now: number): SubwayState {
         points: complete ? contract.completionVp : contract.incompletePenalty,
         met: complete,
       });
-      const majors = lineMajors(line);
-      if (majors.length) {
-        items.push({ label: `${contract.name} major-station bonus`, points: contract.stationBonus, met: true });
-      }
-      const stationIds = new Set(line.route.flatMap((node) => node.stationId ? [node.stationId] : []));
-      const spansBoard = line.route.some((node) => node.x <= 5) && line.route.some((node) => node.x >= SUBWAY_CONFIG.board.columns - 6);
-      const specialMet =
-        (contract.id === "express" && complete && majors.length >= 2) ||
-        (contract.id === "crosstown" && complete && spansBoard) ||
-        (contract.id === "orbital" && complete && stationIds.size >= 3) ||
-        (contract.id === "airport" && complete && stationIds.has("airport"));
-      if (specialMet) {
-        const points = contract.id === "airport" ? 4 : 3;
-        items.push({ label: `${contract.name} special`, points, met: true });
-      }
+
     }
 
     const opponents = Object.values(players).filter((o) => o.id !== p.id);
-    for (const id of Array.from(new Set(p.engineeringHand))) {
+    for (const id of Array.from(new Set([...p.engineeringHand, ...p.destinationHand]))) {
       const card = engineeringById(id) ?? destinationById(id);
       if (!card) continue;
-      const met = objectiveMet(id, p, opponents);
+      const met = objectiveMet(id, p, opponents, state);
       items.push({ label: card.name, points: met ? card.vp : 0, met });
     }
 
@@ -1568,6 +1539,9 @@ export function scoreGame(state: SubwayState, now: number): SubwayState {
       });
     }
 
+    const length = lengths.find(entry => entry.id === p.id)!.length;
+    const longestMet = longest.some(entry => entry.id === p.id);
+    items.push({label: `Longest network (${length.toFixed(1)} peg spaces)`, points: longestMet ? (longest.length === 1 ? 5 : 3) : 0, met:longestMet});
     p.scoreBreakdown = items;
     p.score = items.reduce((sum, i) => sum + i.points, 0);
   }
@@ -1617,14 +1591,12 @@ function makePlayer(p: Player, index: number): SubwayPlayer {
     destinationCommitments: [],
     surveysPurchased: 0,
     schedulingHand: [...SUBWAY_CONFIG.startingHands.scheduling],
-    constructionHand: [...SUBWAY_CONFIG.startingHands.construction],
     lines: [],
     decisionsUsed: 0,
     scheduleSubmitted: false,
     scheduleConfirmed: false,
     pendingActions: [],
     actedThisPeriod: false,
-    constructionCardThisPeriod: false,
     properCrossings: 0,
     tollsPaid: 0,
   };
@@ -1646,7 +1618,7 @@ function initialState(players: Player[]): SubwayState {
     oddPriorityId: order[0] ?? "",
     priorityOverrides: {},
     procurement: { row: [], deck: [], offerIndex: 0 },
-    market: {rows:{engineering:[], scheduling:[], construction:[]}, decks:{engineering:[], scheduling:[], construction:[]}, picks:0},
+    market: {rows:{engineering:[], scheduling:[]}, decks:{engineering:[], scheduling:[]}, picks:0},
     engineeringStep: "DESTINATION_DRAFT",
     destinationDeck: [],
     destinationRow: [],
@@ -1654,7 +1626,6 @@ function initialState(players: Player[]): SubwayState {
     surveyPins: [],
     currentPeriod: 1,
     resolveQueue: [],
-    priorityQueue: [],
     events: [],
     nextEventSeq: 1,
     telemetry: [],
@@ -1695,15 +1666,15 @@ export function draftTurnId(s: SubwayState, pick: number, stage: number): string
 
 export function cardDraftTurnId(s: SubwayState): string | undefined {
   const pick = s.market.picks ?? 0;
-  return pick < s.playerOrder.length * 6 ? draftTurnId(s, pick, 1) : undefined;
+  return pick < s.playerOrder.length * SUBWAY_CONFIG.engineeringPicks ? draftTurnId(s, pick, 1) : undefined;
 }
 export function draftPicks(p: SubwayPlayer): number {
-  return p.engineeringHand.length + p.schedulingHand.length + p.constructionHand.length;
+  return p.engineeringHand.length;
 }
 export function cardDraftBlocker(s: SubwayState, playerId: string, deck: CardDeckId, cardId?: string): string | undefined {
   const p = s.players[playerId];
   if (s.phase !== "ENGINEERING" || s.engineeringStep !== "CARD_DRAFT" || cardDraftTurnId(s) !== playerId) return "Wait for your draft turn.";
-  if (deck === "scheduling") return "Scheduling cards are now Construction cards.";
+  if (deck !== "engineering") return "Only Engineering goals are drafted.";
   if (deck === "engineering" && cardId && p.engineeringHand.includes(cardId)) return "You already hold this Engineering goal.";
   return undefined;
 }
@@ -1716,7 +1687,7 @@ function nextOffer(s: SubwayState, now: number): SubwayState {
     proc.offer = undefined;
     s.phase = "ENGINEERING";
     s.engineeringStep = "CARD_DRAFT";
-    pushEvent(s, now, "PHASE", "banner", "Contracts signed. Draft six cards each: Engineering goals or Construction abilities.");
+    pushEvent(s, now, "PHASE", "banner", "Contracts signed. Draft three Engineering goals each. Your two Destination missions are already in hand.");
     return s;
   }
   const id = draftTurnId(s, proc.offerIndex, 0);
@@ -1772,7 +1743,6 @@ function toScoring(s: SubwayState, now: number, reason: SubwayEndReason): Subway
   s.constructionEndedAt = now;
   s.endReason = reason;
   s.resolveQueue = [];
-  s.priorityQueue = [];
   for (const p of seats(s)) p.pendingActions = [];
   pushEvent(
     s,
@@ -1801,21 +1771,8 @@ export function scheduledLines(p: SubwayPlayer, period: number): number[] {
 }
 
 /** Incremental costs: first crew $1M, second adds $2M, third adds $3M. */
-export function activationCost(p: SubwayPlayer, count: number): number {
-  return count === 0 ? 0 : Math.max(0, count * (count + 1) / 2 - (p.crewDiscount ?? 0));
-}
-export function constructionCardBlocker(s: SubwayState, id: string, card: ConstructionCardId): string | undefined {
-  const p = s.players[id];
-  if (s.phase !== "CONSTRUCTION" || !p) return "Only during Construction.";
-  if (!p.constructionHand.includes(card)) return "You do not hold this card.";
-  if (p.constructionCardThisPeriod) return "One Construction card per round.";
-  if (card === "expedite") return s.priorityQueue[0] === id ? undefined : "Only during your opening priority opportunity.";
-  if (s.priorityQueue.length || s.resolveQueue[0] !== id) return "Wait for your construction turn.";
-  if (!constructionById(card)) return "This card is no longer in the game.";
-  if (["booking","relief","grant"].includes(card) && p.crewsHired) return "Play before hiring crews.";
-  if (card === "booking" && s.currentPeriod === SUBWAY_CONFIG.timelinePeriods) return "There is no next round.";
-  if (card === "access" && !p.pendingActions.length) return "Hire a crew before playing Access Pass.";
-  return undefined;
+export function activationCost(_p: SubwayPlayer, count: number): number {
+  return count === 0 ? 0 : count * (count + 1) / 2;
 }
 function beginConstructionPeriod(s: SubwayState, now: number, opening = false): SubwayState {
   if (constructionExhausted(s)) return toScoring(s, now, "NO_LEGAL_CONSTRUCTION");
@@ -1823,15 +1780,10 @@ function beginConstructionPeriod(s: SubwayState, now: number, opening = false): 
   for (const p of seats(s)) {
     p.pendingActions = [];
     p.actedThisPeriod = false;
-    p.constructionCardThisPeriod = false;
-    p.accessPass = false;
     p.crewsHired = false;
-    p.crewDiscount = p.nextCrewDiscount ?? 0;
-    p.nextCrewDiscount = 0;
   }
   s.resolveQueue = s.playerOrder.map((_,i) => basePriorityId(s,s.currentPeriod+i));
-  s.priorityQueue = s.resolveQueue.filter(id => s.players[id].constructionHand.includes("expedite"));
-  pushEvent(s, now, "PERIOD", "banner", `${opening ? "Construction begins. " : ""}Round ${s.currentPeriod}: ${s.priorityQueue.length ? "Priority Dispatch opportunity." : "Choose crews on your turn."}`);
+  pushEvent(s, now, "PERIOD", "banner", `${opening ? "Construction begins. " : ""}Round ${s.currentPeriod}: choose crews on your turn.`);
   return s;
 }
 
@@ -1844,6 +1796,7 @@ function endPlayerTurn(s: SubwayState, playerId: string, now: number): SubwaySta
   }
   s.resolveQueue = s.resolveQueue.filter((id) => id !== playerId);
   if (!s.resolveQueue.length) {
+    if (s.currentPeriod >= SUBWAY_CONFIG.timelinePeriods) return toScoring(s, now, "ROUND_LIMIT");
     s.currentPeriod++;
     return beginConstructionPeriod(s, now);
   }
@@ -1909,26 +1862,24 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       const fresh = initialState(ctx.room.players);
       fresh.startedAt = ctx.now();
       fresh.phase = "PROCUREMENT";
-      fresh.market.rows = {engineering:[], scheduling:[], construction:[]};
-      fresh.market.decks = {engineering:[], scheduling:[], construction:[]};
+      fresh.market.rows = {engineering:[], scheduling:[]};
+      fresh.market.decks = {engineering:[], scheduling:[]};
       fresh.market.picks = 0;
-      for (const deck of ["engineering", "construction"] as CardDeckId[]) {
-        const ids = deck === "engineering" ? [...ENGINEERING_CARDS, ...DESTINATION_CARDS].map(c => c.id) : CONSTRUCTION_CARDS.map(c => c.id);
-        fresh.market.decks[deck] = shuffle(deck === "engineering" ? ids : Array.from({length:8}, () => ids).flat(), ctx.random);
-        fresh.market.rows[deck] = fresh.market.decks[deck].splice(0, 2);
-      }
-      fresh.stations = randomStationLayout(ctx.random);
+      fresh.market.decks.engineering = shuffle(ENGINEERING_CARDS.map(c => c.id), ctx.random);
+      fresh.market.rows.engineering = fresh.market.decks.engineering.splice(0, 2);
+      fresh.stations = randomStationLayout(ctx.random).map(station => ({...station,
+        capacity: station.kind === "major" ? (fresh.playerOrder.length === 2 ? 2 : 3) : (fresh.playerOrder.length === 2 ? 1 : 2)}));
       fresh.oddPriorityId = fresh.playerOrder[Math.floor(ctx.random() * fresh.playerOrder.length)];
       fresh.procurement.deck = shuffle(
         LINE_CONTRACTS.map((c) => c.id),
         ctx.random
       ).slice(0, fresh.playerOrder.length * 3);
-      // Shuffled now, dealt when Engineering opens: this is the only point in
-      // the flow with a random source, and the reducer must stay pure.
+      // Shuffle and deal private missions at START_GAME using context randomness.
       fresh.destinationDeck = shuffle(
         DESTINATION_CARDS.map((c) => c.id),
         ctx.random
       );
+      for (const id of fresh.playerOrder) fresh.players[id].destinationHand = fresh.destinationDeck.splice(0, SUBWAY_CONFIG.destinationsPerPlayer);
       pushEvent(fresh, ctx.now(), "PHASE", "banner", `Subway begins — ${fresh.playerOrder.length * 3} Line Contracts for ${fresh.playerOrder.length} companies.`);
       return nextOffer(fresh, ctx.now());
     }
@@ -1950,7 +1901,7 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
 
     case "DRAFT_CARD": {
       const deck = action.payload?.deck;
-      if (!me || !deck || !["engineering", "construction"].includes(deck)) return state;
+      if (!me || !deck || deck !== "engineering") return state;
       if (action.payload?.expectedPick !== s.market.picks || cardDraftBlocker(s, me.id, deck, action.payload?.cardId)) return state;
       const row = s.market.rows?.[deck], pile = s.market.decks?.[deck];
       if (!row || !pile) return state;
@@ -1964,16 +1915,23 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
         if (index < 0) return state;
         cardId = pile.splice(index, 1)[0];
       }
-      if (deck === "engineering") me.engineeringHand.push(cardId);
-      else if (deck === "scheduling") me.schedulingHand.push(cardId as SchedulingCardId);
-      else me.constructionHand.push(cardId as ConstructionCardId);
+      me.engineeringHand.push(cardId);
       while (row.length < 2 && pile.length) row.push(pile.shift()!);
       s.market.picks = (s.market.picks ?? 0) + 1;
-      pushEvent(s, ctx.now(), "CARD", "notice", `${me.name} drafted a ${deck} card (${draftPicks(me)} of 6).`, me.id);
+      pushEvent(s, ctx.now(), "CARD", "notice", `${me.name} drafted a ${deck} card (${draftPicks(me)} of ${SUBWAY_CONFIG.engineeringPicks}).`, me.id);
       if (!cardDraftTurnId(s)) {
         s.engineeringStep = "BUY_SURVEYS";
         pushEvent(s, ctx.now(), "PHASE", "banner", "All goals are active. Optionally buy Survey Pins, then place your starters.");
       }
+      return s;
+    }
+
+    case "BUY_DESTINATION": {
+      if (s.phase !== "CONSTRUCTION" || !me || s.resolveQueue[0] !== me.id || me.crewsHired || me.destinationPurchased || me.money < SUBWAY_CONFIG.destinationPurchaseCost || !s.destinationDeck.length || action.payload?.period !== s.currentPeriod) return state;
+      me.money -= SUBWAY_CONFIG.destinationPurchaseCost;
+      me.destinationHand.push(s.destinationDeck.shift()!);
+      me.destinationPurchased = true;
+      pushEvent(s, ctx.now(), "CARD", "notice", `${me.name} bought a private Destination mission for $5M.`, me.id);
       return s;
     }
 
@@ -2039,43 +1997,21 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       return s;
     }
 
-    case "PASS_PRIORITY": {
-      if (s.phase !== "CONSTRUCTION" || s.priorityQueue[0] !== me?.id || action.payload?.period !== s.currentPeriod) return state;
-      s.priorityQueue.shift();
-      return s;
-    }
     case "HIRE_CREWS": {
-      if (s.phase !== "CONSTRUCTION" || s.priorityQueue.length || s.resolveQueue[0] !== me?.id || me.crewsHired || action.payload?.period !== s.currentPeriod) return state;
+      if (s.phase !== "CONSTRUCTION" || s.resolveQueue[0] !== me?.id || me.crewsHired || action.payload?.period !== s.currentPeriod) return state;
       const indexes = action.payload?.lineIndexes;
       if (!Array.isArray(indexes) || indexes.length > 3 || new Set(indexes).size !== indexes.length || indexes.some(i => !Number.isInteger(i) || !buildableLines(s,me.id).includes(i))) return state;
       const cost = activationCost(me,indexes.length);
       me.money -= cost;
       me.crewPaid = (me.crewPaid ?? 0) + cost;
-      me.crewDiscount = 0;
       me.crewsHired = true;
       me.pendingActions = [...indexes];
       pushEvent(s, ctx.now(), "TURN", "notice", `${me.name} hired ${indexes.length} crew(s) for $${cost}M.`, me.id);
       return indexes.length ? s : endPlayerTurn(s,me.id,ctx.now());
     }
-    case "PLAY_CONSTRUCTION_CARD": {
-      const id = action.payload?.cardId as ConstructionCardId;
-      if (!me || action.payload?.period !== s.currentPeriod || constructionCardBlocker(s,me.id,id)) return state;
-      if (id === "expedite") {
-        s.resolveQueue = [me.id,...s.resolveQueue.filter(pid=>pid!==me.id)];
-        s.priorityQueue = [];
-      } else if (id === "grant") me.money += 3;
-      else if (id === "access") me.accessPass = true;
-      else if (id === "booking") me.nextCrewDiscount = 1;
-      else if (id === "relief") me.crewDiscount = (me.crewDiscount ?? 0) + 1;
-      me.constructionHand = removeOne(me.constructionHand,id);
-      me.constructionCardThisPeriod = true;
-      pushEvent(s,ctx.now(),"CARD","notice",`${me.name} played ${constructionById(id)!.name}.`,me.id);
-      return s;
-    }
-
     case "BUILD": {
       if (state.phase !== "CONSTRUCTION" || !me) return state;
-      if (s.priorityQueue.length || !me.crewsHired || s.resolveQueue[0] !== me.id || !me.pendingActions.length) return state;
+      if (!me.crewsHired || s.resolveQueue[0] !== me.id || !me.pendingActions.length) return state;
       const lineIndex = action.payload?.lineIndex ?? -1;
       if (!me.pendingActions.includes(lineIndex)) return state;
       const line = me.lines[lineIndex];
@@ -2094,20 +2030,17 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       const contacts = routeContacts(s, me.id, from, pt);
       const toll = contactToll(contacts);
       if (toll > 0) {
-        if (!me.accessPass) {
-          me.money -= toll;
-          me.tollsPaid += toll;
-        }
+        me.money -= toll;
+        me.tollsPaid += toll;
         for (const contact of contacts) s.players[contact.ownerId].money += SUBWAY_CONFIG.contact.toll;
       }
-      const subsidized = me.accessPass;
-      me.accessPass = false;
       me.properCrossings += countAnyCrossings(s, nodePoint(from), targetPoint(pt, slot, station));
       line.route.push({
         ...pt,
-        ...(station ? { stationId: station.id, stationSlot: slot! } : {}),
+        ...(station ? { stationId: station.id, stationSlot: slot!, stationCapacity: station.capacity } : {}),
       });
 
+      if (!s.firstCompletedPlayerId && me.lines.length === 3 && allLinesComplete(me)) s.firstCompletedPlayerId = me.id;
       me.pendingActions = removeOne(me.pendingActions, lineIndex);
       const contract = contractOf(line)!;
       // One combined, privacy-safe notice: the placement, the station or hole
@@ -2116,7 +2049,7 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
         ? `${station.name} dock ${(slot ?? 0) + 1}`
         : `hole ${pt.x + 1},${pt.y + 1}`;
       const tollNote = toll > 0
-        ? ` ${contacts.length} contact${contacts.length === 1 ? "" : "s"} with ${Array.from(new Set(contacts.map((c) => s.players[c.ownerId].name))).join(", ")}: $${toll}M${subsidized ? " paid by the city" : ""}.`
+        ? ` ${contacts.length} contact${contacts.length === 1 ? "" : "s"} with ${Array.from(new Set(contacts.map((c) => s.players[c.ownerId].name))).join(", ")}: $${toll}M.`
         : "";
       pushEvent(
         s,
@@ -2143,7 +2076,7 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
 
     case "SKIP_ACTION": {
       if (state.phase !== "CONSTRUCTION" || !me) return state;
-      if (s.priorityQueue.length || !me.crewsHired || s.resolveQueue[0] !== me.id) return state;
+      if (!me.crewsHired || s.resolveQueue[0] !== me.id) return state;
       const lineIndex = action.payload?.lineIndex;
       // A skipped action is simply lost; it never rolls into a later period.
       if (lineIndex === undefined || lineIndex === null) {
@@ -2200,7 +2133,8 @@ function telemetryPlayers(state: SubwayState): Record<string, SubwayTelemetryPla
         tollsPaid: p.tollsPaid,
         surveysPurchased: p.surveysPurchased,
         engineeringCards: [...p.engineeringHand],
-        constructionCards: [...p.constructionHand],
+        destinationCards: [...p.destinationHand],
+        destinationPurchased: !!p.destinationPurchased,
         lineNodeCounts: p.lines.map((line) => line.route.length),
         completedLines: p.lines.filter(lineComplete).map((line) => line.contractId),
       }];
@@ -2283,7 +2217,7 @@ export function nextCompanyId(s: SubwayState): string | undefined {
       return s.playerOrder.find((id) => !s.players[id].engineeringLocked);
     case "SCHEDULING": return s.playerOrder.find((id) => s.schedulingStep === "PLANNING" ? !s.players[id].scheduleSubmitted : !s.players[id].scheduleConfirmed);
     case "STARTER_PLACEMENT": return starterTurnId(s);
-    case "CONSTRUCTION": return s.priorityQueue[0] ?? s.resolveQueue[0];
+    case "CONSTRUCTION": return s.resolveQueue[0];
     default: return s.playerOrder[0];
   }
 }

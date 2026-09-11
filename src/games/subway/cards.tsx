@@ -24,7 +24,7 @@ export function LineChip({ contract, subdued }: { contract: LineContract; subdue
       className={`inline-flex h-5 w-5 items-center justify-center rounded text-[11px] font-black text-white ${
         subdued ? "opacity-50" : ""
       }`}
-      style={{ background: contract.color }}
+      style={{ background: contract.color, color: contract.code === "WH" ? "#17232d" : "#fff" }}
       title={contract.name}
     >
       {contract.code}
@@ -141,10 +141,8 @@ export function ContractCard({
         <span>{contractNodes(contract)} nodes</span>
         <span>{contractActions(contract)} build periods</span>
         <span>Complete +{contract.completionVp} VP</span>
-        <span>Major +{contract.stationBonus} VP</span>
         <span className="col-span-2">Incomplete {contract.incompletePenalty} VP</span>
       </div>
-      {contract.special && <p className="mt-1 text-[11px] font-semibold text-amber-800">{contract.special}</p>}
       {progress && (
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-200">
           <div
@@ -165,7 +163,6 @@ export function ContractCard({
 
 const FAMILY_CHROME: Record<string, { tag: string; border: string; accent: string }> = {
   scheduling: { tag: "Scheduling", border: "border-sky-700", accent: "bg-sky-800 text-sky-50" },
-  construction: { tag: "Construction", border: "border-amber-700", accent: "bg-amber-700 text-amber-50" },
 };
 
 export function MiniCardFace({
@@ -176,7 +173,7 @@ export function MiniCardFace({
   onClick,
   compact,
 }: {
-  family: "scheduling" | "construction";
+  family: "scheduling";
   name: string;
   description: string;
   /** Current-state line, e.g. "Played" or "In hand". */

@@ -470,7 +470,7 @@ export function Board({
               y1={a.y}
               x2={b.x}
               y2={b.y}
-              stroke="#fdf6e3"
+              stroke={d.contract.code === "WH" ? "#475569" : "#fdf6e3"}
               strokeWidth="13"
               strokeLinecap="round"
               opacity={d.ghost ? (d.stale ? 0.15 : 0.35) : 1}
@@ -546,9 +546,9 @@ export function Board({
                   x={p.x}
                   y={p.y + 4}
                   textAnchor="middle"
-                  fontSize="11"
+                  fontSize={d.ghost ? 11 : 8}
                   fontWeight="800"
-                  fill={d.ghost ? d.contract.color : "#ffffff"}
+                  fill={d.ghost ? d.contract.color : d.contract.code === "WH" ? "#17232d" : "#ffffff"}
                 >
                   {d.ghost ? (d.numberOffset ?? 0) + i : d.contract.code}
                 </text>

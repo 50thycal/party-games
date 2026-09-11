@@ -24,7 +24,7 @@ function bestTarget(s: SubwayState, id: string, lineIndex: number, starter: bool
   if (!targets.length) return undefined;
   const me = s.players[id];
   const line = me.lines[lineIndex];
-  const desired = me.engineeringHand.map((id)=>destinationById(id)?.stationId);
+  const desired = me.destinationHand.flatMap((id)=>destinationById(id)?.stationIds ?? []);
   const unvisited = s.stations.filter((station)=>!line.route.some((n)=>n.stationId===station.id));
   const clone = {...s, players:{...s.players, [id]:{...me, lines:me.lines.map((l)=>({...l, route:[...l.route]}))}}};
   const trial = clone.players[id].lines[lineIndex];
@@ -32,7 +32,7 @@ function bestTarget(s: SubwayState, id: string, lineIndex: number, starter: bool
   // continuation. A small seeded tie-break removes fixed coordinate bias.
   return targets.map((target) => {
     const station = stationAt(target, s.stations);
-    trial.route = [...line.route, {...target, ...(station ? {stationId:station.id,stationSlot:target.slot} : {})}];
+    trial.route = [...line.route, {...target, ...(station ? {stationId:station.id,stationSlot:target.slot,stationCapacity:station.capacity} : {})}];
     const finished = lineComplete(trial);
     const options = finished ? [] : legalTargets(clone,id,lineIndex,false);
     const from = line.route[line.route.length-1];
@@ -54,7 +54,7 @@ export function playtestAction(s: SubwayState, random: () => number): SubwayActi
       return action("PROCURE", {choice:"buy",contractId:offer.contractId});
     }
     case "ENGINEERING":
-      if(s.engineeringStep==="CARD_DRAFT") {const deck=me.engineeringHand.length<3 ? "engineering" : "construction"; return action("DRAFT_CARD",{deck,cardId:s.market.decks[deck].length?undefined:s.market.rows[deck][0],expectedPick:s.market.picks});}
+      if(s.engineeringStep==="CARD_DRAFT") {const deck="engineering"; return action("DRAFT_CARD",{deck,cardId:s.market.decks[deck].length?undefined:s.market.rows[deck][0],expectedPick:s.market.picks});}
       if(s.engineeringStep==="DESTINATION_DRAFT") return action("PICK_DESTINATION",{destinationCardId:s.destinationRow[0]});
       if(s.engineeringStep==="SURVEY") throw new Error("Playtester does not buy speculative survey pins.");
       return action("BUY_SURVEYS",{surveys:0});
@@ -67,20 +67,15 @@ export function playtestAction(s: SubwayState, random: () => number): SubwayActi
       return action("PLACE_STARTER",{lineIndex,...target});
     }
     case "CONSTRUCTION": {
-      if(s.priorityQueue.length) return action("PASS_PRIORITY",{period:s.currentPeriod});
       if(!me.crewsHired) {
-        if(!me.constructionCardThisPeriod && me.constructionHand.includes("grant")) return action("PLAY_CONSTRUCTION_CARD",{cardId:"grant",period:s.currentPeriod});
         const available=buildableLines(s,playerId).sort((a,b)=>lineActionsRemaining(me.lines[b])-lineActionsRemaining(me.lines[a]));
         const total=me.lines.reduce((n,l)=>n+lineActionsRemaining(l),0);
-        const count=Math.min(3,Math.max(1,Math.ceil(total/(17-s.currentPeriod))));
-        if(!me.constructionCardThisPeriod && available.length && me.constructionHand.includes("relief")) return action("PLAY_CONSTRUCTION_CARD",{cardId:"relief",period:s.currentPeriod});
+        const count=Math.min(3,Math.max(1,Math.ceil(total/(SUBWAY_CONFIG.timelinePeriods + 1 - s.currentPeriod))));
         return action("HIRE_CREWS",{lineIndexes:available.slice(0,count),period:s.currentPeriod});
       }
       const lineIndex=me.pendingActions[0];
       const target=bestTarget(s,playerId,lineIndex,false,random);
       if(!target) return action("SKIP_ACTION",{lineIndex});
-      const from=me.lines[lineIndex].route.at(-1)!;
-      if(!me.constructionCardThisPeriod && !me.accessPass && me.constructionHand.includes("access") && routeContacts(s,playerId,from,target).length) return action("PLAY_CONSTRUCTION_CARD",{cardId:"access",period:s.currentPeriod});
       return action("BUILD",{lineIndex,...target});
     }
     case "SCORING": return action("ADVANCE_SCORING");

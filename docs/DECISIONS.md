@@ -1476,3 +1476,63 @@ The owner's next playtest supersedes DEC-036's two-button placement strip: add U
 Date: 2026-09-11. Status: owner-authorized; implementation review pending.
 
 A saved route is visual guidance, not authorization to select or build its next segment. When that line becomes active on a later construction turn, restore the ghost but start with no pending real peg and disabled Confirm. The player must tap a legal peg, including the first saved ghost peg when desired. Following that peg preserves the remaining guide; selecting another legal peg replaces the unbuilt sketch from that point. This changes client interaction only; the reducer, explicit Confirm requirement and device-local plan storage remain unchanged.
+
+
+### DEC-039 — Network missions replace single-station goals
+
+Date: 2026-09-11. Status: owner-authorized; implementation review pending.
+
+The owner's two-player playtest found easy goals, little money pressure and unused
+Construction cards. Their approved overhaul separates two privately dealt Destination
+missions from a three-pick Engineering-only draft of 16 unique goals. Destinations
+require connected own networks across two or three stations and pay 4/7 VP. One extra
+random mission costs $5M before hiring, once per game. No assignment to a single line.
+Shared stations and identical pegs transfer passengers; raw crossings and opponents
+do not. Directional goals use exact borders, including the modified Three Fronts
+and all-three-line, opposite-corner Four Corners. Conflicting cards are intentional.
+
+Start with $50M and use nine construction rounds; retain crew and debt prices.
+Two-player station capacities shrink to one minor/two major; 3–4 seats retain two/three.
+Color-named, two-letter-coded contracts keep prices/recipes/completion penalties,
+with all route-specific and per-line Major bonuses removed. A separate longest
+continuous network award replaces Long Haul: 5 VP alone, 3 each if tied, logical
+peg-space length without reusing a segment. Earliest three-contract completion is
+persisted for First to Open and rewound with placement Undo.
+
+Implementation details: the mission deck contains every unique unordered pair/triple
+(45/120); corners can represent either adjoining edge once per distinct-side count;
+all three lines must join the component serving Four Corners. State version 14
+prevents old saves from adopting changed card meanings or dock geometry.
+
+Construction-card mechanics remain available internally but this draft no longer
+supplies them; a new supply rule/redesign is not added. The iPad companion, overtime
+and reserve changes remain deferred. Lower money/rounds is a balance hypothesis to
+retest with people, not a proven outcome from reducer simulations.
+
+Alternatives considered: the owner chose exact borders over nearest-side regions,
+company connections over single-line destinations, and economy levers before a
+larger construction redesign. This supersedes DEC-027's mixed six-card draft and
+previous easy objective/route bonus rules.
+
+### DEC-040 — Remove Construction cards from Subway
+
+Date: 2026-09-11. Status: owner-authorized; implementation review pending.
+
+The owner removed Construction cards from the current game to reduce rules and
+interface complexity. Subway no longer has a Construction deck or hand, card-play
+action, per-round card allowance, Priority Dispatch window, crew discounts, City
+Grant, or Access Pass toll subsidy. Construction begins each round in the normal
+rotating order and proceeds directly to crew selection. Scheduling cards remain a
+separate existing system.
+
+State version 15 and the hotseat save key prevent older rooms, device saves and
+saved ghost plans from adopting the smaller state shape. The unused Construction
+sprite and card UI are removed, and post-game telemetry no longer reports a
+Construction hand. Historical decisions remain as records of earlier editions;
+this decision supersedes their current Construction-card rules.
+
+Consequences: every crew uses the standard $0M/$1M/$3M/$6M bill and every contact
+toll is paid by the building company. The effects can be redesigned and reintroduced
+later through a new owner decision. Alternatives considered: retaining unreachable
+mechanics for a future supply rule was rejected because it preserved design and
+maintenance complexity without contributing to play.
