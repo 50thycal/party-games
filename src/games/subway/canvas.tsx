@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode, type MutableRefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type MutableRefObject } from "react";
 
 // ============================================================================
 // The tabletop camera (WS-004 clarification, DEC-023).
@@ -350,27 +350,34 @@ export function TabletopCanvas({
 
   // The table fills what is left of the screen, so the page itself never
   // scrolls and the camera is the only thing that moves (SA-4).
+  const measureHeight = useCallback(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const top = el.getBoundingClientRect().top;
+    const available =
+      (window.visualViewport?.height ?? window.innerHeight) - top - bottomInset - 10;
+    const next = Math.max(180, Math.round(available));
+    setHeight((current) => current === next ? current : next);
+  }, [bottomInset]);
+
+  // A company handoff can wrap the page header without emitting a viewport
+  // resize. Re-measure after each committed layout so the bottom HUD follows
+  // the canvas upward and a taller manual Plan panel remains fully visible.
+  useLayoutEffect(measureHeight);
+
   useEffect(() => {
-    const measure = () => {
-      const el = viewportRef.current;
-      if (!el) return;
-      const top = el.getBoundingClientRect().top;
-      const available =
-        (window.visualViewport?.height ?? window.innerHeight) - top - bottomInset - 10;
-      setHeight(Math.max(180, Math.round(available)));
-    };
-    measure();
-    window.addEventListener("resize", measure);
-    window.addEventListener("orientationchange", measure);
-    window.visualViewport?.addEventListener("resize", measure);
-    const t = setTimeout(measure, 120);
+    measureHeight();
+    window.addEventListener("resize", measureHeight);
+    window.addEventListener("orientationchange", measureHeight);
+    window.visualViewport?.addEventListener("resize", measureHeight);
+    const t = setTimeout(measureHeight, 120);
     return () => {
-      window.removeEventListener("resize", measure);
-      window.removeEventListener("orientationchange", measure);
-      window.visualViewport?.removeEventListener("resize", measure);
+      window.removeEventListener("resize", measureHeight);
+      window.removeEventListener("orientationchange", measureHeight);
+      window.visualViewport?.removeEventListener("resize", measureHeight);
       clearTimeout(t);
     };
-  }, [bottomInset]);
+  }, [measureHeight]);
 
   // Track the world's own height: zones grow with the game (more lines, more
   // cards), and clamping/fitting has to follow.
