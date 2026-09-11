@@ -4,7 +4,7 @@ Build OS: v0.12
 Phase: REVIEW
 Status: Active
 Updated: 2026-09-11
-Implementation State: PR #162 merged. Direct-piece mobile follow-up implemented and validated on codex/subway-direct-piece-play. Production build (including type validation), lint, rules suite, 220 affordability checks and 36 full simulations pass. Interactive phone/desktop phase checks and local two-player save/reload completed. Independent review and physical iPhone acceptance remain pending.
+Implementation State: PR #162 merged. Direct-piece mobile follow-up implemented and validated on codex/subway-direct-piece-play. Production build (including type validation), lint, rules suite, 220 affordability checks and 36 full simulations pass. Interactive phone/desktop phase checks and a complete local two-player UI game through results completed. Handoff/new-round camera and survey quantity fixes included. Independent review and physical iPhone acceptance remain pending.
 Related PRs: [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; open); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
 ## Goal and approved scope
@@ -131,6 +131,14 @@ Review State: PR #163 pending independent review; no approval or merge performed
 Final validation: `npm run build` completed with type validation, `npm run lint` passed without warnings/errors, `./scripts/test-subway.sh` passed (including 220 affordability checks and 36 complete simulations), and `git diff --check` passed. Supervised preview stopped after verification. No complete manually played game or physical device pass is claimed.
 
 Publication checkpoint: PR #163 opened through connected GitHub. Validated implementation head: 4cc00d770104f39b4540e03698980465e4c091be. A documentation-only publication checkpoint follows it; independent review must name the current full head. This is not merge finalization.
+
+### Complete UI game continuation — 2026-09-11
+
+Final continuation checks: production build/type validation, lint, complete Subway rules/saved-plan suite, 220 affordability checks, all 36 full simulations and git diff --check passed. Supervised preview stopped after verification.
+
+Continued the real two-company local game through remaining route/card drafts, survey purchase/placement, all six starters, six construction rounds and Reveal Engineering & score. All six routes completed; Company 2 won 29–23, with $12M versus $10M remaining. Contact tolls, changing crew counts, consecutive turns, private handoffs and automatic end-of-construction were exercised through visible UI controls. Browser-driven legal-target selection is not a human strategic balance assessment. This extends the earlier phase checks; the complete game ran at desktop size, not on a physical phone.
+
+Verified issues corrected: camera focus now follows completed company handoffs and new rounds (without moving on routine polls); automatic focus caps magnification at 110% so the survey slip is not enlarged until its actions are clipped; survey purchase quantity resets when changing company/room. Manual zoom remains available. React dependency checklist applied. Independent current-head review and physical iPhone gesture/callout acceptance remain pending; no approval or merge performed.
 
 ## Saved planning and Engineering artwork continuation — 2026-09-10
 

@@ -254,6 +254,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   const [chosen, setChosen] = useState<string[]>([]);
   const [assignments, setAssignments] = useState<Record<string, number>>({});
   const [surveys, setSurveys] = useState(0);
+  useEffect(() => { setSurveys(0); }, [room.roomCode, playerId]);
   const [selectedLine, setSelectedLine] = useState(0);
   const [preview, setPreview] = useState<PlacementTarget | null>(null);
   const [busy, setBusy] = useState(false);
@@ -766,13 +767,17 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     return "board";
   })();
 
-  // Camera re-framing on phase transitions only — never on a routine poll.
+  // Reframe after a phase change or a completed handoff, once the receiving
+  // company's private pieces exist. Routine polls never move the camera.
+  const cameraContext = `${phaseKey}:${game?.currentPeriod}:${playerId}:${veiled}`;
   const prevPhaseKey = useRef<string | null>(null);
   useEffect(() => {
-    if (!phaseKey) return;
-    if (prevPhaseKey.current !== null && prevPhaseKey.current !== phaseKey) cam.current?.focus(phaseZone);
-    prevPhaseKey.current = phaseKey;
-  }, [phaseKey, phaseZone]);
+    if (!phaseKey || veiled) return;
+    if (prevPhaseKey.current !== null && prevPhaseKey.current !== cameraContext) {
+      cam.current?.focus(activeLineIndex >= 0 ? "board" : phaseZone);
+    }
+    prevPhaseKey.current = cameraContext;
+  }, [cameraContext, phaseKey, phaseZone, activeLineIndex, veiled]);
 
   // ---- Pre-game lobby ---------------------------------------------------------
   if (!game || game.phase === "SETUP") {

@@ -467,6 +467,8 @@ hotseat save. Real games link to phase-specific lessons in a separate tab.
 
 ## Phone tabletop presentation (mobile continuation)
 
+Automatic framing also follows completed company handoffs and new construction rounds, but not routine polls. Focus magnification is capped at 110%; manual zoom can go closer. Survey purchase quantity is company/room-local and resets across handoffs.
+
 All devices use TabletopCanvas: board, illustrated card faces and company pieces share one locally zoomable/pannable world. Phone overlays are limited to camera shortcuts and current placement controls. GameView owns targets, validation, pending peg, sketches and reducer dispatch. Settings contains public logbook entries; results also have a readable screen sheet and report text/download fallback. No state-version migration is required: presentation and previews are client-local.
 
 Active starter/build contexts automatically open a line-locked planner. The first unbuilt sketch node is the solid pending real placement; the remaining tail is pale and dashed. Explicit Plan permits choosing another owned line. Save ghost persists a full intended route through plans.ts, keyed by state version, room, player and contract; the in-session cache also retains saves across turns if browser storage fails. preparePlan reconciles stored intent against real construction and only a viable prefix supplies the next pending peg. Diverged plans remain visible and labeled until revised or cleared. Confirm revalidates and dispatches exactly one placement; saved or unsaved tails never enter a reducer payload. Hotseat veils hide private sketches and saved routes. All 14 Engineering goals and 10 Destinations have themed illustration panels, while exact rules and diagrams remain code-rendered.

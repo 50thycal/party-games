@@ -265,8 +265,8 @@ export function TabletopCanvas({
       if (!rect || !rect.w) return false;
       frameRect(rect, {
         animate: opts?.animate ?? true,
-        // The pegboard keeps its physical size: framing it never blows it up.
-        maxScale: zone === "board" ? DEFAULT_MAX_SCALE : MAX_SCALE,
+        // Focus keeps pieces at a usable scale; manual zoom can go closer.
+        maxScale: DEFAULT_MAX_SCALE,
         align: rect.h > rect.w * 0.9 ? "top" : "center",
         ...(zone !== "table" && !opts?.fit ? { fillBelow: 0.45 } : {}),
       });
