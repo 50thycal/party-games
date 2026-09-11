@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { activationCost, buildableLines, contractOf, SUBWAY_CONFIG, type ConstructionCardId, type SubwayState } from "./config";
-import { ConstructionPiece, Printed, TableButton } from "./table";
+import { activationCost, buildableLines, contractOf, SUBWAY_CONFIG, type SubwayState } from "./config";
+import { Printed, TableButton } from "./table";
 import { constructionHistory } from "./constructionHistory";
 
-export function CrewBoard({game,viewerId,busy,veiled,act,onCard}:{game:SubwayState;viewerId:string;busy:boolean;veiled:boolean;act:(type:string,payload?:Record<string,unknown>)=>unknown;onCard:(id:ConstructionCardId)=>void}) {
+export function CrewBoard({game,viewerId,busy,veiled,act}:{game:SubwayState;viewerId:string;busy:boolean;veiled:boolean;act:(type:string,payload?:Record<string,unknown>)=>unknown}) {
   const [selected,setSelected]=useState<number[]>([]);
   const [historyRound,setHistoryRound]=useState(game.currentPeriod);
   const [historyPlayer,setHistoryPlayer]=useState<string|null>(null);
@@ -31,8 +31,13 @@ export function CrewBoard({game,viewerId,busy,veiled,act,onCard}:{game:SubwaySta
           <p className="text-xl">Hire {indexes.length} crew(s): <b>${cost}M</b> · Cash afterward: <b>${p.money-cost}M</b>{p.money-cost<0&&<strong className="ml-4 text-red-700">Final debt penalty at this balance: {(p.money-cost)*4} VP</strong>}</p>
           <TableButton disabled={busy} onClick={()=>act("HIRE_CREWS",{lineIndexes:indexes,period:game.currentPeriod})}>{indexes.length?`Pay $${cost}M & build` : "No crews · end turn"}</TableButton>
         </div>}
+        {!priority&&actor===viewerId&&p.crewsHired&&p.pendingActions.length>0&&<div className="mt-4">
+          <TableButton disabled={busy} onClick={()=>act("SKIP_ACTION")}>Give up remaining builds</TableButton>
+        </div>}
+        {game.undo?.playerId===viewerId&&<div className="mt-4">
+          <TableButton disabled={busy} onClick={()=>act("UNDO_PLACEMENT")}>Undo {game.undo.label}</TableButton>
+        </div>}
         <p className="mt-4 text-xl">1 crew $1M · 2 crews $3M · 3 crews $6M. One segment per chosen route. Unpaid debt: −4 VP per $1M.</p>
-        <div className="mt-5 flex flex-wrap gap-3">{p.constructionHand.map((id,i)=><ConstructionPiece key={i} game={game} playerId={viewerId} id={id} busy={busy} onPlay={onCard}/>)}</div>
       </>}
     </>}
     </div>

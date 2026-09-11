@@ -3,13 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { CrewBoard } from "./CrewBoard";
-import { BuildCostPreview } from "./BuildCostPreview";
 import { constructionCardBlocker, objectiveMet } from "./config";
 import { lessonForPhase } from "./tutorial";
 import type { GameViewProps } from "@/games/views";
 import { DestinationCardFace, EngineeringCardFace } from "./CardArt";
 import { ContractCard, MiniCardFace, money } from "./cards";
-import { Board, VB_W, holePos, targetKey, type DrawnLine } from "./board";
+import { Board, VB_W, type DrawnLine } from "./board";
 import { TabletopCanvas, type CameraApi, type TableZone } from "./canvas";
 import {
   CardFlight,
@@ -31,7 +30,7 @@ import {
   type PlanChip,
 } from "./table";
 import { HandoffVeil, NarrationOverlay, currentActorId, useNarration } from "./tabletop";
-import { loadPlan, savePlan, clearPlan, planStorageKey, preparePlan, reconcilePlan, type PlanStatus, type SavedPlan } from "./plans";
+import { loadPlan, savePlan, planStorageKey, preparePlan, reconcilePlan, type PlanStatus, type SavedPlan } from "./plans";
 import { generateAiPlaytestReport } from "./report";
 import {
   SUBWAY_CONFIG,
@@ -59,7 +58,6 @@ import {
   lineComplete,
   nextSegmentLength,
   pendingStarters,
-  routeContacts,
   schedulingById,
   segmentsBuilt,
   starterTurnId,
@@ -74,7 +72,6 @@ import {
   type PlacementTarget,
   type PlayerLine,
   type Point,
-  type RouteContact,
   type RouteNode,
   type SchedulingCardId,
   type SubwayPlayer,
@@ -529,15 +526,6 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     return legalTargets(previewState, me.id, activeLineIndex, false);
   }, [previewState, me, activeLineIndex]);
 
-  // What the selected step would cost in contacts with the opposing network.
-  const previewContacts = useMemo<RouteContact[]>(() => {
-    if (!game || !me || !preview || activeLineIndex < 0 || placingStarter) return [];
-    const route = me.lines[activeLineIndex]?.route ?? [];
-    const from = route[route.length - 1];
-    if (!from) return [];
-    return routeContacts(game, me.id, from, { x: preview.x, y: preview.y });
-  }, [game, me, preview, activeLineIndex, placingStarter]);
-
   const privateVisible = !!me && !veiled;
 
   const drawn = useMemo<DrawnLine[]>(() => {
@@ -671,6 +659,13 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     if (!game || !me || !canAct) return;
 
     if (mode === "planner" && plannerState && plannerLine !== null) {
+      // Edit the route by tapping an unbuilt peg, rather than opening tools.
+      const rewind = sketch.findIndex((n, i) => i >= sketchBase.length && n.x === p.x && n.y === p.y && (n.stationSlot ?? -1) === (slot ?? -1));
+      if (rewind >= 0) {
+        resetSketch(sketch.slice(0, rewind));
+        setNotice(null);
+        return;
+      }
       const reason = validateNode(plannerState, me.id, plannerLine, p, sketch.length === 0, slot);
       if (reason) {
         setNotice(reason);
@@ -727,29 +722,6 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       y: target.y,
       ...(target.slot !== undefined ? { slot: target.slot } : {}),
     });
-  };
-
-  /** Keyboard/touch alternative to tapping the board: step the selection. */
-  const cycleTarget = (delta: number) => {
-    if (!targets.length) return;
-    const i = preview ? targets.findIndex((t) => targetKey(t) === targetKey(preview)) : -1;
-    const next = targets[(i + delta + targets.length * 2) % targets.length];
-    if (mode === "planner") {
-      onTapHole({ x: next.x, y: next.y }, next.slot);
-    } else {
-      setPreview(next);
-    }
-    // Bring the chosen hole on screen without disturbing the zoom level.
-    const svg = boardRef.current?.querySelector("svg");
-    const rect = svg?.getBoundingClientRect();
-    if (rect && rect.width) {
-      const s = rect.width / VB_W;
-      const p = holePos(next);
-      const cx = rect.left + p.x * s;
-      const cy = rect.top + p.y * s;
-      const r = 46 * s;
-      cam.current?.ensureRect({ left: cx - r, top: cy - r, right: cx + r, bottom: cy + r });
-    }
   };
 
   // Which part of the table this phase is played on: it decides the opening
@@ -825,7 +797,6 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   const opponents = game.playerOrder.map((id) => game.players[id]).filter((p) => p && p.id !== playerId);
   const plannerLineObj = plannerActive && me && plannerLine !== null ? me.lines[plannerLine] : undefined;
   const plannerContract = plannerLineObj ? contractOf(plannerLineObj) : undefined;
-  const sketchedSegments = Math.max(0, sketch.length - 1);
   const minSketch = sketchBase.length;
   const saveSketch = () => {
     if (plannerLine === null || !me || !sketch.length) return;
@@ -1150,77 +1121,28 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       {mode === "planner" && plannerContract && plannerLineObj && (
         <div className="space-y-1.5">
           <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="rounded bg-purple-700 px-1.5 py-0.5 text-[10px] font-black uppercase text-white">
-              {manualPlanner ? "Plan Mode" : "Building now"}
-            </span>
+            <span className="rounded bg-purple-700 px-1.5 py-0.5 text-[10px] font-black uppercase text-white">{manualPlanner ? "Plan Mode" : "Building now"}</span>
             <b>{plannerContract.name}</b>
-            {manualPlanner && <select
-              value={plannerLine ?? -1}
-              onChange={(e) => openPlanner(Number(e.target.value))}
-              className="rounded border border-stone-400 bg-white px-1.5 py-0.5 text-xs"
-              style={{fontSize:16}} aria-label="Plan a different line"
-            >
-              {me?.lines.map((l, i) => (
-                <option key={i} value={i}>
-                  {lineLabel(l)}
-                </option>
-              ))}
+            {manualPlanner && <select value={plannerLine ?? -1} onChange={e => openPlanner(Number(e.target.value))} className="rounded border border-stone-400 bg-white p-1" style={{fontSize:16}} aria-label="Plan a different line">
+              {me?.lines.map((l,i)=><option key={i} value={i}>{lineLabel(l)}</option>)}
             </select>}
-            <span className="text-xs text-stone-500">
-              {sketchedSegments}/{plannerContract.recipe.length} segments sketched
-            </span>
-
           </div>
           {!manualPlanner && activeLine && <RouteBuildGuide line={activeLine} compact />}
-          <p className="text-xs text-stone-600">
-            {manualPlanner ? "Dashed = plan only." : "Solid = build now · dashed = plan."}{" "}
-            {sketch.length === 0
-              ? "Tap a border hole to start."
-              : sketchedSegments >= plannerContract.recipe.length
-                ? "The whole recipe fits against the board as it stands."
-                : `${!manualPlanner && preview ? "Next ghost" : "Next"}: a ${plannerContract.recipe[sketchedSegments]}-peg segment, turning ≤ ${SUBWAY_CONFIG.geometry.maxTurnDegrees}°.`}
-
-          </p>
-          {!manualPlanner && preview && !placingStarter && me && <BuildCostPreview player={me} contacts={previewContacts} game={game} />}
           <div className="flex flex-wrap gap-1.5">
-            <StripButton aria-label="Next legal hole" onClick={() => cycleTarget(1)} disabled={!targets.length}>
-              Next hole
-            </StripButton>
             <StripButton tone="plan" disabled={sketch.length <= minSketch} onClick={saveSketch}>Save ghost</StripButton>
             {!manualPlanner && <StripButton aria-label="Confirm real peg" tone="go" disabled={busy || !preview} onClick={confirmPlacement} data-confirm-placement>Confirm peg</StripButton>}
-          <details className="basis-full sm:basis-auto open:basis-full">
-            <summary className="w-fit cursor-pointer px-2 py-3 text-xs font-bold text-purple-800">Plan tools</summary>
-            <div className="flex flex-wrap gap-1.5">
-            <StripButton disabled={sketch.length <= minSketch} onClick={() => resetSketch(sketch.slice(0, -1))}>
-              Undo step
-            </StripButton>
-            <StripButton
-              disabled={sketch.length <= minSketch}
-              onClick={() => resetSketch([...sketchBase])}
-            >
-              {manualPlanner ? "Restart sketch" : "Change next peg"}
-            </StripButton>
-            {plans[plannerLineObj.contractId] && <StripButton onClick={() => {
-              if (!clearPlan(room.roomCode, playerId, plannerLineObj.contractId)) {
-                setNotice("Storage unavailable: could not remove the saved ghost. Try again when storage is available.");
-                return;
-              }
-              delete sessionPlans.current[planStorageKey(room.roomCode, playerId, plannerLineObj.contractId)];
-              setPlans(prev => {const next={...prev}; delete next[plannerLineObj.contractId]; return next;});
-              resetSketch([...sketchBase]);
-              setNotice("Saved ghost cleared.");
-            }}>Clear saved</StripButton>}
-            {!manualPlanner && <StripButton tone="plan" onClick={() => openPlanner(plannerLine!)}>Plan other lines</StripButton>}
-            {planStatuses[plannerLineObj.contractId]?.stale && <span className="text-xs font-bold text-amber-800">Saved plan needs revision</span>}
-            <StripButton tone="dark" className="ml-auto" onClick={exitPlanner}>
-              {placingStarter || myBuild ? "Back to placement" : "Close Plan Mode"}
-            </StripButton>
-            </div>
-          </details>
+            {manualPlanner && <StripButton tone="dark" onClick={() => {
+              if (activeLineIndex < 0 || !me) { exitPlanner(); return; }
+              const line = me.lines[activeLineIndex];
+              const initial = preparePlan(game, playerId, activeLineIndex, plans[line.contractId]);
+              setSketchBase(initial.base);
+              setSketch(initial.nodes);
+              setPlannerLine(activeLineIndex);
+              setManualPlanner(false);
+              setPreview(initial.preview);
+              setNotice(null);
+            }}>Close plan</StripButton>}
           </div>
-          {!manualPlanner && preview && <p className="text-xs text-stone-700">
-            Next real peg: {preview.x + 1},{preview.y + 1}{preview.slot !== undefined ? ` · dock ${preview.slot + 1}` : ""}.
-          </p>}
         </div>
       )}
 
@@ -1235,24 +1157,8 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
                     nextSegmentLength(activeLine) ?? "—"
                   } pegs`}
             </span>
-            <span className="ml-auto text-xs font-bold">
-              {preview
-                ? preview.slot !== undefined
-                  ? `Selected: ${stationAt(preview, game.stations)?.name ?? "station"} dock ${preview.slot + 1}`
-                  : `Selected: hole ${preview.x + 1},${preview.y + 1}`
-                : targets.length
-                  ? "Tap a glowing target to select"
-                  : "No legal target"}
-            </span>
           </div>
-          {preview && !placingStarter && <BuildCostPreview player={me} contacts={previewContacts} game={game} />}
           <div className="flex flex-wrap items-center gap-1.5">
-            <StripButton onClick={() => cycleTarget(-1)} disabled={!targets.length} aria-label="Previous legal target">
-              ◀
-            </StripButton>
-            <StripButton onClick={() => cycleTarget(1)} disabled={!targets.length} aria-label="Next legal target">
-              Target ▶
-            </StripButton>
             <StripButton disabled={busy || !preview} onClick={() => setPreview(null)}>
               Cancel
             </StripButton>
@@ -1333,8 +1239,9 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
 
   // Quick-focus controls, one-handed on a phone: the short label is what a
   // narrow screen shows, the long one is the accessible name everywhere.
+  const officeOpen = game.phase === "PROCUREMENT" || (game.phase === "ENGINEERING" && game.engineeringStep === "CARD_DRAFT");
   const focusButtons: { zone: TableZone; label: string; short: string }[] = [
-    { zone: "office", label: "Market", short: "Market" },
+    ...(officeOpen ? [{ zone: "office" as TableZone, label: "Market", short: "Market" }] : []),
     { zone: "board", label: "Pegboard", short: "Board" },
     { zone: "schedule", label: "Construction schedule", short: "Crews" },
     { zone: "lines", label: "Lines", short: "Lines" },
@@ -1447,10 +1354,12 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
             {showOpponents && opponents.map((opponent) => <OpponentEdge key={opponent.id} game={game} opponent={opponent} scheduleRevealed={schedulingRevealed} />)}
           </div>
 
-          <CrewBoard key={`${game.currentPeriod}:${playerId}`} game={game} viewerId={playerId} busy={busy} veiled={veiled} act={act} onCard={quickCard}/>
+          <div className="flex justify-center" style={{width:BOARD_FRAME_W, marginLeft:officeOpen ? TABLE.side + TABLE.gap : 0}}>
+            <CrewBoard key={`${game.currentPeriod}:${playerId}`} game={game} viewerId={playerId} busy={busy} veiled={veiled} act={act}/>
+          </div>
 
           <div className="flex items-start" style={{ gap: TABLE.gap }}>
-            <ContractOffice
+            {officeOpen && <ContractOffice
               game={game}
               me={me}
               veiled={veiled}
@@ -1467,7 +1376,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
                 act("DRAFT_CARD", {deck, cardId, expectedPick:game.market.picks});
               }}
               onOpenDestination={(id) => setFocus({ family: "destination", id, slot: "row" })}
-            />
+            />}
 
             <div
               ref={boardRef}
