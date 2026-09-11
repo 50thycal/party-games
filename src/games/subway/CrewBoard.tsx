@@ -27,6 +27,10 @@ export function CrewBoard({game,viewerId,busy,veiled,act}:{game:SubwayState;view
         {!!p.crewDiscount&&!p.crewsHired&&<p className="mt-2 text-xl font-bold text-teal-800">This round: ${p.crewDiscount}M off your crew bill. Expires unused.</p>}
         {priority===viewerId&&<div className="mt-4 grid grid-cols-2 gap-4"><TableButton disabled={busy} onClick={()=>act("PLAY_CONSTRUCTION_CARD",{cardId:"expedite",period:game.currentPeriod})}>Play Priority Dispatch</TableButton><TableButton disabled={busy} onClick={()=>act("PASS_PRIORITY",{period:game.currentPeriod})}>Keep card · pass priority</TableButton></div>}
         {hiring&&<div className="mt-4 space-y-4">
+          {!p.destinationPurchased && <div>
+            <TableButton disabled={busy || p.money < SUBWAY_CONFIG.destinationPurchaseCost || !game.destinationDeck.length} onClick={() => act("BUY_DESTINATION", {period:game.currentPeriod})}>Buy Destination · $5M</TableButton>
+            <p className="mt-2 text-lg">One extra random mission per game, before hiring crews.</p>
+          </div>}
           <div className="grid grid-cols-3 gap-3">{p.lines.map((line,i)=><button key={i} disabled={busy||!available.includes(i)} aria-pressed={indexes.includes(i)} onClick={()=>setSelected(indexes.includes(i)?indexes.filter(n=>n!==i):[...indexes,i])} className={`rounded-xl border-4 px-3 py-4 text-xl font-bold disabled:opacity-40 ${indexes.includes(i)?"border-teal-700 bg-teal-100":"border-stone-300 bg-white"}`}>{contractOf(line)?.name}</button>)}</div>
           <p className="text-xl">Hire {indexes.length} crew(s): <b>${cost}M</b> · Cash afterward: <b>${p.money-cost}M</b>{p.money-cost<0&&<strong className="ml-4 text-red-700">Final debt penalty at this balance: {(p.money-cost)*4} VP</strong>}</p>
           <TableButton disabled={busy} onClick={()=>act("HIRE_CREWS",{lineIndexes:indexes,period:game.currentPeriod})}>{indexes.length?`Pay $${cost}M & build` : "No crews · end turn"}</TableButton>
@@ -42,7 +46,8 @@ export function CrewBoard({game,viewerId,busy,veiled,act}:{game:SubwayState;view
     </>}
     </div>
     <div className="border-l-2 border-stone-300 pl-8">
-    <div className="flex flex-wrap gap-2" aria-label="Construction rounds">{Array.from({length:16},(_,i)=><button key={i} aria-label={`View round ${i+1}`} aria-pressed={historyRound===i+1} onClick={()=>setHistoryRound(i+1)} className={`rounded px-3 py-2 text-xl font-bold ${historyRound===i+1?"bg-teal-700 text-white":"bg-stone-200"}`}>{i+1}</button>)}</div>
+    <p className="mb-3 text-lg">Longest continuous company network: +5 VP, or +3 each if tied. Peg-space length; transfers at shared pegs/stations, no segment twice.</p>
+    <div className="flex flex-wrap gap-2" aria-label="Construction rounds">{Array.from({length:SUBWAY_CONFIG.timelinePeriods},(_,i)=><button key={i} aria-label={`View round ${i+1}`} aria-pressed={historyRound===i+1} onClick={()=>setHistoryRound(i+1)} className={`rounded px-3 py-2 text-xl font-bold ${historyRound===i+1?"bg-teal-700 text-white":"bg-stone-200"}`}>{i+1}</button>)}</div>
     <p className="mt-3 text-lg">Round {historyRound} · {historyRound>game.currentPeriod?"Projected order (Priority Dispatch can change it)":"Construction order"}</p>
     <div className="mt-3 grid grid-cols-2 items-start gap-3">{history.order.map((id,rank)=>{
       const company=game.players[id];

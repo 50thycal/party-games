@@ -224,7 +224,7 @@ export function LineTile({ contract, size = 46, subdued }: { contract: LineContr
       className={`inline-flex shrink-0 items-center justify-center rounded-[10px] font-black text-white shadow-inner ${
         subdued ? "opacity-45" : ""
       }`}
-      style={{ background: contract.color, width: size, height: size, fontSize: size * 0.5 }}
+      style={{ background: contract.color, width: size, height: size, fontSize: size * 0.36, color: contract.code === "WH" ? "#17232d" : "#fff" }}
       title={contract.name}
     >
       {contract.code}
@@ -691,9 +691,9 @@ export function ContractOffice({
       )}
       {game.phase === "ENGINEERING" && game.engineeringStep === "CARD_DRAFT" && (
         <div className="space-y-[14px]">
-          <p className="text-[20px] font-bold">Build your hand · six picks</p>
-          <p className="text-[18px]">Choose any mix. All Engineering goals and Destinations can score.</p>
-          {(["engineering", "construction"] as CardDeckId[]).map((deck) => (
+          <p className="text-[20px] font-bold">Build your hand · three Engineering picks</p>
+          <p className="text-[18px]">Two face-up goals or a blind draw. All three goals can score.</p>
+          {(["engineering"] as CardDeckId[]).map((deck) => (
             <div key={deck} className="rounded-[12px] border-[2px] border-stone-300 p-[10px]">
               <p className="text-[19px] font-bold capitalize">{deck}</p>
               <div className="grid grid-cols-2 gap-[12px]">{(game.market.rows?.[deck] ?? []).map((id, slot) => {
@@ -933,9 +933,6 @@ export function LineContractBoard({
         <span className="text-stone-500">Incomplete</span>
         <b>{contract.incompletePenalty} VP</b>
       </div>
-      {contract.special && (
-        <p className="mt-[10px] text-[18px] font-bold text-amber-800">{contract.special}</p>
-      )}
 
       {/* Destination cards assigned to this line sit attached to its board. */}
       {assigned.length > 0 && (
@@ -1172,7 +1169,7 @@ export function PlayerTabletop({
             style={{ width: Math.max(660, status.length * 378 + 48) }}
           >
             <p className="mb-[12px] text-[18px] text-stone-600">
-              Engineering goals and Destinations apply across your company. Reach their conditions with any of your routes.
+              Each Engineering goal states which lines must qualify. Directional goals use actual board borders.
             </p>
             <div data-card-row="engineering" className="flex flex-nowrap items-start gap-[18px]">
               {status.map(({ cardId, met }, i) => (
@@ -1189,24 +1186,16 @@ export function PlayerTabletop({
           </Printed>
         )}
 
-        {!veiled && unassignedDestinations.length > 0 && !planningStep && (
-          <Printed title="Destinations in hand" tone="slip">
-            <div className="flex flex-wrap gap-[18px]">
-              {unassignedDestinations.map((id, i) => (
-                <CardPiece
-                  key={`${id}-${i}`}
-                  label={`Destination ${id} in hand`}
-                  dimmed
-                  onOpen={() => onOpenCard({ family: "destination", id, slot: "hand" })}
-                >
-                  <DestinationCardFace
-                    card={id}
-                    color={me.color}
-                    compact
-                    footer={<p className="mt-1 text-[11px] font-black text-stone-400">Unassigned</p>}
-                  />
-                </CardPiece>
-              ))}
+        {!veiled && unassignedDestinations.length > 0 && (
+          <Printed title="Destination missions" subtitle="Private company connections" tone="slip" style={{width:Math.max(660, unassignedDestinations.length * 378 + 48)}}>
+            <div data-card-row="destinations" className="flex flex-nowrap items-start gap-[18px]">
+              {unassignedDestinations.map(id => {
+                const met = destinationMet(me, id);
+                return <div key={id} className="w-[360px] shrink-0 [&_strong]:text-[24px] [&_p]:text-[20px] [&_span]:text-[20px]">
+                  <DestinationCardFace card={id} color={me.color} state={met ? "met" : "idle"}/>
+                  <p className="text-lg">{met ? "✓ Connected" : "Connection incomplete"}</p>
+                </div>;
+              })}
             </div>
           </Printed>
         )}

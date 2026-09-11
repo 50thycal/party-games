@@ -142,7 +142,7 @@ function statusFor(game: SubwayState, me: SubwayPlayer | undefined, isHost: bool
     }
     case "ENGINEERING": {
       if (game.engineeringStep === "BUY_SURVEYS") return {headline:me.engineeringLocked ? "Waiting for survey purchases." : "Optionally buy Survey Pins at your cards.",tone:me.engineeringLocked?"wait":"act"};
-      if (game.engineeringStep === "CARD_DRAFT") return {headline: cardDraftTurnId(game) === me.id ? `Draft your hand: ${draftPicks(me)}/6 cards.` : `${game.players[cardDraftTurnId(game) ?? ""]?.name} is drafting.`, tone: cardDraftTurnId(game) === me.id ? "act" : "wait", detail:"Two face-up cards per category or a blind draw. Choose any mix; every Engineering card can score."};
+      if (game.engineeringStep === "CARD_DRAFT") return {headline: cardDraftTurnId(game) === me.id ? `Draft your hand: ${draftPicks(me)}/3 cards.` : `${game.players[cardDraftTurnId(game) ?? ""]?.name} is drafting.`, tone: cardDraftTurnId(game) === me.id ? "act" : "wait", detail:"Choose one of two face-up Engineering goals or draw blind. All three goals can score."};
       if (game.engineeringStep === "DESTINATION_DRAFT") {
         const turn = destinationTurnId(game);
         const owed = SUBWAY_CONFIG.destinationsPerPlayer - destinationsHeld(me);
@@ -520,7 +520,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     line.route.push({
       x: preview.x,
       y: preview.y,
-      ...(station ? { stationId: station.id, stationSlot: preview.slot ?? 0 } : {}),
+      ...(station ? { stationId: station.id, stationCapacity: station.capacity, stationSlot: preview.slot ?? 0 } : {}),
     });
     return clone;
   }, [game, me, preview, activeLineIndex, mode]);
@@ -568,7 +568,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
             {
               x: preview.x,
               y: preview.y,
-              ...(station ? { stationId: station.id, stationSlot: preview.slot ?? 0 } : {}),
+              ...(station ? { stationId: station.id, stationCapacity: station.capacity, stationSlot: preview.slot ?? 0 } : {}),
             },
           ],
           contract,
@@ -673,7 +673,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
         const node: RouteNode = {
           x: p.x,
           y: p.y,
-          ...(station ? {stationId: station.id, stationSlot: slot ?? 0} : {}),
+          ...(station ? {stationId: station.id, stationCapacity: station.capacity, stationSlot: slot ?? 0} : {}),
         };
         const savedNext = sketch[sketchBase.length];
         const followsSavedPlan = savedNext && savedNext.x === node.x && savedNext.y === node.y &&
@@ -700,7 +700,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       if (!manualPlanner && sketch.length === me.lines[plannerLine].route.length) {
         setPreview({x:p.x,y:p.y,...(station ? {slot:slot ?? 0} : {})});
       }
-      setSketch([...sketch, { ...p, ...(station ? { stationId: station.id, stationSlot: slot ?? 0 } : {}) }]);
+      setSketch([...sketch, { ...p, ...(station ? { stationId: station.id, stationCapacity: station.capacity, stationSlot: slot ?? 0 } : {}) }]);
       return;
     }
 
@@ -989,7 +989,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       const available = focus.cardId ? game.market.rows[focus.id].includes(focus.cardId) : game.market.decks[focus.id].length > 0;
       return <CardFocus title={card?.name ?? `Blind ${focus.id} draw`} onClose={close}
         face={focus.id === "engineering" && focus.cardId ? (destinationById(focus.cardId) ? <DestinationCardFace card={focus.cardId} color={me.color}/> : <EngineeringCardFace card={focus.cardId} color={me.color}/>) : <MiniCardFace family={focus.id === "construction" ? "construction" : "scheduling"} name={card?.name ?? "Mystery card"} description={card?.description ?? `Draw one random ${focus.id} card. Engineering draws always give a goal you do not already hold.`} note={focus.cardId ? "Face-up draft" : "Blind draw"}/>}
-        note={`${draftPicks(me)}/6 picks used. Choose any mix of Engineering goals and Construction cards. Every goal you hold can score.`}
+        note={`${draftPicks(me)}/3 picks used. Draft three Engineering goals. Your Destination missions are separate.`}
         reason={why ?? (!available ? "That card or blind pile is no longer available." : undefined)}
         actions={[{label:card ? "Draft this card" : "Draw a random card", disabled:busy || !!why || !available,
           run:() => playWithFlight(card?.name ?? "Card drafted", "#a16207", "hand", () => act("DRAFT_CARD", {deck:focus.id, cardId:focus.cardId, expectedPick:game.market.picks}))}]}/>;
@@ -998,7 +998,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     if (focus.family === "engineering" || focus.family === "destination") {
       const card = engineeringById(focus.id) ?? destinationById(focus.id);
       if (!card) return null;
-      const met = objectiveMet(focus.id,me,opponents);
+      const met = objectiveMet(focus.id,me,opponents,game);
       return <CardFocus title={card.name} onClose={close}
         face={destinationById(focus.id)?<DestinationCardFace card={focus.id} color={me.color}/>:<EngineeringCardFace card={focus.id} color={me.color} state={met?"met":"idle"}/>}
         note={`${met ? "✓ Achieved" : "In progress"} · +${card.vp} VP if achieved at scoring. Any of your routes can qualify. No commitment needed.`} actions={[]}/>;
@@ -1572,7 +1572,7 @@ function ResultsSheet({ game, roomCode, mode }: { game: SubwayState; roomCode: s
                 </div>
               </div>
               <div className="mt-[18px] flex flex-wrap gap-[18px]">
-                {p.engineeringHand.map((cardId,i) => {
+                {[...p.engineeringHand, ...p.destinationHand].map((cardId,i) => {
                   const card=engineeringById(cardId)??destinationById(cardId);
                   const scored=p.scoreBreakdown?.find(item=>item.label===card?.name);
                   return <div key={i} className="w-full min-w-0 sm:w-[360px]">

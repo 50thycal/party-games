@@ -17,7 +17,6 @@ import {
 // laid out on a 120x64 grid: pegs at x = 12 + 16i, y = 16 + 16j.
 // ============================================================================
 
-const OPPONENT = "#64748b";
 const PEG = "#d8c3a0";
 const RULE = "#a1887f";
 
@@ -30,7 +29,8 @@ export const ENGINEERING_ART_IDS = [
 ] as const;
 
 function EngineeringIllustration({id}:{id:string}) {
-  const index = ENGINEERING_ART_IDS.findIndex(value => value === id);
+  const illustratedId = ({perimeter:"crosstown-service", "three-fronts":"network", "four-corners":"parallel"} as Record<string,string>)[id] ?? id;
+  const index = ENGINEERING_ART_IDS.findIndex(value => value === illustratedId);
   if (index < 0) return null;
   return <div aria-hidden="true" data-engineering-art={id} className="mt-2 w-full rounded-lg" style={{
     aspectRatio:"1", backgroundImage:"url(/subway/engineering-cards.png)",
@@ -110,152 +110,29 @@ function StationTile({ x, y, major = false }: { x: number; y: number; major?: bo
   );
 }
 
-/** Small arc at a vertex plus a caption placed clear of the route. */
-function AngleMark({
-  x,
-  y,
-  label,
-  labelDx = 2,
-  labelDy = -15,
-}: {
-  x: number;
-  y: number;
-  label: string;
-  labelDx?: number;
-  labelDy?: number;
-}) {
-  return (
-    <g>
-      <path d={`M ${x - 13} ${y} A 13 13 0 0 1 ${x + 9} ${y - 9}`} fill="none" stroke={RULE} strokeWidth="1.4" strokeDasharray="3 2" />
-      <text x={x + labelDx} y={y + labelDy} textAnchor="middle" fontSize="8.5" fontWeight="700" fill={RULE}>
-        {label}
-      </text>
-    </g>
-  );
-}
-
-function Tick({ x, y }: { x: number; y: number }) {
-  return (
-    <path
-      d={`M ${x - 4} ${y} l 3 3.5 l 6 -8`}
-      fill="none"
-      stroke="#15803d"
-      strokeWidth="2.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  );
-}
-
 /** The diagram body for one Engineering card id. */
 function Diagram({ id, color }: { id: string; color: string }) {
-  switch (id) {
-    case "gentle":
-      return (
-        <>
-          <Route points={[[12, 50], [38, 42], [64, 32], [96, 28]]} color={color} />
-          <AngleMark x={38} y={42} label="≤30°" labelDx={-8} labelDy={-16} />
-        </>
-      );
-    case "bend":
-      return (
-        <>
-          <Route points={[[12, 48], [56, 48], [94, 16]]} color={color} />
-          <AngleMark x={56} y={48} label="31–50°" labelDx={-20} labelDy={-14} />
-        </>
-      );
-    case "straight":
-      return (
-        <>
-          <Route points={[[12, 32], [40, 32], [68, 32], [104, 32]]} color={color} />
-          <line x1="12" y1="46" x2="104" y2="46" stroke={RULE} strokeWidth="1.4" strokeDasharray="3 2" />
-          <text x="58" y="58" textAnchor="middle" fontSize="8.5" fontWeight="700" fill={RULE}>
-            3 segments · ≤15°
-          </text>
-        </>
-      );
-    case "approach":
-      return (
-        <>
-          <Route points={[[12, 48], [54, 36], [100, 24]]} color={color} nodes />
-          <StationTile x={12} y={48} />
-          <StationTile x={100} y={24} major />
-          <Tick x={60} y={16} />
-        </>
-      );
-    case "through":
-      return (
-        <>
-          <Route points={[[10, 48], [44, 38], [72, 28], [108, 18]]} color={color} />
-          <StationTile x={10} y={48} />
-          <StationTile x={72} y={28} />
-          <StationTile x={108} y={18} major />
-        </>
-      );
-    case "network":
-      return (
-        <>
-          <Route points={[[20, 26], [50, 34], [80, 26], [100, 34]]} color={color} />
-          <StationTile x={20} y={26} />
-          <StationTile x={100} y={34} />
-          <Tick x={62} y={16} />
-          <text x="60" y="58" textAnchor="middle" fontSize="8.5" fontWeight="700" fill={RULE}>
-            one finished line, three stations
-          </text>
-        </>
-      );
-    case "parallel":
-      return (
-        <>
-          <Route points={[[8, 48], [24, 42], [40, 36], [56, 30], [72, 24], [88, 18], [108, 12]]} color={color} />
-          <text x="60" y="60" textAnchor="middle" fontSize="8.5" fontWeight="700" fill={RULE}>6+ segments</text>
-        </>
-      );
-    case "terminal":
-      return (
-        <>
-          <Route points={[[10, 42], [40, 36], [70, 30], [96, 24]]} color={color} />
-          <StationTile x={96} y={24} />
-          <Tick x={86} y={44} />
-          <text x="54" y="60" textAnchor="middle" fontSize="8.5" fontWeight="700" fill={RULE}>
-            finish on a station
-          </text>
-        </>
-      );
-    case "minimal":
-      return (
-        <>
-          <Route points={[[14, 18], [44, 18], [72, 22]]} color={color} width={4} />
-          <Tick x={88} y={18} />
-          <Route points={[[14, 46], [44, 50], [72, 44]]} color={color} dashed width={4} />
-          <Tick x={88} y={46} />
-          <text x="60" y="34" textAnchor="middle" fontSize="8.5" fontWeight="700" fill={RULE}>
-            complete two contracts
-          </text>
-        </>
-      );
-    case "crossing":
-      return (
-        <>
-          <Route points={[[14, 16], [102, 50]]} color={OPPONENT} nodes={false} width={4} />
-          <Route points={[[14, 50], [102, 16]]} color={color} nodes={false} />
-          <circle cx="58" cy="33" r="10" fill="none" stroke={RULE} strokeWidth="1.6" strokeDasharray="3 2" />
-          <text x="58" y="60" textAnchor="middle" fontSize="8.5" fontWeight="700" fill={RULE}>
-            cross any line
-          </text>
-        </>
-      );
-    case "crosstown-service":
-      return <><Route points={[[8,48],[42,32],[76,32],[112,16]]} color={color} /><text x="8" y="12" fontSize="9" fill={RULE}>≤5</text><text x="93" y="60" fontSize="9" fill={RULE}>≤5</text></>;
-    case "local-service":
-      return <><Route points={[[12,48],[44,32],[76,32],[108,16]]} color={color} />{[44,76].map((x)=><circle key={x} cx={x} cy={32} r="7" fill="white" stroke={color} strokeWidth="3" />)}</>;
-    case "interchange":
-      return <><Route points={[[12,32],[108,32]]} color={color} /><Route points={[[60,8],[60,56]]} color={color} dashed /><circle cx="60" cy="32" r="10" fill="white" stroke={color} strokeWidth="4" /></>;
-    case "solvent":
-      return <><Route points={[[12,16],[44,16]]} color={color} /><Route points={[[12,48],[44,48]]} color={color} /><text x="80" y="39" textAnchor="middle" fontSize="22" fontWeight="900" fill={color}>$3M</text></>;
-    default:
-      return null;
-  }
+  const shapes: Record<string, {paths:P[][]; label:string}> = {
+    gentle: {paths:[[[12,30],[36,20],[36,10]],[[12,38],[58,32],[108,32]],[[12,46],[80,46],[80,54]]], label:"3 different end borders"},
+    bend: {paths:[[[12,28],[32,28],[32,10]],[[108,28],[80,28],[80,10]],[[12,38],[56,38],[56,54]]], label:"E/W starts → N/S ends"},
+    straight: {paths:[[[12,24],[34,24],[34,42],[12,42]],[[46,10],[46,30],[66,30],[66,10]],[[108,24],[86,24],[86,42],[108,42]]], label:"Each line returns to its side"},
+    through: {paths:[[[28,10],[28,54]],[[58,10],[58,54]],[[90,10],[90,54]]], label:"All 3 lines: north + south"},
+    network: {paths:[[[12,42],[42,32]],[[42,32],[76,32]],[[76,32],[108,20]]], label:"3 completed lines · connected"},
+    perimeter: {paths:[[[12,32],[36,10],[80,10],[108,32]]], label:"1 completed line · 3 borders"},
+    "three-fronts": {paths:[[[12,32],[28,44],[28,54]],[[60,10],[60,54]],[[108,32],[92,44],[92,54]]], label:"3 start sides → 1 end side"},
+    "four-corners": {paths:[[[12,10],[44,24]],[[44,24],[76,40]],[[76,40],[108,54]]], label:"Opposite corners · 3 linked lines"},
+    "crosstown-service": {paths:[[[18,42],[52,32],[100,22]]], label:"First 3 ↔ last 3 columns"},
+  };
+  const shape = shapes[id];
+  if (shape) return <><rect x="12" y="10" width="96" height="44" fill="none" stroke={RULE}/>
+    {shape.paths.map((points,i)=><Route key={i} points={points} color={[color,"#b45309","#0369a1"][i]} width={3}/>)}
+    <text x="60" y="63" textAnchor="middle" fontSize="6" fontWeight="700" fill={RULE}>{shape.label}</text></>;
+  const labels:Record<string,string>={approach:"1 finished line · 2 MAJOR",terminal:"3 lines end at stations",minimal:"3 complete + Survey Pin",crossing:"FIRST to finish all 3", "local-service":"4 different MINOR",interchange:"Same MAJOR · 2 / 3 lines",solvent:"3 complete + $5M"};
+  return <><Route points={[[12,32],[60,32],[108,32]]} color={color}/>
+    {id === "approach" && <><StationTile x={12} y={32} major/><StationTile x={108} y={32} major/></>}
+    {id === "interchange" && <StationTile x={60} y={32} major/>}
+    <text x="60" y="60" textAnchor="middle" fontSize="7" fontWeight="700" fill={RULE}>{labels[id]}</text></>;
+
 }
 
 /** Pegboard sketch of what an Engineering card asks you to build. */
@@ -343,35 +220,10 @@ export function EngineeringCardFace({
 export const ALL_ENGINEERING = ENGINEERING_CARDS;
 
 // ============================================================================
-// Destination cards — same market, deliberately different face.
-//
-// A Destination is not one of the three Engineering commitments: it names one
-// station and is bound to a single line, so its face shows the station rather
-// than a shape to build.
+// Destination missions — two or three named stations in one company network.
 // ============================================================================
 
 export type DestinationCardState = "idle" | "selected" | "committed" | "met" | "missed";
-
-export function DestinationArt({ stationId, color }: { stationId: string; color: string }) {
-  const station = stationById(stationId);
-  const major = station?.kind === "major";
-  return (
-    <svg viewBox="0 0 120 64" className="h-auto w-full rounded-lg bg-[#efe3f5]" role="img" aria-hidden>
-      <PegField />
-      <Route points={[[10, 48], [40, 42], [70, 34]]} color={color} nodes={false} />
-      <g>
-        <rect x={74} y={18} width={38} height={30} rx="6" fill={major ? "#24384c" : "#4f6357"} stroke="#f5d98a" strokeWidth="2" />
-        <text x={93} y={31} textAnchor="middle" fontSize="8.5" fontWeight="700" fill="#ffffff">
-          {major ? "MAJOR" : "MINOR"}
-        </text>
-        <text x={93} y={42} textAnchor="middle" fontSize="8" fontWeight="700" fill="#f5d98a">
-          ARRIVE
-        </text>
-      </g>
-      <Tick x={62} y={16} />
-    </svg>
-  );
-}
 
 export function DestinationCardFace({
   card,
@@ -392,7 +244,7 @@ export function DestinationCardFace({
 }) {
   const resolved = typeof card === "string" ? destinationById(card) : card;
   if (!resolved) return null;
-  const station = stationById(resolved.stationId);
+  const stations = resolved.stationIds.map(id => stationById(id)!);
 
   const chrome: Record<DestinationCardState, string> = {
     idle: "border-purple-300",
@@ -405,15 +257,15 @@ export function DestinationCardFace({
   const body = (
     <>
       <div className="flex items-start justify-between gap-1">
-        <strong className="text-[13px] leading-tight text-stone-900">{station?.name ?? resolved.name}</strong>
+        <strong className="text-[13px] leading-tight text-stone-900">{resolved.name}</strong>
         <span className="shrink-0 rounded bg-purple-700 px-1.5 py-0.5 text-[10px] font-black text-white">
           +{resolved.vp}
         </span>
       </div>
       <p className="text-[10px] font-black uppercase tracking-wider text-purple-700">Destination</p>
-      <EngineeringIllustration id={resolved.id}/>
+      <div className="flex gap-1">{stations.map(station => <EngineeringIllustration key={station.id} id={`dest-${station.id}`}/>)}</div>
       <div className="mt-1.5">
-        <DestinationArt stationId={resolved.stationId} color={color} />
+        <svg viewBox="0 0 120 40" aria-hidden="true" className="w-full rounded bg-purple-50"><path d="M15 20H105" stroke={color} strokeWidth="4"/>{stations.map((station,i)=><StationTile key={station.id} x={15+i*90/(stations.length-1)} y={20} major={station.kind === "major"}/>)}</svg>
       </div>
       {!compact && <p className="mt-1.5 text-[11px] leading-snug text-stone-600">{resolved.description}</p>}
       <p className="mt-1 text-[11px] font-semibold leading-snug text-stone-700">{resolved.requirement}</p>

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import "./subway-plans-test";
+import "./subway-objectives-test";
 import { constructionHistory } from "../src/games/subway/constructionHistory";
 import { quoteBuildCost } from "../src/games/subway/buildCost";
 import { routeContacts } from "../src/games/subway/config";
@@ -9,16 +10,16 @@ import { startPlaytest, testRoom, runPlaytest, seededRandom, stepPlaytest } from
 
 const dispatch=(s:SubwayState,id:string,type:SubwayAction["type"],payload?:SubwayAction["payload"])=>subwayGame.reducer(s,{playerId:id,type,payload},{room:testRoom(s.playerOrder.length),playerId:id,now:()=>s.nextEventSeq,random:()=>.4});
 let checks=0;
-for(const count of [2,3,4]) for(const category of ["engineering","construction"] as const) {
+for(const count of [2,3,4]) for(const category of ["engineering"] as const) {
   let {state:s}=startPlaytest(count,42);
-  assert.equal(SUBWAY_STATE_VERSION,13);
+  assert.equal(SUBWAY_STATE_VERSION,14);
   assert.ok(Object.values(s.players).every(p=>draftPicks(p)===0));
   assert.equal(s.stations.length,10);
   assert.equal(new Set(s.stations.map(p=>`${p.x},${p.y}`)).size,10);
   assert.ok(s.stations.every((p,i)=>s.stations.slice(i+1).every(q=>Math.hypot(p.x-q.x,p.y-q.y)>=3)));
-  assert.ok(s.stations.every(p=>p.capacity===(p.kind==="major"?3:2)));
-  assert.equal(s.market.rows.engineering.length+s.market.decks.engineering.length,24);
-  assert.equal(new Set([...s.market.rows.engineering,...s.market.decks.engineering]).size,24);
+  assert.ok(s.stations.every(p=>p.capacity===(p.kind==="major"?(count===2?2:3):(count===2?1:2))));
+  assert.equal(s.market.rows.engineering.length+s.market.decks.engineering.length,16);
+  assert.equal(new Set([...s.market.rows.engineering,...s.market.decks.engineering]).size,16);
   for(let pick=0;pick<count*3;pick++) {
     const id=nextCompanyId(s)!;
     assert.equal(id,draftTurnId(s,pick,0));
@@ -30,7 +31,7 @@ for(const count of [2,3,4]) for(const category of ["engineering","construction"]
     assert.equal(s.players[id].money,old.players[id].money-contractById(contractId)!.cost);
   }
   assert.equal(s.engineeringStep,"CARD_DRAFT");
-  for(let pick=0;pick<count*6;pick++) {
+  for(let pick=0;pick<count*3;pick++) {
     const id=nextCompanyId(s)!;
     assert.equal(id,draftTurnId(s,pick,1));
     const payload={deck:category,expectedPick:pick,cardId:pick%2===0||!s.market.decks[category].length?s.market.rows[category][0]:undefined};
@@ -40,9 +41,9 @@ for(const count of [2,3,4]) for(const category of ["engineering","construction"]
     assert.notEqual(s,previous);
     assert.equal(dispatch(s,id,"DRAFT_CARD",payload),s);
   }
-  assert.ok(Object.values(s.players).every(p=>draftPicks(p)===6));
+  assert.ok(Object.values(s.players).every(p=>draftPicks(p)===3));
   assert.equal(s.engineeringStep,"BUY_SURVEYS");
-  assert.equal(Object.values(s.players).reduce((n,p)=>n+p.engineeringHand.length,0),category==="engineering"?count*6:0,"either category can supply every pick");
+  assert.equal(Object.values(s.players).reduce((n,p)=>n+p.engineeringHand.length,0),category==="engineering"?count*3:0,"either category can supply every pick");
   for(const id of s.playerOrder) {
     assert.equal(dispatch(s,id,"LOCK_ENGINEERING_PLAN",{cardIds:[]}),s,"commitment removed");
     s=dispatch(s,id,"BUY_SURVEYS",{surveys:0});
@@ -71,15 +72,21 @@ for(const count of [2,3,4]) for(const category of ["engineering","construction"]
   assert.equal(undone.surveyPins.length,0);
   assert.equal(undone.players[id].money,cash-1);
 }
-// All portfolio combinations can fund a 16-round programme plus five optional pins.
+// Economy pressure is intentional: route purchases fit, but expensive portfolios
+// must choose between speed, objectives, cash and debt within nine rounds.
+let pressured = 0;
 for(let a=0;a<12;a++)for(let b=a+1;b<12;b++)for(let c=b+1;c<12;c++){
   const routes=[LINE_CONTRACTS[a],LINE_CONTRACTS[b],LINE_CONTRACTS[c]];
   const segments=routes.reduce((n,r)=>n+r.recipe.length,0);
-  const minimumCrewBill=segments+Math.max(0,segments-16);
-  assert.ok(routes.reduce((n,r)=>n+r.cost,0)+minimumCrewBill+5<=SUBWAY_CONFIG.startingMoney);
+  const rounds=SUBWAY_CONFIG.timelinePeriods, baseCrews=Math.floor(segments/rounds);
+  const minimumCrewBill=rounds*baseCrews*(baseCrews+1)/2 + (segments%rounds)*(baseCrews+1);
+  const purchase=routes.reduce((n,r)=>n+r.cost,0);
+  assert.ok(purchase<SUBWAY_CONFIG.startingMoney);
+  if(purchase+minimumCrewBill>SUBWAY_CONFIG.startingMoney) pressured++;
   checks++;
 }
-assert.equal(LINE_CONTRACTS.filter(c=>c.special).length,4);
+assert.ok(pressured>0 && pressured<220);
+assert.ok(LINE_CONTRACTS.every(c=>!("special" in c)&&!("stationBonus" in c)));
 assert.ok(LINE_CONTRACTS.every(c=>c.recipe.length<=7&&c.recipe.every(n=>n>=2&&n<=6)));
 
 // Direct construction fixture: first route spans 3, with multiple contacts.
@@ -123,14 +130,14 @@ console.log("Build-cost previews: 12 reducer comparisons and recipient aggregati
   assert.equal(dispatch(s,id,"HIRE_CREWS",{lineIndexes:[0,0],period:1}),s);
   assert.equal(dispatch(s,id,"HIRE_CREWS",{lineIndexes:[1],period:1}),s);
   s=dispatch(s,id,"HIRE_CREWS",{lineIndexes:[0],period:1});
-  assert.equal(s.players[id].money,59);
+  assert.equal(s.players[id].money,49);
   assert.equal(dispatch(s,id,"HIRE_CREWS",{lineIndexes:[0],period:1}),s,"no double billing");
   const before=s;
   s=dispatch(s,id,"BUILD",{lineIndex:0,x:3,y:0});
-  assert.equal(s.players[id].money,56);
-  for(const other of ["seat-2","seat-3","seat-4"])assert.equal(s.players[other].money,61);
+  assert.equal(s.players[id].money,46);
+  for(const other of ["seat-2","seat-3","seat-4"])assert.equal(s.players[other].money,51);
   const undo=dispatch(s,id,"UNDO_PLACEMENT");
-  assert.equal(undo.players[id].money,59,"Undo restores tolls but does not refund hired crew");
+  assert.equal(undo.players[id].money,49,"Undo restores tolls but does not refund hired crew");
   assert.deepEqual(undo.players[id].pendingActions,[0]);
   assert.equal(undo.players[id].crewsHired,true);
   assert.ok(undo.nextEventSeq>s.nextEventSeq);
@@ -146,7 +153,7 @@ console.log("Build-cost previews: 12 reducer comparisons and recipient aggregati
   assert.equal(activationCost(s.players["seat-1"],3),5);
   assert.equal(dispatch(s,"seat-1","PLAY_CONSTRUCTION_CARD",{cardId:"grant",period:1}),s,"one card per round");
   s=dispatch(s,"seat-1","HIRE_CREWS",{lineIndexes:[0],period:1});
-  assert.equal(s.players["seat-1"].money,60);
+  assert.equal(s.players["seat-1"].money,50);
 }
 {
   let s=construction();s.players["seat-1"].constructionHand=["booking"];
@@ -155,7 +162,7 @@ console.log("Build-cost previews: 12 reducer comparisons and recipient aggregati
   for(const id of s.playerOrder)s=dispatch(s,id,"HIRE_CREWS",{lineIndexes:[],period:1});
   assert.equal(s.currentPeriod,2);
   assert.equal(s.players["seat-1"].crewDiscount,1);
-  assert.equal(s.players["seat-1"].money,60,"unused discount never pays cash");
+  assert.equal(s.players["seat-1"].money,50,"unused discount never pays cash");
   for(const id of [...s.resolveQueue])s=dispatch(s,id,"HIRE_CREWS",{lineIndexes:[],period:2});
   assert.equal(s.players["seat-1"].crewDiscount,0,"discount expires unused");
 }
@@ -177,11 +184,11 @@ console.log("Build-cost previews: 12 reducer comparisons and recipient aggregati
   s=dispatch(s,"seat-1","HIRE_CREWS",{lineIndexes:[0],period:1});
   s=dispatch(s,"seat-1","PLAY_CONSTRUCTION_CARD",{cardId:"access",period:1});
   s=dispatch(s,"seat-1","BUILD",{lineIndex:0,x:3,y:0});
-  assert.equal(s.players["seat-1"].money,59);
-  assert.equal(s.players["seat-2"].money,61);
+  assert.equal(s.players["seat-1"].money,49);
+  assert.equal(s.players["seat-2"].money,51);
   const undo=dispatch(s,"seat-1","UNDO_PLACEMENT");
   assert.equal(undo.players["seat-1"].accessPass,true);
-  assert.equal(undo.players["seat-2"].money,60);
+  assert.equal(undo.players["seat-2"].money,50);
 }
 {
   let s=construction();s.players["seat-1"].money=0;
@@ -190,13 +197,13 @@ console.log("Build-cost previews: 12 reducer comparisons and recipient aggregati
   const scored=scoreGame(s,1);
   assert.equal(scored.players["seat-1"].scoreBreakdown!.find(i=>i.label.startsWith("Construction debt"))!.points,-4);
   const p=s.players["seat-1"];p.engineeringHand=["dest-garden"];p.lines.push({contractId:"short",paid:5,route:[{x:14,y:2,stationId:"garden",stationSlot:0}]});
-  assert.ok(objectiveMet("dest-garden",p,[]),"any line can satisfy a Destination");
+  assert.equal(objectiveMet("dest-garden",p,[]),false,"retired single-station cards cannot score");
   const result=scoreGame(s,2);
-  assert.equal(result.players["seat-1"].scoreBreakdown!.find(i=>i.label==="Destination: Garden")!.points,3);
+  assert.equal(result.players["seat-1"].scoreBreakdown!.find(i=>i.label==="Destination: Garden"),undefined);
 }
 {
-  let s=construction();s.currentPeriod=16;
-  for(const id of s.playerOrder)s=dispatch(s,id,"HIRE_CREWS",{lineIndexes:[],period:16});
+  let s=construction();s.currentPeriod=SUBWAY_CONFIG.timelinePeriods;
+  for(const id of s.playerOrder)s=dispatch(s,id,"HIRE_CREWS",{lineIndexes:[],period:SUBWAY_CONFIG.timelinePeriods});
   assert.equal(s.phase,"SCORING","zero crews cannot extend the horizon");
   assert.equal(s.endReason,"ROUND_LIMIT");
 }
@@ -229,12 +236,14 @@ for(const count of [2,3,4]){
     const {state:s,actions}=runPlaytest(count,seed);
     assert.equal(s.phase,"RESULTS");
     assert.ok(actions<500);
+    assert.ok(s.currentPeriod<=SUBWAY_CONFIG.timelinePeriods);
     for(const p of Object.values(s.players)){finished+=p.lines.filter(lineComplete).length;debt+=p.money<0?1:0;lowest=Math.min(lowest,p.money);}
     assert.ok(s.events.length<=20);
   }
+  assert.ok(finished>0,"simulation must exercise actual route completions");
   summary.push({players:count,games:12,averageFinished:finished/(count*12),debtCompanies:debt,lowestCash:lowest});
 }
-console.log("Draft, crew billing, cards, priority, toll/undo, debt, scoring and 220 portfolio affordability checks passed.",checks);
+console.log("Draft, crew billing, cards, priority, toll/undo, debt, scoring and 220 portfolio economy checks passed.",checks);
 console.log(JSON.stringify(summary));
 console.log("36 complete 2/3/4-player simulations reached RESULTS.");
 

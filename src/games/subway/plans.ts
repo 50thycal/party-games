@@ -44,6 +44,7 @@ const isPlanNode = (n: unknown): n is RouteNode => {
     if (!Number.isInteger(node.stationSlot)) return false;
     const slot = node.stationSlot as number;
     if (slot < 0 || slot >= station.capacity) return false;
+    if (node.stationCapacity !== undefined && (!Number.isInteger(node.stationCapacity) || ![station.capacity, station.capacity - 1].includes(node.stationCapacity as number) || slot >= (node.stationCapacity as number))) return false;
   }
   return true;
 };
@@ -52,7 +53,7 @@ const isPlanNode = (n: unknown): n is RouteNode => {
 const cleanNode = (n: RouteNode): RouteNode => ({
   x: n.x,
   y: n.y,
-  ...(n.stationId !== undefined ? { stationId: n.stationId, stationSlot: n.stationSlot ?? 0 } : {}),
+  ...(n.stationId !== undefined ? { stationId: n.stationId, stationSlot: n.stationSlot ?? 0, ...(n.stationCapacity !== undefined ? {stationCapacity:n.stationCapacity} : {}) } : {}),
 });
 
 /**
