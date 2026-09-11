@@ -429,8 +429,8 @@ Subway has 2–4 companies, exactly three selected contracts each from twelve, a
 stations. Shared pure reducer helpers own the full-seat draft/placement rotation,
 rotating construction queue and owner-specific contact payments. Access Pass covers
 the next build this period; undo restores the allowance and every recipient balance.
-Each company starts with $60M and chooses zero to three unfinished routes each turn
-over 16 construction rounds. Crew bills are $0/$1/$3/$6M, paid before building one
+Each company starts with $50M and chooses zero to three unfinished routes each turn
+over nine construction rounds. Crew bills are $0/$1/$3/$6M, paid before building one
 segment on each chosen route. No advance timetable or shelving phase exists.
 Final debt costs four VP per $1M. CrewBoard renders dispatch and delegates all
 billing, discounts and card timing to the reducer. An opening Priority Dispatch
@@ -448,17 +448,36 @@ true phone/desktop iframe viewports. It never writes the local player's saved ga
 
 Procurement presents a refillable player-count-sized route row. Three mandatory
 list-price picks per player replace first refusal, passing and discount sales.
-Empty starting hands are filled during Engineering's CARD_DRAFT: six picks per
-player, two face-up cards per category plus blind draws. Engineering contains one
-global copy of each of 14 goals and ten Destinations. Construction contains eight
-copies of each of five effects; duplicate Construction cards are allowed.
-Any category mix is legal, with no required goals or separate Destination draft.
+Each company receives two private Destination missions at START_GAME. Engineering's
+CARD_DRAFT offers three picks per player, from two face-up goals or a blind pile,
+with one copy of each of 16 Engineering goals. Destinations have a separate shuffled
+deck of all 45 station pairs and 120 station triples. Pair/triple missions score
+4/7 VP when their stations are connected through the company's own built network;
+unfinished routes can contribute. One extra random mission costs $5M before hiring
+on the owner's construction turn, once per game, with reducer-enforced affordability,
+phase/actor/period guards. Public events disclose the purchase but not the mission.
+The post-game telemetry export includes destination identities and purchase flags.
+Construction cards are no longer drafted; no new supply is introduced in this pass.
+Their existing abilities remain implemented and tested in isolated fixtures.
+
 Shared snake-order helpers rotate opening seats between stages. Stale card-pick
-tokens and duplicate goals are rejected. Every held goal is active automatically
-and scores once if any qualifying owned route achieves it. BUY_SURVEYS follows
-drafting, then optional pin placement and all three route starters.
-Legacy schedule/commitment types and some dormant presentation helpers remain for
-incremental cleanup, but their actions and phases are unreachable in v12 games.
+tokens and duplicate goals are rejected. BUY_SURVEYS follows drafting, then optional
+pin placement and all three route starters. There is no commitment or assignment.
+Legacy schedule/commitment types and dormant helpers remain unreachable in v14.
+
+`network.ts` provides own-node connectivity and longest edge-simple trails. Shared
+station IDs join dock slots; identical normal route nodes transfer; raw intersections
+and opponents never bridge components. Border objectives check exact rows/columns;
+a corner counts at most once when assigning distinct sides. First to Open uses an
+undo-restored first-completion player field. Longest network scores logical peg-space
+length without segment reuse: 5 VP to one winner or 3 each on a tie. Route specials
+and per-contract Major bonuses are removed, retaining ordinary station scoring.
+
+Contracts keep stable internal IDs, recipes and prices, but display twelve color
+names with unique two-letter codes. Two-player stations have one minor/two major
+docks, compared with two/three for 3–4 players. Placed and planned station nodes
+retain `stationCapacity` so physical geometry matches the state's dock layout.
+State version 14 requires restart for old rooms/saves and isolates old local plans.
 
 The isolated `/subway/tutorial` route prepares lesson snapshots through the legal
 playtest driver. It controls the real GameView with optional camera lesson props;
@@ -469,7 +488,7 @@ hotseat save. Real games link to phase-specific lessons in a separate tab.
 
 Placement uses Save ghost and Confirm peg with the committed-route build guide. Selecting a pending real peg immediately shows bright yellow legal ghost targets; tapping an unbuilt peg removes it and its tail so a replacement can be selected directly. Confirm commits only the pending real step. The owner removed the Next hole/Plan tools controls, coordinates, legend and build-cost receipt; quoteBuildCost and its reducer-comparison tests remain available, but GameView no longer renders the receipt. BUILD still calculates legality and transfers at confirmation.
 
-Construction schedule is centered above the pegboard and contains order/hiring/history controls without duplicated hand cards. Its wide tabletop layout places crew controls beside round history, with companies in two columns. Engineering and Construction hands each occupy a horizontal row in the same zoomable tabletop; Cards focuses the first card at a usable zoom. Contract office and Market navigation exist only during route procurement and card drafting.
+Construction schedule is centered above the pegboard and contains order/hiring/history controls without duplicated hand cards. Its wide tabletop layout places crew controls beside round history, with companies in two columns. Engineering, Destination and any retained Construction hands each occupy a horizontal row in the same zoomable tabletop; Cards focuses the first card at a usable zoom. Contract office and Market navigation exist only during route procurement and card drafting.
 
 Undo step reverses one unconfirmed sketch node, preserving the committed prefix and recalculating the pending real target. It changes the working sketch only; Save ghost persists revisions. Committed-placement Undo remains a separate reducer action. On a later turn, a valid saved ghost is restored as guidance only: there is no pending real peg and Confirm remains disabled until the player taps a legal target. Tapping the first saved ghost peg follows the stored route; choosing another legal peg replaces the unbuilt sketch from that point. The bottom controls have opaque backing and a measured gap, and camera bounds allow roughly 60% of a viewport of pan buffer around the table so edge cards can reach the unobscured centre at any zoom.
 
