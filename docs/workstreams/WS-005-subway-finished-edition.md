@@ -5,7 +5,7 @@ Phase: REVIEW
 Status: Active
 Updated: 2026-09-11
 Implementation State: PR #165 merged. Tap-and-plan simplification implemented on codex/subway-tap-and-plan. Build/type validation, lint, full Subway suite, 220 affordability checks and 36 simulations passed; desktop starter and phone construction direct-tap/save/one-step-confirm checks passed. Independent current-head review and physical iPhone acceptance remain pending.
-Related PRs: [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
+Related PRs: [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; open); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
 ## Goal and approved scope
 Current owner-authorized continuation: tap the pending starter/real segment, immediately extend the ghost using bright yellow legal targets, Save ghost and Confirm only the real peg. Remove Next hole, Plan tools, coordinates, legend and cost receipt from the active planner. Tap an unbuilt peg to revise the sketch without another tool. Center Construction schedule above the pegboard, remove its duplicate card faces, run each hand horizontally and hide Contract office/Market after drafting. Keep the zoomable shared tabletop, manual cross-line planning, reducer rules, private saved plans and explicit confirmation. Acceptance: direct starter/build taps, ghost correction/save/one-step confirmation, desktop/phone layout, build/lint/full Subway suite. The latest owner instruction supersedes the earlier receipt display and compact-tools decisions; no new adjacent ideas admitted.
@@ -75,7 +75,9 @@ and intake/result rules. Reviewed mode retained; historical work is not reopened
 ## Review State
 Pending independent review. No approval or merge claimed.
 
-Tap-and-plan continuation: pending independent review of the new PR's current head. This checkpoint does not infer historical approval from the merged PRs.
+PR #166: Pending independent review of its current head. Published through connected GitHub with an exact matching validated implementation tree. No self-approval, merge or historical approval inferred.
+
+Final compiled-UI check: hired one Garden Spur crew, used Give up remaining builds on Construction schedule, and verified the turn advanced to Ember Transit. The simplified planner therefore retains a reachable way to end construction. Preview stopped after verification.
 
 Tap-and-plan validation: production build/type validation, lint, diff check and full Subway suite passed, including 220 affordability checks, 36 complete 2/3/4-seat simulations and saved-plan/quote regressions. Desktop starter taps immediately showed yellow targets; direct ghost tap/save left the real board unchanged, revising a ghost by tapping it worked, and Confirm left one built starter plus its saved ghost. At 390px, hired Garden Spur/Old Town Tram, directly tapped a real build then a yellow ghost target, saved, and confirmed: built peg count increased from 12 to 13 and the active route changed to Old Town Tram. Each Engineering/Construction row had equal card top coordinates and increasing horizontal positions. Schedule/board centers matched and the schedule had zero card articles; office/Market were absent in construction. Inspected 844px landscape schedule and compact controls. React checklist applied: event-driven sketch changes, no new effects or persistence shape. Physical-device testing remains unclaimed.
 
@@ -120,7 +122,7 @@ segment was verified in the desktop construction fixture. Active-route animation
 the Results report control, and phone layouts remain in the browser visual gate.
 
 ## Next Step
-Publish the validated tap-and-plan branch, then independent current-head review and physical iPhone acceptance. No self-approval or merge.
+Independent review of PR #166's current full head, then physical iPhone acceptance. No self-approval or merge.
 
 ## Direct-piece playtest continuation — 2026-09-11
 
