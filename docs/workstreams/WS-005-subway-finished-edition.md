@@ -5,7 +5,7 @@ Phase: REVIEW
 Status: Active
 Updated: 2026-09-11
 Implementation State: PR #162 merged. Direct-piece mobile follow-up implemented and validated on codex/subway-direct-piece-play. Production build (including type validation), lint, rules suite, 220 affordability checks and 36 full simulations pass. Interactive phone/desktop phase checks and local two-player save/reload completed. Independent review and physical iPhone acceptance remain pending.
-Related PRs: [#161](https://github.com/50thycal/party-games/pull/161) (merged); saved-planning follow-up on codex/subway-saved-planning; [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
+Related PRs: [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; open); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
 ## Goal and approved scope
 After this change, Subway supports complete 2-, 3- and 4-player games, with more
@@ -126,9 +126,11 @@ Browser evidence (real controls in legal phase fixtures, not a claim of a comple
 - Existing rules/saved-plan regressions, 220 affordability checks and 36 complete 2/3/4-player heuristic simulations pass. Lint passes. Physical iPhone multitouch, Safari callout behavior, human strategic balance, and independent review are not claimed.
 - Real two-player local entry initially failed on HTTP preview because randomUUID was unavailable. Fixed with a 128-bit getRandomValues fallback for the local game namespace. Afterward, starting, buying University Shuttle for $6M, reloading to the same owned route/$54M balance, and passing through Company 2's privacy veil all worked. HTTPS continues using randomUUID.
 
-Review State: follow-up pending independent review; no approval or merge performed. PR #162 is now merged; its prior pending review statement is historical, not retrospectively cleared.
+Review State: PR #163 pending independent review; no approval or merge performed. PR #162 is now merged; its prior pending review statement is historical, not retrospectively cleared.
 
 Final validation: `npm run build` completed with type validation, `npm run lint` passed without warnings/errors, `./scripts/test-subway.sh` passed (including 220 affordability checks and 36 complete simulations), and `git diff --check` passed. Supervised preview stopped after verification. No complete manually played game or physical device pass is claimed.
+
+Publication checkpoint: PR #163 opened through connected GitHub. Validated implementation head: 4cc00d770104f39b4540e03698980465e4c091be. A documentation-only publication checkpoint follows it; independent review must name the current full head. This is not merge finalization.
 
 ## Saved planning and Engineering artwork continuation — 2026-09-10
 
