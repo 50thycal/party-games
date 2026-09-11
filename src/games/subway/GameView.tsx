@@ -457,7 +457,8 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     setPlannerLine(activeLineIndex);
     setManualPlanner(false);
     setPlanMode(true);
-    setPreview(initial.preview);
+    // A saved ghost is guidance, never an implicit live build choice.
+    setPreview(null);
     cam.current?.focus("board");
   }, [automaticContext, planAvailable, game, me, activeLineIndex, room.roomCode, playerId]);
 
@@ -500,10 +501,13 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       return out;
     }
     if (mode === "planner" && plannerState && plannerLine !== null) {
+      if (!manualPlanner && !preview && activeLineIndex >= 0) {
+        return legalTargets(game, me.id, activeLineIndex, placingStarter);
+      }
       return legalTargets(plannerState, me.id, plannerLine, sketch.length === 0);
     }
     return [];
-  }, [game, me, mode, activeLineIndex, placingStarter, plannerState, plannerLine, sketch]);
+  }, [game, me, mode, activeLineIndex, placingStarter, plannerState, plannerLine, sketch, manualPlanner, preview]);
 
   // The board as it would be if the selected target were confirmed. Yellow is
   // derived from this by the reducer's own rules (OD-5).
@@ -659,6 +663,26 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     if (!game || !me || !canAct) return;
 
     if (mode === "planner" && plannerState && plannerLine !== null) {
+      if (!manualPlanner && !preview) {
+        const reason = validateNode(game, me.id, plannerLine, p, placingStarter, slot);
+        if (reason) {
+          setNotice(reason);
+          return;
+        }
+        const station = stationAt(p, game.stations);
+        const node: RouteNode = {
+          x: p.x,
+          y: p.y,
+          ...(station ? {stationId: station.id, stationSlot: slot ?? 0} : {}),
+        };
+        const savedNext = sketch[sketchBase.length];
+        const followsSavedPlan = savedNext && savedNext.x === node.x && savedNext.y === node.y &&
+          (savedNext.stationSlot ?? -1) === (node.stationSlot ?? -1);
+        if (!followsSavedPlan) setSketch([...sketchBase, node]);
+        setPreview({x:p.x,y:p.y,...(station ? {slot:slot ?? 0} : {})});
+        setNotice(null);
+        return;
+      }
       // Edit the route by tapping an unbuilt peg, rather than opening tools.
       const rewind = sketch.findIndex((n, i) => i >= sketchBase.length && n.x === p.x && n.y === p.y && (n.stationSlot ?? -1) === (slot ?? -1));
       if (rewind >= 0) {
@@ -1143,7 +1167,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
               setSketch(initial.nodes);
               setPlannerLine(activeLineIndex);
               setManualPlanner(false);
-              setPreview(initial.preview);
+              setPreview(null);
               setNotice(null);
             }}>Close plan</StripButton>}
           </div>

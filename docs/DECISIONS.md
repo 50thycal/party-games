@@ -1470,3 +1470,9 @@ Center Construction schedule over the board and remove duplicate card faces from
 Date: 2026-09-11. Status: owner-authorized; implementation review pending.
 
 The owner's next playtest supersedes DEC-036's two-button placement strip: add Undo step for the last unconfirmed real/ghost node, while preserving the separate committed-placement Undo. Keep Save ghost and Confirm peg; no planning dropdown returns. Opaque bottom-control backing prevents underlying pieces showing through, and viewport-scaled pan slack lets the outermost cards reach the usable centre. The Construction schedule uses side-by-side crew/history sections and horizontal route choices. No reducer or persistence changes. Alternatives considered: Unknown / not documented.
+
+### DEC-038 — Saved ghosts require an explicit build tap on later turns
+
+Date: 2026-09-11. Status: owner-authorized; implementation review pending.
+
+A saved route is visual guidance, not authorization to select or build its next segment. When that line becomes active on a later construction turn, restore the ghost but start with no pending real peg and disabled Confirm. The player must tap a legal peg, including the first saved ghost peg when desired. Following that peg preserves the remaining guide; selecting another legal peg replaces the unbuilt sketch from that point. This changes client interaction only; the reducer, explicit Confirm requirement and device-local plan storage remain unchanged.

@@ -5,7 +5,6 @@ import {
   validateNode,
   type RouteNode,
   type SubwayState,
-  type PlacementTarget,
 } from "./config";
 
 // ============================================================================
@@ -112,16 +111,11 @@ export function clearPlan(roomCode: string, playerId: string, contractId: string
   }
 }
 
-/** Start from a viable saved route or the real prefix; never silently use stale intent. */
+/** Restore a viable ghost or the real prefix; never select a live build target. */
 export function preparePlan(game: SubwayState, playerId: string, lineIndex: number, saved?: SavedPlan | null) {
   const base = game.players[playerId]?.lines[lineIndex]?.route ?? [];
   const nodes = saved && !reconcilePlan(game, playerId, lineIndex, saved.nodes).stale ? saved.nodes : base;
-  const next = nodes[base.length];
-  const preview: PlacementTarget | null = next ? {
-    x: next.x, y: next.y,
-    ...(next.stationId ? {slot:next.stationSlot ?? 0} : {}),
-  } : null;
-  return {base:base.map(cleanNode), nodes:nodes.map(cleanNode), preview};
+  return {base:base.map(cleanNode), nodes:nodes.map(cleanNode)};
 }
 
 /** How one saved plan relates to the line's real route right now. */
