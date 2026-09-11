@@ -467,6 +467,8 @@ hotseat save. Real games link to phase-specific lessons in a separate tab.
 
 ## Phone tabletop presentation (mobile continuation)
 
+BuildCostPreview displays the next real segment's personal payment, cash afterward, public recipient totals and conditional debt penalty in both automatic planning and ordinary placement. quoteBuildCost uses the existing contact tariff and Access Pass flag without changing state; recipient payments remain visible when the city pays. It quotes only the selected real step, never the ghost tail or a starter, and manual planning hides the quote. BUILD still recalculates legality and transfers at confirmation.
+
 RouteBuildGuide derives starter instructions, next real segment length and remaining segments from the committed route, never from ghost sketches. The active contract and automatic planner share this guide; manual Plan remains separate. A static FROM marker identifies the growing real route endpoint without intercepting taps. Lines focus prefers the active contract and falls back to the first piece.
 
 Automatic framing also follows completed company handoffs and new construction rounds, but not routine polls. Focus magnification is capped at 110%; manual zoom can go closer. Survey purchase quantity is company/room-local and resets across handoffs.

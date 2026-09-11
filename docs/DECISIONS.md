@@ -1450,3 +1450,9 @@ Construction schedule opens at current-turn controls, with round history below. 
 Date: 2026-09-11. Status: owner-delegated; implementation review pending.
 
 Of active-route guidance, blocked-move explanations and scoring highlights, choose active-route guidance for this iteration: it benefits every placement without making balance assumptions. A shared inline guide uses only committed route progress, with starter border/first-length instructions. The real endpoint receives a static FROM marker; future sketch instructions say Next ghost once a real placement is selected. Lines focuses the active contract before falling back to the first. Keep unrelated map information readable, manual planning distinct, and Confirm authoritative; no new popup, animation, rule or persisted field.
+
+### DEC-035 — Quote the next real build consistently before Confirm
+
+Date: 2026-09-11. Status: owner-delegated; implementation review pending.
+
+Choose inline cost previews over a station finder and crew completion previews. Automatic planning had hidden the recipient/cash/debt information available in ordinary placement, making the default interaction less informative. Both modes now use one quote from current contacts and balance. Show recipient totals even when Access Pass subsidizes them; say the pass is used even on a free build, matching the reducer. Debt is a conditional end-game penalty, never an immediate VP deduction. No whole-plan budget forecast, new modal, automatic card play or rule change.
