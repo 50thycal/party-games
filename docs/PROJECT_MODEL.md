@@ -2,7 +2,7 @@
 
 <!-- How does this system work TODAY? Present tense. Not a roadmap, not a history. -->
 
-**Last updated:** 2026-09-09 · **Build OS v0.11** (see [50thycal/build-os](https://github.com/50thycal/build-os))
+**Last updated:** 2026-09-11 · **Build OS v0.12** (see [50thycal/build-os](https://github.com/50thycal/build-os))
 
 Project memory has three layers: this file (how the system works today),
 [`DECISIONS.md`](DECISIONS.md) (why), and [`workstreams/`](workstreams/ACTIVE.md) (what is being
@@ -472,3 +472,5 @@ All devices use TabletopCanvas: board, illustrated card faces and company pieces
 Active starter/build contexts automatically open a line-locked planner. The first unbuilt sketch node is the solid pending real placement; the remaining tail is pale and dashed. Explicit Plan permits choosing another owned line. Save ghost persists a full intended route through plans.ts, keyed by state version, room, player and contract; the in-session cache also retains saves across turns if browser storage fails. preparePlan reconciles stored intent against real construction and only a viable prefix supplies the next pending peg. Diverged plans remain visible and labeled until revised or cleared. Confirm revalidates and dispatches exactly one placement; saved or unsaved tails never enter a reducer payload. Hotseat veils hide private sketches and saved routes. All 14 Engineering goals and 10 Destinations have themed illustration panels, while exact rules and diagrams remain code-rendered.
 
 Subway touch/table continuation: the camera adds reduced-motion-aware momentum after drag, with new-touch cancellation and scoped WebKit selection/callout suppression. Opponent panels begin collapsed and company plaques have bounded widths. Construction schedule presents selected-round order and per-line build/Undo facts through constructionHistory, projecting only public fields from telemetry. Survey placement is reducer-restricted to interior non-station holes; existing border pins in saved games are not deleted. Five live Construction card illustrations share one sprite asset. No persisted-state shape changes.
+
+Ordinary route purchases dispatch directly from a priced button on the offer. Card drafting and the shared ConstructionPiece show disabled availability on the face; current Engineering goals are readable inline. GameView serializes pending UI dispatches and reports rejected actions in its status strip. Planner context alone initializes automatic planning, including React's mount-effect replay; loading saved plans does not reset it. Hiring and subsequent active routes focus the pegboard. Target navigation respects the measured HUD bands. The camera opens the first hand/line piece, the survey slip, or current construction controls at a consistent working zoom. Construction history follows the current actions in visual and keyboard order. Results wrap for narrow screens and put the score breakdown before report export (DEC-033).

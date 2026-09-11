@@ -26,6 +26,7 @@ export type TableZone =
   | "lines"
   | "hand"
   | "office"
+  | "survey"
   | "log"
   | "results";
 
@@ -199,8 +200,13 @@ export function TabletopCanvas({
     if (zone === "table") {
       return { x: 0, y: 0, w: worldWidth, h: worldHeight.current };
     }
-    const el = world.querySelector<HTMLElement>(`[data-zone="${zone}"]`);
+    let el = world.querySelector<HTMLElement>(`[data-zone="${zone}"]`);
     if (!el) return null;
+    // A hand/portfolio spans several pieces. Open its first piece at reading
+    // size instead of centering between pieces outside a phone's viewport.
+    if (zone === "hand") el = el.firstElementChild as HTMLElement ?? el;
+    if (zone === "lines") el = el.querySelector<HTMLElement>("section") ?? el;
+    if (zone === "schedule") el = el.querySelector<HTMLElement>("[data-turn-controls]") ?? el;
     const wr = world.getBoundingClientRect();
     const er = el.getBoundingClientRect();
     // The applied scale, read back from the DOM: state and transform can be one
@@ -239,7 +245,7 @@ export function TabletopCanvas({
         // A phone cannot show the whole pegboard and still see the pegs. Open
         // at a zoom where the holes are actually tappable and let the player
         // pan around the board, which is what a table does anyway.
-        fit = Math.max(wFit, hFit, WORK_SCALE);
+        fit = WORK_SCALE;
       }
       const scale = Math.min(opts.maxScale ?? MAX_SCALE, Math.max(minScale(), fit));
       const cx = rect.x + rect.w / 2;
@@ -296,13 +302,15 @@ export function TabletopCanvas({
       let dy = 0;
       if (r.left < v.left + m) dx = v.left + m - r.left;
       else if (r.right > v.right - m) dx = Math.max(v.right - m - r.right, v.left + m - r.left);
-      if (r.top < v.top + m) dy = v.top + m - r.top;
-      else if (r.bottom > v.bottom - m) dy = Math.max(v.bottom - m - r.bottom, v.top + m - r.top);
+      const top = v.top + hudTop + m;
+      const bottom = v.bottom - hudBottom - m;
+      if (r.top < top) dy = top - r.top;
+      else if (r.bottom > bottom) dy = Math.max(bottom - r.bottom, top - r.top);
       if (!dx && !dy) return;
       const c = camRef.current;
       animateTo({ ...c, x: c.x + dx, y: c.y + dy });
     },
-    [animateTo]
+    [animateTo, hudTop, hudBottom]
   );
 
   const ensureVisible = useCallback(
@@ -609,6 +617,9 @@ export function TabletopCanvas({
       tabIndex={0}
       onPointerDownCapture={(e) => {
         stopAnimation();
+        // A new tap must work even if the browser omitted the synthetic click
+        // after the preceding drag. That drag's own click is still suppressed.
+        if (pointers.current.size === 0) suppressClick.current = false;
         // Buttons act on click, not focus. Avoid native focus scrolling the
         // clipped camera viewport before that click can reach its target.
         if ((e.target as HTMLElement).closest("button, a, [role=button]")) e.preventDefault();

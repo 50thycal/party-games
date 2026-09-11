@@ -12,6 +12,8 @@ import {
   committedStatus,
   concurrentBlocks,
   constructionById,
+  constructionCardBlocker,
+  cardDraftBlocker,
   contractActions,
   contractById,
   contractNodes,
@@ -263,7 +265,7 @@ export function TableButton({
       disabled={disabled}
       title={title}
       className={`rounded-[14px] border-[3px] font-black shadow-[0_5px_0_rgba(0,0,0,.25)] transition active:translate-y-[2px] active:shadow-none disabled:opacity-40 disabled:shadow-none ${skin} ${
-        size === "sm" ? "px-[14px] py-[7px] text-[18px]" : "px-[22px] py-[12px] text-[22px]"
+        size === "sm" ? "min-h-[74px] px-[14px] py-[7px] text-[20px]" : "min-h-[74px] px-[22px] py-[12px] text-[22px]"
       }`}
       {...rest}
     >
@@ -650,7 +652,8 @@ export function ContractOffice({
   game,
   me,
   veiled,
-  onOpenContract,
+  busy,
+  onBuyContract,
   onOpenMarket,
   onOpenDestination,
   children,
@@ -658,7 +661,8 @@ export function ContractOffice({
   game: SubwayState;
   me?: SubwayPlayer;
   veiled: boolean;
-  onOpenContract: (contractId: string, price?: number) => void;
+  busy: boolean;
+  onBuyContract: (contractId: string) => void;
   onOpenMarket: (deck: CardDeckId, cardId?: string) => void;
   onOpenDestination: (id: string) => void;
   /** Phase controls that belong on this piece (buy/pass, and so on). */
@@ -671,13 +675,16 @@ export function ContractOffice({
       {game.phase === "PROCUREMENT" && (
         <div className="space-y-[12px]">
           <p className="text-[20px] font-bold">Route draft · {Math.floor(game.procurement.offerIndex / game.playerOrder.length) + 1}/3</p>
-          <p className="text-[18px]">Choose one. List price · no passing.</p>
+          <p className="text-[20px]">Choose one route · {me ? `${money(me.money)} available` : "List price"}.</p>
           {game.procurement.row.map((id) => {
             const c = contractById(id)!;
-            return <button key={id} onClick={() => onOpenContract(id, c.cost)} className="w-full rounded-[14px] border-[3px] bg-[#fffaf0] p-[14px] text-left hover:bg-amber-50 focus-visible:ring-4 focus-visible:ring-amber-500" style={{borderColor:c.color}}>
+            const mine = !veiled && me?.id === offer?.activeId;
+            const affordable = !!me && me.money >= c.cost;
+            return <div key={id} className="w-full rounded-[14px] border-[3px] bg-[#fffaf0] p-[14px] text-left" style={{borderColor:c.color}}>
               <div className="[&_strong]:text-[24px] [&_p]:text-[17px] [&_span]:text-[18px] [&_.grid]:text-[18px]"><ContractCard contract={c} price={c.cost}/></div>
-              <span className="block text-[18px] font-bold">Inspect contract →</span>
-            </button>;
+              <button disabled={busy || !mine || !affordable} onClick={() => onBuyContract(id)} className="mt-[12px] min-h-[74px] w-full rounded-[10px] bg-teal-800 px-[16px] py-[14px] text-[24px] font-bold text-white disabled:opacity-45">Buy {c.name} · {money(c.cost)}</button>
+              <p className="mt-[6px] text-[18px]">{!mine ? `${game.players[offer?.activeId ?? ""]?.name ?? "The active company"} chooses next.` : affordable ? `${money(me!.money - c.cost)} left after purchase` : "Not enough cash"}</p>
+            </div>;
           })}
           <p className="text-[18px]">{game.players[offer?.activeId ?? ""]?.name} chooses next.</p>
         </div>
@@ -693,10 +700,10 @@ export function ContractOffice({
                 const c = deck === "engineering" ? (engineeringById(id) ?? destinationById(id)) : deck === "scheduling" ? schedulingById(id as SchedulingCardId) : constructionById(id as ConstructionCardId);
                 return <div key={`${id}-${slot}`} className="mt-[12px] rounded-[14px] border-2 border-amber-800/40 bg-[#fffaf0] p-[8px] shadow-lg [&_strong]:text-[20px] [&_p]:text-[18px] [&_span]:text-[16px]">
                   {deck === "engineering" ? (destinationById(id) ? <DestinationCardFace card={id} color={me?.color ?? "#334155"}/> : <EngineeringCardFace card={id} color={me?.color ?? "#334155"}/>) : <><ConstructionArt card={id} /><b className="text-[24px]">{c?.name}</b><p className="text-[20px]">{c?.description}</p></>}
-                  <button onClick={() => onOpenMarket(deck, id)} className="mt-[10px] w-full rounded-lg bg-teal-800 p-[12px] text-[20px] font-bold text-white">Draft {c?.name} →</button>
+                  <button disabled={busy || veiled || !me || !!cardDraftBlocker(game, me.id, deck, id)} onClick={() => onOpenMarket(deck, id)} className="mt-[10px] min-h-[74px] w-full rounded-lg bg-teal-800 p-[12px] text-[22px] font-bold text-white disabled:opacity-45">Draft {c?.name} →</button>
                 </div>;
               })}</div>
-              <button disabled={!game.market.decks[deck].length} onClick={() => onOpenMarket(deck)} className="mt-[6px] w-full rounded-[8px] bg-stone-800 p-[10px] text-[18px] text-white">Blind draw · {deck}</button>
+              <button disabled={busy || veiled || !me || !!cardDraftBlocker(game, me.id, deck)} onClick={() => onOpenMarket(deck)} className="mt-[6px] min-h-[74px] w-full rounded-[8px] bg-stone-800 p-[10px] text-[22px] text-white disabled:opacity-45">Blind draw · {deck}</button>
             </div>
           ))}
         </div>
@@ -826,7 +833,7 @@ export function LineContractBoard({
     <section
       className="rounded-[26px] border-[6px] bg-[#fffaf0] p-[22px] shadow-[0_16px_34px_rgba(0,0,0,.4)]"
       style={{
-        width: 940,
+        width: 660,
         borderColor: contract.color,
         outline: active ? "6px solid #f59e0b" : undefined,
         outlineOffset: active ? 6 : undefined,
@@ -1025,10 +1032,27 @@ function PinSupply({ game, me }: { game: SubwayState; me: SubwayPlayer }) {
 
 export type PlanChip = { saved: boolean; stale: boolean };
 
+/** Read the effect, then play on the card itself; panning the face never spends it. */
+export function ConstructionPiece({ game, playerId, id, busy, onPlay }: {
+  game: SubwayState; playerId: string; id: ConstructionCardId; busy: boolean;
+  onPlay: (id: ConstructionCardId) => void;
+}) {
+  const card = constructionById(id);
+  const reason = constructionCardBlocker(game, playerId, id);
+  return <article className="w-[300px] rounded-[18px] border-[4px] border-amber-700 bg-[#fffaf0] p-[16px] text-left shadow-lg">
+    <ConstructionArt card={id} />
+    <b className="text-[24px] leading-tight">{card?.name}</b>
+    <p className="mt-[10px] text-[20px] leading-snug text-stone-700">{card?.description}</p>
+    <button disabled={busy || !!reason} onClick={() => onPlay(id)} className="mt-[12px] min-h-[74px] w-full rounded-lg bg-teal-800 p-[12px] text-[22px] font-bold text-white disabled:opacity-45">Play {card?.name}</button>
+    <p className="mt-[8px] text-[18px] text-stone-600">{reason ?? "Uses your one card this round."}</p>
+  </article>;
+}
+
 export function PlayerTabletop({
   game,
   me,
   veiled,
+  busy,
   activeLineIndex,
   planChips,
   planAvailable,
@@ -1041,6 +1065,7 @@ export function PlayerTabletop({
   game: SubwayState;
   me: SubwayPlayer;
   veiled: boolean;
+  busy: boolean;
   activeLineIndex: number;
   planChips: Record<string, PlanChip>;
   planAvailable: boolean;
@@ -1120,27 +1145,26 @@ export function PlayerTabletop({
 
       {/* Hands and company objectives */}
       <div data-zone="hand" className="mt-[26px] flex flex-wrap items-start gap-[26px]">
+        {children}
         {!veiled && (status.length > 0 || me.engineeringHand.length > 0) && !planningStep && (
           <Printed
             title="Company objectives"
             subtitle="Every drafted goal can score — private until results"
             tone="slip"
-            style={{ maxWidth: 1520 }}
+            style={{ width: 660 }}
           >
             <p className="mb-[12px] text-[18px] text-stone-600">
               Engineering goals and Destinations apply across your company. Reach their conditions with any of your routes.
             </p>
             <div className="flex flex-wrap gap-[18px]">
               {status.map(({ cardId, met }, i) => (
-                <CardPiece
+                <div
                   key={`c-${cardId}-${i}`}
-                  label={`Engineering goal ${cardId}`}
-                  ring={met ? "#059669" : undefined}
-                  onOpen={() => onOpenCard({ family: "engineering", id: cardId, slot: "committed" })}
+                  className="w-[360px] rounded-[20px] shadow-lg [&_strong]:text-[24px] [&_p]:text-[20px] [&_span]:text-[20px]"
                 >
-                  {destinationById(cardId) ? <DestinationCardFace card={cardId} color={me.color} compact state={met?"met":"idle"}/> : <EngineeringCardFace card={cardId} color={me.color} compact state={met?"met":"idle"}/>}
+                  {destinationById(cardId) ? <DestinationCardFace card={cardId} color={me.color} state={met?"met":"idle"}/> : <EngineeringCardFace card={cardId} color={me.color} state={met?"met":"idle"}/>}
                   <p className="text-lg">{met?"✓ Achieved":"In progress"}</p>
-                </CardPiece>
+                </div>
               ))}
 
             </div>
@@ -1170,7 +1194,7 @@ export function PlayerTabletop({
         )}
 
         {!veiled && (me.schedulingHand.length > 0 || me.constructionHand.length > 0) && (
-          <Printed title="Action cards" tone="slip">
+          <Printed title="Action cards" tone="slip" style={{width:660}}>
             <div className="flex flex-wrap gap-[18px]">
               {me.schedulingHand.map((id, i) => (
                 <button
@@ -1191,23 +1215,7 @@ export function PlayerTabletop({
                 </button>
               ))}
               {me.constructionHand.map((id, i) => (
-                <button
-                  key={`x-${id}-${i}`}
-                  type="button"
-                  onClick={() => onOpenCard({ family: "construction", id, slot: "hand" })}
-                  className="w-[300px] rounded-[18px] border-[4px] border-amber-700 bg-[#fffaf0] p-[16px] text-left shadow-[0_12px_24px_rgba(0,0,0,.3)] transition hover:-translate-y-[5px] focus-visible:outline-none focus-visible:ring-[6px] focus-visible:ring-amber-400"
-                >
-                  <ConstructionArt card={id} />
-                  <span className="flex items-start justify-between gap-[10px]">
-                    <b className="text-[22px] leading-tight">{constructionById(id as ConstructionCardId)?.name}</b>
-                    <Pill tone="solid" color="#b45309">
-                      Constr
-                    </Pill>
-                  </span>
-                  <p className="mt-[10px] text-[17px] leading-snug text-stone-600">
-                    {constructionById(id as ConstructionCardId)?.description}
-                  </p>
-                </button>
+                <ConstructionPiece key={`x-${id}-${i}`} game={game} playerId={me.id} id={id} busy={busy} onPlay={() => onOpenCard({family:"construction",id,slot:"hand"})}/>
               ))}
             </div>
             {me.schedulingCardPlayed && (
@@ -1218,7 +1226,6 @@ export function PlayerTabletop({
           </Printed>
         )}
 
-        {children}
       </div>
     </div>
   );

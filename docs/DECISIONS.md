@@ -1436,3 +1436,11 @@ The owner supersedes DEC-029's temporary-only planning choice. Starter and build
 Engineering goals and Destinations share a 24-panel vintage transit illustration atlas matching Construction. Names, exact requirements, point values and the existing geometry diagrams remain rendered by code, not baked into generated artwork.
 
 Consequences: saved plans do not sync across devices and do not reserve board space. Current-head independent review and physical phone acceptance remain required. Alternatives considered: retaining manual-only temporary planning was rejected by the owner's current request.
+
+### DEC-033 — Ordinary Subway actions belong on their pieces
+
+Date: 2026-09-11. Status: owner-authorized; implementation review pending.
+
+The owner requested a thorough mobile playtest and delegated fixes that reduce popup windows. Route offers show a Buy button, price and remaining cash directly on the printed route. Draft and Construction-card buttons show their availability on the piece; current Engineering goals show their complete rules and progress without opening a dialog. Explicit buttons were chosen over dragging a purchase onto a player mat because dragging already pans the shared tabletop.
+
+Construction schedule opens at current-turn controls, with round history below. Cards and Lines focus their first piece; survey purchase has a dedicated focus target. Oversized zones use a consistent working zoom instead of magnifying to fill one axis. Compact planning keeps Next hole, Save ghost and Confirm visible, with secondary editing in inline Plan tools. Real peg confirmation and the privacy handoff remain. Results wrap at phone width and place scores before optional report export. These are presentation changes, with no rule or saved-state shape changes.

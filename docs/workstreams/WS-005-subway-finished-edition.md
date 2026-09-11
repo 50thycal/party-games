@@ -1,10 +1,10 @@
 # WS-005 — Subway finished edition
 
 Build OS: v0.12
-Phase: BUILDING
-Status: Blocked
-Updated: 2026-09-10
-Implementation State: PR #162 open with saved planning and Engineering artwork implemented. Production build (including type validation), lint, saved-plan tests, 220 affordability checks and 36 full simulations passed. Browser acceptance blocked and independent review pending.
+Phase: REVIEW
+Status: Active
+Updated: 2026-09-11
+Implementation State: PR #162 merged. Direct-piece mobile follow-up implemented and validated on codex/subway-direct-piece-play. Production build (including type validation), lint, rules suite, 220 affordability checks and 36 full simulations pass. Interactive phone/desktop phase checks and local two-player save/reload completed. Independent review and physical iPhone acceptance remain pending.
 Related PRs: [#161](https://github.com/50thycal/party-games/pull/161) (merged); saved-planning follow-up on codex/subway-saved-planning; [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
 ## Goal and approved scope
@@ -105,7 +105,30 @@ segment was verified in the desktop construction fixture. Active-route animation
 the Results report control, and phone layouts remain in the browser visual gate.
 
 ## Next Step
-Implement and verify automatic active-line planning, saved private ghosts and themed Engineering artwork; publish a follow-up PR for independent review. Do not merge.
+Independent review of the direct-piece follow-up's current head and physical iPhone pinch/pan/callout acceptance. No self-approval or merge.
+
+## Direct-piece playtest continuation — 2026-09-11
+
+Owner authorization: thoroughly playtest and improve mobile gameplay, minimizing popup windows and making ordinary actions available on the actual game pieces. Significant continuation of WS-005; no new mission. Non-goals: game economy/rules, backend, drag-to-purchase gestures, replacing the shared tabletop, or removing real-peg confirmation/privacy handoff. Canonical Build OS v0.12 checked through GitHub and compatible.
+
+Acceptance: direct priced route purchase; readable on-piece card effects and actions; accessible survey/crew controls; automatic active-line planning on mount, handoff and subsequent hired routes; saved ghosts never commit as real construction; usable phone portrait/landscape and desktop navigation; scoring without horizontal clipping. Required build, lint, rules suite, 220 affordability checks and 36 complete simulations.
+
+FIX NOW findings implemented: redundant route-purchase modal; initially closed automatic planner caused by mount-effect replay; planner target navigation failing to pan to the selected hole; focus centering between hand pieces; survey purchase outside the opening viewport; construction actions following history; oversized working zoom on a short screen; stale post-drag click suppression; small/crowded planning controls; and clipped portrait results. DEC-033 records the interaction choices. Engineering goals are fully readable on the table; Construction cards have explicit Play buttons and blocker reasons. Dispatches are serialized and failures reported inline. No reducer/state-version change.
+
+Browser evidence (real controls in legal phase fixtures, not a claim of a complete manually played game):
+- 390px portrait: four-seat route Buy charged $6M, added one route, changed actor and disabled subsequent purchases; zero dialogs. Engineering drafting consumed one pick and disabled the waiting player's row; artwork and exact rules visible.
+- Survey purchase opens on its own slip; adding one pin and paying $1M reaches the waiting state without a dialog.
+- Automatic starter planning appears on mount and after hotseat reveal. A saved starter sketch rendered one solid pending peg and a 0.55-opacity future peg. Confirm changed only the pending peg to built. Handoff removed all private ghost pegs from the DOM until reveal.
+- Construction: priority passes for two companies; one-crew purchase charged $1M. Saved lookahead rendered pending/plan segments separately; Confirm built exactly one. Undo restored the pending step; rebuilding produced public history `#57 undone · #59 built`.
+- Direct City Grant play increased cash from $35M to $38M, removed the card, disabled other cards for that round, and opened no dialog. Desktop two-crew hiring charged $3M; the next hired route entered its locked planner automatically after the first build.
+- 844px landscape: reviewed opening controls, panned the shared table and checked working zoom. Three-seat procurement shows three priced route options. Full-table/Board behavior retains separate controls.
+- Phone scoring: the real Reveal action reached RESULTS. Winner and points are readable first; measured results scrollWidth equals clientWidth (373px), with no horizontal overflow. Export is an optional inline section below scores.
+- Existing rules/saved-plan regressions, 220 affordability checks and 36 complete 2/3/4-player heuristic simulations pass. Lint passes. Physical iPhone multitouch, Safari callout behavior, human strategic balance, and independent review are not claimed.
+- Real two-player local entry initially failed on HTTP preview because randomUUID was unavailable. Fixed with a 128-bit getRandomValues fallback for the local game namespace. Afterward, starting, buying University Shuttle for $6M, reloading to the same owned route/$54M balance, and passing through Company 2's privacy veil all worked. HTTPS continues using randomUUID.
+
+Review State: follow-up pending independent review; no approval or merge performed. PR #162 is now merged; its prior pending review statement is historical, not retrospectively cleared.
+
+Final validation: `npm run build` completed with type validation, `npm run lint` passed without warnings/errors, `./scripts/test-subway.sh` passed (including 220 affordability checks and 36 complete simulations), and `git diff --check` passed. Supervised preview stopped after verification. No complete manually played game or physical device pass is claimed.
 
 ## Saved planning and Engineering artwork continuation — 2026-09-10
 
