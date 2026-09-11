@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import "./subway-plans-test";
 import { constructionHistory } from "../src/games/subway/constructionHistory";
+import { quoteBuildCost } from "../src/games/subway/buildCost";
+import { routeContacts } from "../src/games/subway/config";
 import { activationCost, buildableLines, constructionExhausted, lineActionsRemaining, LINE_CONTRACTS, ENGINEERING_CARDS, DESTINATION_CARDS, STATIONS, SUBWAY_CONFIG, SUBWAY_STATE_VERSION, subwayGame, nextCompanyId, draftPicks, draftTurnId, objectiveMet, scoreGame, legalTargets, lineComplete, contractById, constructionCardBlocker, type SubwayState, type SubwayAction } from "../src/games/subway/config";
 import { generateAiPlaytestReport } from "../src/games/subway/report";
 import { startPlaytest, testRoom, runPlaytest, seededRandom, stepPlaytest } from "../src/games/subway/playtest";
@@ -89,6 +91,31 @@ function construction():SubwayState {
   return s;
 }
 for(const count of [0,1,2,3]) assert.equal(activationCost(construction().players["seat-1"],count),[0,1,3,6][count]);
+// The displayed quote must agree with actual BUILD transfers, including subsidy
+// and already-negative balances. Quotes do not charge or consume an Access Pass.
+for (const cash of [10, 1, -2]) for (const accessPass of [false, true]) for (const hasContacts of [false, true]) {
+  let s = construction();
+  if (!hasContacts) for (const id of s.playerOrder.slice(1)) s.players[id].lines = [];
+  s = dispatch(s, "seat-1", "HIRE_CREWS", {lineIndexes:[0], period:1});
+  s.players["seat-1"].money = cash;
+  s.players["seat-1"].accessPass = accessPass;
+  const before = structuredClone(s);
+  const quote = quoteBuildCost(s.players["seat-1"], routeContacts(s, "seat-1", {x:0,y:0}, {x:3,y:0}));
+  assert.deepEqual(s, before, "quoting cannot mutate the game");
+  const built = dispatch(s, "seat-1", "BUILD", {lineIndex:0,x:3,y:0});
+  assert.notEqual(built, s);
+  assert.equal(quote.cashAfter, built.players["seat-1"].money);
+  assert.equal(quote.playerCost, cash - built.players["seat-1"].money);
+  assert.equal(quote.debtPenalty, Math.min(0,built.players["seat-1"].money)*4);
+  for (const id of s.playerOrder.slice(1)) assert.equal(quote.recipients.find(p=>p.ownerId===id)?.amount ?? 0, built.players[id].money - s.players[id].money);
+  assert.equal(quote.totalToll, hasContacts ? 3 : 0);
+  assert.equal(built.players["seat-1"].accessPass, false, "free builds also consume Access Pass");
+}
+assert.deepEqual(quoteBuildCost({money:5}, [
+  {ownerId:"one", key:"a", kind:"peg", x:1,y:0},
+  {ownerId:"one", key:"b", kind:"crossing", x:2,y:0},
+]).recipients, [{ownerId:"one", amount:2}], "multiple contacts aggregate per recipient");
+console.log("Build-cost previews: 12 reducer comparisons and recipient aggregation passed.");
 {
   let s=construction();const id="seat-1";
   assert.equal(dispatch(s,id,"BUILD",{lineIndex:0,x:3,y:0}),s,"hire first");

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { CrewBoard } from "./CrewBoard";
+import { BuildCostPreview } from "./BuildCostPreview";
 import { constructionCardBlocker, objectiveMet } from "./config";
 import { lessonForPhase } from "./tutorial";
 import type { GameViewProps } from "@/games/views";
@@ -41,7 +42,6 @@ import {
   cardDraftTurnId,
   draftPicks,
   constructionById,
-  contactToll,
   contestedPeriods,
   contractById,
   contractNodes,
@@ -1181,6 +1181,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
                 : `${!manualPlanner && preview ? "Next ghost" : "Next"}: a ${plannerContract.recipe[sketchedSegments]}-peg segment, turning ≤ ${SUBWAY_CONFIG.geometry.maxTurnDegrees}°.`}
 
           </p>
+          {!manualPlanner && preview && !placingStarter && me && <BuildCostPreview player={me} contacts={previewContacts} game={game} />}
           <div className="flex flex-wrap gap-1.5">
             <StripButton aria-label="Next legal hole" onClick={() => cycleTarget(1)} disabled={!targets.length}>
               Next hole
@@ -1219,7 +1220,6 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
           </div>
           {!manualPlanner && preview && <p className="text-xs text-stone-700">
             Next real peg: {preview.x + 1},{preview.y + 1}{preview.slot !== undefined ? ` · dock ${preview.slot + 1}` : ""}.
-            {!placingStarter && <> Contact toll: {money(contactToll(previewContacts))}{me?.accessPass ? " (city pays)" : ""}.</>}
           </p>}
         </div>
       )}
@@ -1245,35 +1245,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
                   : "No legal target"}
             </span>
           </div>
-          {preview && !placingStarter && (
-            <p className="text-xs text-stone-600">
-              {previewContacts.length === 0 ? (
-                <>
-                  No contact with other networks — <b>free</b>.
-                </>
-              ) : (
-                <>
-                  <b>
-                    {previewContacts.length} contact{previewContacts.length === 1 ? "" : "s"}
-                  </b>{" "}
-                  ({previewContacts.map((c) => c.kind).join(", ")}) · <b>{money(contactToll(previewContacts))}</b> to{" "}
-                  {Array.from(new Set(previewContacts.map((c) => game.players[c.ownerId]?.name))).join(", ")}{me.accessPass ? " (city pays)" : ""} · cash after{" "}
-                  <b className={me.money - (me.accessPass ? 0 : contactToll(previewContacts)) < 0 ? "text-red-700" : ""}>
-                    {money(me.money - (me.accessPass ? 0 : contactToll(previewContacts)))}
-                  </b>
-                  {me.money - (me.accessPass ? 0 : contactToll(previewContacts)) < 0 && (
-                    <>
-                      {" "}
-                      · projected debt penalty{" "}
-                      <b className="text-red-700">
-                        {(me.money - (me.accessPass ? 0 : contactToll(previewContacts))) * SUBWAY_CONFIG.contact.debtVpPerMillion} VP
-                      </b>
-                    </>
-                  )}
-                </>
-              )}
-            </p>
-          )}
+          {preview && !placingStarter && <BuildCostPreview player={me} contacts={previewContacts} game={game} />}
           <div className="flex flex-wrap items-center gap-1.5">
             <StripButton onClick={() => cycleTarget(-1)} disabled={!targets.length} aria-label="Previous legal target">
               ◀
