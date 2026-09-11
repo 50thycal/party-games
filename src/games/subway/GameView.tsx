@@ -1129,6 +1129,10 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
           </div>
           {!manualPlanner && activeLine && <RouteBuildGuide line={activeLine} compact />}
           <div className="flex flex-wrap gap-1.5">
+            <StripButton disabled={busy || sketch.length <= minSketch} onClick={() => {
+              resetSketch(sketch.slice(0, -1));
+              setNotice(null);
+            }}>Undo step</StripButton>
             <StripButton tone="plan" disabled={sketch.length <= minSketch} onClick={saveSketch}>Save ghost</StripButton>
             {!manualPlanner && <StripButton aria-label="Confirm real peg" tone="go" disabled={busy || !preview} onClick={confirmPlacement} data-confirm-placement>Confirm peg</StripButton>}
             {manualPlanner && <StripButton tone="dark" onClick={() => {
@@ -1302,8 +1306,9 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
 
       <div
         ref={hudBottomRef}
-        className="flex flex-col items-center gap-1.5"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        data-bottom-controls
+        className="flex flex-col items-center gap-3 rounded-xl bg-[#18343f] p-2 shadow-[0_-8px_20px_#18343f]"
+        style={{ paddingBottom: "max(8px, env(safe-area-inset-bottom))" }}
       >
         {/* Quick-focus lives one thumb away from the action buttons. */}
         <div className="pointer-events-auto flex flex-wrap justify-center gap-1 rounded-xl bg-stone-900/85 p-1 text-amber-50 shadow-lg">
