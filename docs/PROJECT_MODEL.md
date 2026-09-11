@@ -467,7 +467,9 @@ hotseat save. Real games link to phase-specific lessons in a separate tab.
 
 ## Phone tabletop presentation (mobile continuation)
 
-BuildCostPreview displays the next real segment's personal payment, cash afterward, public recipient totals and conditional debt penalty in both automatic planning and ordinary placement. quoteBuildCost uses the existing contact tariff and Access Pass flag without changing state; recipient payments remain visible when the city pays. It quotes only the selected real step, never the ghost tail or a starter, and manual planning hides the quote. BUILD still recalculates legality and transfers at confirmation.
+Placement uses Save ghost and Confirm peg with the committed-route build guide. Selecting a pending real peg immediately shows bright yellow legal ghost targets; tapping an unbuilt peg removes it and its tail so a replacement can be selected directly. Confirm commits only the pending real step. The owner removed the Next hole/Plan tools controls, coordinates, legend and build-cost receipt; quoteBuildCost and its reducer-comparison tests remain available, but GameView no longer renders the receipt. BUILD still calculates legality and transfers at confirmation.
+
+Construction schedule is centered above the pegboard and contains order/hiring/history controls without duplicated hand cards. Engineering and Construction hands each occupy a horizontal row in the same zoomable tabletop; Cards focuses the first card at a usable zoom. Contract office and Market navigation exist only during route procurement and card drafting.
 
 RouteBuildGuide derives starter instructions, next real segment length and remaining segments from the committed route, never from ghost sketches. The active contract and automatic planner share this guide; manual Plan remains separate. A static FROM marker identifies the growing real route endpoint without intercepting taps. Lines focus prefers the active contract and falls back to the first piece.
 

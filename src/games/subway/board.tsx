@@ -275,8 +275,8 @@ export function Board({
                       cx={dx}
                       cy={dy}
                       r="13"
-                      fill={planningTargets ? "#c4b5fd" : "#4ade80"}
-                      opacity={hasSelection ? 0.12 : 0.35}
+                      fill={planningTargets ? "#facc15" : "#4ade80"}
+                      opacity={hasSelection && !planningTargets ? 0.12 : 0.65}
                       data-target={key}
                       data-step={planningTargets ? "plan" : "1"}
                     >
@@ -304,7 +304,7 @@ export function Board({
                     cy={dy}
                     r="9"
                     fill={docked ? docked.contract.color : "#00000055"}
-                    stroke={open ? (planningTargets ? "#c4b5fd" : "#4ade80") : docked ? "#ffffff" : "#f5d98a"}
+                    stroke={open ? (planningTargets ? "#facc15" : "#4ade80") : docked ? "#ffffff" : "#f5d98a"}
                     strokeWidth={open && !hasSelection ? 3 : 2}
                     strokeDasharray={planningTargets && open ? "3 3" : docked || open ? "0" : "3 3"}
                   />
@@ -356,22 +356,22 @@ export function Board({
             if (isSelected) return null;
             const p = holePos(c);
             return (
-              <g key={`t-${c.x}-${c.y}`} opacity={hasSelection ? 0.35 : 1}>
+              <g key={`t-${c.x}-${c.y}`} opacity={hasSelection && !planningTargets ? 0.35 : 1}>
                 <circle
                   cx={p.x}
                   cy={p.y}
                   r="13"
-                  fill={planningTargets ? "#c4b5fd" : "#4ade80"}
-                  opacity={hasSelection ? 0.15 : 0.28}
+                  fill={planningTargets ? "#facc15" : "#4ade80"}
+                  opacity={planningTargets ? 0.65 : hasSelection ? 0.15 : 0.28}
                   data-target={`${c.x},${c.y}`}
                   data-step={planningTargets ? "plan" : "1"}
                 />
-                <circle cx={p.x} cy={p.y} r="13" fill="none" stroke={planningTargets ? "#a78bfa" : "#4ade80"} strokeWidth="2.5" strokeDasharray={planningTargets ? "4 4" : undefined}>
+                <circle cx={p.x} cy={p.y} r="13" fill="none" stroke={planningTargets ? "#eab308" : "#4ade80"} strokeWidth="2.5" strokeDasharray={planningTargets ? "4 4" : undefined}>
                   {!hasSelection && (
                     <animate attributeName="opacity" values="0.9;0.35;0.9" dur="1.6s" repeatCount="indefinite" />
                   )}
                 </circle>
-                <text x={p.x} y={p.y + 4} textAnchor="middle" fontSize="11" fontWeight="800" fill={planningTargets ? "#6d28d9" : "#14532d"}>
+                <text x={p.x} y={p.y + 4} textAnchor="middle" fontSize="11" fontWeight="800" fill={planningTargets ? "#713f12" : "#14532d"}>
                   {planningTargets ? "P" : "1"}
                 </text>
               </g>

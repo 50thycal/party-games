@@ -1162,23 +1162,23 @@ export function PlayerTabletop({
       </div>
 
       {/* Hands and company objectives */}
-      <div data-zone="hand" className="mt-[26px] flex flex-wrap items-start gap-[26px]">
+      <div data-zone="hand" className="mt-[26px] flex flex-col items-start gap-[26px]">
         {children}
         {!veiled && (status.length > 0 || me.engineeringHand.length > 0) && !planningStep && (
           <Printed
             title="Company objectives"
             subtitle="Every drafted goal can score — private until results"
             tone="slip"
-            style={{ width: 660 }}
+            style={{ width: Math.max(660, status.length * 378 + 48) }}
           >
             <p className="mb-[12px] text-[18px] text-stone-600">
               Engineering goals and Destinations apply across your company. Reach their conditions with any of your routes.
             </p>
-            <div className="flex flex-wrap gap-[18px]">
+            <div data-card-row="engineering" className="flex flex-nowrap items-start gap-[18px]">
               {status.map(({ cardId, met }, i) => (
                 <div
                   key={`c-${cardId}-${i}`}
-                  className="w-[360px] rounded-[20px] shadow-lg [&_strong]:text-[24px] [&_p]:text-[20px] [&_span]:text-[20px]"
+                  className="w-[360px] shrink-0 rounded-[20px] shadow-lg [&_strong]:text-[24px] [&_p]:text-[20px] [&_span]:text-[20px]"
                 >
                   {destinationById(cardId) ? <DestinationCardFace card={cardId} color={me.color} state={met?"met":"idle"}/> : <EngineeringCardFace card={cardId} color={me.color} state={met?"met":"idle"}/>}
                   <p className="text-lg">{met?"✓ Achieved":"In progress"}</p>
@@ -1212,8 +1212,8 @@ export function PlayerTabletop({
         )}
 
         {!veiled && (me.schedulingHand.length > 0 || me.constructionHand.length > 0) && (
-          <Printed title="Action cards" tone="slip" style={{width:660}}>
-            <div className="flex flex-wrap gap-[18px]">
+          <Printed title="Action cards" tone="slip" style={{width:Math.max(660,(me.schedulingHand.length + me.constructionHand.length) * 378 + 48)}}>
+            <div data-card-row="construction" className="flex flex-nowrap items-start gap-[18px] [&>*]:shrink-0">
               {me.schedulingHand.map((id, i) => (
                 <button
                   key={`s-${id}-${i}`}

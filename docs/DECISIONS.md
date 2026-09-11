@@ -1456,3 +1456,11 @@ Of active-route guidance, blocked-move explanations and scoring highlights, choo
 Date: 2026-09-11. Status: owner-delegated; implementation review pending.
 
 Choose inline cost previews over a station finder and crew completion previews. Automatic planning had hidden the recipient/cash/debt information available in ordinary placement, making the default interaction less informative. Both modes now use one quote from current contacts and balance. Show recipient totals even when Access Pass subsidizes them; say the pass is used even on a free build, matching the reducer. Debt is a conditional end-game penalty, never an immediate VP deduction. No whole-plan budget forecast, new modal, automatic card play or rule change.
+
+### DEC-036 — Direct ghost taps and a smaller placement strip
+
+Date: 2026-09-11. Status: owner-authorized; implementation review pending.
+
+Latest physical-phone feedback supersedes DEC-033's Next hole/Plan tools controls and DEC-035's visible build receipt. Keep only the active route, real build guide, Save ghost and Confirm peg in automatic planning. Legal ghost targets appear immediately in bright yellow after the pending starter or real segment is selected. Tap an unbuilt peg to remove it and its tail, then choose a replacement directly on the board. No coordinate readout or solid/dashed legend. Manual cross-line Plan retains its route selector; closing it restores the active line when a build is pending. Confirmation still commits exactly one real placement; saving ghosts remains private and device-local.
+
+Center Construction schedule over the board and remove duplicate card faces from it. Each Engineering/Construction hand is horizontal on the shared zoomable tabletop, with Cards focusing its first card. Hide Contract office and Market after drafting completes. Tradeoff accepted by the owner: a simpler placement surface omits the pre-confirmation toll receipt; toll/debt rules and reducer validation are unchanged.

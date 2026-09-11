@@ -204,7 +204,7 @@ export function TabletopCanvas({
     if (!el) return null;
     // A hand/portfolio spans several pieces. Open its first piece at reading
     // size instead of centering between pieces outside a phone's viewport.
-    if (zone === "hand") el = el.firstElementChild as HTMLElement ?? el;
+    if (zone === "hand") el = el.querySelector<HTMLElement>("[data-card-row] > :first-child") ?? el.firstElementChild as HTMLElement ?? el;
     if (zone === "lines") el = el.querySelector<HTMLElement>('[data-active-route="true"]') ?? el.querySelector<HTMLElement>("section") ?? el;
     if (zone === "schedule") el = el.querySelector<HTMLElement>("[data-turn-controls]") ?? el;
     const wr = world.getBoundingClientRect();
