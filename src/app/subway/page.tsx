@@ -40,7 +40,11 @@ export default function SubwayHotseat() {
   };
   const start = () => {
     const players = names.slice(0, count).map((name, i) => ({ id: `seat-${i + 1}`, name: name.trim() || `Company ${i + 1}`, role: i === 0 ? "host" as const : "player" as const }));
-    const room: Room = { roomCode: `LOCAL-${crypto.randomUUID()}`, gameId: "subway", hostId: players[0].id, players, createdAt: Date.now(), mode: "hotseat" };
+    // LAN/HTTP phone previews lack randomUUID; getRandomValues still provides
+    // an independent 128-bit namespace for this device-local game and its plans.
+    const localId = typeof crypto.randomUUID === "function" ? crypto.randomUUID()
+      : Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0")).join("");
+    const room: Room = { roomCode: `LOCAL-${localId}`, gameId: "subway", hostId: players[0].id, players, createdAt: Date.now(), mode: "hotseat" };
     const game = subwayGame.reducer(subwayGame.initialState(players), {type:"START_GAME", playerId:room.hostId}, {room, playerId:room.hostId, now:Date.now, random:Math.random});
     commit({room, game, seat:room.hostId});
     setNewGame(false);

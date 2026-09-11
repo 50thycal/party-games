@@ -254,9 +254,11 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   const [chosen, setChosen] = useState<string[]>([]);
   const [assignments, setAssignments] = useState<Record<string, number>>({});
   const [surveys, setSurveys] = useState(0);
+  useEffect(() => { setSurveys(0); }, [room.roomCode, playerId]);
   const [selectedLine, setSelectedLine] = useState(0);
   const [preview, setPreview] = useState<PlacementTarget | null>(null);
   const [busy, setBusy] = useState(false);
+  const actionPending = useRef(false);
   const [mobile, setMobile] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showLog, setShowLog] = useState(false);
@@ -343,10 +345,15 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   }, [notice]);
 
   const act = async (type: string, payload?: Record<string, unknown>) => {
+    if (actionPending.current) return;
+    actionPending.current = true;
     setBusy(true);
     try {
       await dispatchAction(type, payload);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "That action could not be completed. Try again.");
     } finally {
+      actionPending.current = false;
       setBusy(false);
     }
   };
@@ -364,10 +371,8 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       if (plan) loaded[id] = plan;
     }
     setPlans(loaded);
-    // A different player (hotseat) or portfolio starts from a closed planner.
-    setPlanMode(false);
-    setPlannerLine(null);
-    setSketch([]);
+    // Placement-context changes own planner initialization below. Resetting it
+    // here races that effect when React replays mount effects in Strict Mode.
   }, [room.roomCode, playerId, contractIds]);
 
   const planAvailable = !!game && !!me && me.lines.length > 0 && PLAN_PHASES.has(game.phase) && !veiled;
@@ -455,6 +460,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     setManualPlanner(false);
     setPlanMode(true);
     setPreview(initial.preview);
+    cam.current?.focus("board");
   }, [automaticContext, planAvailable, game, me, activeLineIndex, room.roomCode, playerId]);
 
   const plannerActive =
@@ -729,9 +735,9 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     const next = targets[(i + delta + targets.length * 2) % targets.length];
     if (mode === "planner") {
       onTapHole({ x: next.x, y: next.y }, next.slot);
-      return;
+    } else {
+      setPreview(next);
     }
-    setPreview(next);
     // Bring the chosen hole on screen without disturbing the zoom level.
     const svg = boardRef.current?.querySelector("svg");
     const rect = svg?.getBoundingClientRect();
@@ -753,7 +759,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     if (phase === "PROCUREMENT") return "office";
     if (phase === "SCHEDULING") return "schedule";
     if (phase === "ENGINEERING") {
-      return step === "CARD_DRAFT" ? "office" : step === "BUY_SURVEYS" ? "hand" : "board";
+      return step === "CARD_DRAFT" ? "office" : step === "BUY_SURVEYS" ? "survey" : "board";
     }
     if (phase === "CONSTRUCTION") return "schedule";
     if (phase === "RESULTS") return "results";
@@ -761,13 +767,17 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     return "board";
   })();
 
-  // Camera re-framing on phase transitions only — never on a routine poll.
+  // Reframe after a phase change or a completed handoff, once the receiving
+  // company's private pieces exist. Routine polls never move the camera.
+  const cameraContext = `${phaseKey}:${game?.currentPeriod}:${playerId}:${veiled}`;
   const prevPhaseKey = useRef<string | null>(null);
   useEffect(() => {
-    if (!phaseKey) return;
-    if (prevPhaseKey.current !== null && prevPhaseKey.current !== phaseKey) cam.current?.focus(phaseZone);
-    prevPhaseKey.current = phaseKey;
-  }, [phaseKey, phaseZone]);
+    if (!phaseKey || veiled) return;
+    if (prevPhaseKey.current !== null && prevPhaseKey.current !== cameraContext) {
+      cam.current?.focus(activeLineIndex >= 0 ? "board" : phaseZone);
+    }
+    prevPhaseKey.current = cameraContext;
+  }, [cameraContext, phaseKey, phaseZone, activeLineIndex, veiled]);
 
   // ---- Pre-game lobby ---------------------------------------------------------
   if (!game || game.phase === "SETUP") {
@@ -1161,7 +1171,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
 
           </div>
           <p className="text-xs text-stone-600">
-            {manualPlanner ? "Dashed = plan only. Save keeps your ghost route." : "Solid = next real peg. Pale dashed = future plan. Confirm builds one peg only."}{" "}
+            {manualPlanner ? "Dashed = plan only." : "Solid = build now · dashed = plan."}{" "}
             {sketch.length === 0
               ? "Tap a border hole to start."
               : sketchedSegments >= plannerContract.recipe.length
@@ -1170,9 +1180,14 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
 
           </p>
           <div className="flex flex-wrap gap-1.5">
-            <StripButton onClick={() => cycleTarget(1)} disabled={!targets.length}>
-              Next legal hole
+            <StripButton aria-label="Next legal hole" onClick={() => cycleTarget(1)} disabled={!targets.length}>
+              Next hole
             </StripButton>
+            <StripButton tone="plan" disabled={sketch.length <= minSketch} onClick={saveSketch}>Save ghost</StripButton>
+            {!manualPlanner && <StripButton aria-label="Confirm real peg" tone="go" disabled={busy || !preview} onClick={confirmPlacement} data-confirm-placement>Confirm peg</StripButton>}
+          <details className="basis-full sm:basis-auto open:basis-full">
+            <summary className="w-fit cursor-pointer px-2 py-3 text-xs font-bold text-purple-800">Plan tools</summary>
+            <div className="flex flex-wrap gap-1.5">
             <StripButton disabled={sketch.length <= minSketch} onClick={() => resetSketch(sketch.slice(0, -1))}>
               Undo step
             </StripButton>
@@ -1182,7 +1197,6 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
             >
               {manualPlanner ? "Restart sketch" : "Change next peg"}
             </StripButton>
-            <StripButton tone="plan" disabled={sketch.length <= minSketch} onClick={saveSketch}>Save ghost</StripButton>
             {plans[plannerLineObj.contractId] && <StripButton onClick={() => {
               if (!clearPlan(room.roomCode, playerId, plannerLineObj.contractId)) {
                 setNotice("Storage unavailable: could not remove the saved ghost. Try again when storage is available.");
@@ -1195,10 +1209,11 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
             }}>Clear saved</StripButton>}
             {!manualPlanner && <StripButton tone="plan" onClick={() => openPlanner(plannerLine!)}>Plan other lines</StripButton>}
             {planStatuses[plannerLineObj.contractId]?.stale && <span className="text-xs font-bold text-amber-800">Saved plan needs revision</span>}
-            {preview && plannerLine === activeLineIndex && <StripButton tone="go" disabled={busy} onClick={confirmPlacement} data-confirm-placement>Confirm real peg only</StripButton>}
             <StripButton tone="dark" className="ml-auto" onClick={exitPlanner}>
               {placingStarter || myBuild ? "Back to placement" : "Close Plan Mode"}
             </StripButton>
+            </div>
+          </details>
           </div>
           {!manualPlanner && preview && <p className="text-xs text-stone-700">
             Next real peg: {preview.x + 1},{preview.y + 1}{preview.slot !== undefined ? ` · dock ${preview.slot + 1}` : ""}.
@@ -1330,11 +1345,11 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   );
 
   const engineeringSlip = me && game.phase === "ENGINEERING" && game.engineeringStep === "BUY_SURVEYS" && !veiled ? (
-    <Printed title="Optional Survey Pins" tone="slip">
+    <Printed zone="survey" title="Optional Survey Pins" tone="slip" style={{width:660}}>
       <p className="text-xl">Every goal in your hand is active. Buy up to five Survey Pins for $1M each; earn +1 VP per pin your network reaches.</p>
-      {me.engineeringLocked ? <p className="text-xl">Survey purchase complete. Waiting for the other companies.</p> : <div className="mt-4 flex items-center gap-4">
-        <TableButton disabled={busy||surveys===0} onClick={()=>setSurveys(surveys-1)}>−</TableButton><b className="text-3xl">{surveys}</b>
-        <TableButton disabled={busy||surveys>=5||surveys>=me.money} onClick={()=>setSurveys(surveys+1)}>+</TableButton>
+      {me.engineeringLocked ? <p className="text-xl">Survey purchase complete. Waiting for the other companies.</p> : <div className="mt-4 flex flex-wrap items-center gap-4">
+        <TableButton aria-label="Remove a Survey Pin" disabled={busy||surveys===0} onClick={()=>setSurveys(surveys-1)}>−</TableButton><b className="text-3xl">{surveys}</b>
+        <TableButton aria-label="Add a Survey Pin" disabled={busy||surveys>=5||surveys>=me.money} onClick={()=>setSurveys(surveys+1)}>+</TableButton>
         <TableButton disabled={busy||surveys>me.money} onClick={()=>act("BUY_SURVEYS",{surveys})}>{surveys ? `Buy for $${surveys}M` : "No pins · continue"}</TableButton>
       </div>}
     </Printed>
@@ -1465,7 +1480,12 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
               game={game}
               me={me}
               veiled={veiled}
-              onOpenContract={(id, price) => setFocus({ family: "contract", id, price })}
+              busy={busy}
+              onBuyContract={(id) => {
+                const contract = contractById(id);
+                if (busy || veiled || !me || !contract || game.phase !== "PROCUREMENT" || game.procurement.offer?.activeId !== me.id || !game.procurement.row.includes(id) || me.money < contract.cost) return;
+                act("PROCURE", {choice:"buy", contractId:id});
+              }}
               onOpenMarket={(deck: CardDeckId, cardId?: string) => {
                 if (busy || veiled || !me) return;
                 const why = cardDraftBlocker(game, me.id, deck, cardId);
@@ -1507,6 +1527,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
               game={game}
               me={me}
               veiled={veiled}
+              busy={busy}
               activeLineIndex={activeLineIndex}
               planChips={planChips}
               planAvailable={planAvailable}
@@ -1574,7 +1595,7 @@ function StripButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-lg px-3 py-1.5 text-sm font-bold disabled:opacity-35 ${skin} ${className}`}
+      className={`min-h-11 rounded-lg px-3 py-1.5 text-sm font-bold disabled:opacity-35 ${skin} ${className}`}
       {...rest}
     >
       {children}
@@ -1595,8 +1616,63 @@ function ResultsSheet({ game, roomCode, mode }: { game: SubwayState; roomCode: s
     }
   };
   return (
-    <Printed zone="results" title="Final scoring" subtitle={game.message} className="w-full">
+    <Printed zone="results" title="Final scoring" subtitle={game.message} className="w-full min-w-0 !p-3 sm:!p-[26px]">
       <div className="flex flex-col gap-[26px]">
+        {game.playerOrder.map((id) => {
+          const p = game.players[id];
+          if (!p) return null;
+          const winner = game.winnerIds.includes(id);
+          return (
+            <div
+              key={id}
+              className="min-w-0 rounded-[22px] border-[5px] bg-[#fffaf0] p-3 sm:p-[22px]"
+              style={{ borderColor: p.color, opacity: winner ? 1 : 0.95 }}
+            >
+              <div className="flex flex-wrap items-baseline justify-between gap-3 text-2xl font-black sm:text-[34px]">
+                <span className="flex min-w-0 flex-wrap items-center gap-2 [overflow-wrap:anywhere]">
+                  <span className="h-[20px] w-[20px] shrink-0 rounded-full" style={{ background: p.color }} />
+                  {p.name}
+                  {winner && <Pill tone="good">🏆 Winner</Pill>}
+                </span>
+                <span className="shrink-0">{p.score} VP</span>
+              </div>
+              <div className="mt-[14px] max-w-[1400px]">
+                {p.scoreBreakdown?.map((item, i) => (
+                  <div
+                    key={i}
+                    className={`flex justify-between gap-3 border-b border-stone-200 py-[6px] text-base sm:text-[21px] ${
+                      item.met === false ? "text-stone-400" : ""
+                    }`}
+                  >
+                    <span>
+                      {item.label}
+                      {item.met === false && " (not met)"}
+                    </span>
+                    <b className="shrink-0">
+                      {item.points > 0 ? "+" : ""}
+                      {item.points}
+                    </b>
+                  </div>
+                ))}
+                <div className="flex justify-between gap-3 py-[6px] text-base text-stone-500 sm:text-[19px]">
+                  <span>Remaining money (tiebreak)</span>
+                  <span>{money(p.money)}</span>
+                </div>
+              </div>
+              <div className="mt-[18px] flex flex-wrap gap-[18px]">
+                {p.engineeringHand.map((cardId,i) => {
+                  const card=engineeringById(cardId)??destinationById(cardId);
+                  const scored=p.scoreBreakdown?.find(item=>item.label===card?.name);
+                  return <div key={i} className="w-full min-w-0 sm:w-[360px]">
+                    {destinationById(cardId)?<DestinationCardFace card={cardId} color={p.color} compact state={scored?.met?"met":"missed"}/>:<EngineeringCardFace card={cardId} color={p.color} compact state={scored?.met?"met":"missed"}/>}
+                    <p className="text-lg">{scored?.met?`Scored +${scored.points}`:"Not achieved"}</p>
+                  </div>;
+                })}
+              </div>
+            </div>
+          );
+        })}
+        <details className="rounded-xl border-2 border-stone-300 p-3"><summary className="cursor-pointer py-2 font-bold">Playtest report &amp; export</summary>
         <div className="flex flex-wrap items-center justify-between gap-[14px] rounded-[18px] border-[4px] border-[#1b3945] bg-[#eaf3f2] p-[18px]">
           <div>
             <p className="text-[24px] font-black">AI playtest report</p>
@@ -1612,60 +1688,7 @@ function ResultsSheet({ game, roomCode, mode }: { game: SubwayState; roomCode: s
         </div>
         <details><summary className="cursor-pointer font-bold">View report text</summary><textarea aria-label="AI playtest report text" readOnly className="mt-2 h-64 w-full border p-2 text-sm" value={report}/></details>
         <a className="font-bold underline" download="subway-playtest.md" href={`data:text/markdown;charset=utf-8,${encodeURIComponent(report)}`}>Download AI Report</a>
-        {game.playerOrder.map((id) => {
-          const p = game.players[id];
-          if (!p) return null;
-          const winner = game.winnerIds.includes(id);
-          return (
-            <div
-              key={id}
-              className="rounded-[22px] border-[5px] bg-[#fffaf0] p-[22px]"
-              style={{ borderColor: p.color, opacity: winner ? 1 : 0.95 }}
-            >
-              <div className="flex items-baseline justify-between text-[34px] font-black">
-                <span className="flex items-center gap-[14px]">
-                  <span className="h-[26px] w-[26px] rounded-full" style={{ background: p.color }} />
-                  {p.name}
-                  {winner && <Pill tone="good">🏆 Winner</Pill>}
-                </span>
-                <span>{p.score} VP</span>
-              </div>
-              <div className="mt-[14px] max-w-[1400px]">
-                {p.scoreBreakdown?.map((item, i) => (
-                  <div
-                    key={i}
-                    className={`flex justify-between border-b border-stone-200 py-[6px] text-[21px] ${
-                      item.met === false ? "text-stone-400" : ""
-                    }`}
-                  >
-                    <span>
-                      {item.label}
-                      {item.met === false && " (not met)"}
-                    </span>
-                    <b>
-                      {item.points > 0 ? "+" : ""}
-                      {item.points}
-                    </b>
-                  </div>
-                ))}
-                <div className="flex justify-between py-[6px] text-[19px] text-stone-500">
-                  <span>Remaining money (tiebreak)</span>
-                  <span>{money(p.money)}</span>
-                </div>
-              </div>
-              <div className="mt-[18px] flex flex-wrap gap-[18px]">
-                {p.engineeringHand.map((cardId,i) => {
-                  const card=engineeringById(cardId)??destinationById(cardId);
-                  const scored=p.scoreBreakdown?.find(item=>item.label===card?.name);
-                  return <div key={i} style={{width:360}}>
-                    {destinationById(cardId)?<DestinationCardFace card={cardId} color={p.color} compact state={scored?.met?"met":"missed"}/>:<EngineeringCardFace card={cardId} color={p.color} compact state={scored?.met?"met":"missed"}/>}
-                    <p className="text-lg">{scored?.met?`Scored +${scored.points}`:"Not achieved"}</p>
-                  </div>;
-                })}
-              </div>
-            </div>
-          );
-        })}
+        </details>
       </div>
     </Printed>
   );
