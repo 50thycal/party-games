@@ -501,6 +501,14 @@ export function Board({
       )}
 
       {/* Pegs: the line's color inside, the owning company's color around. */}
+      {drawn.filter(d => d.active && d.growing && !d.ghost && !d.pending && d.route.length > 0).map(d => {
+        const p = nodePx(d.route[d.route.length - 1]);
+        return <g key={`from-${d.key}`} pointerEvents="none" aria-label={`Build from here: ${d.contract.name}`}>
+          <circle cx={p.x} cy={p.y} r="24" fill="none" stroke="#92400e" strokeWidth="4" />
+          <rect x={p.x - 39} y={p.y - 53} width="78" height="25" rx="6" fill="#78350f" />
+          <text x={p.x} y={p.y - 35} textAnchor="middle" fill="white" fontSize="17" fontWeight="900">FROM</text>
+        </g>;
+      })}
       {drawn.flatMap((d) =>
         d.route.map((n, i) => {
           if (d.anchored && i === 0) return null; // a real peg already sits there

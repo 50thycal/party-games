@@ -16,6 +16,7 @@ import {
   CardPiece,
   ContractOffice,
   LineTile,
+  RouteBuildGuide,
   Logbook,
   OpponentEdge,
   Pill,
@@ -1150,7 +1151,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
         <div className="space-y-1.5">
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span className="rounded bg-purple-700 px-1.5 py-0.5 text-[10px] font-black uppercase text-white">
-              {manualPlanner ? "Plan Mode" : "Build + plan"}
+              {manualPlanner ? "Plan Mode" : "Building now"}
             </span>
             <b>{plannerContract.name}</b>
             {manualPlanner && <select
@@ -1170,13 +1171,14 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
             </span>
 
           </div>
+          {!manualPlanner && activeLine && <RouteBuildGuide line={activeLine} compact />}
           <p className="text-xs text-stone-600">
             {manualPlanner ? "Dashed = plan only." : "Solid = build now · dashed = plan."}{" "}
             {sketch.length === 0
               ? "Tap a border hole to start."
               : sketchedSegments >= plannerContract.recipe.length
                 ? "The whole recipe fits against the board as it stands."
-                : `Next: a ${plannerContract.recipe[sketchedSegments]}-peg segment, turning ≤ ${SUBWAY_CONFIG.geometry.maxTurnDegrees}°.`}
+                : `${!manualPlanner && preview ? "Next ghost" : "Next"}: a ${plannerContract.recipe[sketchedSegments]}-peg segment, turning ≤ ${SUBWAY_CONFIG.geometry.maxTurnDegrees}°.`}
 
           </p>
           <div className="flex flex-wrap gap-1.5">

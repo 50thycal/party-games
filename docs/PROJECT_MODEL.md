@@ -467,6 +467,8 @@ hotseat save. Real games link to phase-specific lessons in a separate tab.
 
 ## Phone tabletop presentation (mobile continuation)
 
+RouteBuildGuide derives starter instructions, next real segment length and remaining segments from the committed route, never from ghost sketches. The active contract and automatic planner share this guide; manual Plan remains separate. A static FROM marker identifies the growing real route endpoint without intercepting taps. Lines focus prefers the active contract and falls back to the first piece.
+
 Automatic framing also follows completed company handoffs and new construction rounds, but not routine polls. Focus magnification is capped at 110%; manual zoom can go closer. Survey purchase quantity is company/room-local and resets across handoffs.
 
 All devices use TabletopCanvas: board, illustrated card faces and company pieces share one locally zoomable/pannable world. Phone overlays are limited to camera shortcuts and current placement controls. GameView owns targets, validation, pending peg, sketches and reducer dispatch. Settings contains public logbook entries; results also have a readable screen sheet and report text/download fallback. No state-version migration is required: presentation and previews are client-local.
