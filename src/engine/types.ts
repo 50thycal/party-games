@@ -62,6 +62,7 @@ export interface GameTemplate<S, A extends BaseAction> {
 export type RoomState = {
   room: Room;
   gameState: unknown;
+  subwayCompanion?: import("../games/subway/companion").CompanionStore;
 };
 
 // API response types

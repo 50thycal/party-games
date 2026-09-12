@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import "./subway-plans-test";
 import "./subway-objectives-test";
+import "./subway-companion-test";
 import { constructionHistory } from "../src/games/subway/constructionHistory";
 import { quoteBuildCost } from "../src/games/subway/buildCost";
 import { routeContacts } from "../src/games/subway/config";
@@ -12,7 +13,7 @@ const dispatch=(s:SubwayState,id:string,type:SubwayAction["type"],payload?:Subwa
 let checks=0;
 for(const count of [2,3,4]) for(const category of ["engineering"] as const) {
   let {state:s}=startPlaytest(count,42);
-  assert.equal(SUBWAY_STATE_VERSION,15);
+  assert.equal(SUBWAY_STATE_VERSION,16);
   assert.ok(!("construction" in s.market.rows) && !("construction" in s.market.decks));
   assert.ok(!("priorityQueue" in s));
   assert.ok(Object.values(s.players).every(p=>!("constructionHand" in p)));
@@ -131,14 +132,14 @@ console.log("Build-cost previews: 6 reducer comparisons and recipient aggregatio
   assert.equal(dispatch(s,id,"HIRE_CREWS",{lineIndexes:[0,0],period:1}),s);
   assert.equal(dispatch(s,id,"HIRE_CREWS",{lineIndexes:[1],period:1}),s);
   s=dispatch(s,id,"HIRE_CREWS",{lineIndexes:[0],period:1});
-  assert.equal(s.players[id].money,49);
+  assert.equal(s.players[id].money,SUBWAY_CONFIG.startingMoney-1);
   assert.equal(dispatch(s,id,"HIRE_CREWS",{lineIndexes:[0],period:1}),s,"no double billing");
   const before=s;
   s=dispatch(s,id,"BUILD",{lineIndex:0,x:3,y:0});
-  assert.equal(s.players[id].money,46);
-  for(const other of ["seat-2","seat-3","seat-4"])assert.equal(s.players[other].money,51);
+  assert.equal(s.players[id].money,SUBWAY_CONFIG.startingMoney-4);
+  for(const other of ["seat-2","seat-3","seat-4"])assert.equal(s.players[other].money,SUBWAY_CONFIG.startingMoney+1);
   const undo=dispatch(s,id,"UNDO_PLACEMENT");
-  assert.equal(undo.players[id].money,49,"Undo restores tolls but does not refund hired crew");
+  assert.equal(undo.players[id].money,SUBWAY_CONFIG.startingMoney-1,"Undo restores tolls but does not refund hired crew");
   assert.deepEqual(undo.players[id].pendingActions,[0]);
   assert.equal(undo.players[id].crewsHired,true);
   assert.ok(undo.nextEventSeq>s.nextEventSeq);

@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
       }
 
       const room = { ...current.room };
+      if (current.subwayCompanion) return Response.json({ok:false,errorCode:"COMPANION_REQUIRED",message:"Join using the Subway phone or iPad option."},{status:403});
       const currentVersion = current.version;
 
       // Check if player already exists (rejoining), update name if needed

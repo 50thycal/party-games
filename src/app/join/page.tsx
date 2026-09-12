@@ -44,6 +44,10 @@ export default function JoinPage() {
       });
 
       const json = await res.json();
+      if (json.errorCode === "COMPANION_REQUIRED") {
+        router.push(`/subway/multiplayer?roomCode=${encodeURIComponent(code.toUpperCase())}`);
+        return;
+      }
       if (!json.ok) {
         setError(json.message ?? "Failed to join room.");
         setIsSubmitting(false);
@@ -65,6 +69,7 @@ export default function JoinPage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8">
       <h1 className="text-3xl font-bold mb-4">Join a Room</h1>
+      <Link href="/subway/multiplayer" className="mb-4 rounded-xl bg-teal-700 p-3 font-bold">Subway · Join with phone or iPad</Link>
       <p className="text-gray-400 mb-8 text-center max-w-md">
         Enter the room code and your name to join.
       </p>

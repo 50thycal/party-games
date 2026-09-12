@@ -1536,3 +1536,36 @@ toll is paid by the building company. The effects can be redesigned and reintrod
 later through a new owner decision. Alternatives considered: retaining unreachable
 mechanics for a future supply rule was rejected because it preserved design and
 maintenance complexity without contributing to play.
+
+### DEC-041 — Completion cash and shared iPad companions
+
+Date: 2026-09-11. Status: owner-authorized; implementation review pending.
+
+Starting capital becomes $40M. Completing a line immediately pays $3M; nine
+rounds, crew pricing and final debt penalties remain. Reward payment occurs in
+the authoritative final BUILD and is reversed by placement Undo. Borrowing stays
+available: the design encourages early completion without forbidding parallel
+construction. All-three completion supplies $49M over the game, with $9M delayed.
+This supersedes DEC-039's starting-cash value, not its other rules. Human balance
+acceptance remains necessary; deterministic cadence comparisons are not proof.
+
+Multiplayer uses an iPad host without a company seat plus 2–4 company phones.
+The iPad owns public board/crew interaction. Phones own purchases, drafting and
+private card browsing in four portrait pages. Explicit handoff covers the board
+and hides outgoing ghosts before the incoming company acknowledges possession.
+Local testing keeps the existing complete tabletop.
+
+Device credentials and room-backed plans require an authenticated, filtered
+transport. A Subway-specific endpoint uses the existing room CAS store, binding
+unpredictable tokens (stored hashed server-side) to tablet/phone roles and company
+IDs. Revision checks and bounded request receipts prevent stale/replayed actions.
+The generic endpoints reject companion rooms so no parallel unfiltered path remains.
+Private cards and decks are omitted from unauthorized responses; Undo snapshots
+are never transmitted. Ghosts transfer only to their company's phone and the
+acknowledged iPad turn. Results disclose goals and the post-game ledger.
+
+Recovery uses the existing device key, not selecting another company's name.
+No accounts, sockets or infrastructure migration are introduced. The trade-off is
+that losing both browser storage and the recovery key loses that device's access;
+the public room code deliberately cannot impersonate an existing participant.
+State v16 restarts older rule states. Other games keep their legacy transport.

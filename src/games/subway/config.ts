@@ -27,7 +27,7 @@ import type { BaseAction, GameContext, Player } from "@/engine/types";
 // ============================================================================
 
 /** Bumped when the state shape changes; older rooms must restart. */
-export const SUBWAY_STATE_VERSION = 15;
+export const SUBWAY_STATE_VERSION = 16;
 
 // ----------------------------------------------------------------------------
 // Tunable configuration
@@ -38,7 +38,8 @@ export const SUBWAY_CONFIG = {
    * A tighter budget creates choices between construction speed, missions
    * and debt. Every portfolio is affordable to purchase; completion is not free.
    */
-  startingMoney: 50,
+  startingMoney: 40,
+  completionReward: 3,
   timelinePeriods: 9,
   minContractsPerPlayer: 3,
   maxContractsPerPlayer: 3,
@@ -1842,7 +1843,8 @@ function undoRecord(before: SubwayState, playerId: string, kind: UndoRecord["kin
 function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext): SubwayState {
   // A state saved by an older version can only be restarted.
   const legacy = state.version !== SUBWAY_STATE_VERSION;
-  if (action.type !== "START_GAME" && (legacy || !state.players[action.playerId])) return state;
+  const hostScoring = action.type === "ADVANCE_SCORING" && action.playerId === ctx.room.hostId;
+  if (action.type !== "START_GAME" && (legacy || (!state.players[action.playerId] && !hostScoring))) return state;
 
   // Undo is the only action that reads the outstanding undo record. Every other
   // accepted action consumes it: `s` is what an accepted action returns, and it
@@ -2040,6 +2042,8 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
         ...(station ? { stationId: station.id, stationSlot: slot!, stationCapacity: station.capacity } : {}),
       });
 
+      // Legal BUILD rejects completed lines; Undo restores the prior balance.
+      if (lineComplete(line)) me.money += SUBWAY_CONFIG.completionReward;
       if (!s.firstCompletedPlayerId && me.lines.length === 3 && allLinesComplete(me)) s.firstCompletedPlayerId = me.id;
       me.pendingActions = removeOne(me.pendingActions, lineIndex);
       const contract = contractOf(line)!;
@@ -2057,7 +2061,7 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
         lineComplete(line) ? "ROUTE" : "PLACEMENT",
         "notice",
         (lineComplete(line)
-          ? `${me.name} completed the ${contract.name} at ${where}!`
+          ? `${me.name} completed the ${contract.name} at ${where}! +$${SUBWAY_CONFIG.completionReward}M completion reward.`
           : `${me.name} extended the ${contract.name} to ${where}.`) + tollNote,
         me.id
       );

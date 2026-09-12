@@ -22,6 +22,7 @@ export async function getRoomState(
   return {
     room: versionedState.room,
     gameState: versionedState.gameState,
+    subwayCompanion: versionedState.subwayCompanion,
   };
 }
 

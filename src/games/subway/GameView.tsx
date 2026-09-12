@@ -240,7 +240,7 @@ type BoardMode = "none" | "place" | "survey" | "planner";
 
 const PLAN_PHASES = new Set(["ENGINEERING", "SCHEDULING", "STARTER_PLACEMENT", "CONSTRUCTION"]);
 
-export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, lessonZone, lessonBeat = 0 }: GameViewProps<SubwayState> & {lessonZone?: TableZone; lessonBeat?: number}) {
+export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, lessonZone, lessonBeat = 0, boardOnly = false, remotePlans, onSaveGhost }: GameViewProps<SubwayState> & {lessonZone?: TableZone; lessonBeat?: number; boardOnly?: boolean; remotePlans?: Record<string,SavedPlan>; onSaveGhost?: (contractId:string,nodes:RouteNode[])=>Promise<void>}) {
   const raw = state as SubwayState | undefined;
   const stale = !!raw && raw.version !== SUBWAY_STATE_VERSION;
   const game = raw && !stale ? raw : undefined;
@@ -363,13 +363,13 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     }
     const loaded: Record<string, SavedPlan> = {};
     for (const id of contractIds.split(",")) {
-      const plan = sessionPlans.current[planStorageKey(room.roomCode, playerId, id)] ?? loadPlan(room.roomCode, playerId, id);
+      const plan = remotePlans ? remotePlans[id] : sessionPlans.current[planStorageKey(room.roomCode, playerId, id)] ?? loadPlan(room.roomCode, playerId, id);
       if (plan) loaded[id] = plan;
     }
     setPlans(loaded);
     // Placement-context changes own planner initialization below. Resetting it
     // here races that effect when React replays mount effects in Strict Mode.
-  }, [room.roomCode, playerId, contractIds]);
+  }, [room.roomCode, playerId, contractIds, remotePlans]);
 
   const planAvailable = !!game && !!me && me.lines.length > 0 && PLAN_PHASES.has(game.phase) && !veiled;
   useEffect(() => {
@@ -448,7 +448,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     setPlanMode(false); setManualPlanner(false); setPlannerLine(null); setSketch([]); setSketchBase([]); setPreview(null);
     if (!planAvailable || !game || !me || activeLineIndex < 0) return;
     const line = me.lines[activeLineIndex];
-    const saved = sessionPlans.current[planStorageKey(room.roomCode, playerId, line.contractId)] ?? loadPlan(room.roomCode, playerId, line.contractId);
+    const saved = remotePlans ? remotePlans[line.contractId] : sessionPlans.current[planStorageKey(room.roomCode, playerId, line.contractId)] ?? loadPlan(room.roomCode, playerId, line.contractId);
     const initial = preparePlan(game, playerId, activeLineIndex, saved);
     setSketchBase(initial.base);
     setSketch(initial.nodes);
@@ -458,7 +458,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     // A saved ghost is guidance, never an implicit live build choice.
     setPreview(null);
     cam.current?.focus("board");
-  }, [automaticContext, planAvailable, game, me, activeLineIndex, room.roomCode, playerId]);
+  }, [automaticContext, planAvailable, game, me, activeLineIndex, room.roomCode, playerId, remotePlans]);
 
   const plannerActive =
     planMode && plannerLine !== null && !!game && !!me && planAvailable && !!me.lines[plannerLine];
@@ -750,6 +750,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   // shot and what `Reset view` returns to.
   const phaseKey = game ? `${game.phase}:${game.engineeringStep}:${game.schedulingStep}` : "";
   const phaseZone: TableZone = (() => {
+    if (boardOnly) return game?.phase === "CONSTRUCTION" ? "schedule" : "board";
     const [phase, step] = phaseKey.split(":");
     if (phase === "PROCUREMENT") return "office";
     if (phase === "SCHEDULING") return "schedule";
@@ -783,7 +784,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
         <h2 className="mt-2 font-serif text-3xl font-black">Subway</h2>
         <p className="mx-auto my-4 max-w-xl text-sm text-stone-600">
           Build a city that connects. Each company takes three routes from a pool of twelve services. Each carries an
-          ordered recipe of segment lengths and its own line color. Draft goals and Construction cards,
+          ordered recipe of segment lengths and its own line color. Draft Engineering goals,
           optionally buy Survey Pins, choose crews each round, then
           engineer the routes hole by hole — all on one table you pan and zoom around.
         </p>
@@ -820,9 +821,17 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   const plannerLineObj = plannerActive && me && plannerLine !== null ? me.lines[plannerLine] : undefined;
   const plannerContract = plannerLineObj ? contractOf(plannerLineObj) : undefined;
   const minSketch = sketchBase.length;
-  const saveSketch = () => {
+  const saveSketch = async () => {
     if (plannerLine === null || !me || !sketch.length) return;
     const contractId = me.lines[plannerLine].contractId;
+    if (onSaveGhost) {
+      try {
+        await onSaveGhost(contractId, sketch);
+        setPlans(prev=>({...prev,[contractId]:{nodes:[...sketch],savedAt:Date.now()}}));
+        setNotice("Ghost saved to your company.");
+      } catch (error) { setNotice(error instanceof Error ? error.message : "Ghost could not be saved. Try again."); }
+      return;
+    }
     const saved = savePlan(room.roomCode, playerId, contractId, sketch);
     const value = {nodes:[...sketch],savedAt:Date.now()};
     sessionPlans.current[planStorageKey(room.roomCode, playerId, contractId)] = value;
@@ -1217,13 +1226,12 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
 
   // Quick-focus controls, one-handed on a phone: the short label is what a
   // narrow screen shows, the long one is the accessible name everywhere.
-  const officeOpen = game.phase === "PROCUREMENT" || (game.phase === "ENGINEERING" && game.engineeringStep === "CARD_DRAFT");
+  const officeOpen = !boardOnly && (game.phase === "PROCUREMENT" || (game.phase === "ENGINEERING" && game.engineeringStep === "CARD_DRAFT"));
   const focusButtons: { zone: TableZone; label: string; short: string }[] = [
     ...(officeOpen ? [{ zone: "office" as TableZone, label: "Market", short: "Market" }] : []),
     { zone: "board", label: "Pegboard", short: "Board" },
     { zone: "schedule", label: "Construction schedule", short: "Crews" },
-    { zone: "lines", label: "Lines", short: "Lines" },
-    { zone: "hand", label: "Cards", short: "Cards" },
+    ...(!boardOnly ? [{ zone: "lines" as TableZone, label: "Lines", short: "Lines" }, { zone: "hand" as TableZone, label: "Cards", short: "Cards" }] : []),
     { zone: "table", label: "Whole table", short: "All" },
   ];
 
@@ -1316,7 +1324,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       </div>
 
       <TabletopCanvas
-        worldWidth={WORLD_W}
+        worldWidth={boardOnly ? BOARD_FRAME_W + TABLE.margin * 2 : WORLD_W}
         apiRef={cam}
         onCamera={(scale) => setZoomPct((prev) => (Math.round(scale * 100) === prev ? prev : Math.round(scale * 100)))}
         overlay={hud}
@@ -1328,13 +1336,13 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       >
         {/* Printed pieces carry dark ink whatever the surrounding page theme is. */}
         <div className="flex flex-col text-stone-900" style={{ gap: TABLE.gap, padding: TABLE.margin }}>
-          <div data-zone="opponent" className="grid gap-[24px]">
+          {!boardOnly && <div data-zone="opponent" className="grid gap-[24px]">
             <button className="w-fit rounded-xl bg-white/10 px-5 py-3 text-[22px] text-white" aria-expanded={showOpponents} onClick={()=>setShowOpponents(v=>!v)}>{showOpponents ? "Hide opponents" : "Show opponents"}</button>
             {showOpponents && opponents.map((opponent) => <OpponentEdge key={opponent.id} game={game} opponent={opponent} scheduleRevealed={schedulingRevealed} />)}
-          </div>
+          </div>}
 
           <div className="flex justify-center" style={{width:BOARD_FRAME_W, marginLeft:officeOpen ? TABLE.side + TABLE.gap : 0}}>
-            <CrewBoard key={`${game.currentPeriod}:${playerId}`} game={game} viewerId={playerId} busy={busy} veiled={veiled} act={act}/>
+            <CrewBoard key={`${game.currentPeriod}:${playerId}`} game={game} viewerId={playerId} busy={busy} veiled={veiled} act={act} boardOnly={boardOnly}/>
           </div>
 
           <div className="flex items-start" style={{ gap: TABLE.gap }}>
@@ -1384,7 +1392,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
 
           </div>
 
-          {me && (
+          {me && !boardOnly && (
             <PlayerTabletop
               game={game}
               me={me}

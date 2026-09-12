@@ -51,6 +51,7 @@ export function generateAiPlaytestReport(game: SubwayState, context: SubwayRepor
     "```json",
     JSON.stringify({
       startingMoneyMillions: SUBWAY_CONFIG.startingMoney,
+      lineCompletionRewardMillions: SUBWAY_CONFIG.completionReward,
       constructionRounds: SUBWAY_CONFIG.timelinePeriods,
       routesPerPlayer: SUBWAY_CONFIG.maxContractsPerPlayer,
       crewActivationCostMillions: { zero: 0, one: 1, two: 3, three: 6 },
