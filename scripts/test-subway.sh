@@ -20,6 +20,7 @@ cat >"$config" <<EOF
     "typeRoots": ["$repo_root/node_modules/@types"]
   },
   "include": [
+    "$repo_root/scripts/subway-lab-test.ts",
     "$repo_root/scripts/subway-rules-test.ts",
     "$repo_root/scripts/subway-multiplayer-test.ts",
     "$repo_root/scripts/subway-companion-api-test.ts",
@@ -39,3 +40,5 @@ node "$out_dir/scripts/subway-rules-test.js"
 
 node "$out_dir/scripts/subway-multiplayer-test.js"
 NODE_PATH="$repo_root/node_modules" node "$out_dir/scripts/subway-companion-api-test.js"
+
+NODE_PATH="$repo_root/node_modules" node "$out_dir/scripts/subway-lab-test.js"

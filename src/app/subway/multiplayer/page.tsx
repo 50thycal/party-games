@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { LabControls } from "@/games/subway/LabControls";
+import { nextCompanyId } from "@/games/subway/config";
 import type { CompanionView } from "@/games/subway/companion";
 import { SubwayGameView } from "@/games/subway/GameView";
 import { DestinationCardFace, EngineeringCardFace } from "@/games/subway/CardArt";
@@ -10,7 +12,7 @@ import { phoneGuidance } from "@/games/subway/guidance";
 import { SUBWAY_CONFIG, contractById, contractOf, destinationMet, objectiveProgress, lineComplete, segmentsBuilt, type RouteNode } from "@/games/subway/config";
 
 const KEY = "subway-companion-device-v1";
-type Identity = {roomCode:string;token:string};
+type Identity = {roomCode:string;token:string;controllerKey?:string};
 type Tab = "destinations" | "lines" | "engineering" | "general";
 const tabs: {id:Tab;icon:string;label:string}[] = [
   {id:"destinations",icon:"⚑",label:"Destinations"}, {id:"lines",icon:"〰",label:"Lines"},
@@ -20,6 +22,8 @@ const button = "min-h-12 rounded-xl bg-teal-700 px-4 py-3 font-bold text-white d
 const input = "w-full rounded-xl border border-slate-500 bg-slate-900 p-3 text-white";
 
 export default function SubwayMultiplayerPage() {
+  const [auto,setAuto]=useState(false);
+  const [follow,setFollow]=useState(true);
   const [identity,setIdentity] = useState<Identity|null>(null);
   const [view,setView] = useState<CompanionView|null>(null);
   const [code,setCode] = useState("");
@@ -107,7 +111,31 @@ export default function SubwayMultiplayerPage() {
     } catch(e) {const message=e instanceof Error?e.message:"Action failed. Check the table before trying again.";setError(message);throw e;}
     finally {sending.current=false;setBusy(false);}
   }
-  const run=(type:string,payload?:Record<string,unknown>)=>{void act(type,payload).catch(()=>{});};
+  const run=(type:string,payload?:Record<string,unknown>)=>{void act(type,payload).catch(()=>{setAuto(false);});};
+  useEffect(()=>{
+    if(!auto||!view?.lab||view.role!=='tablet'||busy||!online||!view.game) return;
+    const id=nextCompanyId(view.game);
+    if(view.game.phase==='RESULTS'||(view.game.phase!=='SCORING'&&view.lab.seats.find(s=>s.id===id)?.control!=='bot')) {setAuto(false);return;}
+    const timer=setTimeout(()=>run('LAB_STEP'),500);
+    return ()=>clearTimeout(timer);
+    // Each accepted server revision permits exactly one next request.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[auto,view,busy,online]);
+  useEffect(()=>{
+    if(!follow||!view?.lab||view.role!=='phone'||busy||!online||!view.game) return;
+    const id=nextCompanyId(view.game);
+    if(id&&id!==view.playerId&&view.lab.managedIds.includes(id)&&view.lab.seats.find(s=>s.id===id)?.control==='human') run('LAB_SELECT',{playerId:id});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[follow,view,busy,online]);
+  async function exportRecord() {
+    if(!identity) return;
+    try {
+      const response=await fetch(`/api/subway-companion?roomCode=${identity.roomCode}&export=1`,{headers:{Authorization:`Bearer ${identity.token}`}});
+      const json=await response.json();if(!json.ok) throw new Error(json.message);
+      const url=URL.createObjectURL(new Blob([JSON.stringify(json.data,null,2)],{type:'application/json'}));
+      const a=document.createElement('a');a.href=url;a.download=`subway-${identity.roomCode}-replay.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    } catch(e) {setError(e instanceof Error?e.message:'Export failed.');}
+  }
   function leave() {previousCompleted.current=null;setCompletionNotice(null);localStorage.removeItem(KEY);setIdentity(null);setView(null);latestRevision.current=-1;setDeviceSettings(false);}
 
   if(!view) return <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-5 p-6">
@@ -125,7 +153,8 @@ export default function SubwayMultiplayerPage() {
       </form>
     </>}
     {error&&<p role="alert" className="text-rose-300">{error}</p>}
-    <Link href="/subway" className="text-sm underline">Local testing tabletop</Link>
+    <Link href="/subway" className="text-sm underline">Quick tabletop</Link>
+    <Link href="/subway/lab" className="text-sm underline">Playtest Lab · testing</Link>
   </main>;
 
   const game=view.game;
@@ -145,7 +174,7 @@ export default function SubwayMultiplayerPage() {
     <code className="block break-all text-xs select-all">{identity?.token}</code>
     <button className={button} onClick={leave}>Leave this device</button>
   </section>;
-  const notices=<>{completionNotice&&<div role="status" className="rounded-2xl border-2 border-amber-300 bg-emerald-900 p-5 text-center text-2xl font-black text-white"><p>{completionNotice}</p><button className="mt-2 text-sm underline" onClick={()=>setCompletionNotice(null)}>Dismiss</button></div>}{!online&&<p role="alert" className="rounded-lg bg-amber-950 p-3">Connection lost. Reconnecting… Board actions are paused.</p>}{error&&<p role="alert" className="rounded-lg bg-rose-950 p-3">{error}</p>}</>;
+  const notices=<><LabControls view={view} run={run} busy={controlsDisabled} auto={auto} setAuto={setAuto} follow={follow} setFollow={setFollow} onExport={()=>void exportRecord()} controllerKey={identity?.controllerKey}/>{game?.phase==='RESULTS'&&!view.lab&&<button className={button} onClick={()=>void exportRecord()}>Download replay JSON</button>}{completionNotice&&<div role="status" className="rounded-2xl border-2 border-amber-300 bg-emerald-900 p-5 text-center text-2xl font-black text-white"><p>{completionNotice}</p><button className="mt-2 text-sm underline" onClick={()=>setCompletionNotice(null)}>Dismiss</button></div>}{!online&&<p role="alert" className="rounded-lg bg-amber-950 p-3">Connection lost. Reconnecting… Board actions are paused.</p>}{error&&<p role="alert" className="rounded-lg bg-rose-950 p-3">{error}</p>}</>;
   if(!game) return <main className="mx-auto max-w-xl space-y-5 p-4">{header}{settings}{notices}
     <h1 className="text-2xl font-bold">Companies at the table</h1>
     <div className="rounded-xl bg-slate-800 p-4"><p className="text-sm">Join on each phone at</p><p className="break-all font-bold">{typeof window!=="undefined"?window.location.host:""}/subway/multiplayer</p><p className="text-5xl font-black tracking-widest">{view.room.roomCode}</p></div>

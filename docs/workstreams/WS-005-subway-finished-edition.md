@@ -1,13 +1,23 @@
 # WS-005 — Subway finished edition
 
 Build OS: v0.12
-Phase: REVIEW
+Phase: BUILDING
 Status: Active
 Updated: 2026-09-12
 Implementation State: PR #173 merged. PR #174 implements state v20 explicit transfers, balanced 30-card deck, zero area VP and revised objectives. Automated gates and independent review passed; browser unavailable. On merge, this continuation is implemented; broader human balance acceptance remains.
 Related PRs: [#174](https://github.com/50thycal/party-games/pull/174) (transfer/objective continuation); [#173](https://github.com/50thycal/party-games/pull/173) (larger neighborhoods/reversed VP; merged); [#172](https://github.com/50thycal/party-games/pull/172) (guided turns, neighborhoods and tiers; merged); [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; merged); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
-## Current continuation — explicit transfers and objective balance
+## Current continuation — Playtest Upgrade
+
+Owner approved the iPad-only lab, configurable personalities, retained quick tabletop,
+digital replay/archive and human-comparison plan, then explicitly requested building
+on 2026-09-12 after #174 merged. Baseline 46ad31b, state v20; canonical v0.12 current.
+Build Card, goal, non-goals and acceptance: [playtest spec](../build-specs/WS-005-playtest-lab.md).
+Implementation State: BUILDING on codex/subway-playtest-lab.
+Review State: Pending independent review.
+Next Step: implement, validate and publish the same continuation PR.
+
+## Previous continuation — explicit transfers and objective balance
 
 Owner approved the reviewed proposal on 2026-09-12. Significant work, continuing
 WS-005; canonical Build OS v0.12 checked with no migration.
