@@ -527,7 +527,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     line.route.push({
       x: preview.x,
       y: preview.y,
-      ...(station ? { stationId: station.id, stationCapacity: station.capacity, stationSlot: preview.slot ?? 0 } : {}),
+      ...(station ? { stationId: station.id } : {}),
     });
     return clone;
   }, [game, me, preview, activeLineIndex, mode]);
@@ -575,7 +575,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
             {
               x: preview.x,
               y: preview.y,
-              ...(station ? { stationId: station.id, stationCapacity: station.capacity, stationSlot: preview.slot ?? 0 } : {}),
+              ...(station ? { stationId: station.id } : {}),
             },
           ],
           contract,
@@ -680,18 +680,17 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
         const node: RouteNode = {
           x: p.x,
           y: p.y,
-          ...(station ? {stationId: station.id, stationCapacity: station.capacity, stationSlot: slot ?? 0} : {}),
+          ...(station ? {stationId: station.id} : {}),
         };
         const savedNext = sketch[sketchBase.length];
-        const followsSavedPlan = savedNext && savedNext.x === node.x && savedNext.y === node.y &&
-          (savedNext.stationSlot ?? -1) === (node.stationSlot ?? -1);
+        const followsSavedPlan = savedNext && savedNext.x === node.x && savedNext.y === node.y;
         if (!followsSavedPlan) setSketch([...sketchBase, node]);
-        setPreview({x:p.x,y:p.y,...(station ? {slot:slot ?? 0} : {})});
+        setPreview({x:p.x,y:p.y});
         setNotice(null);
         return;
       }
       // Edit the route by tapping an unbuilt peg, rather than opening tools.
-      const rewind = sketch.findIndex((n, i) => i >= sketchBase.length && n.x === p.x && n.y === p.y && (n.stationSlot ?? -1) === (slot ?? -1));
+      const rewind = sketch.findIndex((n, i) => i >= sketchBase.length && n.x === p.x && n.y === p.y);
       if (rewind >= 0) {
         resetSketch(sketch.slice(0, rewind));
         setNotice(null);
@@ -705,9 +704,9 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       const station = stationAt(p, game.stations);
       setNotice(null);
       if (!manualPlanner && sketch.length === me.lines[plannerLine].route.length) {
-        setPreview({x:p.x,y:p.y,...(station ? {slot:slot ?? 0} : {})});
+        setPreview({x:p.x,y:p.y});
       }
-      setSketch([...sketch, { ...p, ...(station ? { stationId: station.id, stationCapacity: station.capacity, stationSlot: slot ?? 0 } : {}) }]);
+      setSketch([...sketch, { ...p, ...(station ? { stationId: station.id } : {}) }]);
       return;
     }
 
@@ -851,7 +850,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     setSketch(nodes);
     if (!manualPlanner) {
       const next = nodes[minSketch];
-      setPreview(next ? {x:next.x,y:next.y,...(next.stationId ? {slot:next.stationSlot ?? 0} : {})} : null);
+      setPreview(next ? {x:next.x,y:next.y} : null);
     }
   };
   const contested = contestedPeriods(game).filter((period) => !!me && me.lines.some((l) => blockPeriods(l).includes(period)) && !game.priorityOverrides[period]);

@@ -4,10 +4,34 @@ Build OS: v0.12
 Phase: REVIEW
 Status: Active
 Updated: 2026-09-12
-Implementation State: PR #171 merged. PR #172 implements phase guidance, explicit objective/reward feedback, cyclic turns, optional ghosts, destination highlights and tiered directional scoring at state v17. Final build/type/lint and full automated gates passed; browser access is blocked. Neighborhoods remain an owner proposal. Independent review pending.
+Implementation State: PR #172 now includes the approved neighborhood conversion at state v18, alongside guidance, tiered goals and companion feedback. Production build/type/lint, neighborhood regressions, 36 full games and companion/API tests passed. Browser access remains blocked; independent review and visual acceptance pending.
 Related PRs: [#172](https://github.com/50thycal/party-games/pull/172) (guided turns, highlights and tiers; open); [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; merged); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
-## Current mission — playtest guidance and objective progress
+## Approved neighborhood continuation — 2026-09-12
+
+Goal: ten movable neighborhoods (3 small, 6 large, 1 medium), no dock limits,
+node-only service, own-company transfers through shared areas, exact peg geometry,
+and Local Service on one line visiting all three small areas. Owner approved build.
+Footprints: small 3 holes, medium 4, large 6. Base scores: 2/3/5 VP.
+Non-goals: change recipes, economy, literal board-edge goals or other games.
+Acceptance: deterministic varied valid layouts, node versus pass-through service,
+unlimited area access, transfer and toll isolation, unique scoring and card rules,
+full build/lint/Subway simulations, board/phone rendering where browser access permits.
+Implementation State: implemented on PR #172. Final production build/type and standalone
+lint passed. Neighborhood tests cover 300 seat/seed layouts, all 49 area holes per
+layout, exact geometry, transfers, no opponent bridging, unique scoring and no dock
+limits. Full suite: 220 portfolio checks, 36 games at 2/3/4 seats reached RESULTS;
+three companion games accepted 439 actions; isolated API persistence/privacy passed.
+Mean completed lines/company: 2.833 / 2.861 / 2.896 at 2/3/4 seats, versus the prior
+station build's 2.875 / 2.861 / 2.875. Different seeded board sequences and heuristic
+players limit direct balance conclusions. Lowest cash: -14 / -11 / -12.
+Browser verification of the running production build was blocked by
+ERR_BLOCKED_BY_CLIENT. No browser or physical-device acceptance is claimed.
+React checklist: footprints render behind targets, labels do not intercept taps,
+no added subscriptions/effects, derived card progress and versioned plan storage.
+Next Step: independent current-head review of PR #172 and phone/iPad visual acceptance.
+
+## Prior iteration — playtest guidance and objective progress (before neighborhood approval)
 
 Owner authorized the next playtest iteration on 2026-09-12. PR #171 is merged
 (main 8a1b357); no independent acceptance is inferred. Build OS remains v0.12,

@@ -1600,3 +1600,28 @@ State v17 protects existing games from changed rules. Neighborhood conversion is
 still an owner decision recorded in the workstream proposal, not an accepted
 rule. Alternatives: automatic page switching was rejected in favor of a persistent
 action link so players can keep reading private cards without forced navigation.
+
+
+### DEC-043 — Neighborhood footprints replace exclusive station docks
+
+Date: 2026-09-12. Status: owner-authorized; implementation review pending.
+
+The owner approved replacing hard-to-hit station docks with larger areas, node-only
+service, transfers among own lines in the same area, and no dock limits. The owner
+specified three small, six large and one medium area, and Local Service on one line
+visiting all three small areas. This supersedes earlier station capacity/offset rules.
+
+Implementation uses 3/6/4-hole connected footprints, 2/5/3 base VP, fixed identity-size
+mapping, and shuffled/rotated separated interior bays. The medium score is the
+implementation choice between existing small/large values. Footprints never cover
+outer border pegs; random generation is bounded and always valid.
+
+Nodes retain exact holes plus area IDs; ordinary physical contact tolls apply even
+inside an area. Sharing an area itself is not a toll. Own area transfers are logical
+connections of zero added length; only actual string contributes to longest network.
+Repeats never multiply service scores. Medium areas qualify for general destinations
+and terminals but not small/large-specific goals. State v18 restarts old games.
+
+Alternatives: keeping capacity limits was explicitly rejected by the owner. String
+pass-through service was not selected; node-only service preserves intentional routing.
+Separated bays trade fully free placement for reliable spacing and deterministic setup.

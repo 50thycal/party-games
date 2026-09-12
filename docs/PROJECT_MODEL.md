@@ -527,7 +527,7 @@ pin placement and all three route starters. There is no commitment or assignment
 Legacy schedule/commitment types and dormant helpers remain unreachable in v17.
 
 `network.ts` provides own-node connectivity and longest edge-simple trails. Shared
-station IDs join dock slots; identical normal route nodes transfer; raw intersections
+neighborhood IDs join their exact peg holes; identical normal route nodes transfer; raw intersections
 and opponents never bridge components. Border objectives check exact rows/columns;
 a corner counts at most once when assigning distinct sides. First to Open uses an
 undo-restored first-completion player field. Longest network scores logical peg-space
@@ -535,9 +535,9 @@ length without segment reuse: 5 VP to one winner or 3 each on a tie. Route speci
 and per-contract Major bonuses are removed, retaining ordinary station scoring.
 
 Contracts keep stable internal IDs, recipes and prices, but display twelve color
-names with unique two-letter codes. Two-player stations have one minor/two major
-docks, compared with two/three for 3–4 players. Placed and planned station nodes
-retain `stationCapacity` so physical geometry matches the state's dock layout.
+names with unique two-letter codes. Neighborhoods have no dock limits at any player count.
+Placed and planned area nodes retain the neighborhood ID plus the exact integer hole;
+there are no physical dock offsets.
 State version 15 requires restart for old rooms/saves and isolates old local plans.
 
 The isolated `/subway/tutorial` route prepares lesson snapshots through the legal
@@ -564,3 +564,26 @@ Active starter/build contexts automatically open a line-locked planner. A fresh 
 Subway touch/table continuation: the camera adds reduced-motion-aware momentum after drag, with new-touch cancellation and scoped WebKit selection/callout suppression. Opponent panels begin collapsed and company plaques have bounded widths. Construction schedule presents selected-round order and per-line build/Undo facts through constructionHistory, projecting only public fields from telemetry. Survey placement is reducer-restricted to interior non-station holes; existing border pins in saved games are not deleted.
 
 Ordinary route purchases dispatch directly from a priced button on the offer. Card drafting shows disabled availability on the face; current Engineering goals are readable inline. GameView serializes pending UI dispatches and reports rejected actions in its status strip. Planner context alone initializes automatic planning, including React's mount-effect replay; loading saved plans does not reset it. Hiring and subsequent active routes focus the pegboard. Target navigation respects the measured HUD bands. The camera opens the first hand/line piece, the survey slip, or current construction controls at a consistent working zoom. Construction history follows the current actions in visual and keyboard order. Results wrap for narrow screens and put the score breakdown before report export (DEC-033).
+
+## Neighborhood board (DEC-043, state v18)
+
+Ten stable neighborhood IDs replace point stations: 3 small (3 holes), 6 large
+(6 holes), 1 medium (4 holes), worth 2/5/3 VP per distinct area per company.
+`randomStationLayout` shuffles identity-to-bay placement, connected footprint shape,
+quarter-turn and horizontal offset using engine randomness. Ten separated interior
+3×3 bays guarantee valid non-overlapping footprints and keep the outer border clear.
+State stores exact `cells`; `stationAt` tests membership. Old station IDs and major/
+minor internal category keys remain for cards, but no capacity field or dock cap remains.
+
+Only placing a node inside serves an area. Shared area IDs join own lines even at
+different holes; string-only crossings and opponents do not supply transfers. Every
+physical contact uses actual hole geometry, including neighborhood pegs. Sharing an
+area alone costs nothing. Longest network counts built segments, not transfer distance.
+Local Service requires one line serving all three small areas, with no completion
+requirement. Major Connection/Interchange use large areas; Terminal accepts any size.
+Literal border goals and survey rules remain exact-hole based. Surveys stay outside areas.
+
+Board footprints render beneath pegs, routes and target rings. Destination highlights
+trace full area boundaries. Phone cards, tutorial and report use neighborhood rules;
+reports include size, all occupied holes and exact node locations. Plans revalidate
+neighborhood membership. State version 18 and local-save key reject old dock games.

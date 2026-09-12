@@ -2,6 +2,7 @@ import {
   SUBWAY_CONFIG,
   SUBWAY_STATE_VERSION,
   stationById,
+  stationAt,
   validateNode,
   type RouteNode,
   type SubwayState,
@@ -41,10 +42,7 @@ const isPlanNode = (n: unknown): n is RouteNode => {
     if (typeof node.stationId !== "string") return false;
     const station = stationById(node.stationId);
     if (!station) return false;
-    if (!Number.isInteger(node.stationSlot)) return false;
-    const slot = node.stationSlot as number;
-    if (slot < 0 || slot >= station.capacity) return false;
-    if (node.stationCapacity !== undefined && (!Number.isInteger(node.stationCapacity) || ![station.capacity, station.capacity - 1].includes(node.stationCapacity as number) || slot >= (node.stationCapacity as number))) return false;
+
   }
   return true;
 };
@@ -53,7 +51,7 @@ const isPlanNode = (n: unknown): n is RouteNode => {
 export const cleanNode = (n: RouteNode): RouteNode => ({
   x: n.x,
   y: n.y,
-  ...(n.stationId !== undefined ? { stationId: n.stationId, stationSlot: n.stationSlot ?? 0, ...(n.stationCapacity !== undefined ? {stationCapacity:n.stationCapacity} : {}) } : {}),
+  ...(n.stationId !== undefined ? { stationId: n.stationId } : {}),
 });
 
 export function validPlanNodes(nodes: unknown): nodes is RouteNode[] {
@@ -140,8 +138,7 @@ export type PlanStatus = {
 const sameNode = (a: RouteNode, b: RouteNode): boolean =>
   a.x === b.x &&
   a.y === b.y &&
-  (a.stationId ?? null) === (b.stationId ?? null) &&
-  (a.stationId === undefined || (a.stationSlot ?? 0) === (b.stationSlot ?? 0));
+  (a.stationId ?? null) === (b.stationId ?? null);
 
 /**
  * Reconciles a plan against authoritative state using the reducer's own
@@ -183,9 +180,9 @@ export function reconcilePlan(
       lineIndex,
       { x: n.x, y: n.y },
       starter,
-      n.stationId !== undefined ? n.stationSlot ?? 0 : undefined
+      undefined
     );
-    if (reason) {
+    if (reason || (stationAt(n, game.stations)?.id ?? null) !== (n.stationId ?? null)) {
       stale = true;
       break;
     }

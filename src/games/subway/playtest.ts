@@ -32,7 +32,7 @@ function bestTarget(s: SubwayState, id: string, lineIndex: number, starter: bool
   // continuation. A small seeded tie-break removes fixed coordinate bias.
   return targets.map((target) => {
     const station = stationAt(target, s.stations);
-    trial.route = [...line.route, {...target, ...(station ? {stationId:station.id,stationSlot:target.slot,stationCapacity:station.capacity} : {})}];
+    trial.route = [...line.route, {...target, ...(station ? {stationId:station.id} : {})}];
     const finished = lineComplete(trial);
     const options = finished ? [] : legalTargets(clone,id,lineIndex,false);
     const from = line.route[line.route.length-1];

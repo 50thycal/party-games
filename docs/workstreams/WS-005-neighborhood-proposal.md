@@ -1,15 +1,17 @@
-# Neighborhood conversion — owner discussion
+# Neighborhood conversion — approved specification
 
-Status: PROPOSAL ONLY. The current implementation still uses stations.
+Status: OWNER AUTHORIZED on 2026-09-12. Implemented in PR #172; validation/review tracked in WS-005.
 
-## Recommended board rule
+## Approved board rule
 
 Keep the ten named places, but make each a colored neighborhood footprint on
-the peg grid. Small neighborhoods contain three holes (straight or L-shaped);
-large neighborhoods contain six holes (2×3 or an equivalent connected shape).
+the peg grid. There are three small, six large and one medium neighborhood.
+Small neighborhoods contain three holes (straight or L-shaped);
+large neighborhoods contain six holes (2×3 or a connected triangular footprint);
+the medium neighborhood contains four holes (square or T-shaped).
 Shuffle positions and rotate footprints once per game, using the game's seeded
 randomness. Never overlap neighborhoods; keep a clear outer border and enough
-space between areas. Preserve a deterministic valid-layout fallback. Do not
+space between areas. Use ten separated interior 3×3 bays as a guaranteed valid layout, avoiding retry/fallback failure. Do not
 move areas during a game or rotate the pegboard's north/south labels.
 
 A line serves a neighborhood when it places a node inside that footprint.
@@ -18,21 +20,23 @@ once; revisiting does not multiply points. Two of a company's lines serving the
 same neighborhood can transfer there, even at different holes. Opponent lines
 and geometric crossings do not provide transfers.
 
-Retain Major/Minor categories as large/small neighborhood types for objective and
-base-score continuity. Score each distinct neighborhood once per company, at the
-existing 5/2 VP. Suggested capacity: remove station-wide dock caps; use ordinary
-peg sharing/contact rules at individual holes. This is a proposed change requiring
-owner agreement, not an implicit consequence of drawing bigger station art.
+Small neighborhoods: Market, Garden, Library (2 VP each).
+Large neighborhoods: Grand Central, Museum, Stadium, University, Airport,
+Harbor Exchange (5 VP each). Medium neighborhood: Theatre (3 VP).
+These identities keep their sizes while locations, shapes and rotations vary.
+Score each distinct neighborhood once per company. No neighborhood-wide dock cap;
+ordinary peg sharing/contact rules apply at individual holes. The internal major/
+minor category IDs map to large/small for objective compatibility; medium is neither.
 
 ## Affected cards — one suggested change each
 
-| Card | Proposed neighborhood rule |
+| Card | Approved neighborhood rule |
 |---|---|
 | All pair/triple Destinations | Serve every named neighborhood within one connected company network. Different lines may supply the visits, but must connect. Retain 4/7 VP initially. |
 | Major Connection | Complete one line serving two distinct large neighborhoods; retain 6 VP. |
 | Integrated Network | Connect all three completed lines through shared neighborhoods or shared pegs; retain 7 VP. Different transfers are allowed. |
 | Terminal Network | A qualifying completed line's final peg lies inside a neighborhood. Retain 2/4/6 VP for one/two/three lines; the same neighborhood may serve multiple terminals. |
-| Local Service | Serve four distinct small neighborhoods anywhere across the company; lines need not connect. Retain 5 VP. |
+| Local Service | One line serves all three small neighborhoods; the line need not be complete. Retain 5 VP. |
 | Central Interchange | Two separate lines in a two-player game, or three at 3–4 players, each place a node inside the same large neighborhood. Retain 6 VP. Unlike Integrated Network, this requires one common hub and no completed contracts. |
 | Four Corners | Keep the exact opposite-corner goal and its tiers; neighborhood transfers may form the connecting company network. Maximum still requires all three lines in that component. |
 
@@ -62,5 +66,4 @@ objective tiers, exact-border goals, full-game simulation and phone/iPad renderi
 all need coverage. Compare completion rate and meaningful route choices with the
 station version; do not treat more completed routes alone as proof of balance.
 
-Owner decision: agree on footprint sizes, node-only service, neighborhood transfers,
-and removal of shared dock caps before implementing this conversion.
+Owner authorized node-only service, neighborhood transfers, no dock limits and the revised counts/Local Service condition. State v18 requires new games.

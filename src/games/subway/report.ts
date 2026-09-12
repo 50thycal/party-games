@@ -7,6 +7,7 @@ import {
   lineComplete,
   segmentsBuilt,
   stationById,
+  neighborhoodSize,
   type SubwayState,
 } from "./config";
 
@@ -68,11 +69,11 @@ export function generateAiPlaytestReport(game: SubwayState, context: SubwayRepor
     }, null, 2),
     "```",
     "",
-    "## Station layout",
+    "## Neighborhood layout",
     "",
-    row(["Station", "Type", "Hole", "Capacity"]),
+    row(["Neighborhood", "Size", "Holes", "Connections"]),
     row(["---", "---", "---", "---:"]),
-    ...game.stations.map((station) => row([station.name, station.kind, `${station.x + 1},${station.y + 1}`, station.capacity])),
+    ...game.stations.map((station) => row([station.name, neighborhoodSize(station), (station.cells ?? [station]).map(p=>`${p.x+1},${p.y+1}`).join("; "), "Unlimited"])),
     "",
     "## Final ranking and economy",
     "",
@@ -103,7 +104,7 @@ export function generateAiPlaytestReport(game: SubwayState, context: SubwayRepor
         const contract = contractOf(line);
         const path = line.route.map((node, index) => {
           const station = node.stationId ? stationById(node.stationId)?.name ?? node.stationId : undefined;
-          return `${index + 1}:${station ? `${station} dock ${(node.stationSlot ?? 0) + 1}` : `${node.x + 1},${node.y + 1}`}`;
+          return `${index + 1}:${station ? `${station} (${node.x + 1},${node.y + 1})` : `${node.x + 1},${node.y + 1}`}`;
         }).join(" → ");
         return row([
           contract?.name ?? line.contractId,

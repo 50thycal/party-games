@@ -38,7 +38,6 @@ import {
   scheduleCost,
   scheduleProblems,
   scheduledLines,
-  slotPoint,
   starterTurnId,
   stationById,
   subwayGame,
@@ -269,94 +268,24 @@ const DECK_ORDER = ["branch", "medium", "express", "crosstown", "long", "short"]
   assert.equal(hasLegalMove(s, "red", 0), false, "and it offers no legal move");
 }
 
-// ============================================================================
-// PART 2 — Station docks are chosen, never assigned
-// ============================================================================
-{
-  const garden = stationById("garden")!;
-  const s = base();
-  // Red approaches Garden from the left; both docks are within a 2-peg segment.
-  s.players.red.lines = [owned("short", [{ x: 12, y: 2 }])];
-  assert.equal(validateNode(s, "red", 0, { x: 14, y: 2 }, false, 0), null, "dock 0 is within the 2-peg tolerance");
-  assert.equal(validateNode(s, "red", 0, { x: 14, y: 2 }, false, 1), null, "so is dock 1 from here");
-  assert.match(
-    validateNode(s, "red", 0, { x: 14, y: 2 }) ?? "",
-    /which dock/,
-    "docking without naming a dock is rejected"
-  );
-  assert.match(
-    validateNode(s, "red", 0, { x: 14, y: 2 }, false, 2) ?? "",
-    /no such dock/,
-    "and so is a dock that does not exist"
-  );
-  assert.match(
-    validateNode(s, "red", 0, { x: 14, y: 2 }, false, -1) ?? "",
-    /no such dock/,
-    "including a negative one"
-  );
-  assert.equal(
-    legalTargets(s, "red", 0).filter((t) => t.x === garden.x && t.y === garden.y).length,
-    2,
-    "both open docks are offered as separate targets"
-  );
-
-  // Dock geometry is real: the slot offset is what distance is measured to.
-  const slot0 = slotPoint(garden, 0);
-  const slot1 = slotPoint(garden, 1);
-  assert.notEqual(slot0.x, slot1.x, "two docks are two different physical places");
-}
-
-// A taken dock is never silently swapped for the other one.
-{
-  const s = base();
-  s.players.red.lines = [owned("medium", [{ x: 14, y: 5 }, { x: 14, y: 2, stationId: "garden", stationSlot: 0 }])];
-  s.players.blue.lines = [owned("short", [{ x: 16, y: 2 }])];
-  assert.match(
-    validateNode(s, "blue", 0, { x: 14, y: 2 }, false, 0) ?? "",
-    /already taken/,
-    "the occupied dock is refused"
-  );
-  assert.equal(validateNode(s, "blue", 0, { x: 14, y: 2 }, false, 1), null, "the open one is still available");
-  assert.deepEqual(
-    legalTargets(s, "blue", 0).filter((t) => t.x === 14 && t.y === 2).map((t) => t.slot),
-    [1],
-    "and only the open dock is offered"
-  );
-
-  // One line docks a station once, however many docks are free.
-  assert.match(
-    validateNode(s, "red", 0, { x: 14, y: 2 }, false, 1) ?? "",
-    /already connects/,
-    "a line cannot dock the same station twice"
-  );
-
-  // Both docks filled closes the station to everyone.
-  s.players.red.lines.push(owned("long", [{ x: 14, y: 6 }, { x: 14, y: 2, stationId: "garden", stationSlot: 1 }]));
-  assert.equal(
-    legalTargets(s, "blue", 0).filter((t) => t.x === 14 && t.y === 2).length,
-    0,
-    "a full station offers no docks at all"
-  );
-}
-
-// Two clients racing for one dock: first committed action wins, the loser is
-// rejected outright rather than moved to the other dock.
+// Neighborhood access replaces the former exclusive-dock race.
 {
   let s = base();
   s.phase = "CONSTRUCTION";
   s.resolveQueue = ["red", "blue"];
-  s.players.red.lines = [owned("short", [{ x: 12, y: 2 }])];
-  s.players.blue.lines = [owned("short", [{ x: 16, y: 2 }])];
-  s.players.red.pendingActions = [0];
-  s.players.blue.pendingActions = [0];
-
-  const stale = s;
-  s = dispatch(s, "red", "BUILD", { lineIndex: 0, x: 14, y: 2, slot: 0 });
-  assert.equal(s.players.red.lines[0].route[1].stationSlot, 0, "red takes the dock it named");
-  // Blue's client was looking at the stale board and asks for the same dock.
-  const raced = dispatch(s, "blue", "BUILD", { lineIndex: 0, x: 14, y: 2, slot: 0 });
-  assert.equal(raced, s, "the loser's action is a no-op, not a silent re-dock");
-  assert.equal(stale.players.red.lines[0].route.length, 1, "and the stale state it read is untouched");
+  s.players.red.lines = [owned("short", [{x:12,y:2}])];
+  s.players.blue.lines = [owned("short", [{x:16,y:2}])];
+  s.players.red.pendingActions = [0]; s.players.blue.pendingActions = [0];
+  assert.equal(validateNode(s,"red",0,{x:14,y:2}),null,"no dock choice required");
+  assert.equal(legalTargets(s,"red",0).filter(t=>t.x===14&&t.y===2).length,1,"one target per actual hole");
+  const before=s;
+  s=dispatch(s,"red","BUILD",{lineIndex:0,x:14,y:2});
+  assert.equal(s.players.red.lines[0].route[1].stationId,"garden");
+  assert.equal(s.players.red.lines[0].route[1].stationSlot,undefined);
+  const shared=dispatch(s,"blue","BUILD",{lineIndex:0,x:14,y:2});
+  assert.equal(shared.players.blue.lines[0].route.length,2,"another company can share the same peg");
+  assert.equal(shared.players.blue.tollsPaid,1,"ordinary contact toll still applies");
+  assert.equal(before.players.red.lines[0].route.length,1,"reducer preserves old state");
 }
 
 // ============================================================================
@@ -419,4 +348,4 @@ const DECK_ORDER = ["branch", "medium", "express", "crosstown", "long", "short"]
 }
 
 
-console.log("Subway geometry, dock, recipe and network-goal regressions passed.");
+console.log("Subway geometry, neighborhood, recipe and network-goal regressions passed.");

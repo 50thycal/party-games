@@ -27,7 +27,7 @@ import type { BaseAction, GameContext, Player } from "@/engine/types";
 // ============================================================================
 
 /** Bumped when the state shape changes; older rooms must restart. */
-export const SUBWAY_STATE_VERSION = 17;
+export const SUBWAY_STATE_VERSION = 18;
 
 // ----------------------------------------------------------------------------
 // Tunable configuration
@@ -52,7 +52,7 @@ export const SUBWAY_CONFIG = {
     { throughPeriod: 9, cost: 1 },
   ],
   board: { columns: 27, rows: 9 },
-  stationScores: { major: 5, minor: 2 },
+  stationScores: { major: 5, minor: 2, medium: 3 },
   tolerances: {
     straight: 15, // degrees: "approximately straight"
     gentleCurve: 30, // degrees: max turn for Gentle Curve
@@ -108,9 +108,9 @@ export type Point = { x: number; y: number };
 export type Station = Point & {
   id: string;
   name: string;
-  kind: "major" | "minor";
-  /** Max number of line connections that may dock here. */
-  capacity: number;
+  kind: "major" | "minor" | "medium";
+  /** Exact peg holes belonging to this neighborhood. */
+  cells?: Point[];
 };
 
 /**
@@ -118,48 +118,27 @@ export type Station = Point & {
  * setup, so the city changes without ever bunching every Destination together.
  */
 export const STATIONS: Station[] = [
-  { id: "market", name: "Market", kind: "minor", x: 3, y: 7, capacity: 2 },
-  { id: "grand", name: "Grand Central", kind: "major", x: 5, y: 3, capacity: 3 },
-  { id: "museum", name: "Museum", kind: "minor", x: 10, y: 6, capacity: 2 },
-  { id: "garden", name: "Garden", kind: "minor", x: 14, y: 2, capacity: 2 },
-  { id: "stadium", name: "Stadium", kind: "minor", x: 19, y: 7, capacity: 2 },
-  { id: "university", name: "University", kind: "minor", x: 7, y: 7, capacity: 2 },
-  { id: "library", name: "Library", kind: "minor", x: 12, y: 4, capacity: 2 },
-  { id: "theatre", name: "Theatre", kind: "minor", x: 17, y: 4, capacity: 2 },
-  { id: "airport", name: "Airport", kind: "major", x: 24, y: 1, capacity: 3 },
-  { id: "harbor", name: "Harbor Exchange", kind: "major", x: 22, y: 4, capacity: 3 },
-];
-
-/** Candidate locations are deliberately separated by at least three peg spaces. */
-export const STATION_SITES: Point[] = [
-  { x: 2, y: 2 }, { x: 3, y: 7 }, { x: 5, y: 4 }, { x: 7, y: 1 },
-  { x: 8, y: 7 }, { x: 10, y: 4 }, { x: 12, y: 8 }, { x: 14, y: 2 },
-  { x: 16, y: 6 }, { x: 18, y: 1 }, { x: 20, y: 7 }, { x: 22, y: 4 },
-  { x: 24, y: 1 }, { x: 25, y: 7 },
+  { id: "market", name: "Market", kind: "minor", x: 3, y: 7 },
+  { id: "grand", name: "Grand Central", kind: "major", x: 5, y: 3 },
+  { id: "museum", name: "Museum", kind: "major", x: 10, y: 6 },
+  { id: "garden", name: "Garden", kind: "minor", x: 14, y: 2 },
+  { id: "stadium", name: "Stadium", kind: "major", x: 19, y: 7 },
+  { id: "university", name: "University", kind: "major", x: 7, y: 7 },
+  { id: "library", name: "Library", kind: "minor", x: 12, y: 4 },
+  { id: "theatre", name: "Theatre", kind: "medium", x: 17, y: 4 },
+  { id: "airport", name: "Airport", kind: "major", x: 24, y: 1 },
+  { id: "harbor", name: "Harbor Exchange", kind: "major", x: 22, y: 4 },
 ];
 
 const STATION_BY_ID = new Map(STATIONS.map((s) => [s.id, s]));
 
 export const stationAt = (p: Point, stations: Station[] = STATIONS): Station | undefined =>
-  stations.find((s) => s.x === p.x && s.y === p.y);
+  stations.find((s) => (s.cells ?? [s]).some(c => c.x === p.x && c.y === p.y));
 
 export const stationById = (id: string): Station | undefined => STATION_BY_ID.get(id);
 
-/**
- * Where a docking slot physically sits inside its station tile, in peg spaces.
- * Docks are offset sideways so two lines never share a point, and dropped
- * slightly below the hole so the tile label stays readable. These offsets are
- * real geometry: they are what the route is drawn through and what segment
- * lengths and turn angles are measured against.
- */
-export const STATION_SLOT_SPACING = 0.32;
-export const STATION_SLOT_DROP = 0.18;
-
-/** Physical position of one station dock. */
-export const slotPoint = (station: Station, slot: number): Point => ({
-  x: station.x + (slot - (station.capacity - 1) / 2) * STATION_SLOT_SPACING,
-  y: station.y + STATION_SLOT_DROP,
-});
+export const neighborhoodSize = (station: Station): string =>
+  station.kind === "major" ? "large" : station.kind === "minor" ? "small" : "medium";
 
 // ----------------------------------------------------------------------------
 // Line contracts — three per company per game, all of which must find an owner.
@@ -296,8 +275,8 @@ export const ENGINEERING_CARDS: EngineeringCard[] = [
   {
     "id": "approach",
     "name": "Major Connection",
-    "description": "One completed line connects two different Major Stations.",
-    "requirement": "One completed line connects two different Major Stations.",
+    "description": "One completed line connects two different large neighborhoods.",
+    "requirement": "One completed line connects two different large neighborhoods.",
     "vp": 6,
     "kind": "objective"
   },
@@ -312,16 +291,16 @@ export const ENGINEERING_CARDS: EngineeringCard[] = [
   {
     "id": "network",
     "name": "Integrated Network",
-    "description": "Connect all three completed lines into one company network through shared stations or pegs.",
-    "requirement": "Connect all three completed lines into one company network through shared stations or pegs.",
+    "description": "Connect all three completed lines into one company network through shared neighborhoods or pegs.",
+    "requirement": "Connect all three completed lines into one company network through shared neighborhoods or pegs.",
     "vp": 7,
     "kind": "objective"
   },
   {
     "id": "terminal",
     "name": "Terminal Network",
-    "description": "Complete all three lines with their final nodes at stations. The same station may serve multiple lines.",
-    "requirement": "Complete all three lines with their final nodes at stations. The same station may serve multiple lines.",
+    "description": "Complete all three lines with their final nodes at neighborhoods. The same neighborhood may serve multiple lines.",
+    "requirement": "Complete all three lines with their final nodes at neighborhoods. The same neighborhood may serve multiple lines.",
     "vp": 6,
     "kind": "objective"
   },
@@ -352,16 +331,16 @@ export const ENGINEERING_CARDS: EngineeringCard[] = [
   {
     "id": "local-service",
     "name": "Local Service",
-    "description": "Connect four different Minor Stations across your company. Your lines need not connect to one another.",
-    "requirement": "Connect four different Minor Stations across your company. Your lines need not connect to one another.",
+    "description": "One line serves all three small neighborhoods. The line need not be complete.",
+    "requirement": "One line serves all three small neighborhoods. The line need not be complete.",
     "vp": 5,
     "kind": "objective"
   },
   {
     "id": "interchange",
     "name": "Central Interchange",
-    "description": "Dock two separate lines at the same Major Station in a two-player game; three lines in a three- or four-player game.",
-    "requirement": "Dock two separate lines at the same Major Station in a two-player game; three lines in a three- or four-player game.",
+    "description": "Place nodes from two separate lines inside the same large neighborhood in a two-player game; three lines in a three- or four-player game.",
+    "requirement": "Place nodes from two separate lines inside the same large neighborhood in a two-player game; three lines in a three- or four-player game.",
     "vp": 6,
     "kind": "objective"
   },
@@ -404,7 +383,7 @@ export const OBJECTIVE_TIERS: Record<string,string> = {
   bend: "1 / 2 / 3 completed lines starting east or west and ending north or south: 2 / 4 / 6 VP.",
   straight: "1 / 2 / 3 completed lines ending on their starter's border side: 2 / 4 / 7 VP.",
   through: "1 / 2 / 3 lines touching both north and south borders: 2 / 4 / 7 VP. Completion is not required.",
-  terminal: "1 / 2 / 3 completed lines ending at stations: 2 / 4 / 6 VP. Stations may be shared.",
+  terminal: "1 / 2 / 3 completed lines ending inside neighborhoods: 2 / 4 / 6 VP. Neighborhoods may be shared.",
   perimeter: "One completed line touching 1 / 2 / 3 distinct board sides: 2 / 4 / 6 VP. Use distinct pegs for each side.",
   "three-fronts": "1 / 2 / 3 completed lines with different starter sides and a common final border side: 2 / 4 / 7 VP.",
   "crosstown-service": "2 VP: a built segment reaches the first or last three columns. 4 VP: the same line reaches both. 6 VP: complete that line.",
@@ -431,8 +410,8 @@ for (let a = 0; a < STATIONS.length; a++) for (let b = a + 1; b < STATIONS.lengt
   const add = (stations: Station[]) => {
     const names = stations.map(s => s.name).join(" ↔ ");
     DESTINATION_CARDS.push({id: `dest-${stations.map(s => s.id).join("-")}`, stationIds: stations.map(s => s.id), name: names,
-      description: "Connect these stations through your own network.",
-      requirement: `Connect ${names} with a continuous company route. Transfer at shared stations or pegs; crossings alone do not connect.`, vp: stations.length === 2 ? SUBWAY_CONFIG.destinationVp : SUBWAY_CONFIG.threeStationDestinationVp});
+      description: "Connect these neighborhoods through your own network.",
+      requirement: `Connect ${names} with a continuous company route. Transfer at shared neighborhoods or pegs; crossings alone do not connect.`, vp: stations.length === 2 ? SUBWAY_CONFIG.destinationVp : SUBWAY_CONFIG.threeStationDestinationVp});
   };
   add([STATIONS[a], STATIONS[b]]);
   for (let c = b + 1; c < STATIONS.length; c++) add([STATIONS[a], STATIONS[b], STATIONS[c]]);
@@ -508,9 +487,9 @@ export type SchedulingStep = "PLANNING" | "RESOLUTION";
 
 export type RouteNode = Point & {
   stationId?: string;
-  /** Which docking slot of the station this connection occupies. */
+  /** Legacy plans only; ignored by current geometry. */
   stationSlot?: number;
-  /** Physical dock geometry retained with the node for every player count. */
+  /** Legacy plans only; no connection cap in v18. */
   stationCapacity?: number;
 };
 
@@ -960,34 +939,19 @@ export const contractsOutstanding = (s: SubwayState): number =>
 // ----------------------------------------------------------------------------
 // Geometry
 //
-// Two coordinate ideas live side by side, and the difference matters:
-//   * the *hole* a node occupies — always integer, and what the occupancy,
-//     spacing, overlap, and crossing rules are written against; and
-//   * its *physical* position — the hole itself for a normal peg, or the exact
-//     station dock for a station connection. Recipe lengths, turn angles, and
-//     everything drawn on the board use this one.
+// Neighborhood and ordinary nodes both use exact integer peg positions.
 // ----------------------------------------------------------------------------
 
 const samePoint = (a: Point, b: Point) => a.x === b.x && a.y === b.y;
 
 /** Physical position of a placed route node. */
 export function nodePoint(n: RouteNode): Point {
-  if (n.stationId) {
-    const station = stationById(n.stationId);
-    if (station) {
-      const slot = n.stationSlot ?? 0;
-      return {
-        x: n.x + (slot - ((n.stationCapacity ?? station.capacity) - 1) / 2) * STATION_SLOT_SPACING,
-        y: n.y + STATION_SLOT_DROP,
-      };
-    }
-  }
   return { x: n.x, y: n.y };
 }
 
-/** Physical position of a candidate placement at a hole, with a chosen dock. */
-export function targetPoint(p: Point, slot?: number, station?: Station): Point {
-  if (station && slot !== undefined) return slotPoint(station, slot);
+/** Physical position of a candidate placement at a hole. */
+export function targetPoint(p: Point, _slot?: number, _station?: Station): Point {
+  // Slot arguments are ignored: a target is the exact selected grid hole.
   return { x: p.x, y: p.y };
 }
 
@@ -1124,7 +1088,6 @@ export function routeContacts(
   // Pegs first, so they own their coordinate before any crossing claims it.
   for (const { line, playerId: ownerId } of opposing) {
     for (const n of line.route) {
-      if (n.stationId) continue; // stations keep their own exclusive rules
       if (samePoint(n, from)) continue; // already ours, and already paid for
       if (!pointOnSegment(n, from, to)) continue;
       const key = `${ownerId}:${contactKey(n.x, n.y)}`;
@@ -1162,37 +1125,21 @@ export const properCrossingCount = (contacts: RouteContact[]): number =>
 // Placement validation
 // ----------------------------------------------------------------------------
 
-/** Line connections docked at a station, in the order they arrived. */
+/** Line connections docked inside a neighborhood, in the order they arrived. */
 export function stationConnections(state: SubwayState, stationId: string): LineRef[] {
   return allLines(state).filter(({ line }) => line.route.some((n) => n.stationId === stationId));
 }
 
-/** Companies holding at least one connection at a station. */
+/** Companies holding at least one connection inside a neighborhood. */
 export function stationCompanies(state: SubwayState, stationId: string): string[] {
   return Array.from(new Set(stationConnections(state, stationId).map((c) => c.playerId)));
-}
-
-/** Which line, if any, already occupies a specific dock of a station. */
-export function slotOccupant(state: SubwayState, stationId: string, slot: number): LineRef | undefined {
-  return allLines(state).find(({ line }) =>
-    line.route.some((n) => n.stationId === stationId && (n.stationSlot ?? 0) === slot)
-  );
-}
-
-/** Docks of this station nobody has taken yet. */
-export function openSlots(state: SubwayState, station: Station): number[] {
-  return Array.from({ length: station.capacity }, (_, i) => i).filter(
-    (slot) => !slotOccupant(state, station.id, slot)
-  );
 }
 
 /**
  * Validates extending `lineIndex` of `playerId` to `p`. Returns a
  * human-readable reason when the placement is illegal, or null when allowed.
  *
- * Station holes are docks: each dock holds exactly one connection, so a company
- * must name the open dock it wants and companies race for specific slots.
- * Normal holes hold one peg.
+ * Neighborhood holes use ordinary shared-peg rules; no area connection limit.
  */
 export function validateNode(
   state: SubwayState,
@@ -1233,19 +1180,8 @@ export function validateNode(
     return `${contract.name} is already finished.`;
   }
 
-  if (station) {
-    if (slot === undefined) return "Choose which dock of the station to use.";
-    if (!Number.isInteger(slot) || slot < 0 || slot >= station.capacity) {
-      return `${station.name} has no such dock.`;
-    }
-    if (myLine.route.some((n) => n.stationId === station.id)) {
-      return "This line already connects that station.";
-    }
-    if (slotOccupant(state, station.id, slot)) return "That dock is already taken.";
-    if (stationConnections(state, station.id).length >= station.capacity) {
-      return `${station.name} is at capacity.`;
-    }
-  }
+  // Every neighborhood hole follows ordinary peg contact rules. There are no
+  // area-wide dock limits, offsets or exclusive slots.
   // A normal hole is no longer exclusive, and nothing is excluded for being
   // beside, on, or through an existing route (DEC-018). What that costs during
   // Construction is priced by routeContacts(), not forbidden here.
@@ -1292,10 +1228,10 @@ export function validateNode(
   return null;
 }
 
-/** A place a line may legally go next: a normal hole, or one station dock. */
+/** An exact grid hole a line may legally go next. */
 export type PlacementTarget = Point & { slot?: number };
 
-/** Every legal next placement for this line, docks enumerated individually. */
+/** Every legal next hole, including all neighborhood footprint holes. */
 export function legalTargets(
   state: SubwayState,
   playerId: string,
@@ -1305,15 +1241,7 @@ export function legalTargets(
   const out: PlacementTarget[] = [];
   for (let y = 0; y < SUBWAY_CONFIG.board.rows; y++) {
     for (let x = 0; x < SUBWAY_CONFIG.board.columns; x++) {
-      const station = stationAt({ x, y }, state.stations);
-      if (station) {
-        if (starter) continue; // starters may not use a station
-        for (let slot = 0; slot < station.capacity; slot++) {
-          if (!validateNode(state, playerId, lineIndex, { x, y }, false, slot)) out.push({ x, y, slot });
-        }
-      } else if (!validateNode(state, playerId, lineIndex, { x, y }, starter)) {
-        out.push({ x, y });
-      }
+      if (!validateNode(state, playerId, lineIndex, { x, y }, starter)) out.push({ x, y });
     }
   }
   return out;
@@ -1355,7 +1283,7 @@ export function surveyBlocker(s: SubwayState, playerId: string, p: Point): strin
     return "Outside the pegboard.";
   }
   if (p.x === 0 || p.y === 0 || p.x === SUBWAY_CONFIG.board.columns - 1 || p.y === SUBWAY_CONFIG.board.rows - 1) return "Starter areas are reserved: place Survey Pins inside the border.";
-  if (stationAt(p, s.stations)) return "Survey Pins cannot be placed on a station.";
+  if (stationAt(p, s.stations)) return "Survey Pins cannot be placed inside a neighborhood.";
   if (s.surveyPins.some((pin) => pin.playerId === playerId && pin.x === p.x && pin.y === p.y)) {
     return "You already surveyed that hole.";
   }
@@ -1472,7 +1400,7 @@ export function objectiveMet(id: string, me: SubwayPlayer, opponents: SubwayPlay
     case "minimal": return all && !!state?.surveyPins.some(pin => pin.playerId === me.id && surveyFulfilled(me, pin));
     case "crossing": return state?.firstCompletedPlayerId === me.id && all;
     case "crosstown-service": return me.lines.some(line => lineComplete(line) && line.route.some(n => n.x <= 2) && line.route.some(n => n.x >= SUBWAY_CONFIG.board.columns - 3));
-    case "local-service": return connectedStations(me).filter(s => s.kind === "minor").length >= 4;
+    case "local-service": return me.lines.some(line => STATIONS.filter(s => s.kind === "minor" && line.route.some(n => n.stationId === s.id)).length === 3);
     case "interchange": return STATIONS.some(station => station.kind === "major" && me.lines.filter(line => line.route.some(n => n.stationId === station.id)).length >= ((state?.playerOrder.length ?? opponents.length + 1) === 2 ? 2 : 3));
     case "solvent": return all && me.money >= 5;
     case "perimeter": return me.lines.some(line => lineComplete(line) && distinctSides(line.route, 3));
@@ -1706,10 +1634,28 @@ function shuffle<T>(items: T[], random: () => number): T[] {
   return out;
 }
 
-/** Assign every named station to a different deliberately spaced site. */
+/** Ten separated 3×3 bays guarantee a valid layout without rejection loops.
+ * Identities, connected footprints and quarter-turns all use engine randomness.
+ * The outer border stays clear; adjacent bays leave at least one empty hole.
+ */
 export function randomStationLayout(random: () => number): Station[] {
-  const sites = shuffle(STATION_SITES, random).slice(0, STATIONS.length);
-  return STATIONS.map((station, i) => ({ ...station, ...sites[i] }));
+  const bays = shuffle(Array.from({length:10}, (_,i) => ({x:1+(i%5)*5, y:i<5?1:5})), random);
+  return STATIONS.map((station,i) => {
+    const shapes: Point[][] = station.kind === "major"
+      ? [[{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:0,y:1},{x:1,y:1},{x:2,y:1}],
+         [{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:0,y:1},{x:1,y:1},{x:0,y:2}]]
+      : station.kind === "medium"
+      ? [[{x:0,y:0},{x:1,y:0},{x:0,y:1},{x:1,y:1}],
+         [{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:1,y:1}]]
+      : [[{x:0,y:0},{x:1,y:0},{x:0,y:1}], [{x:0,y:0},{x:1,y:0},{x:2,y:0}]];
+    let shape = shapes[Math.floor(random()*shapes.length)];
+    const turns = Math.floor(random()*4);
+    for(let t=0;t<turns;t++) shape = shape.map(p=>({x:2-p.y,y:p.x}));
+    const minX=Math.min(...shape.map(p=>p.x)), minY=Math.min(...shape.map(p=>p.y));
+    const origin={x:bays[i].x+Math.floor(random()*2),y:bays[i].y};
+    const cells=shape.map(p=>({x:origin.x+p.x-minX,y:origin.y+p.y-minY}));
+    return {...station,...cells[0],cells};
+  });
 }
 
 // ----------------------------------------------------------------------------
@@ -1928,8 +1874,7 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       fresh.market.picks = 0;
       fresh.market.decks.engineering = shuffle(ENGINEERING_CARDS.map(c => c.id), ctx.random);
       fresh.market.rows.engineering = fresh.market.decks.engineering.splice(0, 2);
-      fresh.stations = randomStationLayout(ctx.random).map(station => ({...station,
-        capacity: station.kind === "major" ? (fresh.playerOrder.length === 2 ? 2 : 3) : (fresh.playerOrder.length === 2 ? 1 : 2)}));
+      fresh.stations = randomStationLayout(ctx.random);
       fresh.oddPriorityId = fresh.playerOrder[Math.floor(ctx.random() * fresh.playerOrder.length)];
       fresh.procurement.deck = shuffle(
         LINE_CONTRACTS.map((c) => c.id),
@@ -2098,7 +2043,7 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       me.properCrossings += countAnyCrossings(s, nodePoint(from), targetPoint(pt, slot, station));
       line.route.push({
         ...pt,
-        ...(station ? { stationId: station.id, stationSlot: slot!, stationCapacity: station.capacity } : {}),
+        ...(station ? { stationId: station.id } : {}),
       });
 
       // Legal BUILD rejects completed lines; Undo restores the prior balance.
@@ -2109,7 +2054,7 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       // One combined, privacy-safe notice: the placement, the station or hole
       // it reached, completion, and any toll transfer are all public facts.
       const where = station
-        ? `${station.name} dock ${(slot ?? 0) + 1}`
+        ? `${station.name} (${pt.x + 1},${pt.y + 1})`
         : `hole ${pt.x + 1},${pt.y + 1}`;
       const tollNote = toll > 0
         ? ` ${contacts.length} contact${contacts.length === 1 ? "" : "s"} with ${Array.from(new Set(contacts.map((c) => s.players[c.ownerId].name))).join(", ")}: $${toll}M.`

@@ -4,14 +4,12 @@ import {
   STATIONS,
   SUBWAY_CONFIG,
   nodePoint,
-  slotPoint,
-  stationAt,
+  neighborhoodSize,
   surveyFulfilled,
   type LineContract,
   type PlacementTarget,
   type Point,
   type RouteNode,
-  type Station,
   type SubwayState,
 } from "./config";
 
@@ -35,7 +33,6 @@ const toPx = (p: Point) => ({ x: PAD + p.x * STEP, y: PAD + p.y * STEP });
 const STATION_COLORS = ["#244b70", "#783d58", "#356044", "#77502c", "#4f477c", "#27656a", "#744535", "#354e83", "#245967", "#66502f"];
 export const holePos = (p: Point) => toPx({ x: p.x, y: p.y });
 export const nodePx = (n: RouteNode) => toPx(nodePoint(n));
-export const slotPx = (station: Station, slot: number) => toPx(slotPoint(station, slot));
 
 export const targetKey = (t: PlacementTarget) => `${t.x},${t.y},${t.slot ?? "-"}`;
 
@@ -83,19 +80,12 @@ export function Board({
 }) {
   const targetSet = new Set(targets.map(targetKey));
   const followingSet = new Set(following.map(targetKey));
-  const targetCells = new Set(targets.map((t) => `${t.x},${t.y}`));
   const hasSelection = !!selected;
 
   const cells: Point[] = [];
   for (let y = 0; y < SUBWAY_CONFIG.board.rows; y++) {
     for (let x = 0; x < SUBWAY_CONFIG.board.columns; x++) cells.push({ x, y });
   }
-
-  /** Which contract, if any, is docked in a given station slot. */
-  const dockedIn = (stationId: string, slot: number) =>
-    drawn.find(
-      (d) => !d.ghost && !d.pending && d.route.some((n) => n.stationId === stationId && (n.stationSlot ?? 0) === slot)
-    );
 
   // A click that survives the camera's drag filter is a real tap. The element's
   // own box already carries the camera transform, so no camera state is needed.
@@ -115,28 +105,11 @@ export function Board({
     ) {
       return;
     }
-    const station = stationAt(cell, game.stations);
     const center = holePos(cell);
-    const radius = (station ? 0.55 : 0.45) * STEP;
+    const radius = 0.45 * STEP;
     if (Math.hypot(bx - center.x, by - center.y) > radius) return;
 
-    if (!station) {
-      onTapHole(cell);
-      return;
-    }
-    // Tapping a station tile docks at whichever slot the tap landed nearest —
-    // never an automatic choice.
-    let nearest = 0;
-    let nearestDist = Infinity;
-    for (let slot = 0; slot < station.capacity; slot++) {
-      const c = slotPx(station, slot);
-      const d = Math.hypot(bx - c.x, by - c.y);
-      if (d < nearestDist) {
-        nearestDist = d;
-        nearest = slot;
-      }
-    }
-    onTapHole(cell, nearest);
+    onTapHole(cell);
   };
 
   return (
@@ -173,6 +146,34 @@ export function Board({
         strokeWidth="3"
         opacity="0.6"
       />
+
+      {/* Footprints sit behind every peg, route and legal-target marker. */}
+      {game.stations.map((area) => {
+        const footprint = area.cells ?? [area];
+        const occupied = new Set(footprint.map(p => `${p.x},${p.y}`));
+        const color = STATION_COLORS[Math.max(0, STATIONS.findIndex(s => s.id === area.id)) % STATION_COLORS.length];
+        const highlighted = highlightedStations.includes(area.id);
+        const left=Math.min(...footprint.map(p=>p.x)), right=Math.max(...footprint.map(p=>p.x));
+        const top=Math.min(...footprint.map(p=>p.y));
+        const edges=footprint.flatMap(p=>{
+          const {x,y}=holePos(p), h=STEP/2;
+          return [
+            !occupied.has(`${p.x},${p.y-1}`) ? `M${x-h},${y-h}h${STEP}` : "",
+            !occupied.has(`${p.x+1},${p.y}`) ? `M${x+h},${y-h}v${STEP}` : "",
+            !occupied.has(`${p.x},${p.y+1}`) ? `M${x+h},${y+h}h${-STEP}` : "",
+            !occupied.has(`${p.x-1},${p.y}`) ? `M${x-h},${y+h}v${-STEP}` : "",
+          ];
+        }).join(" ");
+        return <g key={area.id} aria-label={`${area.name}: ${neighborhoodSize(area)} neighborhood${highlighted ? ", destination target" : ""}`} pointerEvents="none">
+          <title>{area.name} · {neighborhoodSize(area)} · +{SUBWAY_CONFIG.stationScores[area.kind]} VP · Place a peg anywhere inside · No dock limit</title>
+          {footprint.map(p=>{const pos=holePos(p);return <rect key={`${p.x},${p.y}`} x={pos.x-STEP/2} y={pos.y-STEP/2} width={STEP} height={STEP} fill={highlighted ? "#facc15" : color} fillOpacity={highlighted ? 0.38 : 0.18}/>;})}
+          <path d={edges} fill="none" stroke={highlighted ? "#eab308" : color} strokeWidth={highlighted ? 8 : 3} strokeLinejoin="round"/>
+          <text x={PAD+(left+right)/2*STEP} y={PAD+top*STEP-23} textAnchor="middle" fontSize="17" fontWeight="800" fill={color} stroke="#eaece2" strokeWidth="5" paintOrder="stroke">
+            {area.name}
+          </text>
+          <text x={PAD+(left+right)/2*STEP} y={PAD+top*STEP-10} textAnchor="middle" fontSize="10" fontWeight="700" fill={color}>{neighborhoodSize(area).toUpperCase()} · +{SUBWAY_CONFIG.stationScores[area.kind]} VP</text>
+        </g>;
+      })}
 
       {cells.map((c) => {
         const p = holePos(c);
@@ -211,133 +212,6 @@ export function Board({
               {done ? "✓" : "S"}
             </text>
             <circle cx={cx} cy={cy} r="14.5" fill="none" stroke={owner?.color ?? "#000"} strokeWidth="2" opacity="0.85" />
-          </g>
-        );
-      })}
-
-      {/* Station tiles with one docking slot per unit of capacity.
-          Marker precedence inside a tile (OD-7 / R 5.4): unselected current
-          targets dim once anything is selected, a NEXT marker wins over an
-          unselected current target on the same dock, and the selected NOW
-          ring renders on top of everything. */}
-      {game.stations.map((s) => {
-        const p = holePos(s);
-        const major = s.kind === "major";
-        const w = major ? 136 : 120;
-        const h = 96;
-        const top = -66;
-        const color = STATION_COLORS[Math.max(0, STATIONS.findIndex((station) => station.id === s.id)) % STATION_COLORS.length];
-        const highlight = targetCells.has(`${s.x},${s.y}`) && !hasSelection;
-        const openDocks = Array.from({ length: s.capacity }, (_, i) => i).filter((i) => !dockedIn(s.id, i));
-        const full = openDocks.length === 0;
-        const words = s.name.split(" ");
-        return (
-          <g key={s.id} transform={`translate(${p.x},${p.y})`}>
-            {highlightedStations.includes(s.id) && <rect aria-label={`${s.name}: destination target`} x={-w/2-14} y={top-14} width={w+28} height={h+28} rx={24} fill="#facc15" fillOpacity={0.3} stroke="#facc15" strokeWidth={9}/>}
-            <title>{s.name} · {s.kind} station · +{SUBWAY_CONFIG.stationScores[s.kind]} VP · {openDocks.length} of {s.capacity} docks open</title>
-            <rect x={-w / 2} y={top + 3} width={w} height={h} rx={major ? 10 : 22} fill="#000" opacity="0.18" />
-            <rect
-              x={-w / 2}
-              y={top}
-              width={w}
-              height={h}
-              rx={major ? 10 : 22}
-              fill={color}
-              stroke={highlight ? "#4ade80" : full ? "#b45309" : "#f5d98a"}
-              strokeWidth={highlight ? 5 : 3.5}
-            />
-            {words.map((word, i) => (
-              <text
-                key={i}
-                y={(words.length > 1 ? -44 : -35) + i * 18}
-                textAnchor="middle"
-                fill="#ffffff"
-                fontSize="17"
-                fontWeight="800"
-              >
-                {word}
-              </text>
-            ))}
-            <text y={-9} textAnchor="middle" fill="#fff1c2" fontSize="12" fontWeight="700">
-              {major ? "MAJOR" : "MINOR"} · +{SUBWAY_CONFIG.stationScores[s.kind]} VP
-            </text>
-            {Array.from({ length: s.capacity }, (_, slot) => {
-              const c = slotPx(s, slot);
-              const dx = c.x - p.x;
-              const dy = c.y - p.y;
-              const docked = dockedIn(s.id, slot);
-              const key = `${s.x},${s.y},${slot}`;
-              const open = targetSet.has(key);
-              const nextOpen = followingSet.has(key);
-              const isSelected =
-                !!selected && selected.x === s.x && selected.y === s.y && selected.slot === slot;
-              return (
-                <g key={slot}>
-                  {open && !isSelected && (
-                    <circle
-                      cx={dx}
-                      cy={dy}
-                      r="13"
-                      fill={planningTargets ? "#facc15" : "#4ade80"}
-                      opacity={hasSelection && !planningTargets ? 0.12 : 0.65}
-                      data-target={key}
-                      data-step={planningTargets ? "plan" : "1"}
-                    >
-                      {!hasSelection && (
-                        <animate attributeName="opacity" values="0.65;0.2;0.65" dur="1.6s" repeatCount="indefinite" />
-                      )}
-                    </circle>
-                  )}
-                  {nextOpen && (!open || hasSelection) && (
-                    <circle
-                      cx={dx}
-                      cy={dy}
-                      r="12"
-                      fill="#facc15"
-                      opacity="0.25"
-                      stroke="#ca8a04"
-                      strokeWidth="2.5"
-                      strokeDasharray="5 4"
-                      data-target={key}
-                      data-step="2"
-                    />
-                  )}
-                  <circle
-                    cx={dx}
-                    cy={dy}
-                    r="9"
-                    fill={docked ? docked.contract.color : "#00000055"}
-                    stroke={open ? (planningTargets ? "#facc15" : "#4ade80") : docked ? "#ffffff" : "#f5d98a"}
-                    strokeWidth={open && !hasSelection ? 3 : 2}
-                    strokeDasharray={planningTargets && open ? "3 3" : docked || open ? "0" : "3 3"}
-                  />
-                  <text y={dy - 13} x={dx} textAnchor="middle" fontSize="8" fontWeight="800" fill="#f5d98a">
-                    {slot + 1}
-                  </text>
-                  {isSelected && (
-                    <>
-                      <circle
-                        cx={dx}
-                        cy={dy}
-                        r="15"
-                        fill="#4ade80"
-                        opacity="0.5"
-                        data-target={key}
-                        data-step="1"
-                        data-selected="true"
-                      />
-                      <circle cx={dx} cy={dy} r="15" fill="none" stroke="#15803d" strokeWidth="4" />
-                      <text x={dx} y={dy + 3.5} textAnchor="middle" fontSize="11" fontWeight="800" fill="#14532d">
-                        1
-                      </text>
-                      <text x={dx} y={dy + 27} textAnchor="middle" fontSize="9" fontWeight="800" fill="#14532d">
-                        NOW
-                      </text>
-                    </>
-                  )}
-                </g>
-              );
-            })}
           </g>
         );
       })}
@@ -517,7 +391,7 @@ export function Board({
           if (d.anchored && i === 0) return null; // a real peg already sits there
           const p = nodePx(n);
           const isEndpoint = i === d.route.length - 1;
-          const r = n.stationId ? 7.5 : 11;
+          const r = 11;
           return (
             <g key={`n-${d.key}-${i}`} data-peg-kind={d.ghost ? "plan" : d.pending ? "pending" : "built"} opacity={d.ghost ? (d.stale ? 0.35 : 0.55) : 1}>
               {isEndpoint && d.growing && !d.ghost && (
@@ -544,7 +418,7 @@ export function Board({
                 strokeWidth={d.ghost ? 3 : 3.5}
                 strokeDasharray={d.ghost ? "4 3" : undefined}
               />
-              {!n.stationId && (
+              {(
                 <text
                   x={p.x}
                   y={p.y + 4}

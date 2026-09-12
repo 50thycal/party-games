@@ -127,7 +127,7 @@ function Diagram({ id, color }: { id: string; color: string }) {
   if (shape) return <><rect x="12" y="10" width="96" height="44" fill="none" stroke={RULE}/>
     {shape.paths.map((points,i)=><Route key={i} points={points} color={[color,"#b45309","#0369a1"][i]} width={3}/>)}
     <text x="60" y="63" textAnchor="middle" fontSize="6" fontWeight="700" fill={RULE}>{shape.label}</text></>;
-  const labels:Record<string,string>={approach:"1 finished line · 2 MAJOR",terminal:"3 lines end at stations",minimal:"3 complete + Survey Pin",crossing:"FIRST to finish all 3", "local-service":"4 different MINOR",interchange:"Same MAJOR · 2 / 3 lines",solvent:"3 complete + $5M"};
+  const labels:Record<string,string>={approach:"1 finished line · 2 LARGE",terminal:"Ends inside neighborhoods",minimal:"3 complete + Survey Pin",crossing:"FIRST to finish all 3", "local-service":"1 line · all 3 SMALL",interchange:"Same LARGE · 2 / 3 lines",solvent:"3 complete + $5M"};
   return <><Route points={[[12,32],[60,32],[108,32]]} color={color}/>
     {id === "approach" && <><StationTile x={12} y={32} major/><StationTile x={108} y={32} major/></>}
     {id === "interchange" && <StationTile x={60} y={32} major/>}
