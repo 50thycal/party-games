@@ -68,10 +68,9 @@ ghosts, planning controls and next-step hints, but retains normal real-placement
 previews and Confirm. Turning it off does not erase saved plans.
 
 The reducer rejects a line crossing or rejoining an earlier segment of its own
-color; different colors retain contact/toll rules. Nine directional/terminal
-Engineering objectives have live 2/4/maximum tiers, with the original maximums.
+color; different colors retain contact/toll rules. Directional Engineering objectives have live tiers with card-specific awards.
 The same progress helper supplies phone VP and final score ledger points.
-Neighborhood footprints remain a proposal, not the implemented board.
+Neighborhood footprints, explicit node transfers and zero automatic area VP are implemented.
 
 ## Purpose
 
@@ -568,7 +567,7 @@ Ordinary route purchases dispatch directly from a priced button on the offer. Ca
 ## Neighborhood board (DEC-043/DEC-044, state v19)
 
 Ten stable neighborhood IDs replace point stations: 3 small (6 holes), 6 large
-(16 holes), 1 medium (10 holes), worth 5/2/3 VP per distinct area per company.
+(16 holes), 1 medium (10 holes), with zero automatic neighborhood VP.
 `randomStationLayout` packs six four-column interior bays. Each holds one 16-hole
 large area with a flat or stepped boundary; four randomly selected bays also hold
 a small/medium area grown within the connected complement. Identity order, vertical
@@ -578,15 +577,40 @@ may touch boundaries; 124 interior holes are covered and 51 remain outside areas
 State stores exact `cells`; `stationAt` tests membership. Old station IDs and major/
 minor internal category keys remain for cards, but no capacity field or dock cap remains.
 
-Only placing a node inside serves an area. Shared area IDs join own lines even at
-different holes; string-only crossings and opponents do not supply transfers. Every
+Only placing a node inside serves an area. Different company lines transfer at
+overlapping or orthogonally adjacent nodes, anywhere on the board. Sharing an area
+alone, diagonals, string-only crossings and opponents do not supply transfers. Every
 physical contact uses actual hole geometry, including neighborhood pegs. Sharing an
 area alone costs nothing. Longest network counts built segments, not transfer distance.
 Local Service requires one line serving all three small areas, with no completion
-requirement. Major Connection/Interchange use large areas; Terminal accepts any size.
+requirement, worth 6 VP. Regional Service needs three large areas on one completed
+line. Citywide Service replaces Terminal: visit all ten areas for 10 VP without
+requiring completion or connectivity. Central Interchange needs all three lines
+in one local transfer group inside one large area at every player count (4 VP).
 Literal border goals and survey rules remain exact-hole based. Surveys stay outside areas.
 
 Board footprints render beneath pegs, routes and target rings. Destination highlights
 trace full area boundaries. Phone cards, tutorial and report use neighborhood rules;
 reports include size, all occupied holes and exact node locations. Plans revalidate
-neighborhood membership. State version 19 and local-save key require restart for older layouts/scoring.
+neighborhood membership. State version 20 and local-save key require restart for older layouts/scoring.
+
+### Destination and border objective balance
+
+The deck contains 30 unique missions: 15 pairs (4 VP) and 15 triples (7 VP).
+Pair appearances are three per neighborhood, triple appearances four/five. Start
+deals one of each without replacement; remaining cards shuffle together for the
+once-per-game $5M purchase. A mission checks the intersection of component sets
+serving each named area: repeated area visits cannot merge separated networks.
+
+Transfer groups collapse only overlapping/orthogonal nodes from different lines.
+Company components add built segments; longest trail traverses only those weighted
+segments with a used-edge mask, adding no transfer length and not summing branches.
+Central Interchange checks transfer groups restricted to nodes within the area,
+so outside string connections cannot substitute for the local hub.
+
+Across Town pays 4/8 for exact east–west then all four sides in the same network,
+with distinct nodes assigned to sides. Four Corners pays 5/10 for opposite/all four
+exact corner pegs in the same network. Neither requires completed lines. Perimeter
+Service pays 2/5/8 for 1/2/3 completed lines each touching three distinct sides.
+Live phone progress and final ledger use the same evaluator; Undo recomputes.
+Area labels no longer advertise VP; rules/tutorial define borders and corners.

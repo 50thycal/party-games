@@ -165,13 +165,13 @@ export function Board({
           ];
         }).join(" ");
         return <g key={area.id} aria-label={`${area.name}: ${neighborhoodSize(area)} neighborhood${highlighted ? ", destination target" : ""}`} pointerEvents="none">
-          <title>{area.name} · {neighborhoodSize(area)} · +{SUBWAY_CONFIG.stationScores[area.kind]} VP · Place a peg anywhere inside · No dock limit</title>
+          <title>{area.name} · {neighborhoodSize(area)} · Place a peg anywhere inside · No dock limit</title>
           {footprint.map(p=>{const pos=holePos(p);return <rect key={`${p.x},${p.y}`} x={pos.x-STEP/2} y={pos.y-STEP/2} width={STEP} height={STEP} fill={highlighted ? "#facc15" : color} fillOpacity={highlighted ? 0.38 : 0.18}/>;})}
           <path d={edges} fill="none" stroke={highlighted ? "#eab308" : color} strokeWidth={highlighted ? 8 : 3} strokeLinejoin="round"/>
           <text x={PAD+(left+right)/2*STEP} y={PAD+top*STEP-23} textAnchor="middle" fontSize="17" fontWeight="800" fill={color} stroke="#eaece2" strokeWidth="5" paintOrder="stroke">
             {area.name}
           </text>
-          <text x={PAD+(left+right)/2*STEP} y={PAD+top*STEP-10} textAnchor="middle" fontSize="10" fontWeight="700" fill={color}>{neighborhoodSize(area).toUpperCase()} · +{SUBWAY_CONFIG.stationScores[area.kind]} VP</text>
+          <text x={PAD+(left+right)/2*STEP} y={PAD+top*STEP-10} textAnchor="middle" fontSize="10" fontWeight="700" fill={color}>{neighborhoodSize(area).toUpperCase()}</text>
         </g>;
       })}
 

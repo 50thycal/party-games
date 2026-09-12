@@ -27,7 +27,7 @@ for (const count of [2,3,4]) {
 {
   const s=subwayGame.initialState(testRoom(2).players), me=s.players[s.playerOrder[0]];
   const line=(end:RouteNode):PlayerLine=>({contractId:"short",paid:5,route:[{x:0,y:2},{x:3,y:3},{x:4,y:4},{x:3,y:5},end]});
-  for(const [id,end] of [["straight",{x:0,y:6}],["bend",{x:8,y:0}],["terminal",{x:8,y:3,stationId:"market"}]] as [string,RouteNode][]) {
+  for(const [id,end] of [["straight",{x:0,y:6}],["bend",{x:8,y:0}]] as [string,RouteNode][]) {
     for(let n=0;n<=3;n++) {
       me.lines=Array.from({length:n},()=>line(end));
       const p=objectiveProgress(id,me,[],s);
@@ -51,11 +51,11 @@ for (const count of [2,3,4]) {
   assert.equal(objectiveProgress("crosstown-service",me,[],s).points,0,"a starter alone does not earn geographic progress");
   assert.equal(objectiveProgress("four-corners",me,[],s).points,0);
   me.lines[0].route.push({x:4,y:2});
-  assert.equal(objectiveProgress("crosstown-service",me,[],s).points,2);
-  assert.equal(objectiveProgress("four-corners",me,[],s).points,2);
+  assert.equal(objectiveProgress("crosstown-service",me,[],s).points,0);
+  assert.equal(objectiveProgress("four-corners",me,[],s).points,0);
   me.lines[0].route.push({x:26,y:8});
   assert.equal(objectiveProgress("crosstown-service",me,[],s).points,4);
-  assert.equal(objectiveProgress("four-corners",me,[],s).points,4);
+  assert.equal(objectiveProgress("four-corners",me,[],s).points,5);
   // Legal recipe candidate crosses an earlier same-color segment (not a node).
   me.lines=[{contractId:"short",paid:5,route:[{x:4,y:2},{x:6,y:4},{x:7,y:2}]}];
   s.stations=[];
