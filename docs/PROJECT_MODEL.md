@@ -565,13 +565,16 @@ Subway touch/table continuation: the camera adds reduced-motion-aware momentum a
 
 Ordinary route purchases dispatch directly from a priced button on the offer. Card drafting shows disabled availability on the face; current Engineering goals are readable inline. GameView serializes pending UI dispatches and reports rejected actions in its status strip. Planner context alone initializes automatic planning, including React's mount-effect replay; loading saved plans does not reset it. Hiring and subsequent active routes focus the pegboard. Target navigation respects the measured HUD bands. The camera opens the first hand/line piece, the survey slip, or current construction controls at a consistent working zoom. Construction history follows the current actions in visual and keyboard order. Results wrap for narrow screens and put the score breakdown before report export (DEC-033).
 
-## Neighborhood board (DEC-043, state v18)
+## Neighborhood board (DEC-043/DEC-044, state v19)
 
-Ten stable neighborhood IDs replace point stations: 3 small (3 holes), 6 large
-(6 holes), 1 medium (4 holes), worth 2/5/3 VP per distinct area per company.
-`randomStationLayout` shuffles identity-to-bay placement, connected footprint shape,
-quarter-turn and horizontal offset using engine randomness. Ten separated interior
-3×3 bays guarantee valid non-overlapping footprints and keep the outer border clear.
+Ten stable neighborhood IDs replace point stations: 3 small (6 holes), 6 large
+(16 holes), 1 medium (10 holes), worth 5/2/3 VP per distinct area per company.
+`randomStationLayout` packs six four-column interior bays. Each holds one 16-hole
+large area with a flat or stepped boundary; four randomly selected bays also hold
+a small/medium area grown within the connected complement. Identity order, vertical
+reflection, shape and one empty column location use engine randomness. Every area
+is connected, areas never overlap, and border holes remain clear. The denser areas
+may touch boundaries; 124 interior holes are covered and 51 remain outside areas.
 State stores exact `cells`; `stationAt` tests membership. Old station IDs and major/
 minor internal category keys remain for cards, but no capacity field or dock cap remains.
 
@@ -586,4 +589,4 @@ Literal border goals and survey rules remain exact-hole based. Surveys stay outs
 Board footprints render beneath pegs, routes and target rings. Destination highlights
 trace full area boundaries. Phone cards, tutorial and report use neighborhood rules;
 reports include size, all occupied holes and exact node locations. Plans revalidate
-neighborhood membership. State version 18 and local-save key reject old dock games.
+neighborhood membership. State version 19 and local-save key require restart for older layouts/scoring.

@@ -4,8 +4,28 @@ Build OS: v0.12
 Phase: REVIEW
 Status: Active
 Updated: 2026-09-12
-Implementation State: PR #172 now includes the approved neighborhood conversion at state v18, alongside guidance, tiered goals and companion feedback. Production build/type/lint, neighborhood regressions, 36 full games and companion/API tests passed. Browser access remains blocked; independent review and visual acceptance pending.
-Related PRs: [#172](https://github.com/50thycal/party-games/pull/172) (guided turns, highlights and tiers; open); [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; merged); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
+Implementation State: PR #172 merged. Larger 6/10/16-hole neighborhood continuation implemented at state v19 on codex/subway-larger-neighborhoods. Build/lint and all automated gates passed; browser blocked; independent review pending.
+Related PRs: [#172](https://github.com/50thycal/party-games/pull/172) (guided turns, neighborhoods and tiers; merged); [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; merged); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
+
+## Current continuation — larger neighborhoods and reversed rewards
+
+Owner authorized 6/10/16-hole small/medium/large neighborhoods and reversed base
+rewards (5/3/2 VP) on 2026-09-12. Counts remain 3/1/6.
+Goal: make neighborhoods easier to reach while rewarding smaller targets more.
+Non-goals: change board dimensions, neighborhood counts, card VP/requirements,
+network/toll rules, economy or other games.
+Acceptance: exact sizes and reversed score ledger; connected varied deterministic
+footprints, no overlap or border coverage, survey space, full build/lint/Subway gates.
+Implementation State: implemented. Production build/type and standalone lint passed;
+300 seat/seed layout cases and exact 5/3/2 VP ledger assertions passed. Full Subway
+suite: 36 complete 2/3/4-seat games reached RESULTS, 220 portfolio checks, companion
+and isolated API privacy/persistence checks passed. Mean completed lines/company:
+2.833 / 2.778 / 2.750; lowest cash -15 / -12 / -18. These heuristic simulations do
+not prove improved human balance. Browser access to the running production screen
+returned ERR_BLOCKED_BY_CLIENT; no phone/iPad visual acceptance is claimed.
+Next Step: publish review PR and obtain independent current-head review.
+
+
 
 ## Approved neighborhood continuation — 2026-09-12
 

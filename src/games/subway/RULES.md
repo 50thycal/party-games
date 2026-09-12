@@ -177,9 +177,10 @@ legality remains unchanged.
 Follow the route's lengths **in the printed order**, within ±0.5 peg-space distance.
 Turns may be at most **90°**, inclusive. The first segment has no heading constraint.
 The ten named neighborhoods have **3 small, 6 large and 1 medium** footprints.
-Small areas cover 3 holes, medium 4 and large 6. Setup shuffles area locations,
-connected shapes and rotations using seeded randomness. Separated interior bays
-ensure no overlapping areas and a clear outer border, without retry failures.
+Small areas cover 6 holes (5 VP), medium 10 (3 VP) and large 16 (2 VP). Setup varies
+area locations and connected shapes using seeded randomness. Six interior bays
+pack the larger footprints without overlap or border coverage. Areas may touch
+boundaries. 51 interior holes remain outside areas for surveys.
 
 Place a peg on any hole inside an area to serve it. String merely passing through
 is not service. There are **no dock limits**. Multiple companies and lines may
@@ -208,7 +209,7 @@ It does **not** refund the crew-hiring transaction.
 ## Scoring and the table
 
 Route completion/unfinished penalties, the longest network award,
-unique served neighborhoods (5 VP large, 3 VP medium, 2 VP small), all held Engineering goals and
+unique served neighborhoods (2 VP large, 3 VP medium, 5 VP small), all held Engineering goals and
 Destinations, Survey Pins and final debt appear in the results breakdown. A neighborhood
 scores once per company. Ties break on large-neighborhood connections, then cash, then shared victory.
 
@@ -226,6 +227,6 @@ complete accepted-action ledger: setup, cards, routes, placements, crew and toll
 economy, Undo actions, scoring, timing, and the construction end reason. Rejected
 actions are not tracked because they never change reducer state.
 
-State version **18** requires new games; old local saves are not migrated.
+State version **19** requires new games; old local saves are not migrated.
 Automated games test termination and rule behavior, not human enjoyment or
 statistically proven balance. Desktop/phone visual verification is still pending.

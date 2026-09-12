@@ -27,7 +27,7 @@ import type { BaseAction, GameContext, Player } from "@/engine/types";
 // ============================================================================
 
 /** Bumped when the state shape changes; older rooms must restart. */
-export const SUBWAY_STATE_VERSION = 18;
+export const SUBWAY_STATE_VERSION = 19;
 
 // ----------------------------------------------------------------------------
 // Tunable configuration
@@ -52,7 +52,7 @@ export const SUBWAY_CONFIG = {
     { throughPeriod: 9, cost: 1 },
   ],
   board: { columns: 27, rows: 9 },
-  stationScores: { major: 5, minor: 2, medium: 3 },
+  stationScores: { major: 2, minor: 5, medium: 3 },
   tolerances: {
     straight: 15, // degrees: "approximately straight"
     gentleCurve: 30, // degrees: max turn for Gentle Curve
@@ -1634,28 +1634,50 @@ function shuffle<T>(items: T[], random: () => number): T[] {
   return out;
 }
 
-/** Ten separated 3×3 bays guarantee a valid layout without rejection loops.
- * Identities, connected footprints and quarter-turns all use engine randomness.
- * The outer border stays clear; adjacent bays leave at least one empty hole.
+/** Six four-column interior bays each hold one 16-hole area. The complementary
+ * connected space holds a 6- or 10-hole area in four randomly chosen bays.
+ * This bounded packing covers 124 holes, leaving 51 interior survey holes and
+ * every border hole clear. Areas may be adjacent, never overlapping.
  */
 export function randomStationLayout(random: () => number): Station[] {
-  const bays = shuffle(Array.from({length:10}, (_,i) => ({x:1+(i%5)*5, y:i<5?1:5})), random);
-  return STATIONS.map((station,i) => {
-    const shapes: Point[][] = station.kind === "major"
-      ? [[{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:0,y:1},{x:1,y:1},{x:2,y:1}],
-         [{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:0,y:1},{x:1,y:1},{x:0,y:2}]]
-      : station.kind === "medium"
-      ? [[{x:0,y:0},{x:1,y:0},{x:0,y:1},{x:1,y:1}],
-         [{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:1,y:1}]]
-      : [[{x:0,y:0},{x:1,y:0},{x:0,y:1}], [{x:0,y:0},{x:1,y:0},{x:2,y:0}]];
-    let shape = shapes[Math.floor(random()*shapes.length)];
-    const turns = Math.floor(random()*4);
-    for(let t=0;t<turns;t++) shape = shape.map(p=>({x:2-p.y,y:p.x}));
-    const minX=Math.min(...shape.map(p=>p.x)), minY=Math.min(...shape.map(p=>p.y));
-    const origin={x:bays[i].x+Math.floor(random()*2),y:bays[i].y};
-    const cells=shape.map(p=>({x:origin.x+p.x-minX,y:origin.y+p.y-minY}));
-    return {...station,...cells[0],cells};
-  });
+  const large = shuffle(STATIONS.filter(s => s.kind === "major"), random);
+  const companions = shuffle([...STATIONS.filter(s => s.kind !== "major"), undefined, undefined], random);
+  const gap = Math.floor(random() * 7); // one empty column before/between/after bays
+  const areas = new Map<string, Station>();
+  for (let i = 0; i < large.length; i++) {
+    const x0 = 1 + i * 4 + (i >= gap ? 1 : 0);
+    const flip = random() < 0.5;
+    const heights = random() < 0.5 ? [4,4,4,4] : shuffle([3,4,4,5], random);
+    const filled: Point[] = [], remainder: Point[] = [];
+    for (let x = 0; x < 4; x++) for (let y = 0; y < 7; y++) {
+      (y < heights[x] ? filled : remainder).push({x, y});
+    }
+    const position = (p: Point): Point => ({x:x0+p.x, y:1+(flip ? 6-p.y : p.y)});
+    const cells = filled.map(position);
+    areas.set(large[i].id, {...large[i], ...cells[0], cells});
+    const companion = companions[i];
+    if (!companion) continue;
+    const size = companion.kind === "medium" ? 10 : 6;
+    // Grow a connected footprint inside the 12-hole complement. Every column
+    // retains at least two adjoining holes, so the frontier cannot run dry.
+    const selected: Point[] = [];
+    const frontier = [remainder[Math.floor(random() * remainder.length)]];
+    const seen = new Set<string>(frontier.map(p => `${p.x},${p.y}`));
+    const available = new Set(remainder.map(p => `${p.x},${p.y}`));
+    while (selected.length < size) {
+      const next = frontier.shift()!;
+      selected.push(next);
+      const neighbors = shuffle([{x:next.x-1,y:next.y},{x:next.x+1,y:next.y},
+        {x:next.x,y:next.y-1},{x:next.x,y:next.y+1}], random);
+      for (const p of neighbors) {
+        const key = `${p.x},${p.y}`;
+        if (available.has(key) && !seen.has(key)) { seen.add(key); frontier.push(p); }
+      }
+    }
+    const footprint = selected.map(position);
+    areas.set(companion.id, {...companion, ...footprint[0], cells:footprint});
+  }
+  return STATIONS.map(s => areas.get(s.id)!);
 }
 
 // ----------------------------------------------------------------------------

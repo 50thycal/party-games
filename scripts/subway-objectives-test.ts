@@ -181,7 +181,7 @@ for(const count of [2,3,4]) {
 {
   let s=startPlaytest(2,5).state;s.phase="CONSTRUCTION";s.resolveQueue=["seat-1","seat-2"];
   const st=s.stations.find(st=>st.kind==="minor" && st.x>2)!;
-  assert.equal(st.cells!.length,3);
+  assert.equal(st.cells!.length,6);
   const p=s.players["seat-1"];p.lines=[line([pt(st.x-2,st.y)])];p.crewsHired=true;p.pendingActions=[0];
   s=dispatch(s,p.id,"BUILD",{lineIndex:0,x:st.x,y:st.y,});
   assert.equal(s.players[p.id].lines[0].route.length,2);
