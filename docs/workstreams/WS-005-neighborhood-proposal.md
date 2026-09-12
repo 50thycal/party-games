@@ -1,18 +1,18 @@
 # Neighborhood conversion — approved specification
 
-Status: OWNER AUTHORIZED on 2026-09-12. Implemented in PR #172; validation/review tracked in WS-005.
+Status: OWNER AUTHORIZED on 2026-09-12. Original conversion merged in PR #172; owner-authorized enlargement/reward reversal tracked in WS-005.
 
 ## Approved board rule
 
 Keep the ten named places, but make each a colored neighborhood footprint on
 the peg grid. There are three small, six large and one medium neighborhood.
-Small neighborhoods contain three holes (straight or L-shaped);
-large neighborhoods contain six holes (2×3 or a connected triangular footprint);
-the medium neighborhood contains four holes (square or T-shaped).
-Shuffle positions and rotate footprints once per game, using the game's seeded
-randomness. Never overlap neighborhoods; keep a clear outer border and enough
-space between areas. Use ten separated interior 3×3 bays as a guaranteed valid layout, avoiding retry/fallback failure. Do not
-move areas during a game or rotate the pegboard's north/south labels.
+Small neighborhoods contain six holes, medium ten and large sixteen.
+Shuffle positions and vary connected footprints once per game, using seeded
+randomness. Six four-column interior bays each hold one large area, flat or stepped,
+with small/medium areas growing in four of the complementary regions. Random vertical
+reflection and the position of one empty column add variation. Areas may share a
+boundary but never overlap. Keep the outer border clear; 51 interior holes remain
+outside areas. Do not move areas during a game or rotate board compass directions.
 
 A line serves a neighborhood when it places a node inside that footprint.
 Passing through with string alone earns nothing. A line can serve a neighborhood
@@ -20,9 +20,9 @@ once; revisiting does not multiply points. Two of a company's lines serving the
 same neighborhood can transfer there, even at different holes. Opponent lines
 and geometric crossings do not provide transfers.
 
-Small neighborhoods: Market, Garden, Library (2 VP each).
+Small neighborhoods: Market, Garden, Library (5 VP each).
 Large neighborhoods: Grand Central, Museum, Stadium, University, Airport,
-Harbor Exchange (5 VP each). Medium neighborhood: Theatre (3 VP).
+Harbor Exchange (2 VP each). Medium neighborhood: Theatre (3 VP).
 These identities keep their sizes while locations, shapes and rotations vary.
 Score each distinct neighborhood once per company. No neighborhood-wide dock cap;
 ordinary peg sharing/contact rules apply at individual holes. The internal major/
@@ -66,4 +66,4 @@ objective tiers, exact-border goals, full-game simulation and phone/iPad renderi
 all need coverage. Compare completion rate and meaningful route choices with the
 station version; do not treat more completed routes alone as proof of balance.
 
-Owner authorized node-only service, neighborhood transfers, no dock limits and the revised counts/Local Service condition. State v18 requires new games.
+Owner authorized node-only service, neighborhood transfers, no dock limits and the revised counts/Local Service condition. State v19 requires new games.

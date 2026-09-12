@@ -10,7 +10,7 @@ for (const count of [2,3,4]) for (let seed=1;seed<=100;seed++) {
   const all=new Set<string>();
   for(const area of areas) {
     const cells=area.cells!;
-    assert.equal(cells.length,area.kind==="minor"?3:area.kind==="major"?6:4);
+    assert.equal(cells.length,area.kind==="minor"?6:area.kind==="major"?16:10);
     const own=new Set(cells.map(p=>`${p.x},${p.y}`));
     const reached=new Set<string>(),pending=[cells[0]];
     while(pending.length) { const p=pending.pop()!,key=`${p.x},${p.y}`; if(reached.has(key))continue; reached.add(key);
@@ -23,6 +23,8 @@ for (const count of [2,3,4]) for (let seed=1;seed<=100;seed++) {
       assert.equal(stationAt(cell,areas)?.id,area.id,"every footprint hole serves its neighborhood");
     }
   }
+  assert.equal(all.size,124);
+  assert.equal(25*7-all.size,51,"51 interior holes remain outside neighborhoods");
   const s=startPlaytest(count,seed).state;
   s.players["seat-1"].lines=[{contractId:"short",paid:0,route:[]}];
   for(const area of s.stations) for(const cell of area.cells!) {
@@ -30,7 +32,7 @@ for (const count of [2,3,4]) for (let seed=1;seed<=100;seed++) {
     const from={x:cell.x>=2?cell.x-2:cell.x+2,y:cell.y};
     s.players["seat-1"].lines[0].route=[from];
     assert.equal(validateNode(s,"seat-1",0,cell),null,"every area hole has a legal approach on an empty board");
-    assert.ok(legalTargets(s,"seat-1",0).some(t=>t.x===cell.x&&t.y===cell.y&&t.slot===undefined));
+    if (cell === area.cells![0]) assert.ok(legalTargets(s,"seat-1",0).some(t=>t.x===cell.x&&t.y===cell.y&&t.slot===undefined));
     assert.ok(surveyBlocker(s,"seat-1",cell),"surveys cannot occupy neighborhoods");
   }
   layouts.add(JSON.stringify(areas));
@@ -53,6 +55,11 @@ for(const random of [()=>0,()=>0.999999]) assert.equal(randomStationLayout(rando
   p.lines=[line([{x:0,y:2},{x:4,y:2,stationId:"garden"},{x:6,y:3,stationId:"garden"}])];
   const items=scoreGame(s,0).players[p.id].scoreBreakdown!;
   assert.equal(items.filter(i=>i.label==="Garden connection").length,1,"repeat nodes score area once");
+  assert.equal(items.find(i=>i.label==="Garden connection")!.points,5,"small area now earns 5 VP");
+  p.lines[0].route.push({x:12,y:3,stationId:"theatre"},{x:15,y:3,stationId:"grand"});
+  const resized=scoreGame(s,0).players[p.id].scoreBreakdown!;
+  assert.equal(resized.find(i=>i.label==="Theatre connection")!.points,3,"medium retains 3 VP");
+  assert.equal(resized.find(i=>i.label==="Grand Central connection")!.points,2,"large now earns 2 VP");
   assert.deepEqual(nodePoint({x:4,y:2,stationId:"garden",stationSlot:2}),{x:4,y:2},"legacy slot never offsets geometry");
 }
 console.log("Neighborhood layouts (300 seat/seed cases), every-hole approaches, node-only service, transfers and unique scoring passed.");

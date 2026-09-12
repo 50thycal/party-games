@@ -15,14 +15,14 @@ const dispatch=(s:SubwayState,id:string,type:SubwayAction["type"],payload?:Subwa
 let checks=0;
 for(const count of [2,3,4]) for(const category of ["engineering"] as const) {
   let {state:s}=startPlaytest(count,42);
-  assert.equal(SUBWAY_STATE_VERSION,18);
+  assert.equal(SUBWAY_STATE_VERSION,19);
   assert.ok(!("construction" in s.market.rows) && !("construction" in s.market.decks));
   assert.ok(!("priorityQueue" in s));
   assert.ok(Object.values(s.players).every(p=>!("constructionHand" in p)));
   assert.ok(Object.values(s.players).every(p=>draftPicks(p)===0));
   assert.equal(s.stations.length,10);
   assert.equal(new Set(s.stations.map(p=>`${p.x},${p.y}`)).size,10);
-  assert.equal(new Set(s.stations.flatMap(p=>p.cells!.map(c=>`${c.x},${c.y}`))).size,49);
+  assert.equal(new Set(s.stations.flatMap(p=>p.cells!.map(c=>`${c.x},${c.y}`))).size,124);
   assert.deepEqual(["minor","major","medium"].map(kind=>s.stations.filter(p=>p.kind===kind).length),[3,6,1]);
   assert.equal(s.market.rows.engineering.length+s.market.decks.engineering.length,16);
   assert.equal(new Set([...s.market.rows.engineering,...s.market.decks.engineering]).size,16);

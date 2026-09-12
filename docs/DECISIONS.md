@@ -1625,3 +1625,23 @@ and terminals but not small/large-specific goals. State v18 restarts old games.
 Alternatives: keeping capacity limits was explicitly rejected by the owner. String
 pass-through service was not selected; node-only service preserves intentional routing.
 Separated bays trade fully free placement for reliable spacing and deterministic setup.
+
+
+### DEC-044 — Larger neighborhoods reward smaller targets
+
+Date: 2026-09-12. Status: owner-authorized; implementation review pending.
+
+After viewing the neighborhood board, the owner requested small/medium/large
+footprints of 6/10/16 pegs and reversed base rewards. These now score 5/3/2 VP.
+Counts remain three small, one medium, six large; all other card and network rules
+remain unchanged. This supersedes DEC-043's footprint sizes, base VP and separated
+3×3 bay packing, not node-only service or free own-area transfers.
+
+The 27×9 board has 175 interior holes; 124 are now neighborhood holes. Six
+four-column bays pair each large area with a connected complementary region;
+four of those regions hold the smaller areas. Shapes, identities, vertical flips
+and a single gap column vary with engine randomness. This guarantees valid packing
+without retries, preserves 51 survey-eligible holes and every outer-border peg.
+Areas can touch boundaries, unlike the earlier sparse layout. Expanding the board
+was unnecessary and would change route reach and the directional objectives.
+State v19 prevents old games from silently changing score values mid-session.
