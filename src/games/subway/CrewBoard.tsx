@@ -5,7 +5,7 @@ import { activationCost, buildableLines, contractOf, SUBWAY_CONFIG, type SubwayS
 import { Printed, TableButton } from "./table";
 import { constructionHistory } from "./constructionHistory";
 
-export function CrewBoard({game,viewerId,busy,veiled,act}:{game:SubwayState;viewerId:string;busy:boolean;veiled:boolean;act:(type:string,payload?:Record<string,unknown>)=>unknown}) {
+export function CrewBoard({game,viewerId,busy,veiled,act,boardOnly=false}:{game:SubwayState;viewerId:string;busy:boolean;veiled:boolean;act:(type:string,payload?:Record<string,unknown>)=>unknown;boardOnly?:boolean}) {
   const [selected,setSelected]=useState<number[]>([]);
   const [historyRound,setHistoryRound]=useState(game.currentPeriod);
   const [historyPlayer,setHistoryPlayer]=useState<string|null>(null);
@@ -23,7 +23,7 @@ export function CrewBoard({game,viewerId,busy,veiled,act}:{game:SubwayState;view
       <p className="mt-3 text-2xl font-bold">{game.players[actor]?.name}: {hiring?"choose your crews":"construction turn"}</p>
       {p&&!veiled&&<>
         {hiring&&<div className="mt-4 space-y-4">
-          {!p.destinationPurchased && <div>
+          {!boardOnly && !p.destinationPurchased && <div>
             <TableButton disabled={busy || p.money < SUBWAY_CONFIG.destinationPurchaseCost || !game.destinationDeck.length} onClick={() => act("BUY_DESTINATION", {period:game.currentPeriod})}>Buy Destination · $5M</TableButton>
             <p className="mt-2 text-lg">One extra random mission per game, before hiring crews.</p>
           </div>}

@@ -4,7 +4,7 @@ A light-strategy route-building game for **2–4 companies**. Most victory point
 
 ## Game flow
 
-1. Start with **$50M and two private Destination missions**.
+1. Start with **$40M and two private Destination missions**. Completing each line immediately pays **$3M**; Undo reverses that reward along with the placement.
 2. Draft three route contracts each, at list price, from a replenishing row of
    two/three/four choices for two/three/four players. No passing or discounts.
 3. Draft **three Engineering goals each**, choosing between two face-up cards or a blind draw.

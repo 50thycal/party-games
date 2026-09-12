@@ -53,6 +53,11 @@ export default function CreatePage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
 
+    if (selectedGameId === "subway" && mode === "multiplayer") {
+      router.push("/subway/multiplayer");
+      return;
+    }
+
     // Validation based on mode
     if (mode === "multiplayer") {
       const trimmed = name.trim();
@@ -112,6 +117,7 @@ export default function CreatePage() {
 
   const isFormValid = () => {
     if (!selectedGameId) return false;
+    if (selectedGameId === "subway" && mode === "multiplayer") return true;
     if (mode === "multiplayer") {
       return name.trim().length > 0;
     }
@@ -186,7 +192,7 @@ export default function CreatePage() {
         </div>
 
         {/* Multiplayer: Name Input */}
-        {mode === "multiplayer" && (
+        {mode === "multiplayer" && selectedGameId !== "subway" && (
           <div>
             <label htmlFor="name-input" className="block text-sm text-gray-400 mb-2">
               3. Your Name

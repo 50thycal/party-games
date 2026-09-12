@@ -26,6 +26,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    if (state.subwayCompanion) return Response.json({ok:false,errorCode:"COMPANION_REQUIRED",message:"Use the Subway companion room."},{status:403});
+
     return Response.json(
       {
         ok: true,

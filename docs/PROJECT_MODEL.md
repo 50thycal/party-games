@@ -15,6 +15,41 @@ code does not support a firm conclusion, the text says so explicitly.
 
 ---
 
+## Subway companion transport
+
+`/subway/multiplayer` is the multiplayer entry and game shell. A tablet host is
+not a company seat; 2–4 phones join before START_GAME. `/subway` remains the local
+testing tabletop. Generic Create/Join direct Subway players to the companion flow.
+
+`/api/subway-companion` handles creation, joining, recovery, polling and actions.
+The room JSON carries a `subwayCompanion` sidecar with SHA-256 device-token hashes,
+roles/company bindings, revision, bounded deduplication receipts, acknowledgement
+and per-company ghost plans. Credentials are generated on the server and saved
+only on the device; Device reveals a recovery key for replacement browsers.
+Knowing the public room code does not grant an existing company or tablet role.
+
+All mutations use existing database compare-and-swap. Stale revisions fail; retries
+with the same request ID do not repeat a payment. The server derives the acting
+company from credentials/acknowledgement, never a client-supplied player ID.
+Phones buy contracts, draft Engineering, buy surveys/destinations. The tablet
+acknowledges the active company before crew or placement actions, and alone starts
+and scores. Host scoring permits a host without a company seat.
+
+Responses omit credentials, draw-pile identities and Undo snapshots. Phones receive
+only their own private hands and ghost plans until results; the tablet receives
+no private hands and only the currently acknowledged company's plans. A changed
+turn invalidates the acknowledgement and removes ghosts; a fresh tablet page also
+covers the board until confirmation. Public construction history retains sanitized
+build/Undo/hiring records. Results reveal hands and the complete playtest ledger.
+Legacy read/join/action endpoints reject these rooms, including the non-versioned
+room reader. Other games retain their legacy transport behavior.
+
+Tablet presentation reuses the zoomable tabletop with only board and crew panel.
+Phone presentation has four scrolling pages (Destinations, Lines, Engineering,
+General), safe-area bottom navigation and a portrait orientation prompt. Saved
+plans are edited on the iPad and shown with line cards on the phone; they never
+select or construct real pegs. Poll failures disable board interaction until recovery.
+
 ## Purpose
 
 Party Games is a Jackbox-style platform for playing short multiplayer games with friends in a
@@ -316,13 +351,14 @@ These should remain true across implementations:
    (view + `gameOptions` entry) — with matching ids.
 8. **`gameState` may be null** before the first action; the shell and every view must render
    sensibly in that state.
-9. **The engine contains no game-specific logic**, and games do not import one another.
+9. **Game rules stay in game modules.** The generic action pipeline rejects Subway
+   companion rooms, which use their authenticated device transport. Games do not import one another.
 10. **AI output is untrusted input.** It reaches state only via an action whose reducer clamps,
     validates, and bounds it (see The Desk re-clamping the Oracle's numbers), and every AI path
     has a deterministic fallback.
-11. **Hidden information is a rendering convention, not a guarantee.** `GET /api/get-room`
-    returns the entire room state to every client, so a game's "secret" values — The Desk's
-    `trueValue` and the Market Maker's position band, Subway's drafted Engineering/Destination goals and Construction cards, HR Investigation's unsealed filings — are
+11. **Legacy hidden information is a rendering convention.** `GET /api/get-room`
+    rejects Subway companion rooms; other games still return the entire state, so
+    The Desk's `trueValue` and the Market Maker's position band, and HR Investigation's unsealed filings are
     concealed only by the view that
     chooses not to draw them. Any player reading the poll response can see them. Games may rely
     on this for social play; they must not rely on it for anything where a determined player's
@@ -391,7 +427,7 @@ observable in the code, not as plans.
 - **`src/engine/index.ts`** re-exports the engine as a barrel that nothing imports; call sites use
   deep paths.
 - **Secrecy pressure is growing.** Three of the seven games now hold values the rules call secret,
-  and every one of them is visible in the poll response (invariant 11). Subway's private drafted cards remain a case for per-player
+  and legacy room responses still expose them (invariant 11). Subway companion rooms now filter private drafted cards per device; the earlier case for per-player
   filtering in `get-room`; the design question is tracked in
   [WS-001](workstreams/WS-001-subway-v0-3-redesign.md) and
   [WS-002](workstreams/WS-002-subway-route-engineering.md) as a non-goal, not a plan. Subway's
@@ -402,7 +438,8 @@ observable in the code, not as plans.
   privacy-vetted public event stream, the hotseat handoff veil — is deliberate *presentation*
   privacy on top of the same shared payload, and is documented as such rather than as secrecy.
   DEC-023's single-surface rework changed where those pieces sit on the table, not what any
-  client receives.
+  client receives. The new companion transport supersedes this limitation for
+  newly created Subway multiplayer rooms only; local testing remains local.
 - **Uncertain / not documented in the code:** whether `simulation` mode is intended to become a
   user-facing room mode (the shell supports it, the create page does not offer it), and whether
   the original `docs/history/` spec's WebSocket phase is still the intended upgrade path.
@@ -429,14 +466,17 @@ Subway has 2–4 companies, exactly three selected contracts each from twelve, a
 stations. Shared pure reducer helpers own the full-seat draft/placement rotation,
 rotating construction queue and owner-specific contact payments. Undo restores
 every recipient balance.
-Each company starts with $50M and chooses zero to three unfinished routes each turn
+Each company starts with $40M and chooses zero to three unfinished routes each turn
 over nine construction rounds. Crew bills are $0/$1/$3/$6M, paid before building one
 segment on each chosen route. No advance timetable or shelving phase exists.
 Final debt costs four VP per $1M. CrewBoard renders crew selection and round
 history while the reducer owns billing, turn order and placement authority.
 Placement Undo refunds placement tolls but retains the already-paid crew bill.
 
-`/subway` stores a versioned local session under `subway-hotseat-v15`. It is separate
+Each completed line immediately pays $3M. The valid final BUILD pays it once; the
+placement Undo restores the entire previous balance, including reward and tolls.
+
+`/subway` stores a versioned local session under `subway-hotseat-v16`. It is separate
 from network rooms and uses no server authority; same-device social play is the only
 intended mode. Storage errors show a keep-tab-open warning. `/test/subway` creates
 isolated scenarios through real reducer actions, rendering the same GameView inside
@@ -460,7 +500,7 @@ Construction cards and their special timing/economy effects have been removed.
 Shared snake-order helpers rotate opening seats between stages. Stale card-pick
 tokens and duplicate goals are rejected. BUY_SURVEYS follows drafting, then optional
 pin placement and all three route starters. There is no commitment or assignment.
-Legacy schedule/commitment types and dormant helpers remain unreachable in v15.
+Legacy schedule/commitment types and dormant helpers remain unreachable in v16.
 
 `network.ts` provides own-node connectivity and longest edge-simple trails. Shared
 station IDs join dock slots; identical normal route nodes transfer; raw intersections

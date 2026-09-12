@@ -33,6 +33,7 @@ export async function applyActionToRoom(params: {
     }
 
     const room = versionedRoomState.room;
+    if (versionedRoomState.subwayCompanion) return {ok:false,errorCode:"COMPANION_REQUIRED",message:"Use your Subway companion device.",status:403};
     const currentVersion = versionedRoomState.version;
     const template = getGame(room.gameId);
 

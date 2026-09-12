@@ -50,11 +50,15 @@ const isPlanNode = (n: unknown): n is RouteNode => {
 };
 
 /** Copies only the fields a plan node is allowed to carry. */
-const cleanNode = (n: RouteNode): RouteNode => ({
+export const cleanNode = (n: RouteNode): RouteNode => ({
   x: n.x,
   y: n.y,
   ...(n.stationId !== undefined ? { stationId: n.stationId, stationSlot: n.stationSlot ?? 0, ...(n.stationCapacity !== undefined ? {stationCapacity:n.stationCapacity} : {}) } : {}),
 });
+
+export function validPlanNodes(nodes: unknown): nodes is RouteNode[] {
+  return Array.isArray(nodes) && nodes.length > 0 && nodes.length <= MAX_PLAN_NODES && nodes.every(isPlanNode);
+}
 
 /**
  * Reads one saved plan. Anything missing, corrupt, oversized, from another

@@ -165,10 +165,14 @@ for(const count of [2,3,4]) {
   const p=s.players["seat-1"];
   p.lines=[line([pt(0,0),pt(2,0),pt(5,0),pt(7,0)]),finished(pt(0,4),pt(12,4)),finished(pt(0,8),pt(12,8))];
   s=dispatch(s,p.id,"HIRE_CREWS",{lineIndexes:[0],period:1});
+  const beforeCompletion=s.players[p.id].money;
   s=dispatch(s,p.id,"BUILD",{lineIndex:0,x:10,y:0});
+  assert.equal(s.players[p.id].money,beforeCompletion+3,"completion pays once");
+  assert.equal(dispatch(s,p.id,"BUILD",{lineIndex:0,x:10,y:0}),s,"duplicate build does not pay again");
   assert.equal(s.firstCompletedPlayerId,p.id);
   assert.equal(met("crossing",s),true);
   s=dispatch(s,p.id,"UNDO_PLACEMENT");
+  assert.equal(s.players[p.id].money,beforeCompletion,"undo reverses completion reward");
   assert.equal(s.firstCompletedPlayerId,undefined,"undo restores the race opportunity");
   assert.equal(met("crossing",s),false);
 }
@@ -184,5 +188,5 @@ for(const count of [2,3,4]) {
   assert.equal(node.stationCapacity,1);
   assert.deepEqual(nodePoint(node),slotPoint(st,0),"built segment uses the same physical dock as the preview");
 }
-assert.equal(SUBWAY_CONFIG.startingMoney,50);assert.equal(SUBWAY_CONFIG.timelinePeriods,9);
+assert.equal(SUBWAY_CONFIG.startingMoney,40);assert.equal(SUBWAY_CONFIG.timelinePeriods,9);
 console.log("Network mission, 16 objective, border, deal/purchase, longest trail, race Undo and station-scaling regressions passed.");

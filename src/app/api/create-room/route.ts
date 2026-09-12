@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
 
     const mode = body.mode || "multiplayer";
     const gameId = body.gameId?.trim() || "number-guess";
+    if (gameId === "subway" && mode === "multiplayer") return Response.json({ok:false,errorCode:"COMPANION_REQUIRED",message:"Create Subway with the iPad and phone option."},{status:400});
 
     // For multiplayer mode, require a player name
     if (mode === "multiplayer") {
