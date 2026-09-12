@@ -1669,3 +1669,25 @@ This is a balance experiment: visiting a neighborhood only matters through goals
 (and the existing large-neighborhood tiebreak), while route/survey/longest/debt
 scoring remains. Human playtests must assess the ambitious ten-area/four-corner
 goals and whether neighborhoods absent from a hand are ignored.
+
+### DEC-046 — iPad production playtests, shared bot policies and durable evidence
+
+Date: 2026-09-12. Status: owner-authorized implementation; review pending.
+
+Owner approved a production iPad/phone testing mode with human, bot and invited-phone
+seats, configurable personalities shared with batch simulation, and preserving the
+old quick tabletop. Building stays on the iPad. A phone-only multiplayer redesign
+is explicitly excluded. Owner confirmed all supplied playtests will be digital.
+
+Use existing companion transport and components. Test-only managed-seat authority
+uses a separate credential and never extends normal rooms or external seats.
+Heuristic policies are deterministic given observations and decision RNG, use only
+public state/own hand, and have separate personality/experience. Server gameplay RNG
+remains private; random tapes permit exact replay without exposing future draws.
+
+Raw playtest exports shared by the owner are permanently archived in this repo;
+source bytes, observations and analysis remain separate. Version/rules/source and
+cohort boundaries prevent old games or bots from silently becoming human calibration.
+Browser imports are temporary inspection, never a claim of repository persistence.
+No human calibration is claimed until actual games are supplied. These are testing
+facilities, not a balance/rules change to v20.

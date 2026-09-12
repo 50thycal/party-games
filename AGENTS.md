@@ -130,3 +130,12 @@ a verdict in a finalization commit. No historical acceptance is inferred or back
 ## Build OS v0.12 finite work
 
 Resume the current mission. Record goal, non-goals and acceptance checks in its workstream. Findings use FIX NOW (acceptance or immediate material risk), PARK (one line, no ticket), DISCARD, or OWNER DECISION. Do not create adjacent work without admission. Default active limit is three; do not admit a fourth mission without completing, pausing or abandoning one. Existing legacy board entries are not silently reclassified. Completed missions use Next Step: None. Owner result defaults to 100 words, ceiling 150 for material risk/deviation.
+
+## Subway playtest evidence
+
+When Calvin shares a Subway digital playtest export, archive its original bytes
+in `playtests/subway` using `scripts/archive-subway-playtest.mjs` and commit the
+record plus index as part of the current work. Explicit Capture Only/no-write
+instructions still take precedence. Store owner observations separately from
+analysis, label rules/build and human/mixed/bot source, and never fabricate absent
+actions. Preserve older reports as legacy references. See the archive README.

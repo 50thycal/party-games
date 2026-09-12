@@ -16,6 +16,7 @@ export default async function HomePage() {
 
       <div className="flex flex-col gap-4 w-full max-w-xs">
         <Link href="/subway/multiplayer" className="rounded-lg bg-teal-700 px-6 py-4 text-center font-bold text-white hover:bg-teal-600">Subway · iPad & phones (2–4)</Link>
+        <Link href="/subway/lab" className="text-center text-sm underline">Subway · Playtest Lab</Link>
         <Link href="/subway" className="rounded-lg bg-slate-700 px-6 py-4 text-center font-bold text-white">Subway · Local testing</Link>
         <Link
           href="/create"

@@ -614,3 +614,54 @@ exact corner pegs in the same network. Neither requires completed lines. Perimet
 Service pays 2/5/8 for 1/2/3 completed lines each touching three distinct sides.
 Live phone progress and final ledger use the same evaluator; Undo recomputes.
 Area labels no longer advertise VP; rules/tutorial define borders and corners.
+
+## Subway Playtest Lab (WS-005 continuation)
+
+`/subway/lab` creates production companion test rooms, runs browser-worker simulation
+batches, and verifies/imports digital replays. `/subway` remains the quick complete
+tabletop and `/test/subway` retains the isolated scene inspector. No phone-only
+multiplayer board exists. The iPad still owns construction; phone screens are reused.
+
+Optional `CompanionStore.lab` declares 2–4 human/bot/remote seats. One separate phone
+controller credential has a bounded managedIds list; it can select only human seats
+in that list, never invited friends or board powers. External phones join reserved
+remote seats. Bot devices are server-only; iPad LAB_STEP generates one policy action
+and passes it back through normal companion role/turn/revision/receipt enforcement.
+The iPad can step or run until the next human decision; polling, host refresh and
+client inactivity never independently run bots. Each request is persisted with CAS.
+Changing a managed seat between human/bot and its profile is recorded. Normal rooms
+reject LAB actions. The controller recovery key is returned only on creation; retain
+it on the original iPad or phone. Existing device recovery restores room progress.
+
+Game randomness remains server-private; the test seed controls only bot choices.
+Bots use the same bounded policy as simulation (`bots.ts`), own-hand/public-state
+projection and versioned balanced/destination/completion/cautious weights with
+casual/experienced candidate search. They are initial, uncalibrated heuristics.
+They use objective evaluation and physical transfer utility, not automatic area VP.
+The older scene/regression driver remains a separate simple legal-action fixture.
+
+New companion games record setup and every accepted reducer action with all clock
+and random values plus resulting state fingerprints. `recording.ts` verifies tapes,
+state hashes and final equality under matching state version/rules source fingerprint.
+The build embeds the source hash of config/network and Git build ID. There is no
+state-version bump: recordings/lab are optional companion sidecars, not game rules.
+Old rooms without recordings continue playing and retain text reports. Full replay
+exports are available at RESULTS, or to the test iPad during a test. Poll responses
+never contain recording tapes/initial state or device credentials. Authenticated
+rejected attempts are bounded diagnostics outside the accepted-action stream;
+concurrent diagnostic writes are best-effort and cannot overwrite accepted moves.
+
+A dedicated worker runs 1–100 simulations per batch without blocking the UI and can
+be terminated. Individual full records and batch summaries download locally. Imported
+matching records must replay successfully before comparison; cohorts separate human
+calibration/holdout, mixed, bots and simulation, matching rules and player count.
+Replay is inspectable at any accepted action, with ordinary read-only game rendering.
+Browser imports and batch results are session-local; downloadable records are the
+transfer format. No human data has yet been supplied or calibration claimed.
+
+`playtests/subway/index.json` indexes immutable SHA-256 original-export directories.
+`archive-subway-playtest.mjs` preserves raw bytes, metadata, observations and analysis,
+deduplicates reimports and labels malformed/legacy files reference-only. Structured
+records are unverified until checked by the lab; catalog entries never imply verified
+calibration. AGENTS.md requires archiving shared owner exports in the repository.
+No GitHub credentials or repository write path are shipped to browsers.

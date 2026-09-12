@@ -1,0 +1,21 @@
+'use client';
+import { useState } from 'react';
+import { BOT_LABELS, PERSONALITIES, SKILLS, type BotSettings } from './bots';
+import type { CompanionView } from './companion';
+export function BotPicker({value,onChange,disabled=false}:{value:BotSettings;onChange:(v:BotSettings)=>void;disabled?:boolean}) {
+  return <div className="flex flex-wrap gap-2"><label>Personality<select aria-label="Personality" disabled={disabled} className="block rounded bg-slate-900 p-2 text-white" value={value.personality} onChange={e=>onChange({...value,personality:e.target.value as BotSettings['personality']})}>{PERSONALITIES.map(p=><option value={p} key={p}>{BOT_LABELS[p]}</option>)}</select></label><label>Experience<select aria-label="Experience" disabled={disabled} className="block rounded bg-slate-900 p-2 text-white" value={value.skill} onChange={e=>onChange({...value,skill:e.target.value as BotSettings['skill']})}>{SKILLS.map(p=><option key={p}>{p}</option>)}</select></label></div>;
+}
+export function LabControls({view,run,busy,auto,setAuto,follow,setFollow,onExport,controllerKey}:{view:CompanionView;run:(type:string,payload?:Record<string,unknown>)=>void;busy:boolean;auto:boolean;setAuto:(v:boolean)=>void;follow:boolean;setFollow:(v:boolean)=>void;onExport:()=>void;controllerKey?:string}) {
+  const [note,setNote]=useState('');
+  const lab=view.lab;if(!lab) return null;
+  const tablet=view.role==='tablet';
+  return <details className="rounded-xl border border-amber-400 bg-slate-800 p-3 text-white"><summary className="cursor-pointer font-bold">Playtest controls · {view.room.roomCode}</summary><div className="mt-3 space-y-3">
+    {tablet&&<><p>Building stays on this iPad. Your phone controls company cards and purchases.</p>{controllerKey&&<details><summary>Connect my testing phone</summary><p>On your phone, open Subway multiplayer, enter this room code, choose My phone and use this private recovery key. It lets you switch your managed companies.</p><code className="block break-all select-all rounded bg-slate-950 p-3">{controllerKey}</code></details>}
+    {lab.seats.map(seat=><div className="space-y-2 rounded bg-slate-700 p-3" key={seat.id}><strong>{seat.name}</strong>{seat.control==='remote'?<p>Friend’s phone</p>:<><select aria-label={`${seat.name} controller`} className="ml-3 rounded bg-slate-900 p-2" disabled={busy} value={seat.control} onChange={e=>{setAuto(false);run('LAB_CONTROL',{playerId:seat.id,control:e.target.value,bot:seat.bot});}}><option value="human">Me</option><option value="bot">Bot</option></select><BotPicker value={seat.bot} disabled={busy} onChange={bot=>{setAuto(false);run('LAB_CONTROL',{playerId:seat.id,control:seat.control,bot});}}/></>}</div>)}
+    {view.game&&view.game.phase!=='RESULTS'&&<div className="flex flex-wrap gap-2"><button disabled={busy} className="rounded bg-teal-700 p-3" onClick={()=>run('LAB_STEP')}>One bot action</button><button className="rounded bg-amber-600 p-3" onClick={()=>setAuto(!auto)}>{auto?'Pause bots':'Run bots until a human turn'}</button></div>}</>}
+    {!tablet&&lab.managedIds.length>0&&<><label>Playing as<select aria-label="Playing as" disabled={busy} className="ml-2 rounded bg-slate-900 p-2" value={view.playerId} onChange={e=>{setFollow(false);run('LAB_SELECT',{playerId:e.target.value});}}>{lab.seats.filter(s=>lab.managedIds.includes(s.id)&&s.control==='human').map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label><label className="block"><input type="checkbox" checked={follow} onChange={e=>setFollow(e.target.checked)}/> Follow active company</label></>}
+    {(tablet||lab.managedIds.length>0)&&<div className="flex gap-2"><input aria-label="Problem note" className="min-w-0 flex-1 rounded bg-slate-900 p-2" maxLength={1000} value={note} onChange={e=>setNote(e.target.value)} placeholder="What went wrong?"/><button disabled={busy||!note.trim()} className="rounded bg-teal-700 p-2" onClick={()=>{run('LAB_NOTE',{text:note});setNote('');}}>Mark moment</button></div>}
+    <p className="text-sm">{lab.notes.length} notes saved · reconnect to this room to resume.</p>
+    {(tablet||view.game?.phase==='RESULTS')&&<button className="rounded bg-teal-700 p-3" onClick={onExport}>Download replay JSON</button>}
+  </div></details>;
+}
