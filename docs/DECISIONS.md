@@ -1649,7 +1649,7 @@ State v19 prevents old games from silently changing score values mid-session.
 
 ### DEC-045 — Physical transfers and goal-led neighborhood scoring
 
-Date: 2026-09-12. Status: owner-approved; implementation review pending.
+Date: 2026-09-12. Status: owner-approved; implemented by PR #174.
 
 Owner approved zero automatic area VP for the next playtest and replaced free
 area-wide transfers with overlapping or horizontally/vertically adjacent nodes
