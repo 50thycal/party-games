@@ -4,13 +4,13 @@ Build OS: v0.12
 Phase: REVIEW
 Status: Active
 Updated: 2026-09-12
-Implementation State: Construction-card removal published to PR #170. The approved $40M/$3M completion economy and authenticated iPad/phone companion are implemented at state v16. Build/type/lint, full Subway suite, 220 portfolios, 36 simulations and additional companion/API checks passed. Cloud-browser local access is blocked, so visual acceptance and independent current-head review remain pending.
-Related PRs: [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy; open); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
+Implementation State: Construction-card removal merged in PR #170. Completion cash and companion implementation published in PR #171. The approved $40M/$3M completion economy and authenticated iPad/phone companion are implemented at state v16. Build/type/lint, full Subway suite, 220 portfolios, 36 simulations and additional companion/API checks passed. Cloud-browser local access is blocked, so visual acceptance and independent current-head review remain pending.
+Related PRs: [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; open); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
 ## Approved continuation — completion cash and companion devices
 
 Owner approved implementation and publishing on 2026-09-11. Canonical VERSION.md
-checked at v0.12 today; no migration. Construction removal published on PR #170
+checked at v0.12 today; no migration. Construction removal merged in PR #170; continuation published in PR #171
 at 416288ce1649dfbcd07d3e9d029091305cb5d0ad; independent review pending.
 
 Goal: $40M starting cash, $3M immediately per completed line, nine rounds and
@@ -146,7 +146,7 @@ FRAMEWORK_SYNC and CLAUDE_HANDOFF. Migrated the framework block, current templat
 and intake/result rules. Reviewed mode retained; historical work is not reopened.
 
 ## Review State
-PR #170: independent current-head review pending for the expanded completion-cash and companion implementation. No review verdict or current visual acceptance claimed. PR #169 merged, confirmed through GitHub. No historical review verdict inferred.
+PR #171: independent current-head review pending for the expanded completion-cash and companion implementation. No review verdict or current visual acceptance claimed. PR #169 merged, confirmed through GitHub. No historical review verdict inferred.
 
 PR #169: Independent current-head review pending. The tabletop height now remeasures after committed layouts, covering hotseat header wrapping that does not emit a window resize. In the legal four-seat construction fixture, the complete manual Plan action row remained inside the embedded phone viewport: portrait placed Close plan at y=760–804 with 38px viewport clearance, and landscape at y=302–346 with 42px clearance. Production build/type validation, lint, diff check, full rules/saved-plan suite, 220 affordability checks and 36 complete simulations passed. No physical-device acceptance claimed or self-approval performed.
 
@@ -203,7 +203,7 @@ segment was verified in the desktop construction fixture. Active-route animation
 the Results report control, and phone layouts remain in the browser visual gate.
 
 ## Next Step
-Obtain phone/iPad visual verification and independent current-head review of PR #170. No self-approval or merge.
+Obtain phone/iPad visual verification and independent current-head review of PR #171. No self-approval or merge.
 
 ## Direct-piece playtest continuation — 2026-09-11
 
