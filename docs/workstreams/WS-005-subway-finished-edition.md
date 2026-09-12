@@ -4,8 +4,62 @@ Build OS: v0.12
 Phase: REVIEW
 Status: Active
 Updated: 2026-09-12
-Implementation State: Construction-card removal merged in PR #170. Completion cash and companion implementation published in PR #171. The approved $40M/$3M completion economy and authenticated iPad/phone companion are implemented at state v16. Build/type/lint, full Subway suite, 220 portfolios, 36 simulations and additional companion/API checks passed. Cloud-browser local access is blocked, so visual acceptance and independent current-head review remain pending.
-Related PRs: [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; open); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
+Implementation State: PR #172 now includes the approved neighborhood conversion at state v18, alongside guidance, tiered goals and companion feedback. Production build/type/lint, neighborhood regressions, 36 full games and companion/API tests passed. Browser access remains blocked; independent review and visual acceptance pending.
+Related PRs: [#172](https://github.com/50thycal/party-games/pull/172) (guided turns, highlights and tiers; open); [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; merged); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
+
+## Approved neighborhood continuation — 2026-09-12
+
+Goal: ten movable neighborhoods (3 small, 6 large, 1 medium), no dock limits,
+node-only service, own-company transfers through shared areas, exact peg geometry,
+and Local Service on one line visiting all three small areas. Owner approved build.
+Footprints: small 3 holes, medium 4, large 6. Base scores: 2/3/5 VP.
+Non-goals: change recipes, economy, literal board-edge goals or other games.
+Acceptance: deterministic varied valid layouts, node versus pass-through service,
+unlimited area access, transfer and toll isolation, unique scoring and card rules,
+full build/lint/Subway simulations, board/phone rendering where browser access permits.
+Implementation State: implemented on PR #172. Final production build/type and standalone
+lint passed. Neighborhood tests cover 300 seat/seed layouts, all 49 area holes per
+layout, exact geometry, transfers, no opponent bridging, unique scoring and no dock
+limits. Full suite: 220 portfolio checks, 36 games at 2/3/4 seats reached RESULTS;
+three companion games accepted 439 actions; isolated API persistence/privacy passed.
+Mean completed lines/company: 2.833 / 2.861 / 2.896 at 2/3/4 seats, versus the prior
+station build's 2.875 / 2.861 / 2.875. Different seeded board sequences and heuristic
+players limit direct balance conclusions. Lowest cash: -14 / -11 / -12.
+Browser verification of the running production build was blocked by
+ERR_BLOCKED_BY_CLIENT. No browser or physical-device acceptance is claimed.
+React checklist: footprints render behind targets, labels do not intercept taps,
+no added subscriptions/effects, derived card progress and versioned plan storage.
+Next Step: independent current-head review of PR #172 and phone/iPad visual acceptance.
+
+## Prior iteration — playtest guidance and objective progress (before neighborhood approval)
+
+Owner authorized the next playtest iteration on 2026-09-12. PR #171 is merged
+(main 8a1b357); no independent acceptance is inferred. Build OS remains v0.12,
+checked against canonical VERSION.md this session.
+
+Goal: explicit phone instructions/action links at every phase; opt-in ghost planning
+default off; phone-requested destination highlights on the acknowledged iPad;
+visible live objective completion and completion cash; cyclic drafts/construction
+order without round-boundary double turns; no crossing the same line; partial
+credit for directional/terminal objectives, keeping existing maximum awards.
+Non-goals: implement neighborhoods before owner reviews their scoring/network
+implications; change crew billing, borrowing, recipes, or other games.
+Acceptance: phase guidance fixtures, role/turn-bound highlight privacy, planning
+off/on, self-crossing rejection and other-color permission, tier score fixtures,
+Undo/reward consistency, full rules/simulation/build/lint checks and browser walk.
+Neighborhood card-impact proposal is an OWNER DECISION, not approved rules yet.
+Implementation State: implemented. Full rules/220-portfolio checks and 36 games reached
+RESULTS; three additional 2/3/4-seat companion games accepted 445 actions. Added
+queue uniqueness/all-seat participation assertions, phase guidance, tier/scoring,
+same-color rejection and cross-device highlight ownership/clear/handoff tests.
+Final changed-source production build/type/lint and full Subway rerun passed. Browser
+verification stopped at ERR_BLOCKED_BY_CLIENT for the local multiplayer page;
+no physical-device or browser playthrough is claimed. React checklist used for
+explicit status/live regions, effect cleanup and device-local preference defaults.
+[Neighborhood proposal](WS-005-neighborhood-proposal.md) lists affected cards and
+recommended node-only service/transfer/capacity rules for owner discussion.
+Next Step: independent current-head review of PR #172
+and phone/iPad visual acceptance; owner to approve neighborhood conversion.
 
 ## Approved continuation — completion cash and companion devices
 
@@ -146,7 +200,7 @@ FRAMEWORK_SYNC and CLAUDE_HANDOFF. Migrated the framework block, current templat
 and intake/result rules. Reviewed mode retained; historical work is not reopened.
 
 ## Review State
-PR #171: independent current-head review pending for the expanded completion-cash and companion implementation. No review verdict or current visual acceptance claimed. PR #169 merged, confirmed through GitHub. No historical review verdict inferred.
+PR #172: independent current-head review pending for guidance, highlights, optional planning, cyclic turns and tiered scoring. Browser visual acceptance is blocked. PR #171 is merged; no independent verdict inferred. PR #169 merged, confirmed through GitHub. No historical review verdict inferred.
 
 PR #169: Independent current-head review pending. The tabletop height now remeasures after committed layouts, covering hotseat header wrapping that does not emit a window resize. In the legal four-seat construction fixture, the complete manual Plan action row remained inside the embedded phone viewport: portrait placed Close plan at y=760–804 with 38px viewport clearance, and landscape at y=302–346 with 42px clearance. Production build/type validation, lint, diff check, full rules/saved-plan suite, 220 affordability checks and 36 complete simulations passed. No physical-device acceptance claimed or self-approval performed.
 
@@ -203,7 +257,7 @@ segment was verified in the desktop construction fixture. Active-route animation
 the Results report control, and phone layouts remain in the browser visual gate.
 
 ## Next Step
-Obtain phone/iPad visual verification and independent current-head review of PR #171. No self-approval or merge.
+Obtain phone/iPad visual verification and independent current-head review of PR #172; discuss the neighborhood proposal with the owner. No self-approval or merge.
 
 ## Direct-piece playtest continuation — 2026-09-11
 

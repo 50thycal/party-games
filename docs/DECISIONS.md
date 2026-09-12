@@ -1569,3 +1569,59 @@ No accounts, sockets or infrastructure migration are introduced. The trade-off i
 that losing both browser storage and the recovery key loses that device's access;
 the public room code deliberately cannot impersonate an existing participant.
 State v16 restarts older rule states. Other games keep their legacy transport.
+
+### DEC-042 — Guided turns, optional ghosts and tiered shape objectives
+
+Date: 2026-09-12. Status: owner-authorized; implementation review pending.
+
+The latest physical playtest requests explicit phase directions on phones, visible
+completion/cash notices, optional planning, cyclic turn order and no same-color
+self-crossing. Draft and construction rounds use the same cyclic seat order,
+without snake picks or rotating round openers. Crew turns still include one
+segment per hired line; billing and nine-round limits do not change.
+
+Ghost planning is off by default in Table settings, persisted per device. Ordinary
+peg preview and confirmation remain; enabling planning restores saved sketches.
+Turning it off hides rather than deletes them. This supersedes automatic planning
+as the default under DEC-032, not its opt-in implementation.
+
+The owner delegated tier values: directional and terminal goals pay 2/4/their
+existing maximum (6 or 7), not cumulative awards. Single-line Across Town and
+company Four Corners instead use explicit geographic milestones. Scoring and
+live phone progress share one evaluator. Completion is recomputed, not latched,
+so Undo and mutable conditions remain honest. Other Engineering goals stay binary.
+
+A phone may intentionally show an owned Destination's locations on the shared
+iPad during its acknowledged board turn. The server validates ownership, role,
+actor and acknowledgement; only the tablet receives the selected station IDs.
+Turn changes hide them. Private hands and unselected cards remain filtered.
+
+State v17 protects existing games from changed rules. Neighborhood conversion is
+still an owner decision recorded in the workstream proposal, not an accepted
+rule. Alternatives: automatic page switching was rejected in favor of a persistent
+action link so players can keep reading private cards without forced navigation.
+
+
+### DEC-043 — Neighborhood footprints replace exclusive station docks
+
+Date: 2026-09-12. Status: owner-authorized; implementation review pending.
+
+The owner approved replacing hard-to-hit station docks with larger areas, node-only
+service, transfers among own lines in the same area, and no dock limits. The owner
+specified three small, six large and one medium area, and Local Service on one line
+visiting all three small areas. This supersedes earlier station capacity/offset rules.
+
+Implementation uses 3/6/4-hole connected footprints, 2/5/3 base VP, fixed identity-size
+mapping, and shuffled/rotated separated interior bays. The medium score is the
+implementation choice between existing small/large values. Footprints never cover
+outer border pegs; random generation is bounded and always valid.
+
+Nodes retain exact holes plus area IDs; ordinary physical contact tolls apply even
+inside an area. Sharing an area itself is not a toll. Own area transfers are logical
+connections of zero added length; only actual string contributes to longest network.
+Repeats never multiply service scores. Medium areas qualify for general destinations
+and terminals but not small/large-specific goals. State v18 restarts old games.
+
+Alternatives: keeping capacity limits was explicitly rejected by the owner. String
+pass-through service was not selected; node-only service preserves intentional routing.
+Separated bays trade fully free placement for reliable spacing and deterministic setup.

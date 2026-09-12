@@ -448,7 +448,7 @@ export function ScheduleBoard({
     <Printed
       zone="schedule"
       title="Public construction schedule"
-      subtitle={`${PERIODS} periods · one crew per company · priority rotates between companies`}
+      subtitle={`${PERIODS} periods · one crew per company · companies take turns in cyclic order`}
       className="w-full"
     >
       {editable && !veiled && <div className="mb-[18px]"><TableButton size="sm" disabled={busy} onClick={() => act("AUTO_SCHEDULE")}>Suggest lowest-cost schedule</TableButton><p className="mt-2 text-[18px] text-stone-600">Keeps all three routes. Adjust the timing to race for stations.</p></div>}
@@ -484,7 +484,7 @@ export function ScheduleBoard({
               }`}
               style={{ background: first?.color ?? "transparent" }}
               title={`${first?.name ?? "?"} builds first in period ${period}${
-                overridden ? " (Priority Permit)" : " (rotating priority)"
+                overridden ? " (Priority Permit)" : " (cyclic seat order)"
               }`}
             >
               {overridden ? "P" : first?.name?.slice(0, 1).toUpperCase() ?? ""}

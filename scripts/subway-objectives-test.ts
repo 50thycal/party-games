@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { borderSides, distinctSides, longestNetwork } from "../src/games/subway/network";
-import { DESTINATION_CARDS, ENGINEERING_CARDS, LINE_CONTRACTS, SUBWAY_CONFIG, contractNodes, contractById, destinationMet, nodePoint, slotPoint, objectiveMet, scoreGame, subwayGame, type PlayerLine, type RouteNode, type SubwayState, type SubwayAction } from "../src/games/subway/config";
+import { DESTINATION_CARDS, ENGINEERING_CARDS, LINE_CONTRACTS, SUBWAY_CONFIG, contractNodes, contractById, destinationMet, nodePoint, objectiveMet, scoreGame, subwayGame, type PlayerLine, type RouteNode, type SubwayState, type SubwayAction } from "../src/games/subway/config";
 import { runPlaytest, startPlaytest, testRoom } from "../src/games/subway/playtest";
 
 const dispatch = (s:SubwayState, id:string, type:SubwayAction["type"], payload?:SubwayAction["payload"]) => subwayGame.reducer(s,{playerId:id,type,payload},{room:testRoom(s.playerOrder.length),playerId:id,now:()=>1234,random:()=>.2});
@@ -73,10 +73,12 @@ assert.equal(distinctSides([pt(0,0),pt(26,0),pt(0,8)],3),true,"corners allow a d
   assert.equal(met("interchange",s),true);
   p.lines[0].route.pop();
   assert.equal(met("terminal",s),false);
-  p.lines=[line([station("market",3,1),station("garden",6,1)]),line([station("museum",18,3),station("library",22,3)])];
-  assert.equal(met("local-service",s),true,"company-wide minors need not form one network");
-  p.lines[1].route[1].stationId="museum";
-  assert.equal(met("local-service",s),false,"repeated minor only counts once");
+  p.lines=[line([station("market",3,1),station("garden",6,1)]),line([station("library",22,3)])];
+  assert.equal(met("local-service",s),false,"all three small areas must be on one line");
+  p.lines[0].route.push(station("library",22,3));
+  assert.equal(met("local-service",s),true,"one unfinished line serving three small areas qualifies");
+  p.lines[0].route[2].stationId="garden";
+  assert.equal(met("local-service",s),false,"repeated small area only counts once");
 }
 {
   const s=base(),p=s.players["seat-1"];
@@ -179,14 +181,13 @@ for(const count of [2,3,4]) {
 {
   let s=startPlaytest(2,5).state;s.phase="CONSTRUCTION";s.resolveQueue=["seat-1","seat-2"];
   const st=s.stations.find(st=>st.kind==="minor" && st.x>2)!;
-  assert.equal(st.capacity,1);
+  assert.equal(st.cells!.length,3);
   const p=s.players["seat-1"];p.lines=[line([pt(st.x-2,st.y)])];p.crewsHired=true;p.pendingActions=[0];
-  const invalid=dispatch(s,p.id,"BUILD",{lineIndex:0,x:st.x,y:st.y,slot:1});assert.equal(invalid,s);
-  s=dispatch(s,p.id,"BUILD",{lineIndex:0,x:st.x,y:st.y,slot:0});
+  s=dispatch(s,p.id,"BUILD",{lineIndex:0,x:st.x,y:st.y,});
   assert.equal(s.players[p.id].lines[0].route.length,2);
   const node=s.players[p.id].lines[0].route[1];
-  assert.equal(node.stationCapacity,1);
-  assert.deepEqual(nodePoint(node),slotPoint(st,0),"built segment uses the same physical dock as the preview");
+  assert.equal(node.stationCapacity,undefined);
+  assert.deepEqual(nodePoint(node),{x:st.x,y:st.y},"built segment uses the same exact peg as the preview");
 }
 assert.equal(SUBWAY_CONFIG.startingMoney,40);assert.equal(SUBWAY_CONFIG.timelinePeriods,9);
-console.log("Network mission, 16 objective, border, deal/purchase, longest trail, race Undo and station-scaling regressions passed.");
+console.log("Network mission, 16 objective, border, deal/purchase, longest trail, race Undo and neighborhood geometry regressions passed.");

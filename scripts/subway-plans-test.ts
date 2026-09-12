@@ -23,7 +23,7 @@ for (const count of [2,3,4]) {
     const t=legalTargets(projected,id,li,route.length===0)[0];
     assert.ok(t,"fixture must have a legal plan target");
     const station=stationAt(t,game.stations);
-    route.push({x:t.x,y:t.y,...(station ? {stationId:station.id,stationSlot:t.slot ?? 0} : {})});
+    route.push({x:t.x,y:t.y,...(station ? {stationId:station.id} : {})});
   }
   assert.equal(savePlan("test",id,contract,route),true);
   const saved=loadPlan("test",id,contract)!;

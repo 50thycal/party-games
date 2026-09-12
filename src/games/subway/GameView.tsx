@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { CrewBoard } from "./CrewBoard";
-import { objectiveMet } from "./config";
+import { objectiveMet, objectiveProgress } from "./config";
 import { lessonForPhase } from "./tutorial";
 import type { GameViewProps } from "@/games/views";
 import { DestinationCardFace, EngineeringCardFace } from "./CardArt";
@@ -240,7 +240,7 @@ type BoardMode = "none" | "place" | "survey" | "planner";
 
 const PLAN_PHASES = new Set(["ENGINEERING", "SCHEDULING", "STARTER_PLACEMENT", "CONSTRUCTION"]);
 
-export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, lessonZone, lessonBeat = 0, boardOnly = false, remotePlans, onSaveGhost }: GameViewProps<SubwayState> & {lessonZone?: TableZone; lessonBeat?: number; boardOnly?: boolean; remotePlans?: Record<string,SavedPlan>; onSaveGhost?: (contractId:string,nodes:RouteNode[])=>Promise<void>}) {
+export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, lessonZone, lessonBeat = 0, boardOnly = false, remotePlans, onSaveGhost, highlightedStations = [] }: GameViewProps<SubwayState> & {lessonZone?: TableZone; lessonBeat?: number; boardOnly?: boolean; highlightedStations?: string[]; remotePlans?: Record<string,SavedPlan>; onSaveGhost?: (contractId:string,nodes:RouteNode[])=>Promise<void>}) {
   const raw = state as SubwayState | undefined;
   const stale = !!raw && raw.version !== SUBWAY_STATE_VERSION;
   const game = raw && !stale ? raw : undefined;
@@ -312,6 +312,15 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
 
   // Saved Plan Mode (DEC-022): all client-local, keyed per room/player/line.
   const [planMode, setPlanMode] = useState(false);
+  const [ghostEnabled, setGhostEnabled] = useState(false);
+  useEffect(() => {
+    try { setGhostEnabled(localStorage.getItem("subway-ghost-enabled") === "true"); } catch { /* Off by default. */ }
+  }, []);
+  function toggleGhost(enabled:boolean) {
+    setGhostEnabled(enabled); setPreview(null); setPlanMode(false);
+    openedContext.current = "";
+    try { localStorage.setItem("subway-ghost-enabled",String(enabled)); } catch { /* Session setting still works. */ }
+  }
   const [manualPlanner, setManualPlanner] = useState(false);
   const [plannerLine, setPlannerLine] = useState<number | null>(null);
   const [sketch, setSketch] = useState<RouteNode[]>([]);
@@ -371,7 +380,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     // here races that effect when React replays mount effects in Strict Mode.
   }, [room.roomCode, playerId, contractIds, remotePlans]);
 
-  const planAvailable = !!game && !!me && me.lines.length > 0 && PLAN_PHASES.has(game.phase) && !veiled;
+  const planAvailable = ghostEnabled && !!game && !!me && me.lines.length > 0 && PLAN_PHASES.has(game.phase) && !veiled;
   useEffect(() => {
     if (!planAvailable && planMode) {
       setPlanMode(false);
@@ -440,7 +449,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       : -1;
 
   // Open once per actual placement context, never on ordinary state polls or taps.
-  const automaticContext = `${room.roomCode}:${playerId}:${game?.phase}:${game?.currentPeriod}:${turnKey}:${activeLineIndex}:${realRouteKey}:${veiled}`;
+  const automaticContext = `${room.roomCode}:${playerId}:${game?.phase}:${game?.currentPeriod}:${turnKey}:${activeLineIndex}:${realRouteKey}:${veiled}:${ghostEnabled}`;
   const openedContext = useRef("");
   useEffect(() => {
     if (openedContext.current === automaticContext) return;
@@ -518,7 +527,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     line.route.push({
       x: preview.x,
       y: preview.y,
-      ...(station ? { stationId: station.id, stationCapacity: station.capacity, stationSlot: preview.slot ?? 0 } : {}),
+      ...(station ? { stationId: station.id } : {}),
     });
     return clone;
   }, [game, me, preview, activeLineIndex, mode]);
@@ -566,7 +575,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
             {
               x: preview.x,
               y: preview.y,
-              ...(station ? { stationId: station.id, stationCapacity: station.capacity, stationSlot: preview.slot ?? 0 } : {}),
+              ...(station ? { stationId: station.id } : {}),
             },
           ],
           contract,
@@ -581,7 +590,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     }
     // Phantom plans and the live sketch draw only on their owner's UI, and
     // never while the hotseat veil is up.
-    if (privateVisible && me) {
+    if (privateVisible && me && ghostEnabled) {
       me.lines.forEach((line, li) => {
         const contract = contractOf(line);
         if (!contract) return;
@@ -655,7 +664,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       });
     }
     return out;
-  }, [game, playerId, activeLineIndex, privateVisible, me, mode, preview, plannerActive, plannerLine, sketch, planStatuses, manualPlanner]);
+  }, [game, playerId, activeLineIndex, privateVisible, me, mode, preview, plannerActive, plannerLine, sketch, planStatuses, manualPlanner, ghostEnabled]);
 
   const onTapHole = (p: Point, slot?: number) => {
     if (!game || !me || !canAct) return;
@@ -671,18 +680,17 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
         const node: RouteNode = {
           x: p.x,
           y: p.y,
-          ...(station ? {stationId: station.id, stationCapacity: station.capacity, stationSlot: slot ?? 0} : {}),
+          ...(station ? {stationId: station.id} : {}),
         };
         const savedNext = sketch[sketchBase.length];
-        const followsSavedPlan = savedNext && savedNext.x === node.x && savedNext.y === node.y &&
-          (savedNext.stationSlot ?? -1) === (node.stationSlot ?? -1);
+        const followsSavedPlan = savedNext && savedNext.x === node.x && savedNext.y === node.y;
         if (!followsSavedPlan) setSketch([...sketchBase, node]);
-        setPreview({x:p.x,y:p.y,...(station ? {slot:slot ?? 0} : {})});
+        setPreview({x:p.x,y:p.y});
         setNotice(null);
         return;
       }
       // Edit the route by tapping an unbuilt peg, rather than opening tools.
-      const rewind = sketch.findIndex((n, i) => i >= sketchBase.length && n.x === p.x && n.y === p.y && (n.stationSlot ?? -1) === (slot ?? -1));
+      const rewind = sketch.findIndex((n, i) => i >= sketchBase.length && n.x === p.x && n.y === p.y);
       if (rewind >= 0) {
         resetSketch(sketch.slice(0, rewind));
         setNotice(null);
@@ -696,9 +704,9 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       const station = stationAt(p, game.stations);
       setNotice(null);
       if (!manualPlanner && sketch.length === me.lines[plannerLine].route.length) {
-        setPreview({x:p.x,y:p.y,...(station ? {slot:slot ?? 0} : {})});
+        setPreview({x:p.x,y:p.y});
       }
-      setSketch([...sketch, { ...p, ...(station ? { stationId: station.id, stationCapacity: station.capacity, stationSlot: slot ?? 0 } : {}) }]);
+      setSketch([...sketch, { ...p, ...(station ? { stationId: station.id } : {}) }]);
       return;
     }
 
@@ -842,7 +850,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     setSketch(nodes);
     if (!manualPlanner) {
       const next = nodes[minSketch];
-      setPreview(next ? {x:next.x,y:next.y,...(next.stationId ? {slot:next.stationSlot ?? 0} : {})} : null);
+      setPreview(next ? {x:next.x,y:next.y} : null);
     }
   };
   const contested = contestedPeriods(game).filter((period) => !!me && me.lines.some((l) => blockPeriods(l).includes(period)) && !game.priorityOverrides[period]);
@@ -992,7 +1000,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       const met = objectiveMet(focus.id,me,opponents,game);
       return <CardFocus title={card.name} onClose={close}
         face={destinationById(focus.id)?<DestinationCardFace card={focus.id} color={me.color}/>:<EngineeringCardFace card={focus.id} color={me.color} state={met?"met":"idle"}/>}
-        note={`${met ? "✓ Achieved" : "In progress"} · +${card.vp} VP if achieved at scoring. Any of your routes can qualify. No commitment needed.`} actions={[]}/>;
+        note={`${met ? "✓ Completed" : "In progress"} · ${objectiveProgress(focus.id,me,opponents,game).points}/${card.vp} VP now. Rechecked at scoring.`} actions={[]}/>;
     }
 
     if (focus.family === "scheduling") {
@@ -1311,7 +1319,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   );
 
 
-  const settingsPanel = settingsOpen && <div role="dialog" aria-modal="true" aria-label="Table settings" className="fixed inset-0 z-50 overflow-auto bg-stone-950/80 p-3"><div className="mx-auto max-w-xl rounded-xl bg-[#fff7e5] p-4 text-stone-900"><button autoFocus className="float-right rounded border px-3 py-2" onClick={()=>setSettingsOpen(false)}>Close settings</button><h2 className="text-xl font-bold">Table settings</h2><p className="my-4"><Link href="/subway/tutorial">How to play</Link></p><button className="rounded border px-3 py-2" onClick={()=>setShowLog(v=>!v)}>Action log</button>{showLog && <ol className="mt-3 space-y-2 text-sm">{game.events.map(e=><li key={e.seq}>{e.text}</li>)}</ol>}</div></div>;
+  const settingsPanel = settingsOpen && <div role="dialog" aria-modal="true" aria-label="Table settings" className="fixed inset-0 z-50 overflow-auto bg-stone-950/80 p-3"><div className="mx-auto max-w-xl rounded-xl bg-[#fff7e5] p-4 text-stone-900"><button autoFocus className="float-right rounded border px-3 py-2" onClick={()=>setSettingsOpen(false)}>Close settings</button><h2 className="text-xl font-bold">Table settings</h2><label className="my-4 flex items-center gap-3"><input type="checkbox" checked={ghostEnabled} onChange={e=>toggleGhost(e.target.checked)}/> Ghost planning (optional)</label><p className="my-4"><Link href="/subway/tutorial">How to play</Link></p><button className="rounded border px-3 py-2" onClick={()=>setShowLog(v=>!v)}>Action log</button>{showLog && <ol className="mt-3 space-y-2 text-sm">{game.events.map(e=><li key={e.seq}>{e.text}</li>)}</ol>}</div></div>;
   const resultsPanel = game.phase === "RESULTS" && showResults && <div role="dialog" aria-modal="true" aria-label="Final results" className="fixed inset-0 z-40 overflow-auto bg-[#fff7e5] p-3 text-stone-900"><button autoFocus className="mb-3 rounded border px-4 py-2" onClick={()=>setShowResults(false)}>Back to board</button><ResultsSheet game={game} roomCode={room.roomCode} mode={room.mode}/></div>;
 
   return (
@@ -1378,9 +1386,10 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
                 </span>
               </div>
               <Board
+                highlightedStations={highlightedStations}
                 game={game}
                 targets={canAct ? targets : []}
-                following={mode === "place" ? following : []}
+                following={ghostEnabled && mode === "place" ? following : []}
                 selected={mode === "place" || (mode === "planner" && !manualPlanner) ? preview ?? undefined : undefined}
                 planningTargets={mode === "planner" && (manualPlanner || !!preview)}
                 canAct={canAct}

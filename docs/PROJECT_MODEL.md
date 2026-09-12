@@ -2,7 +2,7 @@
 
 <!-- How does this system work TODAY? Present tense. Not a roadmap, not a history. -->
 
-**Last updated:** 2026-09-11 · **Build OS v0.12** (see [50thycal/build-os](https://github.com/50thycal/build-os))
+**Last updated:** 2026-09-12 · **Build OS v0.12** (see [50thycal/build-os](https://github.com/50thycal/build-os))
 
 Project memory has three layers: this file (how the system works today),
 [`DECISIONS.md`](DECISIONS.md) (why), and [`workstreams/`](workstreams/ACTIVE.md) (what is being
@@ -49,6 +49,29 @@ Phone presentation has four scrolling pages (Destinations, Lines, Engineering,
 General), safe-area bottom navigation and a portrait orientation prompt. Saved
 plans are edited on the iPad and shown with line cards on the phone; they never
 select or construct real pegs. Poll failures disable board interaction until recovery.
+
+### Playtest guidance and live objective progress
+
+Phones show a persistent next-step instruction with a direct page link, including
+while another company drafts. Card status includes live VP and Completed text.
+A newly observed completed line produces a dismissible +$3M notice on both device
+roles; reconnecting to an already completed line does not replay the reward.
+
+An authenticated phone can explicitly share one owned Destination's station
+locations with the iPad during its acknowledged board turn. Only the current
+tablet projection includes the station IDs. A turn change hides them; the next
+company must make its own request. Clear removes the highlight. This intentional
+disclosure does not publish the full hand or unselected missions.
+
+Ghost planning is a device-local Table setting, default off. Off hides saved
+ghosts, planning controls and next-step hints, but retains normal real-placement
+previews and Confirm. Turning it off does not erase saved plans.
+
+The reducer rejects a line crossing or rejoining an earlier segment of its own
+color; different colors retain contact/toll rules. Nine directional/terminal
+Engineering objectives have live 2/4/maximum tiers, with the original maximums.
+The same progress helper supplies phone VP and final score ledger points.
+Neighborhood footprints remain a proposal, not the implemented board.
 
 ## Purpose
 
@@ -464,7 +487,7 @@ game. This file is the current source of truth for architecture; `docs/DECISIONS
 
 Subway has 2–4 companies, exactly three selected contracts each from twelve, and ten
 stations. Shared pure reducer helpers own the full-seat draft/placement rotation,
-rotating construction queue and owner-specific contact payments. Undo restores
+cyclic construction queue and owner-specific contact payments. Undo restores
 every recipient balance.
 Each company starts with $40M and chooses zero to three unfinished routes each turn
 over nine construction rounds. Crew bills are $0/$1/$3/$6M, paid before building one
@@ -476,7 +499,7 @@ Placement Undo refunds placement tolls but retains the already-paid crew bill.
 Each completed line immediately pays $3M. The valid final BUILD pays it once; the
 placement Undo restores the entire previous balance, including reward and tolls.
 
-`/subway` stores a versioned local session under `subway-hotseat-v16`. It is separate
+`/subway` stores a versioned local session under `subway-hotseat-v17`. It is separate
 from network rooms and uses no server authority; same-device social play is the only
 intended mode. Storage errors show a keep-tab-open warning. `/test/subway` creates
 isolated scenarios through real reducer actions, rendering the same GameView inside
@@ -497,13 +520,14 @@ phase/actor/period guards. Public events disclose the purchase but not the missi
 The post-game telemetry export includes destination identities and purchase flags.
 Construction cards and their special timing/economy effects have been removed.
 
-Shared snake-order helpers rotate opening seats between stages. Stale card-pick
+Cyclic draft helpers keep the same seat order within and between stages. Construction
+rounds keep the same opener so two-player round boundaries do not give double turns. Stale card-pick
 tokens and duplicate goals are rejected. BUY_SURVEYS follows drafting, then optional
 pin placement and all three route starters. There is no commitment or assignment.
-Legacy schedule/commitment types and dormant helpers remain unreachable in v16.
+Legacy schedule/commitment types and dormant helpers remain unreachable in v17.
 
 `network.ts` provides own-node connectivity and longest edge-simple trails. Shared
-station IDs join dock slots; identical normal route nodes transfer; raw intersections
+neighborhood IDs join their exact peg holes; identical normal route nodes transfer; raw intersections
 and opponents never bridge components. Border objectives check exact rows/columns;
 a corner counts at most once when assigning distinct sides. First to Open uses an
 undo-restored first-completion player field. Longest network scores logical peg-space
@@ -511,9 +535,9 @@ length without segment reuse: 5 VP to one winner or 3 each on a tie. Route speci
 and per-contract Major bonuses are removed, retaining ordinary station scoring.
 
 Contracts keep stable internal IDs, recipes and prices, but display twelve color
-names with unique two-letter codes. Two-player stations have one minor/two major
-docks, compared with two/three for 3–4 players. Placed and planned station nodes
-retain `stationCapacity` so physical geometry matches the state's dock layout.
+names with unique two-letter codes. Neighborhoods have no dock limits at any player count.
+Placed and planned area nodes retain the neighborhood ID plus the exact integer hole;
+there are no physical dock offsets.
 State version 15 requires restart for old rooms/saves and isolates old local plans.
 
 The isolated `/subway/tutorial` route prepares lesson snapshots through the legal
@@ -540,3 +564,26 @@ Active starter/build contexts automatically open a line-locked planner. A fresh 
 Subway touch/table continuation: the camera adds reduced-motion-aware momentum after drag, with new-touch cancellation and scoped WebKit selection/callout suppression. Opponent panels begin collapsed and company plaques have bounded widths. Construction schedule presents selected-round order and per-line build/Undo facts through constructionHistory, projecting only public fields from telemetry. Survey placement is reducer-restricted to interior non-station holes; existing border pins in saved games are not deleted.
 
 Ordinary route purchases dispatch directly from a priced button on the offer. Card drafting shows disabled availability on the face; current Engineering goals are readable inline. GameView serializes pending UI dispatches and reports rejected actions in its status strip. Planner context alone initializes automatic planning, including React's mount-effect replay; loading saved plans does not reset it. Hiring and subsequent active routes focus the pegboard. Target navigation respects the measured HUD bands. The camera opens the first hand/line piece, the survey slip, or current construction controls at a consistent working zoom. Construction history follows the current actions in visual and keyboard order. Results wrap for narrow screens and put the score breakdown before report export (DEC-033).
+
+## Neighborhood board (DEC-043, state v18)
+
+Ten stable neighborhood IDs replace point stations: 3 small (3 holes), 6 large
+(6 holes), 1 medium (4 holes), worth 2/5/3 VP per distinct area per company.
+`randomStationLayout` shuffles identity-to-bay placement, connected footprint shape,
+quarter-turn and horizontal offset using engine randomness. Ten separated interior
+3×3 bays guarantee valid non-overlapping footprints and keep the outer border clear.
+State stores exact `cells`; `stationAt` tests membership. Old station IDs and major/
+minor internal category keys remain for cards, but no capacity field or dock cap remains.
+
+Only placing a node inside serves an area. Shared area IDs join own lines even at
+different holes; string-only crossings and opponents do not supply transfers. Every
+physical contact uses actual hole geometry, including neighborhood pegs. Sharing an
+area alone costs nothing. Longest network counts built segments, not transfer distance.
+Local Service requires one line serving all three small areas, with no completion
+requirement. Major Connection/Interchange use large areas; Terminal accepts any size.
+Literal border goals and survey rules remain exact-hole based. Surveys stay outside areas.
+
+Board footprints render beneath pegs, routes and target rings. Destination highlights
+trace full area boundaries. Phone cards, tutorial and report use neighborhood rules;
+reports include size, all occupied holes and exact node locations. Plans revalidate
+neighborhood membership. State version 18 and local-save key reject old dock games.

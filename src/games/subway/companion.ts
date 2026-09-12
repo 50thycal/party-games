@@ -1,5 +1,5 @@
 import type { RoomState, Room, GameContext } from "../../engine/types";
-import { subwayGame, cardDraftTurnId, starterTurnId, surveyTurnId, SUBWAY_STATE_VERSION, type SubwayState, type SubwayAction } from "./config";
+import { subwayGame, cardDraftTurnId, starterTurnId, surveyTurnId, destinationById, SUBWAY_STATE_VERSION, type SubwayState, type SubwayAction } from "./config";
 import { type SavedPlan, validPlanNodes, cleanNode } from "./plans";
 
 export type CompanionDevice = { tokenHash: string; role: "tablet" | "phone"; playerId: string; requests: string[] };
@@ -9,6 +9,7 @@ export type CompanionStore = {
   devices: CompanionDevice[];
   seated?: { playerId: string; turn: string };
   plans: Record<string, Record<string, SavedPlan>>;
+  destinationHighlight?: {playerId:string;cardId:string;turn:string};
 };
 export type CompanionView = {
   room: Room;
@@ -22,6 +23,7 @@ export type CompanionView = {
   plans: Record<string, SavedPlan>;
   engineeringRemaining: number;
   canUndo: boolean;
+  highlightedStations: string[];
 };
 
 export function companionActor(game: SubwayState | null): string | undefined {
@@ -73,6 +75,7 @@ export function companionView(state: RoomState, device: CompanionDevice): Compan
   }
   return {room:state.room,game,revision:store.revision,role:device.role,playerId:device.playerId,
     actorId:companionActor(original),seatedId,turn,
+    highlightedStations:device.role==="tablet" && seatedId && store.destinationHighlight?.playerId===seatedId && store.destinationHighlight.turn===turn ? destinationById(store.destinationHighlight.cardId)?.stationIds ?? [] : [],
     plans:structuredClone(owner ? store.plans[owner] ?? {} : {}),
     engineeringRemaining:original?.market.decks.engineering.length ?? 0,
     canUndo:device.role === "tablet" && !!original?.undo && store.seated?.playerId === original.undo.playerId};
@@ -98,6 +101,11 @@ export function companionAction(state: RoomState, device: CompanionDevice, input
   if (input.type === "ACK_COMPANY") {
     if (device.role !== "tablet" || !actor || payload.playerId !== actor) throw new Error("Wait for the active company.");
     session.seated = {playerId:actor,turn:companionTurn(game)};
+  } else if (input.type === "SHOW_DESTINATION") {
+    if (device.role !== "phone" || !game || device.playerId !== actor || seated !== actor) throw new Error("Confirm your company on the iPad first, during your board turn.");
+    const cardId = payload.cardId;
+    if (cardId !== null && (typeof cardId !== "string" || !game.players[device.playerId].destinationHand.includes(cardId))) throw new Error("Choose one of your own Destination cards.");
+    session.destinationHighlight = cardId === null ? undefined : {playerId:device.playerId,cardId:cardId as string,turn:companionTurn(game)};
   } else if (input.type === "SAVE_GHOST") {
     if (device.role !== "tablet" || !seated || seated !== actor || !game) throw new Error("Confirm your company first.");
     const contractId = payload.contractId;

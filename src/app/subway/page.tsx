@@ -7,7 +7,7 @@ import { SubwayGameView } from "@/games/subway/GameView";
 import { SUBWAY_STATE_VERSION, subwayGame, nextCompanyId, type SubwayAction, type SubwayState } from "@/games/subway/config";
 
 type Session = { room: Room; game: SubwayState; seat: string };
-const SAVE_KEY = "subway-hotseat-v16";
+const SAVE_KEY = "subway-hotseat-v18";
 
 export default function SubwayHotseat() {
   const [session, setSession] = useState<Session | null>(null);

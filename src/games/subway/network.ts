@@ -1,6 +1,6 @@
 import type { Point, PlayerLine, SubwayPlayer } from "./config";
 
-/** Dock slots at one station transfer; geometric crossings alone never do. */
+/** Peg holes in one neighborhood transfer; geometric crossings alone never do. */
 export const networkNodeKey = (node: Point & { stationId?: string }) =>
   node.stationId ? `station:${node.stationId}` : `${node.x},${node.y}`;
 
