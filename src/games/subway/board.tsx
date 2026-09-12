@@ -64,6 +64,7 @@ export function Board({
   following,
   selected,
   planningTargets = false,
+  highlightedStations = [],
   canAct,
   drawn,
   onTapHole,
@@ -75,6 +76,7 @@ export function Board({
   selected?: PlacementTarget;
   /** These clickable targets extend a sketch, not the next real placement. */
   planningTargets?: boolean;
+  highlightedStations?: string[];
   canAct: boolean;
   drawn: DrawnLine[];
   onTapHole: (p: Point, slot?: number) => void;
@@ -231,6 +233,7 @@ export function Board({
         const words = s.name.split(" ");
         return (
           <g key={s.id} transform={`translate(${p.x},${p.y})`}>
+            {highlightedStations.includes(s.id) && <rect aria-label={`${s.name}: destination target`} x={-w/2-14} y={top-14} width={w+28} height={h+28} rx={24} fill="#facc15" fillOpacity={0.3} stroke="#facc15" strokeWidth={9}/>}
             <title>{s.name} · {s.kind} station · +{SUBWAY_CONFIG.stationScores[s.kind]} VP · {openDocks.length} of {s.capacity} docks open</title>
             <rect x={-w / 2} y={top + 3} width={w} height={h} rx={major ? 10 : 22} fill="#000" opacity="0.18" />
             <rect

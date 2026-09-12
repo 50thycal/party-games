@@ -27,7 +27,7 @@ import type { BaseAction, GameContext, Player } from "@/engine/types";
 // ============================================================================
 
 /** Bumped when the state shape changes; older rooms must restart. */
-export const SUBWAY_STATE_VERSION = 16;
+export const SUBWAY_STATE_VERSION = 17;
 
 // ----------------------------------------------------------------------------
 // Tunable configuration
@@ -398,6 +398,21 @@ export const ENGINEERING_CARDS: EngineeringCard[] = [
     "kind": "objective"
   }
 ];
+
+export const OBJECTIVE_TIERS: Record<string,string> = {
+  gentle: "1 / 2 / 3 different border sides among completed line ends: 2 / 4 / 6 VP.",
+  bend: "1 / 2 / 3 completed lines starting east or west and ending north or south: 2 / 4 / 6 VP.",
+  straight: "1 / 2 / 3 completed lines ending on their starter's border side: 2 / 4 / 7 VP.",
+  through: "1 / 2 / 3 lines touching both north and south borders: 2 / 4 / 7 VP. Completion is not required.",
+  terminal: "1 / 2 / 3 completed lines ending at stations: 2 / 4 / 6 VP. Stations may be shared.",
+  perimeter: "One completed line touching 1 / 2 / 3 distinct board sides: 2 / 4 / 6 VP. Use distinct pegs for each side.",
+  "three-fronts": "1 / 2 / 3 completed lines with different starter sides and a common final border side: 2 / 4 / 7 VP.",
+  "crosstown-service": "2 VP: a built segment reaches the first or last three columns. 4 VP: the same line reaches both. 6 VP: complete that line.",
+  "four-corners": "2 VP: build a segment connected to a corner peg. 4 VP: your network connects opposite corners. 6 VP: all three lines join that network.",
+};
+for (const card of ENGINEERING_CARDS) {
+  if (OBJECTIVE_TIERS[card.id]) card.description = card.requirement = OBJECTIVE_TIERS[card.id];
+}
 
 export const engineeringById = (id: string): EngineeringCard | undefined =>
   ENGINEERING_CARDS.find((c) => c.id === id);
@@ -923,9 +938,9 @@ export function contestedPeriods(s: SubwayState): number[] {
 }
 
 /** The company whose calendar turn it is to build first, ignoring permits. */
-export function basePriorityId(s: SubwayState, period: number): string {
+export function basePriorityId(s: SubwayState, _period: number): string {
   const start = Math.max(0, s.playerOrder.indexOf(s.oddPriorityId));
-  return s.playerOrder[(start + period - 1) % s.playerOrder.length] ?? "";
+  return s.playerOrder[start] ?? "";
 }
 
 /** Which company builds first in a period, honouring any Priority Permit. */
@@ -1242,6 +1257,14 @@ export function validateNode(
   const fromNode = myLine.route[myLine.route.length - 1];
   const fromPos = nodePoint(fromNode);
   const toPos = targetPoint(p, slot, station);
+  // Only the immediately preceding segment may meet the new one at its start.
+  // Other colors (including this company's) remain legal contacts.
+  for (let i = 1; i < myLine.route.length - 1; i++) {
+    const a = nodePoint(myLine.route[i - 1]), b = nodePoint(myLine.route[i]);
+    if (segmentsCross(fromPos, toPos, a, b) || pointOnSegment(toPos, a, b) || pointOnSegment(a, fromPos, toPos) || pointOnSegment(b, fromPos, toPos)) {
+      return "A line cannot cross or rejoin its own color.";
+    }
+  }
   const span = distanceBetween(fromPos, toPos);
   if (!lengthMatches(span, required)) {
     return `Segment ${segmentsBuilt(myLine) + 1} must span ${required} pegs (this one spans ${span.toFixed(1)}).`;
@@ -1345,7 +1368,7 @@ export function surveyBlocker(s: SubwayState, playerId: string, p: Point): strin
  * purchases simply finish with the remaining company placing its balance.
  */
 function leastServed(s: SubwayState, waiting: string[], count: (id: string) => number): string | undefined {
-  const rotation = s.playerOrder.map((_, i) => basePriorityId(s, i + 1));
+  const rotation = s.playerOrder.map((_, i) => draftTurnId(s, i, 0));
   return [...waiting].sort((a, b) => count(a) - count(b) || rotation.indexOf(a) - rotation.indexOf(b))[0];
 }
 
@@ -1464,6 +1487,43 @@ export function objectiveMet(id: string, me: SubwayPlayer, opponents: SubwayPlay
   }
 }
 
+/** Live points, not banked points: Undo or changed conditions recompute them. */
+export function objectiveProgress(id: string, me: SubwayPlayer, opponents: SubwayPlayer[], state?: SubwayState): {points:number;max:number;met:boolean;count?:number} {
+  const card = engineeringById(id) ?? destinationById(id);
+  const max = card?.vp ?? 0;
+  const met = objectiveMet(id, me, opponents, state);
+  const complete = me.lines.filter(lineComplete);
+  let count: number | undefined;
+  switch (id) {
+    case "gentle": count = [1,2,3].filter(n => distinctSides(complete.flatMap(l=>l.route.slice(-1)),n)).length; break;
+    case "bend": count = complete.filter(l=>borderSides(l.route[0]).some(s=>s==="east"||s==="west") && borderSides(l.route.at(-1)!).some(s=>s==="north"||s==="south")).length; break;
+    case "straight": count = complete.filter(l=>borderSides(l.route[0]).some(s=>borderSides(l.route.at(-1)!).includes(s))).length; break;
+    case "through": count = me.lines.filter(l=>l.route.some(n=>n.y===0)&&l.route.some(n=>n.y===SUBWAY_CONFIG.board.rows-1)).length; break;
+    case "terminal": count = complete.filter(l=>!!l.route.at(-1)?.stationId).length; break;
+    case "three-fronts": {
+      count = 0;
+      for (const side of ["north","south","east","west"] as const) {
+        const starts = complete.filter(l=>borderSides(l.route.at(-1)!).includes(side)).map(l=>l.route[0]);
+        count = Math.max(count,...[1,2,3].map(n=>distinctSides(starts,n)?n:0));
+      }
+      break;
+    }
+    case "perimeter": count = Math.max(0,...complete.map(l=>[1,2,3].filter(n=>distinctSides(l.route,n)).length)); break;
+    case "crosstown-service": {
+      const both = (l:PlayerLine)=>l.route.some(n=>n.x<=2)&&l.route.some(n=>n.x>=SUBWAY_CONFIG.board.columns-3);
+      count = met?3:me.lines.some(both)?2:me.lines.some(l=>l.route.length>1&&l.route.some(n=>n.x<=2||n.x>=SUBWAY_CONFIG.board.columns-3))?1:0;
+      break;
+    }
+    case "four-corners": {
+      const graph = companyNetwork(me);
+      const pairs = [["0,0","26,8"],["26,0","0,8"]];
+      count = met?3:pairs.some(([a,b])=>graph.has(a)&&graph.get(a)===graph.get(b))?2:pairs.flat().some(n=>graph.has(n))?1:0;
+      break;
+    }
+  }
+  return {points:count===undefined?(met?max:0):[0,2,4,max][Math.min(3,count)],max,met,count};
+}
+
 /** Live private status of one company's committed cards, for its own UI. */
 export function committedStatus(s: SubwayState, playerId: string): { cardId: string; met: boolean }[] {
   const me = s.players[playerId];
@@ -1518,7 +1578,7 @@ export function scoreGame(state: SubwayState, now: number): SubwayState {
       const card = engineeringById(id) ?? destinationById(id);
       if (!card) continue;
       const met = objectiveMet(id, p, opponents, state);
-      items.push({ label: card.name, points: met ? card.vp : 0, met });
+      items.push({ label: card.name, points: objectiveProgress(id,p,opponents,state).points, met });
     }
 
     for (const pin of state.surveyPins.filter((entry) => entry.playerId === p.id)) {
@@ -1656,12 +1716,11 @@ export function randomStationLayout(random: () => number): Station[] {
 // Procurement flow
 // ----------------------------------------------------------------------------
 
-/** Shared snake order: each stage rotates its opening seat. */
-export function draftTurnId(s: SubwayState, pick: number, stage: number): string {
+/** Cyclic seats across drafts; no snake or repeated seat at a stage boundary. */
+export function draftTurnId(s: SubwayState, pick: number, _stage: number): string {
   const n = s.playerOrder.length;
-  const round = Math.floor(pick / n);
-  const offset = round % 2 === 0 ? pick % n : n - 1 - pick % n;
-  const first = (s.playerOrder.indexOf(s.oddPriorityId) + stage) % n;
+  const offset = pick % n;
+  const first = s.playerOrder.indexOf(s.oddPriorityId);
   return s.playerOrder[(first + offset) % n];
 }
 
@@ -1783,7 +1842,7 @@ function beginConstructionPeriod(s: SubwayState, now: number, opening = false): 
     p.actedThisPeriod = false;
     p.crewsHired = false;
   }
-  s.resolveQueue = s.playerOrder.map((_,i) => basePriorityId(s,s.currentPeriod+i));
+  s.resolveQueue = s.playerOrder.map((_,i) => draftTurnId(s,i,0));
   pushEvent(s, now, "PERIOD", "banner", `${opening ? "Construction begins. " : ""}Round ${s.currentPeriod}: choose crews on your turn.`);
   return s;
 }

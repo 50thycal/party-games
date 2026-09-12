@@ -370,14 +370,14 @@ const DECK_ORDER = ["branch", "medium", "express", "crosstown", "long", "short"]
 
   const s = redFirst;
   assert.equal(basePriorityId(s, 1), "red", "odd periods belong to the odd company");
-  assert.equal(basePriorityId(s, 2), "blue", "even periods belong to the opposition");
+  assert.equal(basePriorityId(s, 2), "red", "fixed first seat prevents consecutive turns at round boundaries");
   assert.equal(basePriorityId(s, 15), "red", "and it keeps alternating to the end of the calendar");
-  assert.equal(basePriorityId(s, 16), "blue", "…for both companies");
-  assert.equal(periodPriorityId(s, 4), "blue", "with no permit, priority is the calendar's");
+  assert.equal(basePriorityId(s, 16), "red", "…for both companies");
+  assert.equal(periodPriorityId(s, 4), "red", "with no permit, priority is the calendar's");
 
   const overridden = { ...s, priorityOverrides: { 4: "red" } };
   assert.equal(periodPriorityId(overridden, 4), "red", "a Priority Permit overrides its own period");
-  assert.equal(periodPriorityId(overridden, 6), "blue", "and only its own period");
+  assert.equal(periodPriorityId(overridden, 6), "red", "and only its own period");
 }
 
 // ============================================================================

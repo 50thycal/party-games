@@ -2,7 +2,7 @@
 
 <!-- How does this system work TODAY? Present tense. Not a roadmap, not a history. -->
 
-**Last updated:** 2026-09-11 · **Build OS v0.12** (see [50thycal/build-os](https://github.com/50thycal/build-os))
+**Last updated:** 2026-09-12 · **Build OS v0.12** (see [50thycal/build-os](https://github.com/50thycal/build-os))
 
 Project memory has three layers: this file (how the system works today),
 [`DECISIONS.md`](DECISIONS.md) (why), and [`workstreams/`](workstreams/ACTIVE.md) (what is being
@@ -49,6 +49,29 @@ Phone presentation has four scrolling pages (Destinations, Lines, Engineering,
 General), safe-area bottom navigation and a portrait orientation prompt. Saved
 plans are edited on the iPad and shown with line cards on the phone; they never
 select or construct real pegs. Poll failures disable board interaction until recovery.
+
+### Playtest guidance and live objective progress
+
+Phones show a persistent next-step instruction with a direct page link, including
+while another company drafts. Card status includes live VP and Completed text.
+A newly observed completed line produces a dismissible +$3M notice on both device
+roles; reconnecting to an already completed line does not replay the reward.
+
+An authenticated phone can explicitly share one owned Destination's station
+locations with the iPad during its acknowledged board turn. Only the current
+tablet projection includes the station IDs. A turn change hides them; the next
+company must make its own request. Clear removes the highlight. This intentional
+disclosure does not publish the full hand or unselected missions.
+
+Ghost planning is a device-local Table setting, default off. Off hides saved
+ghosts, planning controls and next-step hints, but retains normal real-placement
+previews and Confirm. Turning it off does not erase saved plans.
+
+The reducer rejects a line crossing or rejoining an earlier segment of its own
+color; different colors retain contact/toll rules. Nine directional/terminal
+Engineering objectives have live 2/4/maximum tiers, with the original maximums.
+The same progress helper supplies phone VP and final score ledger points.
+Neighborhood footprints remain a proposal, not the implemented board.
 
 ## Purpose
 
@@ -464,7 +487,7 @@ game. This file is the current source of truth for architecture; `docs/DECISIONS
 
 Subway has 2–4 companies, exactly three selected contracts each from twelve, and ten
 stations. Shared pure reducer helpers own the full-seat draft/placement rotation,
-rotating construction queue and owner-specific contact payments. Undo restores
+cyclic construction queue and owner-specific contact payments. Undo restores
 every recipient balance.
 Each company starts with $40M and chooses zero to three unfinished routes each turn
 over nine construction rounds. Crew bills are $0/$1/$3/$6M, paid before building one
@@ -476,7 +499,7 @@ Placement Undo refunds placement tolls but retains the already-paid crew bill.
 Each completed line immediately pays $3M. The valid final BUILD pays it once; the
 placement Undo restores the entire previous balance, including reward and tolls.
 
-`/subway` stores a versioned local session under `subway-hotseat-v16`. It is separate
+`/subway` stores a versioned local session under `subway-hotseat-v17`. It is separate
 from network rooms and uses no server authority; same-device social play is the only
 intended mode. Storage errors show a keep-tab-open warning. `/test/subway` creates
 isolated scenarios through real reducer actions, rendering the same GameView inside
@@ -497,10 +520,11 @@ phase/actor/period guards. Public events disclose the purchase but not the missi
 The post-game telemetry export includes destination identities and purchase flags.
 Construction cards and their special timing/economy effects have been removed.
 
-Shared snake-order helpers rotate opening seats between stages. Stale card-pick
+Cyclic draft helpers keep the same seat order within and between stages. Construction
+rounds keep the same opener so two-player round boundaries do not give double turns. Stale card-pick
 tokens and duplicate goals are rejected. BUY_SURVEYS follows drafting, then optional
 pin placement and all three route starters. There is no commitment or assignment.
-Legacy schedule/commitment types and dormant helpers remain unreachable in v16.
+Legacy schedule/commitment types and dormant helpers remain unreachable in v17.
 
 `network.ts` provides own-node connectivity and longest edge-simple trails. Shared
 station IDs join dock slots; identical normal route nodes transfer; raw intersections

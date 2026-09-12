@@ -84,7 +84,26 @@ two different pegs/sides for Three-Way Service, Three Fronts or Perimeter Servic
 Loop asks for the starting *side*, not the exact starting peg or a closed circuit.
 Across Town alone uses the first/last three columns instead of exact borders.
 
-| Engineering goal | VP | Requirement |
+Directional goals and Terminal Network now award partial credit. The table below
+describes maximum awards, not an all-or-nothing requirement for these cards:
+
+- Three-Way Service, Turning the Corner, Loop, North–South Lines, Terminal Network
+  and Three Fronts: qualifying one/two/three lines (or distinct end sides) gives
+  2/4/the printed maximum VP. Keep each card's stated completion requirement;
+  North–South does not require completion. Three Fronts uses the largest subset
+  with distinct starter sides and a common final side.
+- Perimeter Service: one completed line touching one/two/three distinct sides
+  gives 2/4/6 VP; distinct pegs must represent the sides.
+- Across Town: 2 VP for a built segment reaching one outer three-column strip,
+  4 VP for the same line reaching both strips, 6 VP when that line is complete.
+- Four Corners: 2 VP for a built segment connected to a corner, 4 VP for an own
+  network joining opposite corners, 6 VP when all three lines join that network.
+
+Tiers replace one another; they do not add together. Progress is re-evaluated at
+scoring and after Undo, never permanently banked. Other cards retain full-or-zero
+scoring. Phones display live points and an explicit Completed label at the maximum.
+
+| Engineering goal | Maximum VP | Maximum requirement |
 |---|---:|---|
 | Three-Way Service | 6 | Complete all three lines with their final pegs on three different board sides. |
 | Turning the Corner | 6 | Complete all three lines: each starts on the east or west border and ends on the north or south border. |
@@ -131,8 +150,9 @@ on that hole at scoring.
 
 ## Construction rounds
 
-At each round's beginning, starting priority rotates one company. Companies act
-once in that fixed order for the round.
+Companies act in the same cyclic seat order in every round. The first company is
+chosen at game start; the last company in one round hands to the first in the next.
+Line and Engineering drafts also use this cyclic order, not a snake draft.
 
 On your turn, optionally buy your extra Destination mission, then choose zero to three different
 unfinished, buildable routes and hire their crews:
@@ -167,7 +187,8 @@ the named stations among deliberately well-spaced board sites, so Destinations
 move while the city never clusters into one corner. A line docks each station at
 most once.
 
-Normal pegs may share holes, sit on strings, or be adjacent. Routes may cross and
+Normal pegs may share holes, sit on other colors' strings, or be adjacent. A line
+cannot cross or rejoin any earlier segment of its own color. Other colors may cross and
 pass through pegs. Only collinear **string overlap** is prohibited. Stations never
 block strings passing over them. The current route glows during construction; a
 selected next node draws a translucent route-colored segment until Confirm.

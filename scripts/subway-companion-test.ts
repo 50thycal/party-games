@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { companionAction, companionView, companionActor, type CompanionDevice } from "../src/games/subway/companion";
 import { playtestAction, seededRandom, testRoom } from "../src/games/subway/playtest";
-import { type SubwayState, SUBWAY_CONFIG, LINE_CONTRACTS } from "../src/games/subway/config";
+import { type SubwayState, SUBWAY_CONFIG, LINE_CONTRACTS, destinationById } from "../src/games/subway/config";
 import type { RoomState } from "../src/engine/types";
 
 let request=0;
@@ -36,6 +36,11 @@ for(const count of [2,3,4]) {
   for(let step=0;step<300;step++) {
     const game=state.gameState as SubwayState;
     if(game.phase==="RESULTS") break;
+    if(game.phase==="CONSTRUCTION") {
+      assert.equal(new Set(game.resolveQueue).size,game.resolveQueue.length,"each company occurs once in the construction queue");
+      const scheduled=game.playerOrder.filter(id=>!game.players[id].actedThisPeriod);
+      assert.deepEqual(new Set(game.resolveQueue),new Set(scheduled),"no company is skipped at a round boundary");
+    }
     const action=playtestAction(game,random)!;
     const isPhone=["PROCURE","DRAFT_CARD","BUY_SURVEYS","BUY_DESTINATION"].includes(action.type);
     const device=isPhone?phones.find(p=>p.playerId===action.playerId)!:tablet;
@@ -43,10 +48,23 @@ for(const count of [2,3,4]) {
       const before=companionView(state,tablet);
       if(before.seatedId!==before.actorId) {
         assert.deepEqual(before.plans,{},"handoff carries no outgoing ghosts");
+        assert.deepEqual(before.highlightedStations,[],"handoff hides outgoing destination locations");
         assert.throws(()=>send(tablet,action.type,action.payload),"board waits for acknowledgement");
         send(tablet,"ACK_COMPANY",{playerId:before.actorId});
       }
       if(!planSaved&&game.phase==="STARTER_PLACEMENT") {
+        const owner=phones.find(p=>p.playerId===action.playerId)!;
+        const other=phones.find(p=>p.playerId!==action.playerId)!;
+        const cardId=game.players[owner.playerId].destinationHand[0];
+        assert.throws(()=>send(other,"SHOW_DESTINATION",{cardId}));
+        assert.throws(()=>send(tablet,"SHOW_DESTINATION",{cardId}));
+        assert.throws(()=>send(owner,"SHOW_DESTINATION",{cardId:"not-owned"}));
+        send(owner,"SHOW_DESTINATION",{cardId});
+        assert.deepEqual(companionView(state,tablet).highlightedStations,destinationById(cardId)!.stationIds);
+        assert.deepEqual(companionView(state,other).highlightedStations,[]);
+        send(owner,"SHOW_DESTINATION",{cardId:null});
+        assert.deepEqual(companionView(state,tablet).highlightedStations,[]);
+        send(owner,"SHOW_DESTINATION",{cardId});
         const contractId=game.players[action.playerId].lines[0].contractId;
         const nodes=[{x:0,y:0},{x:2,y:0}];
         send(tablet,"SAVE_GHOST",{contractId,nodes});

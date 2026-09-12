@@ -1569,3 +1569,34 @@ No accounts, sockets or infrastructure migration are introduced. The trade-off i
 that losing both browser storage and the recovery key loses that device's access;
 the public room code deliberately cannot impersonate an existing participant.
 State v16 restarts older rule states. Other games keep their legacy transport.
+
+### DEC-042 — Guided turns, optional ghosts and tiered shape objectives
+
+Date: 2026-09-12. Status: owner-authorized; implementation review pending.
+
+The latest physical playtest requests explicit phase directions on phones, visible
+completion/cash notices, optional planning, cyclic turn order and no same-color
+self-crossing. Draft and construction rounds use the same cyclic seat order,
+without snake picks or rotating round openers. Crew turns still include one
+segment per hired line; billing and nine-round limits do not change.
+
+Ghost planning is off by default in Table settings, persisted per device. Ordinary
+peg preview and confirmation remain; enabling planning restores saved sketches.
+Turning it off hides rather than deletes them. This supersedes automatic planning
+as the default under DEC-032, not its opt-in implementation.
+
+The owner delegated tier values: directional and terminal goals pay 2/4/their
+existing maximum (6 or 7), not cumulative awards. Single-line Across Town and
+company Four Corners instead use explicit geographic milestones. Scoring and
+live phone progress share one evaluator. Completion is recomputed, not latched,
+so Undo and mutable conditions remain honest. Other Engineering goals stay binary.
+
+A phone may intentionally show an owned Destination's locations on the shared
+iPad during its acknowledged board turn. The server validates ownership, role,
+actor and acknowledgement; only the tablet receives the selected station IDs.
+Turn changes hide them. Private hands and unselected cards remain filtered.
+
+State v17 protects existing games from changed rules. Neighborhood conversion is
+still an owner decision recorded in the workstream proposal, not an accepted
+rule. Alternatives: automatic page switching was rejected in favor of a persistent
+action link so players can keep reading private cards without forced navigation.
