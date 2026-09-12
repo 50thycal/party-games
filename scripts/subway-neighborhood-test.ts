@@ -43,23 +43,21 @@ for(const random of [()=>0,()=>0.999999]) assert.equal(randomStationLayout(rando
 {
   const s=startPlaytest(2,2).state,p=s.players["seat-1"],q=s.players["seat-2"];
   const line=(route:PlayerLine["route"]):PlayerLine=>({contractId:"short",paid:0,route});
-  p.lines=[line([{x:0,y:2},{x:4,y:2,stationId:"garden"}]),line([{x:6,y:3,stationId:"garden"},{x:10,y:3,stationId:"market"}])];
-  const card=DESTINATION_CARDS.find(c=>c.stationIds.length===2&&c.stationIds.includes("garden")&&c.stationIds.includes("market"))!;
-  assert.equal(destinationMet(p,card.id),true,"different holes in one area transfer across own lines");
-  assert.equal(longestNetwork(p),8,"area transfer adds no imaginary length");
-  const graph=companyNetwork(p);assert.equal(graph.get("0,2"),graph.get("station:market"));
+  p.lines=[line([{x:0,y:2},{x:4,y:2,stationId:"grand"}]),line([{x:6,y:3,stationId:"grand"},{x:10,y:3,stationId:"market"}])];
+  const card=DESTINATION_CARDS.find(c=>c.stationIds.length===2&&c.stationIds.includes("grand")&&c.stationIds.includes("market"))!;
+  assert.equal(destinationMet(p,card.id),true,"one line serves both named areas without needing an area-wide transfer");
+  assert.equal(longestNetwork(p),4,"separated area nodes do not join lengths");
+  const graph=companyNetwork(p);assert.notEqual(graph.get("0,2"),graph.get("10,3"));
   q.lines=[p.lines.pop()!];
   assert.equal(destinationMet(p,card.id),false,"opponent network cannot supply a transfer");
   p.lines=[line([{x:0,y:2},{x:10,y:2}])];
   assert.equal(destinationMet(p,card.id),false,"passing string through an area is not a visit");
-  p.lines=[line([{x:0,y:2},{x:4,y:2,stationId:"garden"},{x:6,y:3,stationId:"garden"}])];
+  p.lines=[line([{x:0,y:2},{x:4,y:2,stationId:"grand"},{x:6,y:3,stationId:"grand"}])];
   const items=scoreGame(s,0).players[p.id].scoreBreakdown!;
-  assert.equal(items.filter(i=>i.label==="Garden connection").length,1,"repeat nodes score area once");
-  assert.equal(items.find(i=>i.label==="Garden connection")!.points,5,"small area now earns 5 VP");
-  p.lines[0].route.push({x:12,y:3,stationId:"theatre"},{x:15,y:3,stationId:"grand"});
+  assert.ok(items.every(i=>!i.label.endsWith(" connection")),"area visits award no automatic points");
+  p.lines[0].route.push({x:12,y:3,stationId:"theatre"},{x:15,y:3,stationId:"market"});
   const resized=scoreGame(s,0).players[p.id].scoreBreakdown!;
-  assert.equal(resized.find(i=>i.label==="Theatre connection")!.points,3,"medium retains 3 VP");
-  assert.equal(resized.find(i=>i.label==="Grand Central connection")!.points,2,"large now earns 2 VP");
-  assert.deepEqual(nodePoint({x:4,y:2,stationId:"garden",stationSlot:2}),{x:4,y:2},"legacy slot never offsets geometry");
+  assert.ok(resized.every(i=>!i.label.endsWith(" connection")),"all sizes have zero automatic points");
+  assert.deepEqual(nodePoint({x:4,y:2,stationId:"grand",stationSlot:2}),{x:4,y:2},"legacy slot never offsets geometry");
 }
 console.log("Neighborhood layouts (300 seat/seed cases), every-hole approaches, node-only service, transfers and unique scoring passed.");

@@ -18,8 +18,8 @@ assert.equal(ENGINEERING_CARDS.some(c=>c.id==="parallel"),false);
 assert.equal(new Set(LINE_CONTRACTS.map(c=>c.code)).size,12);
 assert.ok(LINE_CONTRACTS.every(c=>/^[A-Z]{2}$/.test(c.code)));
 assert.deepEqual(new Set(LINE_CONTRACTS.map(c=>c.name)),new Set(["Red","Blue","Green","Yellow","Orange","Purple","Pink","Black","White","Gray","Teal","Brown"].map(c=>`${c} Line`)));
-assert.equal(DESTINATION_CARDS.length,165);
-assert.equal(new Set(DESTINATION_CARDS.map(c=>c.id)).size,165);
+assert.equal(DESTINATION_CARDS.length,30);
+assert.equal(new Set(DESTINATION_CARDS.map(c=>c.id)).size,30);
 assert.ok(DESTINATION_CARDS.every(c=>c.vp===(c.stationIds.length===2?4:7)));
 
 assert.deepEqual(borderSides(pt(1,1)),[]);
@@ -50,29 +50,29 @@ assert.equal(distinctSides([pt(0,0),pt(26,0),pt(0,8)],3),true,"corners allow a d
   p.lines[2].route[0].y=1;
   assert.equal(met("through",s),false);
   p.lines=[line([pt(0,3),pt(3,1),pt(5,0),pt(10,2),pt(26,4)])];
-  assert.equal(met("perimeter",s),true);
+  assert.equal(met("perimeter",s),false,"one line is only the first tier");
   p.lines[0].route.pop();
   assert.equal(met("perimeter",s),false,"line must be complete");
   p.lines=[finished(pt(2,4),pt(24,4))];
-  assert.equal(met("crosstown-service",s),true);
+  assert.equal(met("crosstown-service",s),false,"near-border nodes never qualify");
   p.lines[0].route[0].x=3;
   assert.equal(met("crosstown-service",s),false);
 }
 {
   const s=base(),p=s.players["seat-1"];
   p.lines=[finished(station("grand",5,3),station("airport",20,3))];
+  assert.equal(met("approach",s),false,"two large areas are insufficient");
+  p.lines[0].route[2].stationId="museum";
   assert.equal(met("approach",s),true);
   p.lines[0].route.at(-1)!.stationId="grand";
   assert.equal(met("approach",s),false,"must visit different majors");
   p.lines=[finished(pt(0,1),station("grand",10,4)),finished(pt(0,3),station("grand",10,4,1)),finished(pt(26,2),station("museum",20,4))];
-  assert.equal(met("terminal",s),true);
-  assert.equal(met("interchange",s),true,"two lines suffice at two-player major");
+  assert.equal(met("terminal",s),false,"Citywide Service needs ten areas");
+  assert.equal(met("interchange",s),false,"all three lines required at two seats");
+  p.lines[2].route[p.lines[2].route.length-1]=station("grand",11,4);
+  assert.equal(met("interchange",s),true,"shared/adjacent nodes form a hub");
   s.playerOrder.push("third");
-  assert.equal(met("interchange",s),false,"three seats require three lines");
-  p.lines[2].route.at(-1)!.stationId="grand";
-  assert.equal(met("interchange",s),true);
-  p.lines[0].route.pop();
-  assert.equal(met("terminal",s),false);
+  assert.equal(met("interchange",s),true,"same rule at three seats");
   p.lines=[line([station("market",3,1),station("garden",6,1)]),line([station("library",22,3)])];
   assert.equal(met("local-service",s),false,"all three small areas must be on one line");
   p.lines[0].route.push(station("library",22,3));
@@ -95,9 +95,9 @@ assert.equal(distinctSides([pt(0,0),pt(26,0),pt(0,8)],3),true,"corners allow a d
 }
 {
   const s=base(),p=s.players["seat-1"];
-  p.lines=[line([station("garden",2,2),pt(4,2)]),line([pt(4,2),station("market",8,2)]),line([station("market",8,2,1),station("museum",12,2)])];
-  const pair=DESTINATION_CARDS.find(c=>c.stationIds.length===2&&c.stationIds.includes("garden")&&c.stationIds.includes("museum"))!;
-  const triple=DESTINATION_CARDS.find(c=>c.stationIds.length===3&&["garden","market","museum"].every(id=>c.stationIds.includes(id)))!;
+  p.lines=[line([station("garden",2,2),pt(4,2)]),line([pt(4,2),station("market",8,2)]),line([station("market",8,2,1),station("grand",12,2)])];
+  const pair=DESTINATION_CARDS.find(c=>c.stationIds.length===2&&c.stationIds.includes("market")&&c.stationIds.includes("grand"))!;
+  const triple=DESTINATION_CARDS.find(c=>c.stationIds.length===3&&["garden","market","grand"].every(id=>c.stationIds.includes(id)))!;
   assert.equal(destinationMet(p,pair.id),true);
   assert.equal(destinationMet(p,triple.id),true,"unfinished lines can provide a mission path");
   assert.equal(met("network",s),false,"Integrated Network additionally requires all lines complete");
@@ -105,19 +105,19 @@ assert.equal(distinctSides([pt(0,0),pt(26,0),pt(0,8)],3),true,"corners allow a d
   const scored=scoreGame(s,1).players[p.id];
   assert.equal(scored.scoreBreakdown!.find(i=>i.label===pair.name)!.points,4);
   assert.equal(scored.scoreBreakdown!.find(i=>i.label===triple.name)!.points,7);
-  p.lines[1].route[0]=pt(5,2);
+  p.lines[2].route[0]=pt(10,2);
   assert.equal(destinationMet(p,pair.id),false,"separated lines do not satisfy a mission");
-  s.players["seat-2"].lines=[line([pt(4,2),pt(5,2)])];
+  s.players["seat-2"].lines=[line([pt(8,2),pt(10,2)])];
   assert.equal(destinationMet(p,pair.id),false,"opponents cannot supply a connection");
   p.lines=[line([pt(0,0),pt(5,3)]),line([pt(5,3),pt(16,5)]),line([pt(16,5),pt(26,8)])];
-  assert.equal(met("four-corners",s),true);
+  assert.equal(met("four-corners",s),false,"opposite corners earn the first tier, not full completion");
   p.lines[2].route.at(-1)!.x=25;assert.equal(met("four-corners",s),false,"exact opposite corner required");
   p.lines=[line([pt(26,0),pt(18,3)]),line([pt(18,3),pt(8,5)]),line([pt(8,5),pt(0,8)])];
-  assert.equal(met("four-corners",s),true,"other diagonal also works");
+  assert.equal(met("four-corners",s),false,"other diagonal is also first tier");
   p.lines.push(line([pt(0,1),pt(1,1)]));assert.equal(met("four-corners",s),false);
   p.lines=[finished(pt(0,0),pt(7,7)),finished(pt(7,7),pt(19,7)),finished(pt(19,7),pt(26,8))];
   assert.equal(met("network",s),true);
-  p.lines[2].route=[pt(20,7),pt(21,7),pt(22,7),pt(23,7),pt(26,8)];
+  p.lines[2].route=[pt(21,7),pt(22,7),pt(23,7),pt(24,7),pt(26,8)];
   assert.equal(met("network",s),false);
 }
 {
@@ -141,7 +141,7 @@ for(const count of [2,3,4]) {
   assert.equal(hands.length,count*2);
   assert.equal(new Set(hands).size,count*2);
   assert.ok(hands.every(id=>DESTINATION_CARDS.some(c=>c.id===id)));
-  assert.equal(s.destinationDeck.length,165-count*2);
+  assert.equal(s.destinationDeck.length,30-count*2);
   assert.ok(s.telemetry[0].playersAfter[s.playerOrder[0]].destinationCards.length===2);
 }
 {

@@ -1645,3 +1645,27 @@ without retries, preserves 51 survey-eligible holes and every outer-border peg.
 Areas can touch boundaries, unlike the earlier sparse layout. Expanding the board
 was unnecessary and would change route reach and the directional objectives.
 State v19 prevents old games from silently changing score values mid-session.
+
+
+### DEC-045 — Physical transfers and goal-led neighborhood scoring
+
+Date: 2026-09-12. Status: owner-approved; implemented by PR #174.
+
+Owner approved zero automatic area VP for the next playtest and replaced free
+area-wide transfers with overlapping or horizontally/vertically adjacent nodes
+on different company lines, anywhere on the board. Diagonals and crossings do
+not join. This supersedes DEC-043/044's area transfers and base awards, not their
+footprints or node-only service. Longest trail adds no transfer distance and
+never reuses a built segment. Central Interchange uses one local adjacency group.
+
+The destination deck is 15 pairs and 15 triples, balanced by neighborhood identity;
+one pair/one triple dealt, 4/7 VP retained, optional $5M purchase unchanged.
+The reviewed engineering revisions and 6/10/4/8/10-point awards are canonical in
+RULES.md and config: Regional Service, Citywide Service, Local Service, Central
+Interchange, Across Town, Perimeter Service and Four Corners. Borders are literal;
+distinct sides need distinct nodes. State v20 prevents old rooms changing rules.
+
+This is a balance experiment: visiting a neighborhood only matters through goals
+(and the existing large-neighborhood tiebreak), while route/survey/longest/debt
+scoring remains. Human playtests must assess the ambitious ten-area/four-corner
+goals and whether neighborhoods absent from a hand are ignored.

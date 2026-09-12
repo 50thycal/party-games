@@ -4,7 +4,7 @@ A light-strategy route-building game for **2–4 companies**. Most victory point
 
 ## Game flow
 
-1. Start with **$40M and two private Destination missions**. Completing each line immediately pays **$3M**; Undo reverses that reward along with the placement.
+1. Start with **$40M and one two-neighborhood and one three-neighborhood private Destination mission**. Completing each line immediately pays **$3M**; Undo reverses that reward along with the placement.
 2. Draft three route contracts each, at list price, from a replenishing row of
    two/three/four choices for two/three/four players. No passing or discounts.
 3. Draft **three Engineering goals each**, choosing between two face-up cards or a blind draw.
@@ -12,7 +12,7 @@ A light-strategy route-building game for **2–4 companies**. Most victory point
 5. Place one free starter for each route on a non-neighborhood outer-border hole.
 6. Play up to **9 construction rounds**, choosing crews anew each turn. End
    immediately if no incomplete route has a legal next segment.
-7. Score all held goals, routes, neighborhoods and surveys; subtract unfinished-route
+7. Score all held goals, routes and surveys; subtract unfinished-route
    penalties and **4 VP per $1M of final debt**.
 
 There is no Engineering commitment, Destination assignment, separate Destination
@@ -48,21 +48,22 @@ Pick order follows the same cyclic seats in both drafts and construction. Every 
 | Brown Line | BR | 2, 3, 2, 4, 3 | $6M | 5 | -5 |
 
 Contracts retain their recipes, prices, completion points and unfinished penalties.
-Route-specific specials and per-line large neighborhood bonuses are removed. Ordinary
-neighborhood points still score once per company. White Line uses dark casing and dark
+Route-specific specials and per-line large neighborhood bonuses are removed. Neighborhood visits award no automatic VP. White Line uses dark casing and dark
 lettering so it remains distinguishable on the map.
 
 ## Destination missions
 
-At game start, deal two private random missions to each company. The separate deck
-contains one of each unordered pair and triple of the ten named neighborhoods: 45 pairs
-and 120 triples. Shuffle once with the game's random source; draw without replacement.
+At game start, deal one private pair and one private triple to each company.
+The fixed deck has **30 cards: 15 pairs and 15 triples**, without replacement.
+Each neighborhood appears in exactly three pairs and four or five triples.
+Shuffle the remaining cards together for optional purchases.
 Two-neighborhood missions pay **4 VP**, three-neighborhood missions **7 VP**.
 
-All named neighborhoods must be reachable within one connected part of your own network.
-Different lines may contribute and need not be complete. Transfer at a shared
-neighborhood (different occupied holes still connect) or an identical peg node on both
-lines. A raw crossing or an opponent's route does not provide a transfer.
+All named neighborhoods must be reachable within one connected company network.
+Different lines may contribute and need not be complete. Different company lines
+transfer at overlapping nodes or immediately adjacent nodes horizontally/vertically,
+anywhere on the board. Diagonal nodes, sharing an area without nearby nodes,
+string crossings and opponents' routes do not connect your lines.
 
 Before hiring crews on your construction turn, you may pay **$5M for one extra
 random mission, once per game**. Pay immediately; the purchase cannot create debt.
@@ -75,62 +76,49 @@ All three drafted goals may score once. Read each card's completion condition:
 North–South Lines and Four Corners do not require finished contracts; goals saying
 “complete” do. Incompatible objectives may deliberately appear in the same hand.
 
-North/south are the top/bottom border rows; west/east are the left/right border
-columns. Directional goals use actual border pegs, never a nearest-side region.
-A corner may represent either adjoining side, but a single peg cannot count as
-two different pegs/sides for Three-Way Service, Three Fronts or Perimeter Service.
-Loop asks for the starting *side*, not the exact starting peg or a closed circuit.
-Across Town alone uses the first/last three columns instead of exact borders.
-
-Directional goals and Terminal Network now award partial credit. The table below
-describes maximum awards, not an all-or-nothing requirement for these cards:
-
-- Three-Way Service, Turning the Corner, Loop, North–South Lines, Terminal Network
-  and Three Fronts: qualifying one/two/three lines (or distinct end sides) gives
-  2/4/the printed maximum VP. Keep each card's stated completion requirement;
-  North–South does not require completion. Three Fronts uses the largest subset
-  with distinct starter sides and a common final side.
-- Perimeter Service: one completed line touching one/two/three distinct sides
-  gives 2/4/6 VP; distinct pegs must represent the sides.
-- Across Town: 2 VP for a built segment reaching one outer three-column strip,
-  4 VP for the same line reaching both strips, 6 VP when that line is complete.
-- Four Corners: 2 VP for a built segment connected to a corner, 4 VP for an own
-  network joining opposite corners, 6 VP when all three lines join that network.
+North is the top row, south the bottom row, west the left column and east the
+right column. Borders always mean these exact pegs, not nearby interior pegs.
+There are exactly four corner pegs: northwest, northeast, southwest, southeast.
+Opposite pairs are northwest–southeast and northeast–southwest. A corner belongs
+to its two adjoining sides, but each node may count toward only one side when
+an objective requires multiple different sides. Distinct sides need distinct nodes.
+Loop means return to the starting **side**, not the starter peg or a closed circuit.
+A completed line has built every segment on its contract. Unless a card explicitly
+requires completion, unfinished lines may fulfill it.
 
 Tiers replace one another; they do not add together. Progress is re-evaluated at
-scoring and after Undo, never permanently banked. Other cards retain full-or-zero
-scoring. Phones display live points and an explicit Completed label at the maximum.
+scoring and after Undo, never permanently banked. Phones display live VP and
+Completed at the maximum. Binary goals score their full award or zero.
 
-| Engineering goal | Maximum VP | Maximum requirement |
-|---|---:|---|
-| Three-Way Service | 6 | Complete all three lines with their final pegs on three different board sides. |
-| Turning the Corner | 6 | Complete all three lines: each starts on the east or west border and ends on the north or south border. |
-| Loop | 7 | Complete all three lines: each ends on the same board side as its starter. |
-| Major Connection | 6 | One completed line connects two different large neighborhoods. |
-| North–South Lines | 7 | All three lines each have a node on both the north and south borders. |
-| Integrated Network | 7 | Connect all three completed lines into one company network through shared neighborhoods or pegs. |
-| Terminal Network | 6 | Complete all three lines with their final nodes at neighborhoods. The same neighborhood may serve multiple lines. |
-| Surveyed System | 7 | Complete all three lines and build through at least one of your purchased Survey Pins. |
+| Engineering goal | VP | Requirement |
+|---|---|---|
+| Three-Way Service | 2 / 4 / 6 | Completed lines ending on 1 / 2 / 3 distinct border sides. |
+| Turning the Corner | 2 / 4 / 6 | 1 / 2 / 3 completed lines starting east/west and ending north/south. |
+| Loop | 2 / 4 / 7 | 1 / 2 / 3 completed lines ending on their starter's side. |
+| Regional Service | 6 | One completed line serves three different large neighborhoods. |
+| North–South Lines | 2 / 4 / 7 | 1 / 2 / 3 lines each have nodes on both north and south borders. Completion not required. |
+| Integrated Network | 7 | Complete all three lines and join them in one company network through physical node transfers. |
+| Citywide Service | 10 | At least one company node in each of all ten neighborhoods. Lines need not connect or complete. |
+| Surveyed System | 7 | Complete all three lines and fulfill at least one purchased survey pin. |
 | First to Open | 7 | Be the first company to complete all three lines. |
-| Across Town | 6 | One completed line has a node in the first three columns and another in the last three columns. |
-| Local Service | 5 | One line serves all three small neighborhoods; that line need not be complete. |
-| Central Interchange | 6 | Place nodes from two separate lines inside the same large neighborhood in a two-player game; three lines in a three- or four-player game. |
+| Across Town | 4 / 8 | One company network reaches east and west; that same network also reaches north and south at tier two. Distinct nodes for sides; multiple unfinished lines may contribute. |
+| Local Service | 6 | One line serves all three small neighborhoods. Completion not required. |
+| Central Interchange | 4 | All three lines form one connected group of overlapping or orthogonally adjacent nodes inside the same large area, at every player count. Completion not required. |
 | On Budget | 6 | Complete all three lines and finish with at least $5M. |
-| Perimeter Service | 6 | One completed line has three distinct pegs on three different board sides. |
-| Three Fronts | 7 | Complete all three lines: their starters occupy three different board sides and their final pegs all occupy the same side. |
-| Four Corners | 6 | Connect all three lines into a company network joining the northwest and southeast corner pegs, or the northeast and southwest corner pegs. |
+| Perimeter Service | 2 / 5 / 8 | 1 / 2 / 3 completed lines each have distinct nodes on at least three border sides. |
+| Three Fronts | 2 / 4 / 7 | 1 / 2 / 3 completed lines start on different sides and end on a common side. |
+| Four Corners | 5 / 10 | One company network connects opposite corner pegs; that same network connects all four corners at tier two. Completion not required. |
 
-Integrated Network requires all three completed lines in one connected component,
-which may use different transfer neighborhoods. Central Interchange instead requires
-convergence at one large neighborhood and does not require complete contracts.
-Four Corners requires all three lines connected in the same component as both exact
-opposite corner pegs. First to Open uses the earliest accepted completion of all
-three contracts; Undo of that placement restores the award opportunity.
+Integrated Network may use multiple transfer locations. Central Interchange needs
+one local node group inside one large neighborhood: Red–Blue–Green adjacency
+chains qualify, but remote connections elsewhere do not replace the local hub.
+First to Open uses the earliest accepted completion of all three contracts;
+Undo of that placement restores the award opportunity.
 
 ## Longest network — public goal
 
 At scoring, find each company's longest continuous trail of built segments.
-Measure length in **peg spaces between exact peg positions**; neighborhood transfers add zero length. Transfer at own shared neighborhoods/pegs. A peg may be
+Measure length in **peg spaces between exact peg positions**; transfers add zero length. Transfer between different company lines at overlapping or horizontally/vertically adjacent nodes. A peg may be
 revisited, but no segment may be used twice. Disconnected sections cannot be added;
 branches only count if a single trail can traverse them without reusing a segment.
 The longest company receives **5 VP**, or **3 VP each** when tied. An empty network
@@ -177,18 +165,18 @@ legality remains unchanged.
 Follow the route's lengths **in the printed order**, within ±0.5 peg-space distance.
 Turns may be at most **90°**, inclusive. The first segment has no heading constraint.
 The ten named neighborhoods have **3 small, 6 large and 1 medium** footprints.
-Small areas cover 6 holes (5 VP), medium 10 (3 VP) and large 16 (2 VP). Setup varies
+Small areas cover 6 holes, medium 10 and large 16. No area awards automatic VP. Setup varies
 area locations and connected shapes using seeded randomness. Six interior bays
 pack the larger footprints without overlap or border coverage. Areas may touch
 boundaries. 51 interior holes remain outside areas for surveys.
 
 Place a peg on any hole inside an area to serve it. String merely passing through
 is not service. There are **no dock limits**. Multiple companies and lines may
-serve the same area. Repeated visits do not multiply its score. Exact peg positions
+serve the same area. Visits matter for destinations and Engineering objectives. Exact peg positions
 determine all segment lengths, turns and physical contacts.
 
-Two of your lines serving the same neighborhood transfer there, even at different
-holes. An opponent's route never joins your network. Shared areas alone cost no toll.
+Different company lines transfer only at overlapping or horizontally/vertically
+adjacent nodes. Sharing a neighborhood alone does not connect lines. An opponent's route never joins your network. Shared areas alone cost no toll.
 
 Normal pegs may share holes, sit on other colors' strings, or be adjacent. A line
 cannot cross or rejoin any earlier segment of its own color. Other colors may cross and
@@ -209,9 +197,8 @@ It does **not** refund the crew-hiring transaction.
 ## Scoring and the table
 
 Route completion/unfinished penalties, the longest network award,
-unique served neighborhoods (2 VP large, 3 VP medium, 5 VP small), all held Engineering goals and
-Destinations, Survey Pins and final debt appear in the results breakdown. A neighborhood
-scores once per company. Ties break on large-neighborhood connections, then cash, then shared victory.
+all held Engineering goals and Destinations, Survey Pins and final debt appear in
+the results breakdown. Neighborhood visits award no automatic VP. Ties break on large-neighborhood connections, then cash, then shared victory.
 
 Construction schedule replaces the timetable. Use Crews, Board, Lines and Cards to move
 around the same pan-and-zoom table. Read missions and Engineering cards directly on their tabletop pieces. Hotseat
@@ -227,6 +214,6 @@ complete accepted-action ledger: setup, cards, routes, placements, crew and toll
 economy, Undo actions, scoring, timing, and the construction end reason. Rejected
 actions are not tracked because they never change reducer state.
 
-State version **19** requires new games; old local saves are not migrated.
+State version **20** requires new games; old local saves are not migrated.
 Automated games test termination and rule behavior, not human enjoyment or
 statistically proven balance. Desktop/phone visual verification is still pending.

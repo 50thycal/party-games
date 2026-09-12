@@ -1,4 +1,4 @@
-import { borderSides, distinctSides, companyNetwork, linesConnected, networkNodeKey, longestNetwork } from "./network";
+import { borderSides, distinctSides, companyNetwork, linesConnected, networkNodeKey, longestNetwork, companyComponents, interchangeAt } from "./network";
 export { longestNetwork } from "./network";
 import { defineGame } from "@/engine/defineGame";
 import type { BaseAction, GameContext, Player } from "@/engine/types";
@@ -27,7 +27,7 @@ import type { BaseAction, GameContext, Player } from "@/engine/types";
 // ============================================================================
 
 /** Bumped when the state shape changes; older rooms must restart. */
-export const SUBWAY_STATE_VERSION = 19;
+export const SUBWAY_STATE_VERSION = 20;
 
 // ----------------------------------------------------------------------------
 // Tunable configuration
@@ -52,7 +52,7 @@ export const SUBWAY_CONFIG = {
     { throughPeriod: 9, cost: 1 },
   ],
   board: { columns: 27, rows: 9 },
-  stationScores: { major: 2, minor: 5, medium: 3 },
+  stationScores: { major: 0, minor: 0, medium: 0 },
   tolerances: {
     straight: 15, // degrees: "approximately straight"
     gentleCurve: 30, // degrees: max turn for Gentle Curve
@@ -274,9 +274,9 @@ export const ENGINEERING_CARDS: EngineeringCard[] = [
   },
   {
     "id": "approach",
-    "name": "Major Connection",
-    "description": "One completed line connects two different large neighborhoods.",
-    "requirement": "One completed line connects two different large neighborhoods.",
+    "name": "Regional Service",
+    "description": "Complete one line serving three different large neighborhoods.",
+    "requirement": "Complete one line serving three different large neighborhoods.",
     "vp": 6,
     "kind": "objective"
   },
@@ -291,17 +291,17 @@ export const ENGINEERING_CARDS: EngineeringCard[] = [
   {
     "id": "network",
     "name": "Integrated Network",
-    "description": "Connect all three completed lines into one company network through shared neighborhoods or pegs.",
-    "requirement": "Connect all three completed lines into one company network through shared neighborhoods or pegs.",
+    "description": "Complete all three lines and connect them through overlapping or horizontally/vertically adjacent nodes. Sharing an area or crossing strings does not connect lines.",
+    "requirement": "Complete all three lines and connect them through overlapping or horizontally/vertically adjacent nodes. Sharing an area or crossing strings does not connect lines.",
     "vp": 7,
     "kind": "objective"
   },
   {
     "id": "terminal",
-    "name": "Terminal Network",
-    "description": "Complete all three lines with their final nodes at neighborhoods. The same neighborhood may serve multiple lines.",
-    "requirement": "Complete all three lines with their final nodes at neighborhoods. The same neighborhood may serve multiple lines.",
-    "vp": 6,
+    "name": "Citywide Service",
+    "description": "Place at least one company node in each of the ten neighborhoods. Lines need not connect or be complete.",
+    "requirement": "Place at least one company node in each of the ten neighborhoods. Lines need not connect or be complete.",
+    "vp": 10,
     "kind": "objective"
   },
   {
@@ -323,9 +323,9 @@ export const ENGINEERING_CARDS: EngineeringCard[] = [
   {
     "id": "crosstown-service",
     "name": "Across Town",
-    "description": "One completed line has a node in the first three columns and another in the last three columns.",
-    "requirement": "One completed line has a node in the first three columns and another in the last three columns.",
-    "vp": 6,
+    "description": "4 VP: one company network reaches the exact east and west borders. 8 VP: that same network also reaches north and south. Use distinct nodes for each side. Multiple unfinished lines may contribute.",
+    "requirement": "4 VP: one company network reaches the exact east and west borders. 8 VP: that same network also reaches north and south. Use distinct nodes for each side. Multiple unfinished lines may contribute.",
+    "vp": 8,
     "kind": "objective"
   },
   {
@@ -333,15 +333,15 @@ export const ENGINEERING_CARDS: EngineeringCard[] = [
     "name": "Local Service",
     "description": "One line serves all three small neighborhoods. The line need not be complete.",
     "requirement": "One line serves all three small neighborhoods. The line need not be complete.",
-    "vp": 5,
+    "vp": 6,
     "kind": "objective"
   },
   {
     "id": "interchange",
     "name": "Central Interchange",
-    "description": "Place nodes from two separate lines inside the same large neighborhood in a two-player game; three lines in a three- or four-player game.",
-    "requirement": "Place nodes from two separate lines inside the same large neighborhood in a two-player game; three lines in a three- or four-player game.",
-    "vp": 6,
+    "description": "All three lines form one connected group of overlapping or horizontally/vertically adjacent nodes inside the same large neighborhood. Completion is not required.",
+    "requirement": "All three lines form one connected group of overlapping or horizontally/vertically adjacent nodes inside the same large neighborhood. Completion is not required.",
+    "vp": 4,
     "kind": "objective"
   },
   {
@@ -355,9 +355,9 @@ export const ENGINEERING_CARDS: EngineeringCard[] = [
   {
     "id": "perimeter",
     "name": "Perimeter Service",
-    "description": "One completed line has three distinct pegs on three different board sides.",
-    "requirement": "One completed line has three distinct pegs on three different board sides.",
-    "vp": 6,
+    "description": "1 / 2 / 3 completed lines each visiting at least three different border sides: 2 / 5 / 8 VP. Each side needs a distinct node.",
+    "requirement": "1 / 2 / 3 completed lines each visiting at least three different border sides: 2 / 5 / 8 VP. Each side needs a distinct node.",
+    "vp": 8,
     "kind": "objective"
   },
   {
@@ -371,9 +371,9 @@ export const ENGINEERING_CARDS: EngineeringCard[] = [
   {
     "id": "four-corners",
     "name": "Four Corners",
-    "description": "Connect all three lines into a company network joining the northwest and southeast corner pegs, or the northeast and southwest corner pegs.",
-    "requirement": "Connect all three lines into a company network joining the northwest and southeast corner pegs, or the northeast and southwest corner pegs.",
-    "vp": 6,
+    "description": "5 VP: one company network connects two opposite corner pegs. 10 VP: that same network connects all four corner pegs. Multiple unfinished lines may contribute.",
+    "requirement": "5 VP: one company network connects two opposite corner pegs. 10 VP: that same network connects all four corner pegs. Multiple unfinished lines may contribute.",
+    "vp": 10,
     "kind": "objective"
   }
 ];
@@ -383,11 +383,7 @@ export const OBJECTIVE_TIERS: Record<string,string> = {
   bend: "1 / 2 / 3 completed lines starting east or west and ending north or south: 2 / 4 / 6 VP.",
   straight: "1 / 2 / 3 completed lines ending on their starter's border side: 2 / 4 / 7 VP.",
   through: "1 / 2 / 3 lines touching both north and south borders: 2 / 4 / 7 VP. Completion is not required.",
-  terminal: "1 / 2 / 3 completed lines ending inside neighborhoods: 2 / 4 / 6 VP. Neighborhoods may be shared.",
-  perimeter: "One completed line touching 1 / 2 / 3 distinct board sides: 2 / 4 / 6 VP. Use distinct pegs for each side.",
   "three-fronts": "1 / 2 / 3 completed lines with different starter sides and a common final border side: 2 / 4 / 7 VP.",
-  "crosstown-service": "2 VP: a built segment reaches the first or last three columns. 4 VP: the same line reaches both. 6 VP: complete that line.",
-  "four-corners": "2 VP: build a segment connected to a corner peg. 4 VP: your network connects opposite corners. 6 VP: all three lines join that network.",
 };
 for (const card of ENGINEERING_CARDS) {
   if (OBJECTIVE_TIERS[card.id]) card.description = card.requirement = OBJECTIVE_TIERS[card.id];
@@ -396,7 +392,7 @@ for (const card of ENGINEERING_CARDS) {
 export const engineeringById = (id: string): EngineeringCard | undefined =>
   ENGINEERING_CARDS.find((c) => c.id === id);
 
-/** Private network missions. Each distinct pair or triple occurs once. */
+/** Private network missions: a fixed balanced deck of 15 pairs and 15 triples. */
 export type DestinationCard = {
   id: string;
   stationIds: string[];
@@ -405,17 +401,22 @@ export type DestinationCard = {
   requirement: string;
   vp: number;
 };
-export const DESTINATION_CARDS: DestinationCard[] = [];
-for (let a = 0; a < STATIONS.length; a++) for (let b = a + 1; b < STATIONS.length; b++) {
-  const add = (stations: Station[]) => {
-    const names = stations.map(s => s.name).join(" ↔ ");
-    DESTINATION_CARDS.push({id: `dest-${stations.map(s => s.id).join("-")}`, stationIds: stations.map(s => s.id), name: names,
-      description: "Connect these neighborhoods through your own network.",
-      requirement: `Connect ${names} with a continuous company route. Transfer at shared neighborhoods or pegs; crossings alone do not connect.`, vp: stations.length === 2 ? SUBWAY_CONFIG.destinationVp : SUBWAY_CONFIG.threeStationDestinationVp});
-  };
-  add([STATIONS[a], STATIONS[b]]);
-  for (let c = b + 1; c < STATIONS.length; c++) add([STATIONS[a], STATIONS[b], STATIONS[c]]);
-}
+// A ten-neighborhood ring plus opposite pairs gives each neighborhood 3 pair
+// appearances. Ten rotated triples plus five additional triples give 4 or 5
+// triple appearances. Canonical order keeps IDs stable and every card unique.
+const destinationSets: number[][] = [];
+for (let i = 0; i < 10; i++) destinationSets.push([i, (i + 1) % 10]);
+for (let i = 0; i < 5; i++) destinationSets.push([i, i + 5]);
+for (let i = 0; i < 10; i++) destinationSets.push([i, (i + 1) % 10, (i + 3) % 10]);
+for (let i = 0; i < 5; i++) destinationSets.push([i, i + 2, i + 5]);
+export const DESTINATION_CARDS: DestinationCard[] = destinationSets.map(indexes => {
+  const stations = indexes.sort((a, b) => a - b).map(i => STATIONS[i]);
+  const names = stations.map(s => s.name).join(" ↔ ");
+  return {id: `dest-${stations.map(s => s.id).join("-")}`, stationIds: stations.map(s => s.id), name: names,
+    description: "Connect these neighborhoods through your own network.",
+    requirement: `Connect ${names} through your own network. Different lines transfer at overlapping or horizontally/vertically adjacent nodes. Sharing an area or crossing strings does not connect lines. Completion is not required.`,
+    vp: stations.length === 2 ? SUBWAY_CONFIG.destinationVp : SUBWAY_CONFIG.threeStationDestinationVp};
+});
 
 const DESTINATION_BY_ID = new Map(DESTINATION_CARDS.map((c) => [c.id, c]));
 
@@ -1321,8 +1322,11 @@ export function destinationMet(p: SubwayPlayer, mission: string | DestinationCom
   const card = destinationById(typeof mission === "string" ? mission : mission.cardId);
   if (!card) return false;
   const graph = companyNetwork(p);
-  const components = card.stationIds.map(id => graph.get(`station:${id}`));
-  return components[0] !== undefined && components.every(id => id === components[0]);
+  // One neighborhood may be visited by multiple disconnected components. Do
+  // not merge them through its identity; find an actual shared component.
+  const components = card.stationIds.map(id => new Set(p.lines.flatMap(line => line.route)
+    .filter(node => node.stationId === id).map(node => graph.get(networkNodeKey(node))!)));
+  return Array.from(components[0]).some(id => components.every(set => set.has(id)));
 }
 
 /** Destination cards this company has drafted, assigned or not. */
@@ -1393,41 +1397,51 @@ export function objectiveMet(id: string, me: SubwayPlayer, opponents: SubwayPlay
     case "gentle": return all && distinctSides(ends, 3);
     case "bend": return all && starts.every(p => borderSides(p).some(s => s === "east" || s === "west")) && ends.every(p => borderSides(p).some(s => s === "north" || s === "south"));
     case "straight": return all && me.lines.every(line => borderSides(line.route[0]).some(s => borderSides(line.route.at(-1)!).includes(s)));
-    case "approach": return me.lines.some(line => lineComplete(line) && lineMajors(line).length >= 2);
+    case "approach": return me.lines.some(line => lineComplete(line) && lineMajors(line).length >= 3);
     case "through": return me.lines.length === 3 && me.lines.every(line => line.route.some(n => n.y === 0) && line.route.some(n => n.y === SUBWAY_CONFIG.board.rows - 1));
     case "network": return all && linesConnected(me.lines, graph());
-    case "terminal": return all && ends.every(n => !!n.stationId);
+    case "terminal": return connectedStations(me).length === STATIONS.length;
     case "minimal": return all && !!state?.surveyPins.some(pin => pin.playerId === me.id && surveyFulfilled(me, pin));
     case "crossing": return state?.firstCompletedPlayerId === me.id && all;
-    case "crosstown-service": return me.lines.some(line => lineComplete(line) && line.route.some(n => n.x <= 2) && line.route.some(n => n.x >= SUBWAY_CONFIG.board.columns - 3));
+    case "crosstown-service": return acrossTownTier(me) === 2;
     case "local-service": return me.lines.some(line => STATIONS.filter(s => s.kind === "minor" && line.route.some(n => n.stationId === s.id)).length === 3);
-    case "interchange": return STATIONS.some(station => station.kind === "major" && me.lines.filter(line => line.route.some(n => n.stationId === station.id)).length >= ((state?.playerOrder.length ?? opponents.length + 1) === 2 ? 2 : 3));
+    case "interchange": return STATIONS.some(station => station.kind === "major" && interchangeAt(me.lines, station.id));
     case "solvent": return all && me.money >= 5;
-    case "perimeter": return me.lines.some(line => lineComplete(line) && distinctSides(line.route, 3));
+    case "perimeter": return all && me.lines.every(line => distinctSides(line.route, 3));
     case "three-fronts": return all && distinctSides(starts, 3) && borderSides(ends[0]).some(side => ends.every(n => borderSides(n).includes(side)));
-    case "four-corners": {
-      const component = graph();
-      if (!linesConnected(me.lines, component)) return false;
-      const own = component.get(networkNodeKey(me.lines[0].route[0]));
-      return [["0,0", "26,8"], ["26,0", "0,8"]].some(pair => pair.every(key => component.get(key) === own));
-    }
+    case "four-corners": return fourCornersTier(me) === 2;
     default: return false;
   }
 }
 
+/** Border objectives share the physical company graph and exact edge semantics. */
+function acrossTownTier(player: SubwayPlayer): number {
+  return Math.max(0, ...companyComponents(player).map(nodes => {
+    if (!nodes.some(n => n.x === 0) || !nodes.some(n => n.x === SUBWAY_CONFIG.board.columns - 1)) return 0;
+    return distinctSides(nodes, 4) ? 2 : 1;
+  }));
+}
+function fourCornersTier(player: SubwayPlayer): number {
+  const east = SUBWAY_CONFIG.board.columns - 1, south = SUBWAY_CONFIG.board.rows - 1;
+  return Math.max(0, ...companyComponents(player).map(nodes => {
+    const corners = [[0,0],[east,0],[0,south],[east,south]].map(([x,y]) => nodes.some(n => n.x === x && n.y === y));
+    return corners.every(Boolean) ? 2 : (corners[0] && corners[3]) || (corners[1] && corners[2]) ? 1 : 0;
+  }));
+}
+
 /** Live points, not banked points: Undo or changed conditions recompute them. */
-export function objectiveProgress(id: string, me: SubwayPlayer, opponents: SubwayPlayer[], state?: SubwayState): {points:number;max:number;met:boolean;count?:number} {
+export function objectiveProgress(id: string, me: SubwayPlayer, opponents: SubwayPlayer[], state?: SubwayState): {points:number;max:number;met:boolean;count?:number;tiers?:number[]} {
   const card = engineeringById(id) ?? destinationById(id);
   const max = card?.vp ?? 0;
   const met = objectiveMet(id, me, opponents, state);
   const complete = me.lines.filter(lineComplete);
   let count: number | undefined;
+  const tiers = id === "perimeter" ? [2,5,8] : id === "crosstown-service" ? [4,8] : id === "four-corners" ? [5,10] : OBJECTIVE_TIERS[id] ? [2,4,max] : undefined;
   switch (id) {
     case "gentle": count = [1,2,3].filter(n => distinctSides(complete.flatMap(l=>l.route.slice(-1)),n)).length; break;
     case "bend": count = complete.filter(l=>borderSides(l.route[0]).some(s=>s==="east"||s==="west") && borderSides(l.route.at(-1)!).some(s=>s==="north"||s==="south")).length; break;
     case "straight": count = complete.filter(l=>borderSides(l.route[0]).some(s=>borderSides(l.route.at(-1)!).includes(s))).length; break;
     case "through": count = me.lines.filter(l=>l.route.some(n=>n.y===0)&&l.route.some(n=>n.y===SUBWAY_CONFIG.board.rows-1)).length; break;
-    case "terminal": count = complete.filter(l=>!!l.route.at(-1)?.stationId).length; break;
     case "three-fronts": {
       count = 0;
       for (const side of ["north","south","east","west"] as const) {
@@ -1436,20 +1450,21 @@ export function objectiveProgress(id: string, me: SubwayPlayer, opponents: Subwa
       }
       break;
     }
-    case "perimeter": count = Math.max(0,...complete.map(l=>[1,2,3].filter(n=>distinctSides(l.route,n)).length)); break;
+    case "perimeter": {
+      count = complete.filter(l => distinctSides(l.route, 3)).length;
+      break;
+    }
     case "crosstown-service": {
-      const both = (l:PlayerLine)=>l.route.some(n=>n.x<=2)&&l.route.some(n=>n.x>=SUBWAY_CONFIG.board.columns-3);
-      count = met?3:me.lines.some(both)?2:me.lines.some(l=>l.route.length>1&&l.route.some(n=>n.x<=2||n.x>=SUBWAY_CONFIG.board.columns-3))?1:0;
+      count = acrossTownTier(me);
       break;
     }
     case "four-corners": {
-      const graph = companyNetwork(me);
-      const pairs = [["0,0","26,8"],["26,0","0,8"]];
-      count = met?3:pairs.some(([a,b])=>graph.has(a)&&graph.get(a)===graph.get(b))?2:pairs.flat().some(n=>graph.has(n))?1:0;
+      count = fourCornersTier(me);
       break;
     }
   }
-  return {points:count===undefined?(met?max:0):[0,2,4,max][Math.min(3,count)],max,met,count};
+
+  return {points: count === undefined ? (met ? max : 0) : count === 0 ? 0 : tiers![Math.min(count, tiers!.length) - 1], max, met, count, tiers};
 }
 
 /** Live private status of one company's committed cards, for its own UI. */
@@ -1482,10 +1497,7 @@ export function scoreGame(state: SubwayState, now: number): SubwayState {
   for (const p of Object.values(players)) {
     const items: ScoreItem[] = [];
 
-    // Stations score once per company, however many lines dock there.
-    for (const s of connectedStations(p)) {
-      items.push({ label: `${s.name} connection`, points: SUBWAY_CONFIG.stationScores[s.kind], met: true });
-    }
+    // Neighborhood visits serve objectives but award no automatic VP.
 
     for (const line of p.lines) {
       const contract = contractOf(line);
@@ -1902,12 +1914,11 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
         LINE_CONTRACTS.map((c) => c.id),
         ctx.random
       ).slice(0, fresh.playerOrder.length * 3);
-      // Shuffle and deal private missions at START_GAME using context randomness.
-      fresh.destinationDeck = shuffle(
-        DESTINATION_CARDS.map((c) => c.id),
-        ctx.random
-      );
-      for (const id of fresh.playerOrder) fresh.players[id].destinationHand = fresh.destinationDeck.splice(0, SUBWAY_CONFIG.destinationsPerPlayer);
+      // Deal one pair and one triple to each company, without replacement.
+      const pairs = shuffle(DESTINATION_CARDS.filter(c => c.stationIds.length === 2).map(c => c.id), ctx.random);
+      const triples = shuffle(DESTINATION_CARDS.filter(c => c.stationIds.length === 3).map(c => c.id), ctx.random);
+      for (const id of fresh.playerOrder) fresh.players[id].destinationHand = [pairs.shift()!, triples.shift()!];
+      fresh.destinationDeck = shuffle([...pairs, ...triples], ctx.random);
       pushEvent(fresh, ctx.now(), "PHASE", "banner", `Subway begins — ${fresh.playerOrder.length * 3} Line Contracts for ${fresh.playerOrder.length} companies.`);
       return nextOffer(fresh, ctx.now());
     }
