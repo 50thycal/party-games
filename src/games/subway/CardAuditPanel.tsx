@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { AUDIT_CARDS, auditCell, auditMarkdown, auditTasks, newAudit, retainAuditExamples, type AuditSummary, type runAuditPair } from './cardAudit';
+import { AUDIT_CARDS, auditCell, auditMarkdown, auditTasks, newAudit, type AuditSummary } from './cardAudit';
+import { auditConcurrency, startAuditPool } from './auditPool';
 import { beginAudit, loadAudit, loadAuditExample, saveAuditPair } from './auditStorage';
 import { RULES_FINGERPRINT, BUILD_ID, type GameRecord } from './recording';
 import { BOT_VERSION } from './bots';
@@ -14,42 +15,42 @@ function download(name:string,value:unknown) {
 }
 export function CardAuditPanel({onReplay}:{onReplay:(record:GameRecord)=>void}) {
   const [summary,setSummary]=useState<AuditSummary|null>(null),[running,setRunning]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState('');
-  const [trials,setTrials]=useState(100),[seed,setSeed]=useState(1),[keys,setKeys]=useState<string[]>([]),[example,setExample]=useState(''),[copied,setCopied]=useState(false);
-  const current=useRef<AuditSummary|null>(null),worker=useRef<Worker|null>(null),stop=useRef(false),seen=useRef(new Set<string>());
-  useEffect(()=>{let active=true;loadAudit().then(saved=>{if(active){current.current=saved.summary;setSummary(saved.summary);setKeys(saved.keys);seen.current=new Set(saved.keys);}}).catch(e=>{if(active)setError(`Checkpoint storage unavailable: ${String(e)}`);}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;worker.current?.terminate();worker.current=null;};},[]);
+  const [trials,setTrials]=useState(25),[seed,setSeed]=useState(1),[keys,setKeys]=useState<string[]>([]),[example,setExample]=useState(''),[copied,setCopied]=useState(false),[stopping,setStopping]=useState(false);
+  const current=useRef<AuditSummary|null>(null),pool=useRef<ReturnType<typeof startAuditPool>|null>(null),generation=useRef({value:0}),seen=useRef(new Set<string>());
+  useEffect(()=>{let active=true;const lifecycle=generation.current;loadAudit().then(saved=>{if(active){current.current=saved.summary;setSummary(saved.summary);setKeys(saved.keys);seen.current=new Set(saved.keys);}}).catch(e=>{if(active)setError(`Checkpoint storage unavailable: ${String(e)}`);}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;lifecycle.value++;pool.current?.cancel();pool.current=null;};},[]);
   const compatible=!!summary&&summary.rules===RULES_FINGERPRINT&&summary.build===BUILD_ID&&summary.botVersion===BOT_VERSION&&summary.policyVersion===AUDIT_POLICY_VERSION;
   function launch() {
     const s=current.current;if(!s)return;
-    stop.current=false;setRunning(true);s.status='running';setSummary({...s});
-    const tasks=auditTasks(s.settings),w=new Worker(new URL('./cardAudit.worker.ts',import.meta.url));worker.current=w;
-    const finish=(status:'complete'|'stopped')=>{s.status=status;setSummary({...s});setRunning(false);w.terminate();worker.current=null;};
-    const next=()=>w.postMessage({settings:s.settings,task:tasks[s.pairs.length]});
-    w.onmessage=async(event:MessageEvent<ReturnType<typeof runAuditPair>&{fatal?:string}>)=>{
-      try {
-        if(event.data.fatal)throw new Error(event.data.fatal);
-        const result=event.data,nextSeen=new Set(seen.current),examples=retainAuditExamples(result,nextSeen);
-        await saveAuditPair(s.storageId,s.pairs.length,result.pair,examples);
-        if(worker.current!==w)return;
-        seen.current=nextSeen;s.pairs.push(result.pair);setSummary({...s});setKeys(Array.from(seen.current));
-        if(s.pairs.length===tasks.length)finish('complete');else if(stop.current)finish('stopped');else next();
-      }catch(e){setError(`Audit paused: ${String(e)}. Reload to recover the last saved checkpoint.`);finish('stopped');}
-    };
-    w.onerror=e=>{setError(e.message||'Audit worker failed');finish('stopped');};next();
+    setError('');setStopping(false);setRunning(true);s.status='running';setSummary({...s});
+    const run=++generation.current.value;
+    const finish=(status:'complete'|'stopped')=>{if(generation.current.value!==run)return;s.status=status;setSummary({...s});setRunning(false);setStopping(false);pool.current=null;};
+    pool.current=startAuditPool({settings:s.settings,tasks:auditTasks(s.settings),cursor:s.pairs.length,
+      concurrency:auditConcurrency(navigator.hardwareConcurrency),
+      createWorker:()=>new Worker(new URL('./cardAudit.worker.ts',import.meta.url)),seenKeys:()=>Array.from(seen.current),
+      commit:async(result,index)=>{
+        const examples=result.examples.filter(e=>!seen.current.has(e.key));
+        await saveAuditPair(s.storageId,index,result.pair,examples);
+        if(generation.current.value!==run)return;
+        examples.forEach(e=>seen.current.add(e.key));s.pairs.push(result.pair);setSummary({...s});setKeys(Array.from(seen.current));
+      },finish,error:message=>{setError(`Audit paused: ${message}. Reload to recover the last saved checkpoint.`);finish('stopped');}
+    });
   }
   async function start() {
+    const run=generation.current.value;
     setError('');setLoading(true);setCopied(false);
-    try {const s=newAudit({trials,seed});await beginAudit(s,current.current?.storageId??null);current.current=s;seen.current=new Set();setKeys([]);setExample('');setSummary(s);launch();}
-    catch(e){setError(String(e));}finally{setLoading(false);}
+    try {const s=newAudit({trials,seed});await beginAudit(s,current.current?.storageId??null);if(generation.current.value!==run)return;current.current=s;seen.current=new Set();setKeys([]);setExample('');setSummary(s);setLoading(false);launch();}
+    catch(e){if(generation.current.value===run){setError(String(e));setLoading(false);}}
   }
   const report=summary&&!running?auditMarkdown(summary):'';
   return <section className="space-y-4 rounded-xl bg-slate-800 p-4">
-    <h2 className="text-2xl font-bold">Full Card Audit</h2>
+    <h2 className="text-2xl font-bold">Card Audit</h2>
     <p>All {AUDIT_CARDS.length} cards · 2, 3 and 4 players · matched normal/targeted games. No card selection needed. Game rules and live bots stay unchanged.</p>
-    <p className="text-sm text-slate-300">100 trials means {AUDIT_CARDS.length*3*100*2} games. Use 1 for a smoke check. Large audits can take a long time; keep this page open. Checkpoints save on this browser/device. Export before clearing browser data.</p>
+    <p className="text-sm text-slate-300">Quick Check uses 25 trials; Full Audit uses 100 for more precise rates. Both cover every card and player count. Selected: {AUDIT_CARDS.length*3*trials*2} games. Zero completions does not prove a card impossible. Up to two pairs run at once; keep this page open. Checkpoints save on this browser/device. Export before clearing browser data.</p>
+    <div className="flex gap-3"><button className={button} aria-pressed={trials===25} disabled={running||loading} onClick={()=>setTrials(25)}>Quick Check · 25 trials</button><button className={button} aria-pressed={trials===100} disabled={running||loading} onClick={()=>setTrials(100)}>Full Audit · 100 trials</button></div>
     <div className="flex flex-wrap items-center gap-3"><label>Trials per card/count <input aria-label="Audit trials" className="w-24 rounded bg-slate-950 p-2" type="number" min={1} max={1000} value={trials} disabled={running||loading} onChange={e=>setTrials(+e.target.value)}/></label><label>Seed <input aria-label="Audit seed" className="w-28 rounded bg-slate-950 p-2" type="number" min={0} max={4294967295} value={seed} disabled={running||loading} onChange={e=>setSeed(+e.target.value)}/></label>
-    <button className={button} disabled={running||loading} onClick={()=>{if(!summary||window.confirm('Replace the saved audit? Export it first to keep it.'))void start();}}>Run Full Card Audit</button>
+    <button className={button} disabled={running||loading} onClick={()=>{if(!summary||window.confirm('Replace the saved audit? Export it first to keep it.'))void start();}}>Run all cards</button>
     {compatible&&summary.status!=='complete'&&!running&&<button className={button} disabled={loading} onClick={launch}>Resume saved audit</button>}
-    {running&&<button className={button} onClick={()=>{stop.current=true;}}>Stop after current pair</button>}</div>
+    {running&&<button className={button} disabled={stopping} onClick={()=>{pool.current?.stop();setStopping(true);}}>{stopping?'Stopping after active pairs…':'Stop after active pairs'}</button>}</div>
     {error&&<p role="alert" className="text-rose-300">{error}</p>}
     {summary&&<><p role="status">{running?'Running':summary.status} · {summary.pairs.length}/{summary.total} pairs · {summary.checks.filter(c=>c.passed).length}/{summary.checks.length} scoring checks passed · {summary.pairs.filter(p=>p.error).length} failed pairs</p>
     {!compatible&&<p>This checkpoint uses a different build or policy. Export it as a reference; start a new audit for this build.</p>}
