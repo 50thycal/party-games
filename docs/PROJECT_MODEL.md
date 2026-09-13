@@ -632,6 +632,12 @@ client inactivity never independently run bots. Each request is persisted with C
 Changing a managed seat between human/bot and its profile is recorded. Normal rooms
 reject LAB actions. The controller recovery key is returned only on creation; retain
 it on the original iPad or phone. Existing device recovery restores room progress.
+The first testing phone can also pair by room code using “My testing phone · Playtest
+Lab”, before or after start. In labs without remote seats, ordinary phone joining
+also pairs the controller. Mixed labs keep ordinary joins reserved for friends.
+A CAS-protected controllerPaired flag permits only one code-only pairing; a separate
+phone token is issued without invalidating the original recovery key. Room-code
+possession grants this first pairing, so share the code only with intended testers.
 
 Game randomness remains server-private; the test seed controls only bot choices.
 Bots use the same bounded policy as simulation (`bots.ts`), own-hand/public-state

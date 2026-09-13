@@ -4,7 +4,7 @@ import { subwayGame, nextCompanyId, type SubwayState } from './config';
 import { seededRandom, testRoom } from './playtest';
 
 export type LabSeat = {id:string;name:string;control:'human'|'bot'|'remote';bot:BotSettings};
-export type LabStore = {seats:LabSeat[];seed:number;step:number;history:{at:number;playerId:string;value:unknown}[];notes:{at:number;actionIndex:number;text:string}[]};
+export type LabStore = {seats:LabSeat[];seed:number;step:number;controllerPaired?:boolean;history:{at:number;playerId:string;value:unknown}[];notes:{at:number;actionIndex:number;text:string}[]};
 export function validateSeats(value:unknown): Omit<LabSeat,'id'>[] {
   if(!Array.isArray(value)||value.length<2||value.length>4) throw new Error('Choose 2–4 companies.');
   return value.map((v,i)=>{
