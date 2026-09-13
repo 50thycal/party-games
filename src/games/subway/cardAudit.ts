@@ -103,7 +103,7 @@ export function auditMarkdown(s:AuditSummary):string {
     const samples=valid.filter(p=>p.task.cardId===c.id),n=samples.length;
     const vp=n?(samples.reduce((v,p)=>v+p.targeted!.points,0)/n).toFixed(1):'—';
     const check=s.checks.find(k=>k.cardId===c.id);
-    return `| ${c.family==='Engineering'?'E':'D'} · ${c.name} | ${[2,3,4].map(count=>fmt(c.id,count)).join(' | ')} | ${vp}/${c.vp} | ${!check?.passed?'CHECK FAILED':!n?'No sample':samples.some(p=>p.targeted!.met)?'Demonstrated':'Not demonstrated'} |`;
+    return `| ${c.family==='Engineering'?'E':'D'} · ${c.name} | ${[2,3,4].map(count=>fmt(c.id,count)).join(' | ')} | ${vp}/${c.vp} | ${!check?.passed?'CHECK FAILED':!n?'No sample':samples.some(p=>p.targeted!.met||p.normal!.met)?'Demonstrated':'Not demonstrated'} |`;
   });
   const widest=Math.max(0,...AUDIT_CARDS.flatMap(c=>[2,3,4].map(count=>{const t=auditCell(s,c.id,count,'targeted');return t.n?(t.interval[1]-t.interval[0])*50:0;})));
   return ['# Subway Card Audit',`Status: ${s.status}; ${s.pairs.length}/${s.total} pairs processed; ${valid.length*2} matched completed games.`,

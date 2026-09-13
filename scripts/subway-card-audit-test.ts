@@ -32,6 +32,8 @@ assert.equal(auditCell(summary,first.task.cardId,first.task.count,'targeted').n,
 assert.equal(auditCell(summary,first.task.cardId,first.task.count,'targeted').errors,1);
 summary.pairs.pop();summary.status=selected.length===tasks.length?'complete':'stopped';
 const md=auditMarkdown(summary);
+const normalOnly={...summary,pairs:[{...first,normal:{...first.normal!,met:true},targeted:{...first.targeted!,met:false}}]};
+assert.ok(auditMarkdown(normalOnly).split('\n').find(l=>l.startsWith(`| E · ${AUDIT_CARDS.find(c=>c.id===first.task.cardId)!.name} |`))!.includes('| Demonstrated |'));
 assert.ok(md.length<14000,`Report too long: ${md.length}`);
 assert.ok(AUDIT_CARDS.every(c=>md.includes(c.name)));
 assert.ok(!md.includes('playersBefore'));assert.ok(md.includes('not proof of impossibility'));

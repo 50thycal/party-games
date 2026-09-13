@@ -38,7 +38,7 @@ export function CardAuditPanel({onReplay}:{onReplay:(record:GameRecord)=>void}) 
   }
   async function start() {
     setError('');setLoading(true);setCopied(false);
-    try {const s=newAudit({trials,seed});await beginAudit(s);current.current=s;seen.current=new Set();setKeys([]);setExample('');setSummary(s);launch();}
+    try {const s=newAudit({trials,seed});await beginAudit(s,current.current?.storageId??null);current.current=s;seen.current=new Set();setKeys([]);setExample('');setSummary(s);launch();}
     catch(e){setError(String(e));}finally{setLoading(false);}
   }
   const report=summary&&!running?auditMarkdown(summary):'';
@@ -59,7 +59,7 @@ export function CardAuditPanel({onReplay}:{onReplay:(record:GameRecord)=>void}) 
     <button className={button} onClick={()=>download('subway-card-audit-details.json',{...summary,statistics:AUDIT_CARDS.map(c=>({cardId:c.id,counts:[2,3,4].map(count=>({count,normal:auditCell(summary,c.id,count,'normal'),targeted:auditCell(summary,c.id,count,'targeted')}))}))})}>Download detailed results</button></div>
     <details><summary>Compact Markdown report ({report.length.toLocaleString()} characters)</summary><textarea aria-label="Compact audit report" readOnly value={report} className="mt-2 h-96 w-full rounded bg-slate-950 p-3 text-sm"/></details>
     <details><summary>Scoring fixture details (not legal-route proofs)</summary>{summary.checks.map(c=><p key={c.cardId}>{c.cardId}: {c.passed?'pass':c.errors.join('; ')} ({c.checks} cases)</p>)}</details>
-    {keys.length>0&&<div className="flex flex-wrap gap-3"><select aria-label="Audit replay example" className="max-w-full rounded bg-slate-950 p-2" value={example} onChange={e=>setExample(e.target.value)}><option value="">Choose a replay example</option>{keys.map(k=><option key={k}>{k}</option>)}</select><button className={button} disabled={!example} onClick={()=>void loadAuditExample(example).then(onReplay).catch(e=>setError(String(e)))}>Replay example</button><button className={button} disabled={!example} onClick={()=>void loadAuditExample(example).then(r=>download(`subway-audit-${example}.json`,r)).catch(e=>setError(String(e)))}>Export replay JSON</button></div>}</>}
+    {keys.length>0&&<div className="flex flex-wrap gap-3"><select aria-label="Audit replay example" className="max-w-full rounded bg-slate-950 p-2" value={example} onChange={e=>setExample(e.target.value)}><option value="">Choose a replay example</option>{keys.map(k=><option key={k}>{k}</option>)}</select><button className={button} disabled={!example} onClick={()=>void loadAuditExample(example,summary.storageId).then(onReplay).catch(e=>setError(String(e)))}>Replay example</button><button className={button} disabled={!example} onClick={()=>void loadAuditExample(example,summary.storageId).then(r=>download(`subway-audit-${example}.json`,r)).catch(e=>setError(String(e)))}>Export replay JSON</button></div>}</>}
     </>}
   </section>;
 }
