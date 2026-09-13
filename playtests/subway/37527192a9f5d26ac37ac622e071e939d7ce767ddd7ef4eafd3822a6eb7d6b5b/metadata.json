@@ -1,0 +1,24 @@
+{
+  "id": "37527192a9f5d26ac37ac622e071e939d7ce767ddd7ef4eafd3822a6eb7d6b5b",
+  "path": "37527192a9f5d26ac37ac622e071e939d7ce767ddd7ef4eafd3822a6eb7d6b5b/original.txt",
+  "source": "simulation",
+  "stateVersion": 21,
+  "rules": "6377682ffd59043339fd441d25c17da449bc67e122a371c8cf211b2deb94db14",
+  "build": "2da259aeeec2f582170cb1f8b45ab82723556cec",
+  "players": null,
+  "actions": null,
+  "cohort": "reference",
+  "replay": "unavailable",
+  "validation": "audit-aggregate-validated",
+  "comparisonEligible": false,
+  "archivedAt": "2026-09-13T15:42:03.966Z",
+  "playerCounts": [
+    2,
+    3,
+    4
+  ],
+  "trialsPerCardCount": 10,
+  "pairs": 1380,
+  "botVersion": "2",
+  "policyVersion": "1"
+}
