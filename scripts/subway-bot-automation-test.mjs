@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import vm from 'node:vm';
+const require=createRequire(import.meta.url),ts=require('typescript');
+const code=ts.transpileModule(readFileSync('src/games/subway/botAutomation.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const context={exports:{},Error,TypeError};vm.runInNewContext(code,context);
+const recover=context.exports.recoverableBotError;
+for(const message of ['The table changed. Check the updated view and try again.','The table changed. Try again.','Waiting for a human company.','Wait for the current action to finish.','Load failed']) assert.equal(recover(new Error(message)),true,message);
+assert.equal(recover(new TypeError('Failed to fetch')),true);
+for(const message of ['No bot decision available.','Bot company device missing.','That action is no longer available.','Your device needs to rejoin this room.']) assert.equal(recover(new Error(message)),false,message);
+console.log('Bot automation recovery: synchronization/network conflicts retain enabled state; policy/auth failures require visible resume.');

@@ -57,11 +57,12 @@ while another company drafts. Card status includes live VP and Completed text.
 A newly observed completed line produces a dismissible +$3M notice on both device
 roles; reconnecting to an already completed line does not replay the reward.
 
-An authenticated phone can explicitly share one owned Destination's station
-locations with the iPad during its acknowledged board turn. Only the current
-tablet projection includes the station IDs. A turn change hides them; the next
-company must make its own request. Clear removes the highlight. This intentional
-disclosure does not publish the full hand or unselected missions.
+An authenticated phone can toggle its owned Destinations on the shared iPad.
+Enabled selections persist across turns and reconnects until their owner disables
+them. Each card has a distinct company/card label and color; the iPad legend names
+its company and mission. Phones receive only their own selections. Clear removes
+only that company's highlights. This opt-in disclosure does not publish unselected
+missions or the full hand. See DEC-047 for the owner-requested persistence change.
 
 Ghost planning is a device-local Table setting, default off. Off hides saved
 ghosts, planning controls and next-step hints, but retains normal real-placement
@@ -627,8 +628,12 @@ controller credential has a bounded managedIds list; it can select only human se
 in that list, never invited friends or board powers. External phones join reserved
 remote seats. Bot devices are server-only; iPad LAB_STEP generates one policy action
 and passes it back through normal companion role/turn/revision/receipt enforcement.
-The iPad can step or run until the next human decision; polling, host refresh and
-client inactivity never independently run bots. Each request is persisted with CAS.
+Bot automation defaults on for the lab session. The open iPad waits through human
+turns and resumes on bot turns across rounds; explicit pause/resume is retained in
+local storage per room/device. Transient network/revision conflicts retain automation with a retry delay; genuine
+bot request failures pause locally with visible error.
+The iPad still drives requests; a closed or inactive browser is not a server scheduler.
+Each request is persisted with CAS.
 Changing a managed seat between human/bot and its profile is recorded. Normal rooms
 reject LAB actions. The controller recovery key is returned only on creation; retain
 it on the original iPad or phone. Existing device recovery restores room progress.
@@ -671,3 +676,18 @@ deduplicates reimports and labels malformed/legacy files reference-only. Structu
 records are unverified until checked by the lab; catalog entries never imply verified
 calibration. AGENTS.md requires archiving shared owner exports in the repository.
 No GitHub credentials or repository write path are shipped to browsers.
+
+### PRWK playtest interaction follow-up
+
+Destination highlights are per-player, per-card opt-in selections in the companion
+sidecar. They persist across turns and reconnects until their owner disables them.
+Phones can toggle their own cards outside board turns; the iPad displays all enabled
+cards with unique company/card labels, colors and a legend. Other phones receive
+only their own selections. Enabling explicitly reveals destinations on the shared
+board; unselected private cards remain hidden. The old single highlight migrates
+on its next toggle. This changes only annotations, not reducer actions or scoring.
+
+Results offer an MD File via the native share sheet directly from a user click,
+with blob download and existing copy/text fallbacks. Both companion phones and
+iPads expose it at results; quick tabletop uses the same save controls.
+Engineering descriptions identical to their requirements render only once.

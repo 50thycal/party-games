@@ -7,6 +7,8 @@ import type { LabStore } from './lab';
 import { nextCompanyId } from './config';
 import { type SavedPlan, validPlanNodes, cleanNode } from "./plans";
 
+export type DestinationHighlight = {playerId:string;cardId:string;label:string;color:string;stationIds:string[];name:string};
+export const DESTINATION_COLORS=['#0369a1','#b45309','#7e22ce','#be123c','#047857','#4338ca','#a16207','#0e7490','#a21caf','#4d7c0f','#c2410c','#6d28d9'];
 export type CompanionDevice = { tokenHash: string; role: "tablet" | "phone"; playerId: string; requests: string[]; managedIds?: string[] };
 export type CompanionStore = {
   version: 1;
@@ -16,6 +18,7 @@ export type CompanionStore = {
   devices: CompanionDevice[];
   seated?: { playerId: string; turn: string };
   plans: Record<string, Record<string, SavedPlan>>;
+  destinationHighlights?: Record<string,string[]>;
   destinationHighlight?: {playerId:string;cardId:string;turn:string};
 };
 export type CompanionView = {
@@ -31,6 +34,7 @@ export type CompanionView = {
   engineeringRemaining: number;
   canUndo: boolean;
   highlightedStations: string[];
+  destinationHighlights: DestinationHighlight[];
   lab?: {seats: LabStore["seats"]; managedIds:string[]; seed?:number; notes:LabStore["notes"]};
 };
 
@@ -81,9 +85,16 @@ export function companionView(state: RoomState, device: CompanionDevice): Compan
       }
     }
   }
+  const selections=store.destinationHighlights??(store.destinationHighlight?{[store.destinationHighlight.playerId]:[store.destinationHighlight.cardId]}:{});
+  const destinationHighlights:DestinationHighlight[]=state.room.players.flatMap((p,pi)=>
+    device.role==='phone'&&p.id!==device.playerId?[]:(original?.players[p.id]?.destinationHand??[]).flatMap((cardId,ci)=>{
+      const card=destinationById(cardId);
+      return card&&selections[p.id]?.includes(cardId)?[{playerId:p.id,cardId,label:`C${pi+1}·D${ci+1}`,color:DESTINATION_COLORS[(pi*3+ci)%DESTINATION_COLORS.length],stationIds:card.stationIds,name:`${p.name}: ${card.name}`}]:[];
+    }));
   return {lab:store.lab ? {seats:store.lab.seats,managedIds:device.managedIds??[],seed:device.role==='tablet'?store.lab.seed:undefined,notes:device.role==='tablet'||device.managedIds?store.lab.notes:[]}:undefined,room:state.room,game,revision:store.revision,role:device.role,playerId:device.playerId,
     actorId:companionActor(original),seatedId,turn,
-    highlightedStations:device.role==="tablet" && seatedId && store.destinationHighlight?.playerId===seatedId && store.destinationHighlight.turn===turn ? destinationById(store.destinationHighlight.cardId)?.stationIds ?? [] : [],
+    destinationHighlights,
+    highlightedStations:device.role==='tablet'?Array.from(new Set(destinationHighlights.flatMap(h=>h.stationIds))):[],
     plans:structuredClone(owner ? store.plans[owner] ?? {} : {}),
     engineeringRemaining:original?.market.decks.engineering.length ?? 0,
     canUndo:device.role === "tablet" && !!original?.undo && store.seated?.playerId === original.undo.playerId};
@@ -151,10 +162,14 @@ export function companionAction(state: RoomState, device: CompanionDevice, input
     if (device.role !== "tablet" || !actor || payload.playerId !== actor) throw new Error("Wait for the active company.");
     session.seated = {playerId:actor,turn:companionTurn(game)};
   } else if (input.type === "SHOW_DESTINATION") {
-    if (device.role !== "phone" || !game || device.playerId !== actor || seated !== actor) throw new Error("Confirm your company on the iPad first, during your board turn.");
+    if (device.role !== "phone" || !game || !game.players[device.playerId]) throw new Error("Use your company phone to toggle destinations.");
     const cardId = payload.cardId;
     if (cardId !== null && (typeof cardId !== "string" || !game.players[device.playerId].destinationHand.includes(cardId))) throw new Error("Choose one of your own Destination cards.");
-    session.destinationHighlight = cardId === null ? undefined : {playerId:device.playerId,cardId:cardId as string,turn:companionTurn(game)};
+    if(payload.enabled!==undefined&&typeof payload.enabled!=='boolean') throw new Error('Invalid highlight setting.');
+    session.destinationHighlights??=store.destinationHighlight?{[store.destinationHighlight.playerId]:[store.destinationHighlight.cardId]}:{};
+    const selected=session.destinationHighlights[device.playerId]??[];
+    session.destinationHighlights[device.playerId]=cardId===null?[]:payload.enabled===false?selected.filter(id=>id!==cardId):Array.from(new Set([...selected,cardId as string]));
+    delete session.destinationHighlight;
   } else if (input.type === "SAVE_GHOST") {
     if (device.role !== "tablet" || !seated || seated !== actor || !game) throw new Error("Confirm your company first.");
     const contractId = payload.contractId;

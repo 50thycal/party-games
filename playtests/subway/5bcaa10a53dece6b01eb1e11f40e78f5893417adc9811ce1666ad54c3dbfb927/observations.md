@@ -1,0 +1,3 @@
+# Owner observations
+
+Chat-pasted PRWK report, transcribed with normalized formatting; no source file supplied, original-file byte equivalence cannot be verified. All 66 supplied action entries retained; this legacy report lacks replay RNG/initial setup and controller provenance. Owner notes: engineering descriptions repeat (Survey System / Three-Way Service); persistent distinct Destination highlights with visible on/off; bots default on for the whole game; iOS MD Save to Files; money felt tight. The phrase "should have to click" is interpreted from the following sentence as "should not have to click every round".

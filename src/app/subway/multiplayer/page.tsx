@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { ReportSaveControls } from "@/games/subway/ReportSaveControls";
+import { generateAiPlaytestReport } from "@/games/subway/report";
 import { LabControls } from "@/games/subway/LabControls";
+import { recoverableBotError } from "@/games/subway/botAutomation";
 import { nextCompanyId } from "@/games/subway/config";
 import type { CompanionView } from "@/games/subway/companion";
 import { SubwayGameView } from "@/games/subway/GameView";
@@ -22,9 +25,18 @@ const button = "min-h-12 rounded-xl bg-teal-700 px-4 py-3 font-bold text-white d
 const input = "w-full rounded-xl border border-slate-500 bg-slate-900 p-3 text-white";
 
 export default function SubwayMultiplayerPage() {
-  const [auto,setAuto]=useState(false);
-  const [follow,setFollow]=useState(true);
   const [identity,setIdentity] = useState<Identity|null>(null);
+  const [auto,setAuto]=useState(true);
+  const botRetryAfter=useRef(0);
+  useEffect(()=>{
+    if(!identity) return;
+    try {setAuto(localStorage.getItem(`subway-bots:${identity.roomCode}:${identity.token}`)!=='off');} catch {setAuto(true);}
+  },[identity]);
+  const toggleAuto=(enabled:boolean)=>{
+    setAuto(enabled);
+    if(identity) try {localStorage.setItem(`subway-bots:${identity.roomCode}:${identity.token}`,enabled?'on':'off');} catch { /* Current session still works. */ }
+  };
+  const [follow,setFollow]=useState(true);
   const [view,setView] = useState<CompanionView|null>(null);
   const [code,setCode] = useState("");
   const [name,setName] = useState("");
@@ -111,12 +123,16 @@ export default function SubwayMultiplayerPage() {
     } catch(e) {const message=e instanceof Error?e.message:"Action failed. Check the table before trying again.";setError(message);throw e;}
     finally {sending.current=false;setBusy(false);}
   }
-  const run=(type:string,payload?:Record<string,unknown>)=>{void act(type,payload).catch(()=>{setAuto(false);});};
+  const run=(type:string,payload?:Record<string,unknown>)=>{void act(type,payload).catch(error=>{
+    if(type!=='LAB_STEP') return;
+    if(recoverableBotError(error)) {botRetryAfter.current=Date.now()+2000;return;}
+    setAuto(false);setError(`Bots paused: ${error instanceof Error?error.message:'Action failed.'} Use Resume to try again.`);
+  });};
   useEffect(()=>{
     if(!auto||!view?.lab||view.role!=='tablet'||busy||!online||!view.game) return;
     const id=nextCompanyId(view.game);
-    if(view.game.phase==='RESULTS'||(view.game.phase!=='SCORING'&&view.lab.seats.find(s=>s.id===id)?.control!=='bot')) {setAuto(false);return;}
-    const timer=setTimeout(()=>run('LAB_STEP'),500);
+    if(view.game.phase==='RESULTS'||(view.game.phase!=='SCORING'&&view.lab.seats.find(s=>s.id===id)?.control!=='bot')) return;
+    const timer=setTimeout(()=>run('LAB_STEP'),Math.max(500,botRetryAfter.current-Date.now()));
     return ()=>clearTimeout(timer);
     // Each accepted server revision permits exactly one next request.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -175,7 +191,7 @@ export default function SubwayMultiplayerPage() {
     <code className="block break-all text-xs select-all">{identity?.token}</code>
     <button className={button} onClick={leave}>Leave this device</button>
   </section>;
-  const notices=<><LabControls view={view} run={run} busy={controlsDisabled} auto={auto} setAuto={setAuto} follow={follow} setFollow={setFollow} onExport={()=>void exportRecord()} controllerKey={identity?.controllerKey}/>{game?.phase==='RESULTS'&&!view.lab&&<button className={button} onClick={()=>void exportRecord()}>Download replay JSON</button>}{completionNotice&&<div role="status" className="rounded-2xl border-2 border-amber-300 bg-emerald-900 p-5 text-center text-2xl font-black text-white"><p>{completionNotice}</p><button className="mt-2 text-sm underline" onClick={()=>setCompletionNotice(null)}>Dismiss</button></div>}{!online&&<p role="alert" className="rounded-lg bg-amber-950 p-3">Connection lost. Reconnecting… Board actions are paused.</p>}{error&&<p role="alert" className="rounded-lg bg-rose-950 p-3">{error}</p>}</>;
+  const notices=<>{game?.phase==='RESULTS'&&<ReportSaveControls report={generateAiPlaytestReport(game,{roomCode:view.room.roomCode,mode:view.room.mode})} roomCode={view.room.roomCode}/>}<LabControls view={view} run={run} busy={controlsDisabled} auto={auto} setAuto={toggleAuto} follow={follow} setFollow={setFollow} onExport={()=>void exportRecord()} controllerKey={identity?.controllerKey}/>{game?.phase==='RESULTS'&&!view.lab&&<button className={button} onClick={()=>void exportRecord()}>Download replay JSON</button>}{completionNotice&&<div role="status" className="rounded-2xl border-2 border-amber-300 bg-emerald-900 p-5 text-center text-2xl font-black text-white"><p>{completionNotice}</p><button className="mt-2 text-sm underline" onClick={()=>setCompletionNotice(null)}>Dismiss</button></div>}{!online&&<p role="alert" className="rounded-lg bg-amber-950 p-3">Connection lost. Reconnecting… Board actions are paused.</p>}{error&&<p role="alert" className="rounded-lg bg-rose-950 p-3">{error}</p>}</>;
   if(!game) return <main className="mx-auto max-w-xl space-y-5 p-4">{header}{settings}{notices}
     <h1 className="text-2xl font-bold">Companies at the table</h1>
     <div className="rounded-xl bg-slate-800 p-4"><p className="text-sm">Join on each phone at</p><p className="break-all font-bold">{typeof window!=="undefined"?window.location.host:""}/subway/multiplayer</p><p className="text-5xl font-black tracking-widest">{view.room.roomCode}</p>{view.lab&&<p className="mt-3">Choose <strong>My testing phone · Playtest Lab</strong> on your phone to control your managed companies. First connection needs only this room code. Friends with reserved seats choose My phone.</p>}</div>
@@ -191,7 +207,8 @@ export default function SubwayMultiplayerPage() {
       <button className={button} disabled={controlsDisabled} onClick={()=>run("ACK_COMPANY",{playerId:view.actorId})}>I am {actor?.name}</button>
       {view.canUndo&&game.undo&&<button className="min-h-12 underline" disabled={controlsDisabled} onClick={()=>run("UNDO_PLACEMENT")}>Undo last placement · {game.players[game.undo.playerId]?.name}</button>}
     </section>:<div className={!online?"pointer-events-none opacity-60":""}>
-      <SubwayGameView key={`${view.turn}:${view.seatedId??"public"}`} state={game} room={view.room} playerId={view.seatedId??""} isHost boardOnly remotePlans={view.plans} dispatchAction={act} highlightedStations={view.highlightedStations} onSaveGhost={(contractId:string,nodes:RouteNode[])=>act("SAVE_GHOST",{contractId,nodes})}/>
+      {view.destinationHighlights.length>0&&<div aria-label="Destination highlight legend" className="flex flex-wrap gap-2">{view.destinationHighlights.map(h=><span key={h.playerId+h.cardId} className="rounded bg-white px-2 py-1 font-bold" style={{color:h.color}}>{h.label} · {h.name}</span>)}</div>}
+      <SubwayGameView key={`${view.turn}:${view.seatedId??"public"}`} state={game} room={view.room} playerId={view.seatedId??""} isHost boardOnly remotePlans={view.plans} dispatchAction={act} highlightedStations={view.highlightedStations} destinationHighlights={view.destinationHighlights} onSaveGhost={(contractId:string,nodes:RouteNode[])=>act("SAVE_GHOST",{contractId,nodes})}/>
     </div>}
   </main>;
 
@@ -204,7 +221,7 @@ export default function SubwayMultiplayerPage() {
     <div className="phone-portrait-prompt fixed inset-0 z-50 hidden flex-col items-center justify-center gap-3 bg-[#10252e] p-6 text-center"><span className="text-4xl" aria-hidden>↻</span><p className="text-xl font-bold">Turn your phone upright</p><p>Your cards are arranged for portrait play.</p></div>
     <section className="sticky top-0 z-20 rounded-xl border border-teal-500 bg-[#193640] p-3 shadow-lg" aria-live="polite"><p className="text-sm">{guidance.text}</p>{tab!==guidance.tab&&<button className={`${button} mt-2 w-full`} onClick={()=>{setTab(guidance.tab);window.scrollTo({top:0});}}>{guidance.label}</button>}</section>
     <h1 className="text-xl font-bold">{tabs.find(t=>t.id===tab)?.label}</h1>
-    {tab==="destinations"&&<>{me.destinationHand.map(id=><section key={id} className="space-y-2"><DestinationCardFace card={id} color={me.color} state={destinationMet(me,id)?"met":"idle"}/><p className={destinationMet(me,id)?"font-bold text-emerald-300":"text-sm text-slate-300"}>{destinationMet(me,id)?"✓ Completed":"Not yet connected"}</p><button className={`${button} w-full`} disabled={controlsDisabled||!myTurn||view.seatedId!==me.id} onClick={()=>run("SHOW_DESTINATION",{cardId:id})}>Show destinations on iPad</button></section>)}<p className="text-xs text-slate-300">Showing a destination reveals its locations on the shared board during your acknowledged turn.</p><button className={button} disabled={controlsDisabled||!myTurn||view.seatedId!==me.id} onClick={()=>run("SHOW_DESTINATION",{cardId:null})}>Clear board highlights</button>
+    {tab==="destinations"&&<>{me.destinationHand.map(id=><section key={id} className="space-y-2"><DestinationCardFace card={id} color={me.color} state={destinationMet(me,id)?"met":"idle"}/><p className={destinationMet(me,id)?"font-bold text-emerald-300":"text-sm text-slate-300"}>{destinationMet(me,id)?"✓ Completed":"Not yet connected"}</p><button className={`${button} w-full`} aria-pressed={view.destinationHighlights.some(h=>h.cardId===id)} disabled={controlsDisabled} onClick={()=>run("SHOW_DESTINATION",{cardId:id,enabled:!view.destinationHighlights.some(h=>h.cardId===id)})}>Highlights: {view.destinationHighlights.some(h=>h.cardId===id)?"On":"Off"} · C{view.room.players.findIndex(p=>p.id===me.id)+1}·D{me.destinationHand.indexOf(id)+1}</button></section>)}<p className="text-xs text-slate-300">Enabled destinations stay visible on the shared board until you turn them off, including during other companies’ turns.</p><button className={button} disabled={controlsDisabled} onClick={()=>run("SHOW_DESTINATION",{cardId:null})}>Clear board highlights</button>
       {buyDestination&&<button className={`${button} w-full`} disabled={controlsDisabled||me.money<5} onClick={()=>run("BUY_DESTINATION",{period:game.currentPeriod})}>Buy another Destination · $5M</button>}
     </>}
     {tab==="lines"&&<>

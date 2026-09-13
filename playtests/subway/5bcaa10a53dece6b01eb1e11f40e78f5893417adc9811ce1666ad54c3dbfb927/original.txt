@@ -1,0 +1,7208 @@
+# Subway AI Playtest Report
+
+## Session
+
+| Field | Value |
+| --- | --- |
+| Game | Subway |
+| State version | 20 |
+| Room | PRWK |
+| Mode | multiplayer |
+| Players | 2 |
+| Started | 1789261274087 (2026-09-13T01:01:14.087Z) |
+| Construction ended | 1789262974406 (2026-09-13T01:29:34.406Z) |
+| End reason | ROUND_LIMIT |
+| Final phase | RESULTS |
+| Accepted actions | 66 |
+| Rejected / invalid actions | Not tracked; rejected reducer actions do not mutate game state |
+
+## Rules and settings
+
+```json
+{
+  "startingMoneyMillions": 40,
+  "lineCompletionRewardMillions": 3,
+  "constructionRounds": 9,
+  "routesPerPlayer": 3,
+  "crewActivationCostMillions": {
+    "zero": 0,
+    "one": 1,
+    "two": 3,
+    "three": 6
+  },
+  "debtPenaltyVpPerMillion": 4,
+  "contactTollMillions": 1,
+  "survey": {
+    "cost": 1,
+    "max": 5,
+    "vp": 1
+  },
+  "stationScores": {
+    "major": 0,
+    "minor": 0,
+    "medium": 0
+  },
+  "board": {
+    "columns": 27,
+    "rows": 9
+  },
+  "geometry": {
+    "lengthTolerance": 0.5,
+    "maxTurnDegrees": 90
+  },
+  "engineeringPicks": 3,
+  "destinationPurchaseMillions": 5,
+  "firstCompletedPlayerId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+  "longestNetwork": "Peg-space length, no repeated segments; winner 5 VP, ties 3 VP each"
+}
+```
+
+## Neighborhood layout
+
+| Neighborhood | Size | Holes | Connections |
+| --- | --- | --- | ---: |
+| Market | small | 12,7; 11,7; 13,7; 12,8; 11,6; 11,8 | Unlimited |
+| Grand Central | large | 23,8; 23,7; 23,6; 23,5; 24,8; 24,7; 24,6; 24,5; 25,8; 25,7; 25,6; 25,5; 26,8; 26,7; 26,6; 26,5 | Unlimited |
+| Museum | large | 15,8; 15,7; 15,6; 16,8; 16,7; 16,6; 16,5; 17,8; 17,7; 17,6; 17,5; 18,8; 18,7; 18,6; 18,5; 18,4 | Unlimited |
+| Garden | small | 25,4; 26,4; 25,3; 24,4; 26,3; 25,2 | Unlimited |
+| Stadium | large | 19,2; 19,3; 19,4; 19,5; 20,2; 20,3; 20,4; 21,2; 21,3; 21,4; 21,5; 21,6; 22,2; 22,3; 22,4; 22,5 | Unlimited |
+| University | large | 2,8; 2,7; 2,6; 2,5; 3,8; 3,7; 3,6; 3,5; 4,8; 4,7; 4,6; 4,5; 5,8; 5,7; 5,6; 5,5 | Unlimited |
+| Library | small | 7,2; 8,2; 7,3; 8,3; 9,2; 7,4 | Unlimited |
+| Theatre | medium | 4,2; 5,2; 4,3; 3,2; 5,3; 4,4; 3,3; 2,2; 5,4; 3,4 | Unlimited |
+| Airport | large | 11,2; 11,3; 11,4; 11,5; 12,2; 12,3; 12,4; 12,5; 12,6; 13,2; 13,3; 13,4; 14,2; 14,3; 14,4; 14,5 | Unlimited |
+| Harbor Exchange | large | 7,8; 7,7; 7,6; 7,5; 8,8; 8,7; 8,6; 8,5; 9,8; 9,7; 9,6; 9,5; 10,8; 10,7; 10,6; 10,5 | Unlimited |
+
+## Final ranking and economy
+
+| Rank | Company | Score | Cash | Crew spend | Tolls paid | Surveys | Routes complete |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | Company 2 (winner) | 23 VP | $13M | $17M | $1M | 1/1 | 3/3 |
+| 2 | Company 1 | 3 VP | $0M | $15M | $0M | 0/0 | 1/3 |
+
+## Company 2
+
+### Routes
+
+| Route | Paid | Progress | Status | Node path |
+| --- | ---: | --- | --- | --- |
+| Red Line | $5M | 4/4 segments | Complete | 1:11,9 → 2:Market (11,7) → 3:14,6 → 4:Museum (16,6) → 5:19,6 |
+| Black Line | $7M | 5/5 segments | Complete | 1:12,9 → 2:Museum (15,7) → 3:Museum (17,6) → 4:22,7 → 5:Grand Central (25,8) → 6:27,4 |
+| Pink Line | $5M | 4/4 segments | Complete | 1:12,9 → 2:Market (12,7) → 3:Museum (15,6) → 4:19,7 → 5:21,7 |
+
+### Cards and resources
+
+- Engineering and Destination cards held: Citywide Service; Turning the Corner; Perimeter Service; Grand Central ↔ Museum; Market ↔ Museum ↔ University
+- Survey Pins: 1 purchased; 1 placed
+
+### Score sources
+
+| Source | Met | Points |
+| --- | --- | ---: |
+| Red Line completed | Yes | 4 |
+| Black Line completed | Yes | 5 |
+| Pink Line completed | Yes | 4 |
+| Citywide Service | No | 0 |
+| Turning the Corner | No | 0 |
+| Perimeter Service | No | 0 |
+| Grand Central ↔ Museum | Yes | 4 |
+| Market ↔ Museum ↔ University | No | 0 |
+| Survey Pin 22,7 | Yes | 1 |
+| Longest network (38.0 peg spaces) | Yes | 5 |
+
+## Company 1
+
+### Routes
+
+| Route | Paid | Progress | Status | Node path |
+| --- | ---: | --- | --- | --- |
+| Green Line | $8M | 6/6 segments | Complete | 1:3,9 → 2:University (4,6) → 3:Harbor Exchange (9,6) → 4:Market (11,6) → 5:Airport (14,4) → 6:14,1 → 7:9,1 |
+| Teal Line | $11M | 6/7 segments | Incomplete | 1:27,7 → 2:Grand Central (23,7) → 3:Museum (17,5) → 4:Airport (14,5) → 5:Harbor Exchange (9,5) → 6:Harbor Exchange (7,5) → 7:University (3,5) |
+| White Line | $10M | 0/5 segments | Incomplete | 1:16,1 |
+
+### Cards and resources
+
+- Engineering and Destination cards held: Loop; Central Interchange; Across Town; Market ↔ University; Grand Central ↔ Airport ↔ Harbor Exchange
+- Survey Pins: 0 purchased; 0 placed
+
+### Score sources
+
+| Source | Met | Points |
+| --- | --- | ---: |
+| Green Line completed | Yes | 6 |
+| Teal Line incomplete (7/8) | No | -8 |
+| White Line incomplete (1/6) | No | -6 |
+| Loop | No | 0 |
+| Central Interchange | No | 0 |
+| Across Town | No | 0 |
+| Market ↔ University | Yes | 4 |
+| Grand Central ↔ Airport ↔ Harbor Exchange | Yes | 7 |
+| Longest network (31.9 peg spaces) | No | 0 |
+
+## Structured accepted-action log
+
+This is the chronological source for draft order, cards played, crew choices, placements, Undo actions, round progression, and every recorded before/after budget or resource change. Invalid/rejected attempts are not recorded.
+
+```json
+[
+  {
+    "actionNumber": 1,
+    "acceptedAt": 1789261274087,
+    "actorId": "a0142d8c-9ce3-45ec-90c6-7463dab1fc25",
+    "action": "START_GAME",
+    "payload": {},
+    "phaseBefore": "SETUP",
+    "phaseAfter": "PROCUREMENT",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 40,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [],
+        "destinationPurchased": false,
+        "lineNodeCounts": [],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 40,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [],
+        "destinationPurchased": false,
+        "lineNodeCounts": [],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 40,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 40,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 2,
+    "acceptedAt": 1789261299036,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "PROCURE",
+    "payload": {
+      "choice": "buy",
+      "contractId": "short"
+    },
+    "phaseBefore": "PROCUREMENT",
+    "phaseAfter": "PROCUREMENT",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 40,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 40,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 40,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 35,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 3,
+    "acceptedAt": 1789261314280,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "PROCURE",
+    "payload": {
+      "choice": "buy",
+      "contractId": "medium"
+    },
+    "phaseBefore": "PROCUREMENT",
+    "phaseAfter": "PROCUREMENT",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 40,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 35,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 32,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 35,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 4,
+    "acceptedAt": 1789261328282,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "PROCURE",
+    "payload": {
+      "choice": "buy",
+      "contractId": "river"
+    },
+    "phaseBefore": "PROCUREMENT",
+    "phaseAfter": "PROCUREMENT",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 32,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 35,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 32,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 28,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 5,
+    "acceptedAt": 1789261337016,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "PROCURE",
+    "payload": {
+      "choice": "buy",
+      "contractId": "long"
+    },
+    "phaseBefore": "PROCUREMENT",
+    "phaseAfter": "PROCUREMENT",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 32,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 28,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 21,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 28,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 6,
+    "acceptedAt": 1789261349636,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "PROCURE",
+    "payload": {
+      "choice": "buy",
+      "contractId": "tram"
+    },
+    "phaseBefore": "PROCUREMENT",
+    "phaseAfter": "PROCUREMENT",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 21,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 28,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 21,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 23,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 7,
+    "acceptedAt": 1789261357331,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "PROCURE",
+    "payload": {
+      "choice": "buy",
+      "contractId": "airport"
+    },
+    "phaseBefore": "PROCUREMENT",
+    "phaseAfter": "ENGINEERING",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 21,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 23,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 23,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 8,
+    "acceptedAt": 1789261362011,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "DRAFT_CARD",
+    "payload": {
+      "deck": "engineering",
+      "cardId": "terminal",
+      "expectedPick": 0
+    },
+    "phaseBefore": "ENGINEERING",
+    "phaseAfter": "ENGINEERING",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 23,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 23,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "terminal"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 9,
+    "acceptedAt": 1789261369276,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "DRAFT_CARD",
+    "payload": {
+      "deck": "engineering",
+      "cardId": "straight",
+      "expectedPick": 1
+    },
+    "phaseBefore": "ENGINEERING",
+    "phaseAfter": "ENGINEERING",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 23,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "terminal"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 23,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "terminal"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 10,
+    "acceptedAt": 1789261376055,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "DRAFT_CARD",
+    "payload": {
+      "deck": "engineering",
+      "cardId": "bend",
+      "expectedPick": 2
+    },
+    "phaseBefore": "ENGINEERING",
+    "phaseAfter": "ENGINEERING",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 23,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "terminal"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 23,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "terminal",
+          "bend"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 11,
+    "acceptedAt": 1789261389464,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "DRAFT_CARD",
+    "payload": {
+      "deck": "engineering",
+      "cardId": "interchange",
+      "expectedPick": 3
+    },
+    "phaseBefore": "ENGINEERING",
+    "phaseAfter": "ENGINEERING",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 23,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "terminal",
+          "bend"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 23,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "terminal",
+          "bend"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 12,
+    "acceptedAt": 1789261393819,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "DRAFT_CARD",
+    "payload": {
+      "deck": "engineering",
+      "cardId": "perimeter",
+      "expectedPick": 4
+    },
+    "phaseBefore": "ENGINEERING",
+    "phaseAfter": "ENGINEERING",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 23,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "terminal",
+          "bend"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 23,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 13,
+    "acceptedAt": 1789261405358,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "DRAFT_CARD",
+    "payload": {
+      "deck": "engineering",
+      "cardId": "crosstown-service",
+      "expectedPick": 5
+    },
+    "phaseBefore": "ENGINEERING",
+    "phaseAfter": "ENGINEERING",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 23,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 23,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 14,
+    "acceptedAt": 1789261414823,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "BUY_SURVEYS",
+    "payload": {
+      "surveys": 0
+    },
+    "phaseBefore": "ENGINEERING",
+    "phaseAfter": "ENGINEERING",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 23,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 23,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 15,
+    "acceptedAt": 1789261419935,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "BUY_SURVEYS",
+    "payload": {
+      "surveys": 1
+    },
+    "phaseBefore": "ENGINEERING",
+    "phaseAfter": "ENGINEERING",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 23,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 22,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 16,
+    "acceptedAt": 1789261420679,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "PLACE_SURVEY",
+    "payload": {
+      "x": 21,
+      "y": 6
+    },
+    "phaseBefore": "ENGINEERING",
+    "phaseAfter": "STARTER_PLACEMENT",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 22,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 22,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 17,
+    "acceptedAt": 1789261421376,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "PLACE_STARTER",
+    "payload": {
+      "lineIndex": 0,
+      "x": 10,
+      "y": 8
+    },
+    "phaseBefore": "STARTER_PLACEMENT",
+    "phaseAfter": "STARTER_PLACEMENT",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 22,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 22,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 18,
+    "acceptedAt": 1789261556122,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "PLACE_STARTER",
+    "payload": {
+      "lineIndex": 0,
+      "x": 2,
+      "y": 8
+    },
+    "phaseBefore": "STARTER_PLACEMENT",
+    "phaseAfter": "STARTER_PLACEMENT",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 22,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 22,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 19,
+    "acceptedAt": 1789261562799,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "PLACE_STARTER",
+    "payload": {
+      "lineIndex": 1,
+      "x": 11,
+      "y": 8
+    },
+    "phaseBefore": "STARTER_PLACEMENT",
+    "phaseAfter": "STARTER_PLACEMENT",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 22,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 22,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 20,
+    "acceptedAt": 1789261588858,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "PLACE_STARTER",
+    "payload": {
+      "lineIndex": 1,
+      "x": 26,
+      "y": 6
+    },
+    "phaseBefore": "STARTER_PLACEMENT",
+    "phaseAfter": "STARTER_PLACEMENT",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 22,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 22,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 21,
+    "acceptedAt": 1789261593618,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "PLACE_STARTER",
+    "payload": {
+      "lineIndex": 2,
+      "x": 11,
+      "y": 8
+    },
+    "phaseBefore": "STARTER_PLACEMENT",
+    "phaseAfter": "STARTER_PLACEMENT",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 22,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 22,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 22,
+    "acceptedAt": 1789261604781,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "PLACE_STARTER",
+    "payload": {
+      "lineIndex": 2,
+      "x": 15,
+      "y": 0
+    },
+    "phaseBefore": "STARTER_PLACEMENT",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          0
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 22,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 22,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 23,
+    "acceptedAt": 1789261617339,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        0,
+        2
+      ],
+      "period": 1
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 22,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 19,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 24,
+    "acceptedAt": 1789261618322,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 0,
+      "x": 10,
+      "y": 6
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 19,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 19,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          1,
+          1
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 25,
+    "acceptedAt": 1789261619471,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 2,
+      "x": 11,
+      "y": 6
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 19,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          1,
+          1
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 19,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          1,
+          2
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 26,
+    "acceptedAt": 1789261637879,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        0,
+        1
+      ],
+      "period": 1
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 11,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 19,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          1,
+          2
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 8,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 19,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          1,
+          2
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 27,
+    "acceptedAt": 1789261678274,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 0,
+      "x": 3,
+      "y": 5
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 8,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 19,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          1,
+          2
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 8,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          1,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 19,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          1,
+          2
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 28,
+    "acceptedAt": 1789261694107,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 1,
+      "x": 22,
+      "y": 6
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 1,
+    "periodAfter": 2,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 8,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          1,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 19,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          1,
+          2
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 8,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          2,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 19,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          1,
+          2
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 29,
+    "acceptedAt": 1789261700214,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        0,
+        2
+      ],
+      "period": 2
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 2,
+    "periodAfter": 2,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 8,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          2,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 19,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          1,
+          2
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 8,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          2,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 16,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          1,
+          2
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 30,
+    "acceptedAt": 1789261701338,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 0,
+      "x": 13,
+      "y": 5
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 2,
+    "periodAfter": 2,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 8,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          2,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 16,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          1,
+          2
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 8,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          2,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 16,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          1,
+          2
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 31,
+    "acceptedAt": 1789261702473,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 2,
+      "x": 14,
+      "y": 5
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 2,
+    "periodAfter": 2,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 8,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          2,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 16,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          1,
+          2
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 8,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          2,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 16,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          1,
+          3
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 32,
+    "acceptedAt": 1789262361983,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        0,
+        1
+      ],
+      "period": 2
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 2,
+    "periodAfter": 2,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 8,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          2,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 16,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          1,
+          3
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 5,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          2,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 16,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          1,
+          3
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 33,
+    "acceptedAt": 1789262374740,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 0,
+      "x": 8,
+      "y": 5
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 2,
+    "periodAfter": 2,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 5,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          2,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 16,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          1,
+          3
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 5,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          2,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 16,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          1,
+          3
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 34,
+    "acceptedAt": 1789262537781,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 1,
+      "x": 16,
+      "y": 4
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 2,
+    "periodAfter": 3,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 5,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          2,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 16,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          1,
+          3
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 5,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          3,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 16,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          1,
+          3
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 35,
+    "acceptedAt": 1789262554829,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        0,
+        2
+      ],
+      "period": 3
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 3,
+    "periodAfter": 3,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 5,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          3,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 16,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          1,
+          3
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 5,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          3,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          1,
+          3
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 36,
+    "acceptedAt": 1789262555997,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 0,
+      "x": 15,
+      "y": 5
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 3,
+    "periodAfter": 3,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 5,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          3,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          1,
+          3
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 5,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          3,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          1,
+          3
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 37,
+    "acceptedAt": 1789262557117,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 2,
+      "x": 18,
+      "y": 6
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 3,
+    "periodAfter": 3,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 5,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          3,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          1,
+          3
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 5,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          3,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          1,
+          4
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 38,
+    "acceptedAt": 1789262562736,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        0,
+        1
+      ],
+      "period": 3
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 3,
+    "periodAfter": 3,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 5,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          3,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          1,
+          4
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 2,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          3,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          1,
+          4
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 39,
+    "acceptedAt": 1789262584641,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 0,
+      "x": 10,
+      "y": 5
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 3,
+    "periodAfter": 3,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 2,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          3,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          1,
+          4
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 2,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          3,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          1,
+          4
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 40,
+    "acceptedAt": 1789262588416,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 1,
+      "x": 13,
+      "y": 4
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 3,
+    "periodAfter": 4,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 2,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          3,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          1,
+          4
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 2,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          4,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          1,
+          4
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 41,
+    "acceptedAt": 1789262593405,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        0,
+        2
+      ],
+      "period": 4
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 4,
+    "periodAfter": 4,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 2,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          4,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          1,
+          4
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 2,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          4,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 10,
+        "crewPaid": 12,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          1,
+          4
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 42,
+    "acceptedAt": 1789262594496,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 0,
+      "x": 18,
+      "y": 5
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 4,
+    "periodAfter": 4,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 2,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          4,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 10,
+        "crewPaid": 12,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          1,
+          4
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 2,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          4,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 12,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          1,
+          4
+        ],
+        "completedLines": [
+          "short"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 43,
+    "acceptedAt": 1789262595604,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 2,
+      "x": 20,
+      "y": 6
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 4,
+    "periodAfter": 4,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 2,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          4,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 12,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          1,
+          4
+        ],
+        "completedLines": [
+          "short"
+        ]
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 2,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          4,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 16,
+        "crewPaid": 12,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          1,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 44,
+    "acceptedAt": 1789262713455,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        0
+      ],
+      "period": 4
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 4,
+    "periodAfter": 4,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 2,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          4,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 16,
+        "crewPaid": 12,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          1,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 1,
+        "crewPaid": 10,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          4,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 16,
+        "crewPaid": 12,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          1,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 45,
+    "acceptedAt": 1789262719993,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 0,
+      "x": 13,
+      "y": 3
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 4,
+    "periodAfter": 5,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 1,
+        "crewPaid": 10,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          4,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 16,
+        "crewPaid": 12,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          1,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 1,
+        "crewPaid": 10,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          4,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 16,
+        "crewPaid": 12,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          1,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 46,
+    "acceptedAt": 1789262724558,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        1
+      ],
+      "period": 5
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 5,
+    "periodAfter": 5,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 1,
+        "crewPaid": 10,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          4,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 16,
+        "crewPaid": 12,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          1,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 1,
+        "crewPaid": 10,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          4,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 15,
+        "crewPaid": 13,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          1,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 47,
+    "acceptedAt": 1789262725562,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 1,
+      "x": 14,
+      "y": 6
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 5,
+    "periodAfter": 5,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 1,
+        "crewPaid": 10,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          4,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 15,
+        "crewPaid": 13,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          1,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 1,
+        "crewPaid": 10,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          4,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 15,
+        "crewPaid": 13,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          2,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 48,
+    "acceptedAt": 1789262742669,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        0
+      ],
+      "period": 5
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 5,
+    "periodAfter": 5,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 1,
+        "crewPaid": 10,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          4,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 15,
+        "crewPaid": 13,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          2,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 0,
+        "crewPaid": 11,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          4,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 15,
+        "crewPaid": 13,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          2,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 49,
+    "acceptedAt": 1789262815873,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 0,
+      "x": 13,
+      "y": 0
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 5,
+    "periodAfter": 6,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 0,
+        "crewPaid": 11,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          4,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 15,
+        "crewPaid": 13,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          2,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 0,
+        "crewPaid": 11,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          4,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 15,
+        "crewPaid": 13,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          2,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 50,
+    "acceptedAt": 1789262825035,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        1
+      ],
+      "period": 6
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 6,
+    "periodAfter": 6,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 0,
+        "crewPaid": 11,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          4,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 15,
+        "crewPaid": 13,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          2,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 0,
+        "crewPaid": 11,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          4,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 14,
+        "crewPaid": 14,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          2,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 51,
+    "acceptedAt": 1789262826102,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 1,
+      "x": 16,
+      "y": 5
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 6,
+    "periodAfter": 6,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 0,
+        "crewPaid": 11,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          4,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 14,
+        "crewPaid": 14,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          2,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 0,
+        "crewPaid": 11,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          4,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 14,
+        "crewPaid": 14,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          3,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 52,
+    "acceptedAt": 1789262847909,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        0
+      ],
+      "period": 6
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 6,
+    "periodAfter": 6,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 0,
+        "crewPaid": 11,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          4,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 14,
+        "crewPaid": 14,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          3,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": -1,
+        "crewPaid": 12,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          4,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 14,
+        "crewPaid": 14,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          3,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 53,
+    "acceptedAt": 1789262858999,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 0,
+      "x": 8,
+      "y": 0
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 6,
+    "periodAfter": 7,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": -1,
+        "crewPaid": 12,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          4,
+          1
+        ],
+        "completedLines": []
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 14,
+        "crewPaid": 14,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          3,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 2,
+        "crewPaid": 12,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          7,
+          4,
+          1
+        ],
+        "completedLines": [
+          "medium"
+        ]
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 14,
+        "crewPaid": 14,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          3,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 54,
+    "acceptedAt": 1789262865021,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        1
+      ],
+      "period": 7
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 7,
+    "periodAfter": 7,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 2,
+        "crewPaid": 12,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          7,
+          4,
+          1
+        ],
+        "completedLines": [
+          "medium"
+        ]
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 14,
+        "crewPaid": 14,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          3,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 2,
+        "crewPaid": 12,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          7,
+          4,
+          1
+        ],
+        "completedLines": [
+          "medium"
+        ]
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 15,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          3,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 55,
+    "acceptedAt": 1789262865774,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 1,
+      "x": 21,
+      "y": 6
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 7,
+    "periodAfter": 7,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 2,
+        "crewPaid": 12,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          7,
+          4,
+          1
+        ],
+        "completedLines": [
+          "medium"
+        ]
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 15,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          3,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 2,
+        "crewPaid": 12,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          7,
+          4,
+          1
+        ],
+        "completedLines": [
+          "medium"
+        ]
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 15,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          4,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 56,
+    "acceptedAt": 1789262872586,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        1
+      ],
+      "period": 7
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 7,
+    "periodAfter": 7,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 2,
+        "crewPaid": 12,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          7,
+          4,
+          1
+        ],
+        "completedLines": [
+          "medium"
+        ]
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 15,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          4,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 1,
+        "crewPaid": 13,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          7,
+          4,
+          1
+        ],
+        "completedLines": [
+          "medium"
+        ]
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 15,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          4,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 57,
+    "acceptedAt": 1789262880982,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 1,
+      "x": 8,
+      "y": 4
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 7,
+    "periodAfter": 8,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 1,
+        "crewPaid": 13,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          7,
+          4,
+          1
+        ],
+        "completedLines": [
+          "medium"
+        ]
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 15,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          4,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 1,
+        "crewPaid": 13,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          7,
+          5,
+          1
+        ],
+        "completedLines": [
+          "medium"
+        ]
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 15,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          4,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 58,
+    "acceptedAt": 1789262885924,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        1
+      ],
+      "period": 8
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 8,
+    "periodAfter": 8,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 1,
+        "crewPaid": 13,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          7,
+          5,
+          1
+        ],
+        "completedLines": [
+          "medium"
+        ]
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 15,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          4,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 1,
+        "crewPaid": 13,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          7,
+          5,
+          1
+        ],
+        "completedLines": [
+          "medium"
+        ]
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 12,
+        "crewPaid": 16,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          4,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 59,
+    "acceptedAt": 1789262887033,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 1,
+      "x": 24,
+      "y": 7
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 8,
+    "periodAfter": 8,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 1,
+        "crewPaid": 13,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          7,
+          5,
+          1
+        ],
+        "completedLines": [
+          "medium"
+        ]
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 12,
+        "crewPaid": 16,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          4,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 1,
+        "crewPaid": 13,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          7,
+          5,
+          1
+        ],
+        "completedLines": [
+          "medium"
+        ]
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 12,
+        "crewPaid": 16,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          5,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 60,
+    "acceptedAt": 1789262891411,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        1
+      ],
+      "period": 8
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 8,
+    "periodAfter": 8,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 1,
+        "crewPaid": 13,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          7,
+          5,
+          1
+        ],
+        "completedLines": [
+          "medium"
+        ]
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 12,
+        "crewPaid": 16,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          5,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 0,
+        "crewPaid": 14,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          7,
+          5,
+          1
+        ],
+        "completedLines": [
+          "medium"
+        ]
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 12,
+        "crewPaid": 16,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          5,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 61,
+    "acceptedAt": 1789262938584,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 1,
+      "x": 6,
+      "y": 4
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 8,
+    "periodAfter": 9,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 0,
+        "crewPaid": 14,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          7,
+          5,
+          1
+        ],
+        "completedLines": [
+          "medium"
+        ]
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 12,
+        "crewPaid": 16,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          5,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 0,
+        "crewPaid": 14,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          7,
+          6,
+          1
+        ],
+        "completedLines": [
+          "medium"
+        ]
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 12,
+        "crewPaid": 16,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          5,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 62,
+    "acceptedAt": 1789262944146,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        1
+      ],
+      "period": 9
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 9,
+    "periodAfter": 9,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 0,
+        "crewPaid": 14,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          7,
+          6,
+          1
+        ],
+        "completedLines": [
+          "medium"
+        ]
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 12,
+        "crewPaid": 16,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          5,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 0,
+        "crewPaid": 14,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          7,
+          6,
+          1
+        ],
+        "completedLines": [
+          "medium"
+        ]
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 11,
+        "crewPaid": 17,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          5,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 63,
+    "acceptedAt": 1789262944937,
+    "actorId": "70065bb1-455d-49b4-bdb1-384a29eab11d",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 1,
+      "x": 26,
+      "y": 3
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 9,
+    "periodAfter": 9,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 0,
+        "crewPaid": 14,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          7,
+          6,
+          1
+        ],
+        "completedLines": [
+          "medium"
+        ]
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 11,
+        "crewPaid": 17,
+        "tollsPaid": 0,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          5,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 1,
+        "crewPaid": 14,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          7,
+          6,
+          1
+        ],
+        "completedLines": [
+          "medium"
+        ]
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 17,
+        "tollsPaid": 1,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          6,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "river",
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 64,
+    "acceptedAt": 1789262967064,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        1
+      ],
+      "period": 9
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 9,
+    "periodAfter": 9,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 1,
+        "crewPaid": 14,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          7,
+          6,
+          1
+        ],
+        "completedLines": [
+          "medium"
+        ]
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 17,
+        "tollsPaid": 1,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          6,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "river",
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 0,
+        "crewPaid": 15,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          7,
+          6,
+          1
+        ],
+        "completedLines": [
+          "medium"
+        ]
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 17,
+        "tollsPaid": 1,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          6,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "river",
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 65,
+    "acceptedAt": 1789262974406,
+    "actorId": "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 1,
+      "x": 2,
+      "y": 4
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "SCORING",
+    "periodBefore": 9,
+    "periodAfter": 9,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 0,
+        "crewPaid": 15,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          7,
+          6,
+          1
+        ],
+        "completedLines": [
+          "medium"
+        ]
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 17,
+        "tollsPaid": 1,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          6,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "river",
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 0,
+        "crewPaid": 15,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          7,
+          7,
+          1
+        ],
+        "completedLines": [
+          "medium"
+        ]
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 17,
+        "tollsPaid": 1,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          6,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "river",
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 66,
+    "acceptedAt": 1789263017408,
+    "actorId": "a0142d8c-9ce3-45ec-90c6-7463dab1fc25",
+    "action": "ADVANCE_SCORING",
+    "payload": {},
+    "phaseBefore": "SCORING",
+    "phaseAfter": "RESULTS",
+    "periodBefore": 9,
+    "periodAfter": 9,
+    "playersBefore": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 0,
+        "crewPaid": 15,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          7,
+          7,
+          1
+        ],
+        "completedLines": [
+          "medium"
+        ]
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 17,
+        "tollsPaid": 1,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          6,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "river",
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "e5dae24d-5ec4-4eba-a483-99ee5d0b50d7": {
+        "money": 0,
+        "crewPaid": 15,
+        "tollsPaid": 0,
+        "surveysPurchased": 0,
+        "engineeringCards": [
+          "straight",
+          "interchange",
+          "crosstown-service"
+        ],
+        "destinationCards": [
+          "dest-market-university",
+          "dest-grand-airport-harbor"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          7,
+          7,
+          1
+        ],
+        "completedLines": [
+          "medium"
+        ]
+      },
+      "70065bb1-455d-49b4-bdb1-384a29eab11d": {
+        "money": 13,
+        "crewPaid": 17,
+        "tollsPaid": 1,
+        "surveysPurchased": 1,
+        "engineeringCards": [
+          "terminal",
+          "bend",
+          "perimeter"
+        ],
+        "destinationCards": [
+          "dest-grand-museum",
+          "dest-market-museum-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          6,
+          5
+        ],
+        "completedLines": [
+          "short",
+          "river",
+          "tram"
+        ]
+      }
+    }
+  }
+]
+```
