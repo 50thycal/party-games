@@ -130,8 +130,8 @@ export function ContractCard({
       <div className="mt-1.5">
         <RecipeStrip
           contract={contract}
-          built={progress ? Math.max(0, progress.built - 1) : 0}
-          highlightCurrent={!!progress && progress.built > 0}
+          built={progress?.built ?? 0}
+          highlightCurrent={!!progress}
         />
         <p className="mt-0.5 text-[10px] uppercase tracking-wide text-stone-400">
           ordered segment lengths (pegs)

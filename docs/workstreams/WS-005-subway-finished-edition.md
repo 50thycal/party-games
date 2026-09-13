@@ -4,10 +4,27 @@ Build OS: v0.12
 Phase: REVIEW
 Status: Active
 Updated: 2026-09-13
-Implementation State: PR #176 merged. PR #177 implements PRWK interaction/export feedback and archives the report with economy analysis. On merge, this continuation is implemented; physical phone/iPad and iOS Files acceptance and broader balance calibration remain.
+Implementation State: GZZF corrections implemented and validated locally; publication/current-head independent review pending. Earlier PRWK feedback is retained below as history. Physical phone/iPad acceptance and broader balance calibration remain.
 Related PRs: [#177](https://github.com/50thycal/party-games/pull/177) (PRWK feedback); [#176](https://github.com/50thycal/party-games/pull/176) (phone joining; merged); [#175](https://github.com/50thycal/party-games/pull/175) (Playtest Lab); [#174](https://github.com/50thycal/party-games/pull/174) (transfer/objective continuation); [#173](https://github.com/50thycal/party-games/pull/173) (larger neighborhoods/reversed VP; merged); [#172](https://github.com/50thycal/party-games/pull/172) (guided turns, neighborhoods and tiers; merged); [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; merged); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
-## Current continuation — PRWK playtest feedback
+## Current continuation — GZZF playtest corrections
+
+Owner authorized implementation of the analyzed bot/report fixes, the recorded
+3/4 segment-display correction and a ban on starting atop another peg.
+Goal, non-goals and acceptance: [approved Build Card/spec](../build-specs/WS-005-gzzf-playtest.md).
+Canonical VERSION.md checked on 2026-09-13: v0.12 matches adoption. Existing WS-005
+continues; no mission is added to the legacy over-limit board.
+Implementation State: policy v2, state v21 starter occupancy, report provenance/
+explanations and segment chips implemented. Current economy retained. Production
+build, lint, full Subway suite and GZZF regressions passed, including 36 legacy
+driver games, 15 policy/profile simulation scenarios with replay and 2/3/4-seat
+companion API games. All independent-review findings corrected and tested.
+Browser local preview blocked by ERR_BLOCKED_BY_CLIENT; no visual pass claimed.
+Review State: pending independent current-head review for this continuation.
+Next Step: publish the implementation PR, inspect branch preview and obtain the
+independent current-head verdict. This implementation agent cannot merge under AGENTS.md.
+
+## Previous continuation — PRWK playtest feedback
 
 Owner reports duplicate Engineering text, transient indistinguishable destinations,
 repeated bot restart, failed iOS MD saving and tight money in room PRWK (v20).

@@ -6,6 +6,7 @@ import { seededRandom } from './playtest';
 import type { LabStore } from './lab';
 import { nextCompanyId } from './config';
 import { type SavedPlan, validPlanNodes, cleanNode } from "./plans";
+import { recordedReportContext, type SubwayReportContext } from './report';
 
 export type DestinationHighlight = {playerId:string;cardId:string;label:string;color:string;stationIds:string[];name:string};
 export const DESTINATION_COLORS=['#0369a1','#b45309','#7e22ce','#be123c','#047857','#4338ca','#a16207','#0e7490','#a21caf','#4d7c0f','#c2410c','#6d28d9'];
@@ -35,6 +36,7 @@ export type CompanionView = {
   canUndo: boolean;
   highlightedStations: string[];
   destinationHighlights: DestinationHighlight[];
+  reportContext?: SubwayReportContext;
   lab?: {seats: LabStore["seats"]; managedIds:string[]; seed?:number; notes:LabStore["notes"]};
 };
 
@@ -93,6 +95,7 @@ export function companionView(state: RoomState, device: CompanionDevice): Compan
     }));
   return {lab:store.lab ? {seats:store.lab.seats,managedIds:device.managedIds??[],seed:device.role==='tablet'?store.lab.seed:undefined,notes:device.role==='tablet'||device.managedIds?store.lab.notes:[]}:undefined,room:state.room,game,revision:store.revision,role:device.role,playerId:device.playerId,
     actorId:companionActor(original),seatedId,turn,
+    reportContext:game?.phase==='RESULTS'?recordedReportContext(store.recording,store.lab?.seats):undefined,
     destinationHighlights,
     highlightedStations:device.role==='tablet'?Array.from(new Set(destinationHighlights.flatMap(h=>h.stationIds))):[],
     plans:structuredClone(owner ? store.plans[owner] ?? {} : {}),

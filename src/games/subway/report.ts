@@ -10,11 +10,26 @@ import {
   neighborhoodSize,
   type SubwayState,
 } from "./config";
+import { objectiveExplanation } from './objectiveGuidance';
+import type { GameRecord } from './recording';
+import type { LabSeat } from './lab';
 
 export type SubwayReportContext = {
   roomCode?: string;
   mode?: string;
+  botVersion?: string;
+  controllers?: {id:string; humanActions:number; botActions:number; unknownActions:number; currentControl?:string; profile?:string}[];
 };
+
+/** Results-only metadata: no recording tapes, hidden hands or credentials. */
+export function recordedReportContext(record?: GameRecord, seats: LabSeat[] = []): SubwayReportContext {
+  if (!record) return {};
+  return {botVersion:record.botVersion, controllers:record.room.players.map(p=>{
+    const actions=record.actions.filter(e=>e.action.playerId===p.id&&!['START_GAME','ADVANCE_SCORING'].includes(e.action.type));
+    const seat=seats.find(s=>s.id===p.id);
+    return {id:p.id,humanActions:actions.filter(e=>e.controller==='human').length,botActions:actions.filter(e=>e.controller==='bot').length,unknownActions:actions.filter(e=>e.controller!=='human'&&e.controller!=='bot').length,currentControl:seat?.control,profile:seat?`${seat.bot.personality} / ${seat.bot.skill}`:undefined};
+  })};
+}
 
 const cell = (value: unknown): string => String(value ?? "—").replaceAll("|", "\\|").replaceAll("\n", " ");
 const row = (values: unknown[]): string => `| ${values.map(cell).join(" | ")} |`;
@@ -36,7 +51,8 @@ export function generateAiPlaytestReport(game: SubwayState, context: SubwayRepor
     row(["Field", "Value"]),
     row(["---", "---"]),
     row(["Game", "Subway"]),
-    row(["State version", SUBWAY_STATE_VERSION]),
+    row(["State version", game.version ?? SUBWAY_STATE_VERSION]),
+    row(["Bot policy version", context.botVersion ?? "Not recorded"]),
     row(["Room", context.roomCode ?? "Local / not supplied"]),
     row(["Mode", context.mode ?? "Not supplied"]),
     row(["Players", game.playerOrder.length]),
@@ -46,6 +62,18 @@ export function generateAiPlaytestReport(game: SubwayState, context: SubwayRepor
     row(["Final phase", game.phase]),
     row(["Accepted actions", game.telemetry?.length ?? 0]),
     row(["Rejected / invalid actions", "Not tracked; rejected reducer actions do not mutate game state"]),
+    "",
+    "## Controllers",
+    "",
+    "Counts are recorded gameplay actions, excluding setup and scoring advance. Current control/profile describes the final setting, not necessarily the whole game. Missing provenance is never inferred from names or timing.",
+    "",
+    row(["Company", "Played by", "Human actions", "Bot actions", "Unknown actions", "Current control", "Current bot profile"]),
+    row(["---", "---", "---:", "---:", "---:", "---", "---"]),
+    ...game.playerOrder.map(id=>{
+      const c=context.controllers?.find(c=>c.id===id);
+      const label=!c?'Unknown':c.unknownActions?'Unknown / incomplete provenance':c.humanActions&&c.botActions?'Mixed human + bot':c.botActions?'Bot':c.humanActions?'Human':'No recorded gameplay';
+      return row([game.players[id].name,label,c?.humanActions,c?.botActions,c?.unknownActions,c?.currentControl??'Not recorded',c?.profile??'Not recorded']);
+    }),
     "",
     "## Rules and settings",
     "",
@@ -66,6 +94,7 @@ export function generateAiPlaytestReport(game: SubwayState, context: SubwayRepor
       destinationPurchaseMillions: SUBWAY_CONFIG.destinationPurchaseCost,
       firstCompletedPlayerId: game.firstCompletedPlayerId,
       longestNetwork: "Peg-space length, no repeated segments; winner 5 VP, ties 3 VP each",
+      starterOccupancy: "New starter pegs require an empty non-neighborhood outer-border hole",
     }, null, 2),
     "```",
     "",
@@ -125,6 +154,16 @@ export function generateAiPlaytestReport(game: SubwayState, context: SubwayRepor
       row(["Source", "Met", "Points"]),
       row(["---", "---", "---:"]),
       ...(p.scoreBreakdown ?? []).map((item) => row([item.label, item.met === undefined ? "n/a" : item.met ? "Yes" : "No", item.points])),
+      "",
+      "### Objective explanations",
+      "",
+      row(["Objective", "Points / maximum", "Explanation"]),
+      row(["---", "---", "---"]),
+      ...[...p.engineeringHand,...p.destinationHand].map(id=>{
+        const card=engineeringById(id)??destinationById(id);
+        const points=p.scoreBreakdown?.find(item=>item.label===card?.name)?.points;
+        return row([cardName(id),`${points??'Not scored'} / ${card?.vp??0}`,objectiveExplanation(id,game,p)]);
+      }),
       "",
     );
   }

@@ -1,7 +1,9 @@
 /** Versioned, bounded heuristic policies. A policy receives only its own hand and public state. */
-import { SUBWAY_CONFIG, buildableLines, lineActionsRemaining, nextCompanyId, pendingStarters, legalTargets, stationAt, lineComplete, contractById, routeContacts, contactToll, destinationById, objectiveProgress, surveyBlocker, type SubwayState, type SubwayAction, type PlacementTarget } from './config';
+import { SUBWAY_CONFIG, lineActionsRemaining, nextCompanyId, pendingStarters, legalTargets, stationAt, lineComplete, contractById, routeContacts, contactToll, destinationById, objectiveProgress, surveyBlocker, type SubwayState, type SubwayAction, type PlacementTarget } from './config';
+import { planBotCrews, immediateObjectiveBuild } from './botPlanning';
+import { missionPotential, engineeringPotential, remainingReach } from './objectiveGuidance';
 
-export const BOT_VERSION = '1';
+export const BOT_VERSION = '2';
 export const PERSONALITIES = ['balanced', 'destination', 'completion', 'cautious'] as const;
 export const SKILLS = ['casual', 'experienced'] as const;
 export type BotSettings = { personality: typeof PERSONALITIES[number]; skill: typeof SKILLS[number] };
@@ -31,11 +33,13 @@ function bestTarget(s:SubwayState,id:string,index:number,starter:boolean,random:
   const candidates=targets.map(target=>{
     const st=stationAt(target,s.stations), from=line.route.at(-1);
     const toll=from?contactToll(routeContacts(s,id,from,target)):0;
-    const distance=Math.min(20,...areas.flatMap(st=>(st.cells??[st]).map(p=>Math.hypot(p.x-target.x,p.y-target.y))));
+    const reach=remainingReach(me,index);
+    const distance=Math.min(20,...areas.flatMap(st=>(st.cells??[st]).map(p=>Math.hypot(p.x-target.x,p.y-target.y))).filter(d=>d<=reach));
     const transfer=otherNodes.some(n=>Math.abs(n.x-target.x)+Math.abs(n.y-target.y)<=1);
     const survey=pins.some(p=>p.x===target.x&&p.y===target.y);
     // No automatic neighborhood reward. Area utility comes from owned missions only.
-    const value=(st&&desired.includes(st.id)&&!visited.has(st.id)?w.mission*2:0)-distance*w.mission*.12+Number(transfer)*w.mission+Number(survey)*3-toll*w.cost+random()*(settings.skill==='casual'?5:w.noise);
+    const trial={...me,lines:me.lines.map((l,i)=>i===index?{...l,route:[...l.route,{...target,...(st?{stationId:st.id}:{})}]}:l)};
+    const value=(st&&desired.includes(st.id)&&!visited.has(st.id)?w.mission*2:0)-distance*w.mission*.12+Number(transfer)*w.mission+Number(survey)*3-toll*w.cost+missionPotential(s,trial)*w.mission+engineeringPotential(s,trial)*2+random()*(settings.skill==='casual'?5:w.noise);
     return {target,value};
   }).sort((a,b)=>b.value-a.value).slice(0,settings.skill==='casual'?5:16);
   const opponents=Object.values(s.players).filter(p=>p.id!==id);
@@ -90,14 +94,11 @@ export function chooseBotAction(state:SubwayState,random:()=>number,settings:Bot
     case 'CONSTRUCTION': {
       if(!me.crewsHired) {
         if(settings.personality==='destination'&&!me.destinationPurchased&&me.money>=15&&s.currentPeriod<=3) return action('BUY_DESTINATION',{period:s.currentPeriod});
-        const available=buildableLines(s,id).sort((a,b)=>lineActionsRemaining(me.lines[a])-lineActionsRemaining(me.lines[b]));
-        const total=available.reduce((n,i)=>n+lineActionsRemaining(me.lines[i]),0);
-        let count=Math.min(3,available.length,Math.max(1,Math.ceil(total/(SUBWAY_CONFIG.timelinePeriods+1-s.currentPeriod))));
-        if(settings.personality==='completion') count=Math.min(available.length,Math.max(count,2));
-        if(settings.personality==='cautious'&&me.money<6) count=Math.min(count,1);
-        return action('HIRE_CREWS',{lineIndexes:available.slice(0,count),period:s.currentPeriod});
+        return action('HIRE_CREWS',{lineIndexes:planBotCrews(s,id,settings.personality==='cautious'),period:s.currentPeriod});
       }
-      const lineIndex=me.pendingActions[0], target=bestTarget(s,id,lineIndex,false,random,settings);
+      const lineIndex=me.pendingActions[0];
+      const opportunity=lineActionsRemaining(me.lines[lineIndex])>SUBWAY_CONFIG.timelinePeriods+1-s.currentPeriod?immediateObjectiveBuild(s,id,lineIndex):undefined;
+      const target=opportunity?.target??bestTarget(s,id,lineIndex,false,random,settings);
       return target?action('BUILD',{lineIndex,...target}):action('SKIP_ACTION',{lineIndex});
     }
     case 'SCORING': return action('ADVANCE_SCORING');

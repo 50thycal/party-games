@@ -7,7 +7,7 @@
 
 | ID | Workstream | Phase | Status | Current Next Step | Related PR |
 |---|---|---|---|---|---|
-| [WS-005](WS-005-subway-finished-edition.md) | Subway 2–4 player finished edition | REVIEW | Active | PRWK fixes and evidence archive implemented on merge; owner phone/iPad/Files acceptance and portfolio balance review remain | [#177](https://github.com/50thycal/party-games/pull/177); #176 merged |
+| [WS-005](WS-005-subway-finished-edition.md) | Subway 2–4 player finished edition | REVIEW | Active | GZZF fixes validated; publish, inspect preview and independently review current head | #177 (previous continuation) |
 | [WS-001](WS-001-subway-v0-3-redesign.md) | Subway v0.3 gameplay redesign | REVIEW | Active | Independent design review of merged v0.3 against the reconstructed Build Card; owner to rule on D1–D4 | [#137](https://github.com/50thycal/party-games/pull/137), [#139](https://github.com/50thycal/party-games/pull/139) (both merged) |
 | [WS-002](WS-002-subway-route-engineering.md) | Subway route engineering and playtest UX | REVIEW | Active | Record the merged closeout; playtest follow-ups moved to WS-003 | [#141](https://github.com/50thycal/party-games/pull/141), [#142](https://github.com/50thycal/party-games/pull/142) (merged) |
 | [WS-003](WS-003-subway-construction-access.md) | Subway construction access and route lookahead | REVIEW | Active | Owner's balance playtest of the merged toll/debt/recipe changes; browser debt case and hotseat still unexercised | [#143](https://github.com/50thycal/party-games/pull/143) (merged design-only), [#144](https://github.com/50thycal/party-games/pull/144) (implementation, merged), [#145](https://github.com/50thycal/party-games/pull/145) (Build OS v0.5) |
