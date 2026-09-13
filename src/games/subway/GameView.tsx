@@ -33,7 +33,7 @@ import { HandoffVeil, NarrationOverlay, currentActorId, useNarration } from "./t
 import { loadPlan, savePlan, planStorageKey, preparePlan, reconcilePlan, type PlanStatus, type SavedPlan } from "./plans";
 import type { DestinationHighlight } from "./companion";
 import { ReportSaveControls } from "./ReportSaveControls";
-import { generateAiPlaytestReport } from "./report";
+import { generateAiPlaytestReport, type SubwayReportContext } from "./report";
 import {
   SUBWAY_CONFIG,
   blockPeriods,
@@ -242,7 +242,7 @@ type BoardMode = "none" | "place" | "survey" | "planner";
 
 const PLAN_PHASES = new Set(["ENGINEERING", "SCHEDULING", "STARTER_PLACEMENT", "CONSTRUCTION"]);
 
-export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, lessonZone, lessonBeat = 0, boardOnly = false, remotePlans, onSaveGhost, highlightedStations = [], destinationHighlights = [] }: GameViewProps<SubwayState> & {lessonZone?: TableZone; lessonBeat?: number; boardOnly?: boolean; highlightedStations?: string[]; destinationHighlights?: DestinationHighlight[]; remotePlans?: Record<string,SavedPlan>; onSaveGhost?: (contractId:string,nodes:RouteNode[])=>Promise<void>}) {
+export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, lessonZone, lessonBeat = 0, boardOnly = false, remotePlans, onSaveGhost, highlightedStations = [], destinationHighlights = [], reportContext }: GameViewProps<SubwayState> & {reportContext?: SubwayReportContext; lessonZone?: TableZone; lessonBeat?: number; boardOnly?: boolean; highlightedStations?: string[]; destinationHighlights?: DestinationHighlight[]; remotePlans?: Record<string,SavedPlan>; onSaveGhost?: (contractId:string,nodes:RouteNode[])=>Promise<void>}) {
   const raw = state as SubwayState | undefined;
   const stale = !!raw && raw.version !== SUBWAY_STATE_VERSION;
   const game = raw && !stale ? raw : undefined;
@@ -1322,7 +1322,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
 
 
   const settingsPanel = settingsOpen && <div role="dialog" aria-modal="true" aria-label="Table settings" className="fixed inset-0 z-50 overflow-auto bg-stone-950/80 p-3"><div className="mx-auto max-w-xl rounded-xl bg-[#fff7e5] p-4 text-stone-900"><button autoFocus className="float-right rounded border px-3 py-2" onClick={()=>setSettingsOpen(false)}>Close settings</button><h2 className="text-xl font-bold">Table settings</h2><label className="my-4 flex items-center gap-3"><input type="checkbox" checked={ghostEnabled} onChange={e=>toggleGhost(e.target.checked)}/> Ghost planning (optional)</label><p className="my-4"><Link href="/subway/tutorial">How to play</Link></p><button className="rounded border px-3 py-2" onClick={()=>setShowLog(v=>!v)}>Action log</button>{showLog && <ol className="mt-3 space-y-2 text-sm">{game.events.map(e=><li key={e.seq}>{e.text}</li>)}</ol>}</div></div>;
-  const resultsPanel = game.phase === "RESULTS" && showResults && <div role="dialog" aria-modal="true" aria-label="Final results" className="fixed inset-0 z-40 overflow-auto bg-[#fff7e5] p-3 text-stone-900"><button autoFocus className="mb-3 rounded border px-4 py-2" onClick={()=>setShowResults(false)}>Back to board</button><ResultsSheet game={game} roomCode={room.roomCode} mode={room.mode}/></div>;
+  const resultsPanel = game.phase === "RESULTS" && showResults && <div role="dialog" aria-modal="true" aria-label="Final results" className="fixed inset-0 z-40 overflow-auto bg-[#fff7e5] p-3 text-stone-900"><button autoFocus className="mb-3 rounded border px-4 py-2" onClick={()=>setShowResults(false)}>Back to board</button><ResultsSheet game={game} roomCode={room.roomCode} mode={room.mode} reportContext={reportContext}/></div>;
 
   return (
     <div className="relative" data-tutorial-zone={lessonZone} style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
@@ -1485,9 +1485,9 @@ function StripButton({
 }
 
 /** The final scoring sheet, laid on the table like everything else. */
-function ResultsSheet({ game, roomCode, mode }: { game: SubwayState; roomCode: string; mode: string }) {
+function ResultsSheet({ game, roomCode, mode, reportContext }: { game: SubwayState; roomCode: string; mode: string; reportContext?: SubwayReportContext }) {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
-  const report = useMemo(() => generateAiPlaytestReport(game, {roomCode, mode}), [game, roomCode, mode]);
+  const report = useMemo(() => generateAiPlaytestReport(game, {...reportContext, roomCode, mode}), [game, roomCode, mode, reportContext]);
   const copyReport = async () => {
     try {
       await navigator.clipboard.writeText(report);

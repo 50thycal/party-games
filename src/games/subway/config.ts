@@ -27,7 +27,7 @@ import type { BaseAction, GameContext, Player } from "@/engine/types";
 // ============================================================================
 
 /** Bumped when the state shape changes; older rooms must restart. */
-export const SUBWAY_STATE_VERSION = 20;
+export const SUBWAY_STATE_VERSION = 21;
 
 // ----------------------------------------------------------------------------
 // Tunable configuration
@@ -1165,6 +1165,11 @@ export function validateNode(
   }
 
   const station = stationAt(p, state.stations);
+  if (starter && (Object.values(state.players).some(player => player.lines.some(line =>
+    line.route.some(node => node.x === p.x && node.y === p.y))) ||
+    state.surveyPins.some(pin => pin.x === p.x && pin.y === p.y))) {
+    return "Starter pegs must use an empty hole; another peg is already here.";
+  }
   if (starter && station) return "Starter pegs must use a normal hole.";
   // Starters enter from the edge of the map (OD-6): only holes on the outer
   // border are legal, and a border station would still be refused above.

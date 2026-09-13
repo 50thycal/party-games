@@ -691,3 +691,26 @@ Results offer an MD File via the native share sheet directly from a user click,
 with blob download and existing copy/text fallbacks. Both companion phones and
 iPads expose it at results; quick tabletop uses the same save controls.
 Engineering descriptions identical to their requirements render only once.
+
+### GZZF bot, starter and report correction (DEC-048)
+
+State v21 requires empty starter holes: any company's existing route node or a
+Survey Pin blocks a new starter at that exact hole. Reducer validation and legal
+target lists share enforcement. Adjacent starters and ordinary shared-peg
+construction transfers/tolls remain legal. Existing v20 games/replays require
+their original rules or a restart; no old placement is silently relocated.
+
+Bot policy v2 uses a bounded remaining-round/three-line schedule search and
+completion-subset evaluation. Objective gains on unfinished lines remain possible
+and are evaluated as one-step alternatives. Costs include crews, completion cash
+and final debt, with unknown future geometry/tolls explicitly optimistic. Current
+public state and owned hands shape candidate placements using component mission
+progress, border-goal reach and legal continuation. Economy constants are unchanged.
+
+Results-only companion projection supplies recorded human, bot and unknown action
+counts per company, current control/profile and recorded bot version. This never
+exposes recording tapes or credentials. Both report controls use that projection;
+without provenance reports say Unknown. Mixed/missing tags never become pure-human
+evidence. Objective diagnostics give missing areas, disconnected networks, exact
+Engineering requirements and partial tiers. ContractCard receives completed
+segments consistently for fraction, recipe chips and bar.

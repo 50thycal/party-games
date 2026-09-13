@@ -16,10 +16,12 @@ cat >"$config" <<EOF
     "module": "commonjs",
     "moduleResolution": "node",
     "target": "es2022",
+    "jsx": "react-jsx",
     "incremental": false,
     "typeRoots": ["$repo_root/node_modules/@types"]
   },
   "include": [
+    "$repo_root/scripts/subway-gzzf-test.tsx",
     "$repo_root/scripts/subway-lab-test.ts",
     "$repo_root/scripts/subway-rules-test.ts",
     "$repo_root/scripts/subway-multiplayer-test.ts",
@@ -42,6 +44,8 @@ node "$out_dir/scripts/subway-multiplayer-test.js"
 NODE_PATH="$repo_root/node_modules" node "$out_dir/scripts/subway-companion-api-test.js"
 
 NODE_PATH="$repo_root/node_modules" node "$out_dir/scripts/subway-lab-test.js"
+
+NODE_PATH="$repo_root/node_modules" node "$out_dir/scripts/subway-gzzf-test.js"
 
 node scripts/subway-save-report-test.mjs
 node scripts/subway-bot-automation-test.mjs

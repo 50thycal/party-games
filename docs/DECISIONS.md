@@ -1711,3 +1711,30 @@ The shared legacy PRWK report supports a portfolio cash-pressure finding; it doe
 not authorize economy changes or prove all-human calibration. No balance adjustment
 is made. Alternatives considered: retain transient highlights/manual round restart
 (rejected by the owner through playtest feedback).
+
+### DEC-048 — Empty starter holes and deadline-aware bot planning
+
+**Date:** 2026-09-13
+**Status:** Accepted
+
+Calvin approved the GZZF playtest recommendations and explicitly prohibited
+starter pegs atop another peg. New starters require an empty non-neighborhood
+border hole across all companies and Survey Pins, including one's own pieces.
+Adjacent starters remain legal; ordinary construction sharing, transfers and
+tolls are unchanged. This supersedes DEC-018's shared-hole freedom for starters
+only. State v21 requires a new game and keeps old-rule replays distinct.
+
+Policy v2 budgets each line against its remaining rounds and weighs completion
+VP swings, completion cash and projected final debt against crew expense. It
+also considers immediate objective points on lines that cannot finish. Placement
+uses own-hand objective progress, current physical components, optimistic travel
+reach and legal continuation. Future tolls/obstruction are unknown, so each turn
+replans. These are bounded heuristics, not a claim of optimal play or human balance.
+
+GZZF's cash reconciles without debt; its missed Purple completion explains most
+of the score margin. Keep all economy/scoring constants. Reports use recorded
+human/bot action counts, explicitly preserve unknown attribution, distinguish
+current profile from historical control, and explain unmet scoring conditions.
+Segment fractions/chips/bar all consume completed segments, excluding starters.
+Alternatives considered: cash retuning deferred pending more evidence; retaining
+shared starters rejected by the owner's explicit rule.

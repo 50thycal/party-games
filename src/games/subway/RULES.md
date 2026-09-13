@@ -9,7 +9,7 @@ A light-strategy route-building game for **2–4 companies**. Most victory point
    two/three/four choices for two/three/four players. No passing or discounts.
 3. Draft **three Engineering goals each**, choosing between two face-up cards or a blind draw.
 4. Optionally buy Survey Pins, then place them.
-5. Place one free starter for each route on a non-neighborhood outer-border hole.
+5. Place one free starter for each route on an **empty**, non-neighborhood outer-border hole. A starter cannot overlap any company's existing peg or a Survey Pin, including your own. Adjacent empty holes are allowed. Later construction may still share pegs under the normal transfer and toll rules.
 6. Play up to **9 construction rounds**, choosing crews anew each turn. End
    immediately if no incomplete route has a legal next segment.
 7. Score all held goals, routes and surveys; subtract unfinished-route
@@ -214,6 +214,6 @@ complete accepted-action ledger: setup, cards, routes, placements, crew and toll
 economy, Undo actions, scoring, timing, and the construction end reason. Rejected
 actions are not tracked because they never change reducer state.
 
-State version **20** requires new games; old local saves are not migrated.
+State version **21** requires new games for the empty-starter rule; old local saves are not migrated.
 Automated games test termination and rule behavior, not human enjoyment or
 statistically proven balance. Desktop/phone visual verification is still pending.

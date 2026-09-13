@@ -114,14 +114,16 @@ console.log("Explicit transfers, 30-card balance/deals, component missions, revi
   const player=game.players["seat-1"];
   const routes: [string,number[][]][]=[
     ["long",[[0,0],[4,0],[10,0],[13,0],[18,0],[19,2],[22,4],[26,0]]],
-    ["short",[[0,0],[0,2],[2,4],[2,6],[0,8]]],
+    ["short",[[1,0],[0,2],[2,4],[2,6],[0,8]]],
     ["tram",[[26,0],[26,2],[24,4],[26,8]]]
   ];
-  for(const [contractId,nodes] of routes) {
-    const current:PlayerLine={contractId,paid:0,route:[]};player.lines.push(current);
-    for(const [x,y] of nodes) {
+  player.lines=routes.map(([contractId])=>({contractId,paid:0,route:[]}));
+  // All distinct starters precede construction, as they do in a real game.
+  for(let step=0;step<8;step++) for(const [i,[,nodes]] of Array.from(routes.entries())) {
+    if (nodes[step]) {
+      const [x,y]=nodes[step], current=player.lines[i];
       const node=pt(x,y);
-      assert.equal(validateNode(game,player.id,player.lines.length-1,node,current.route.length===0),null);
+      assert.equal(validateNode(game,player.id,i,node,step===0),null);
       current.route.push(node);
     }
   }
