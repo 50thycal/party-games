@@ -1,5 +1,7 @@
 "use client";
 
+import type { DestinationHighlight } from "./companion";
+
 import {
   STATIONS,
   SUBWAY_CONFIG,
@@ -62,6 +64,7 @@ export function Board({
   selected,
   planningTargets = false,
   highlightedStations = [],
+  destinationHighlights = [],
   canAct,
   drawn,
   onTapHole,
@@ -74,6 +77,7 @@ export function Board({
   /** These clickable targets extend a sketch, not the next real placement. */
   planningTargets?: boolean;
   highlightedStations?: string[];
+  destinationHighlights?: DestinationHighlight[];
   canAct: boolean;
   drawn: DrawnLine[];
   onTapHole: (p: Point, slot?: number) => void;
@@ -152,9 +156,13 @@ export function Board({
         const footprint = area.cells ?? [area];
         const occupied = new Set(footprint.map(p => `${p.x},${p.y}`));
         const color = STATION_COLORS[Math.max(0, STATIONS.findIndex(s => s.id === area.id)) % STATION_COLORS.length];
+        const markers=destinationHighlights.filter(h=>h.stationIds.includes(area.id));
         const highlighted = highlightedStations.includes(area.id);
         const left=Math.min(...footprint.map(p=>p.x)), right=Math.max(...footprint.map(p=>p.x));
         const top=Math.min(...footprint.map(p=>p.y));
+        const badgeColumns=Math.max(1,Math.floor(((right-left+1)*STEP)/58));
+        const badgeX=Math.min(PAD+left*STEP-20,VB_W-Math.min(markers.length,badgeColumns)*58-8);
+        const badgeY=Math.min(PAD+top*STEP+8,VB_H-Math.ceil(markers.length/badgeColumns)*22-8);
         const edges=footprint.flatMap(p=>{
           const {x,y}=holePos(p), h=STEP/2;
           return [
@@ -166,8 +174,9 @@ export function Board({
         }).join(" ");
         return <g key={area.id} aria-label={`${area.name}: ${neighborhoodSize(area)} neighborhood${highlighted ? ", destination target" : ""}`} pointerEvents="none">
           <title>{area.name} · {neighborhoodSize(area)} · Place a peg anywhere inside · No dock limit</title>
-          {footprint.map(p=>{const pos=holePos(p);return <rect key={`${p.x},${p.y}`} x={pos.x-STEP/2} y={pos.y-STEP/2} width={STEP} height={STEP} fill={highlighted ? "#facc15" : color} fillOpacity={highlighted ? 0.38 : 0.18}/>;})}
-          <path d={edges} fill="none" stroke={highlighted ? "#eab308" : color} strokeWidth={highlighted ? 8 : 3} strokeLinejoin="round"/>
+          {footprint.map(p=>{const pos=holePos(p);return <rect key={`${p.x},${p.y}`} x={pos.x-STEP/2} y={pos.y-STEP/2} width={STEP} height={STEP} fill={markers[0]?.color ?? (highlighted ? "#facc15" : color)} fillOpacity={highlighted ? 0.38 : 0.18}/>;})}
+          <path d={edges} fill="none" stroke={markers[0]?.color ?? (highlighted ? "#eab308" : color)} strokeWidth={highlighted ? 8 : 3} strokeLinejoin="round"/>
+          {markers.map((h,i)=><g key={h.playerId+h.cardId}><rect x={badgeX+(i%badgeColumns)*58} y={badgeY+Math.floor(i/badgeColumns)*22} width="56" height="20" rx="4" fill={h.color}/><text x={badgeX+28+(i%badgeColumns)*58} y={badgeY+14+Math.floor(i/badgeColumns)*22} textAnchor="middle" fontSize="11" fontWeight="800" fill="white">{h.label}</text></g>)}
           <text x={PAD+(left+right)/2*STEP} y={PAD+top*STEP-23} textAnchor="middle" fontSize="17" fontWeight="800" fill={color} stroke="#eaece2" strokeWidth="5" paintOrder="stroke">
             {area.name}
           </text>

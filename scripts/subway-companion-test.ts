@@ -48,7 +48,7 @@ for(const count of [2,3,4]) {
       const before=companionView(state,tablet);
       if(before.seatedId!==before.actorId) {
         assert.deepEqual(before.plans,{},"handoff carries no outgoing ghosts");
-        assert.deepEqual(before.highlightedStations,[],"handoff hides outgoing destination locations");
+        if(planSaved) assert.ok(before.destinationHighlights.length>0,"enabled destination survives handoff");
         assert.throws(()=>send(tablet,action.type,action.payload),"board waits for acknowledgement");
         send(tablet,"ACK_COMPANY",{playerId:before.actorId});
       }
@@ -64,6 +64,19 @@ for(const count of [2,3,4]) {
         assert.deepEqual(companionView(state,other).highlightedStations,[]);
         send(owner,"SHOW_DESTINATION",{cardId:null});
         assert.deepEqual(companionView(state,tablet).highlightedStations,[]);
+        send(owner,"SHOW_DESTINATION",{cardId});
+        const second=game.players[owner.playerId].destinationHand[1];
+        send(owner,"SHOW_DESTINATION",{cardId:second});
+        const markers=companionView(state,tablet).destinationHighlights;
+        assert.equal(markers.length,2);assert.notEqual(markers[0].color,markers[1].color);assert.notEqual(markers[0].label,markers[1].label);
+        assert.equal(companionView(state,owner).destinationHighlights.length,2);
+        send(owner,"SHOW_DESTINATION",{cardId:second,enabled:false});
+        assert.equal(companionView(state,tablet).destinationHighlights.length,1);
+        const otherCard=game.players[other.playerId].destinationHand[0];
+        send(other,"SHOW_DESTINATION",{cardId:otherCard});
+        assert.equal(companionView(state,tablet).destinationHighlights.length,2,'other company may toggle outside its turn');
+        send(owner,"SHOW_DESTINATION",{cardId:null});
+        assert.equal(companionView(state,tablet).destinationHighlights[0].playerId,other.playerId,'clear only affects own highlights');
         send(owner,"SHOW_DESTINATION",{cardId});
         const contractId=game.players[action.playerId].lines[0].contractId;
         const nodes=[{x:0,y:0},{x:2,y:0}];

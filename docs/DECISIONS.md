@@ -1691,3 +1691,23 @@ cohort boundaries prevent old games or bots from silently becoming human calibra
 Browser imports are temporary inspection, never a claim of repository persistence.
 No human calibration is claimed until actual games are supplied. These are testing
 facilities, not a balance/rules change to v20.
+
+
+### DEC-047 — Persistent opt-in destinations and game-long lab automation
+
+Date: 2026-09-13. Status: owner-authorized implementation.
+
+Owner's PRWK playtest requests that each Destination highlight remain on until
+explicitly disabled, with distinct identification and visible toggle state. This
+supersedes the earlier acknowledged-turn-only destination display: opted-in
+locations remain public on the iPad across company turns. Ownership checks remain;
+other phones do not receive private cards or other companies' selections.
+
+Owner also requests lab bots enabled by default and automatically resuming after
+human turns/rounds. Explicit pause persists per room/device; genuine bot failures pause visibly, while
+transient network/revision conflicts wait and retry without disabling automation.
+Bots still require the iPad page to be open. Rules and controller powers do not change.
+The shared legacy PRWK report supports a portfolio cash-pressure finding; it does
+not authorize economy changes or prove all-human calibration. No balance adjustment
+is made. Alternatives considered: retain transient highlights/manual round restart
+(rejected by the owner through playtest feedback).

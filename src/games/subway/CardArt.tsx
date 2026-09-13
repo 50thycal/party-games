@@ -196,7 +196,7 @@ export function EngineeringCardFace({
       <div className="mt-1.5">
         <EngineeringArt id={resolved.id} color={color} />
       </div>
-      {!compact && <p className="mt-1.5 text-[11px] leading-snug text-stone-600">{resolved.description}</p>}
+      {!compact && resolved.description.trim() !== resolved.requirement.trim() && <p className="mt-1.5 text-[11px] leading-snug text-stone-600">{resolved.description}</p>}
       <p className="mt-1 text-[11px] font-semibold leading-snug text-stone-700">{resolved.requirement}</p>
       {footer}
     </>

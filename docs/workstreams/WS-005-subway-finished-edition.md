@@ -1,13 +1,32 @@
 # WS-005 — Subway finished edition
 
 Build OS: v0.12
-Phase: REVIEW
+Phase: BUILDING
 Status: Active
 Updated: 2026-09-13
 Implementation State: PR #175 merged. PR #176 corrects lab testing-phone room-code joining; on merge, the correction is implemented. Production build, lint and the full Subway suite passed. Human phone/iPad visual acceptance and calibration remain.
 Related PRs: [#175](https://github.com/50thycal/party-games/pull/175) (Playtest Lab); [#174](https://github.com/50thycal/party-games/pull/174) (transfer/objective continuation); [#173](https://github.com/50thycal/party-games/pull/173) (larger neighborhoods/reversed VP; merged); [#172](https://github.com/50thycal/party-games/pull/172) (guided turns, neighborhoods and tiers; merged); [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; merged); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
-## Current continuation — lab phone joining
+## Current continuation — PRWK playtest feedback
+
+Owner reports duplicate Engineering text, transient indistinguishable destinations,
+repeated bot restart, failed iOS MD saving and tight money in room PRWK (v20).
+Goal: fix these four presentation/control/export issues and archive/analyze the
+supplied playtest. Non-goals: game-rule/economy changes or fabricated calibration.
+Scope/acceptance: identical descriptions render once; owned destination toggles
+persist across turns/reconnects with distinct labels/colors and visible on/off;
+bots default on and wait/resume across humans/rounds with explicit pause; MD File
+share from user gesture plus download fallback on iPad, phone and tabletop.
+Archive all supplied report content as chat transcription with provenance limits;
+reconcile budgets and evaluate portfolio cash pressure without changing rules.
+Implementation State: building on codex/subway-playtest-feedback after merged #176.
+Review State: pending independent review.
+Next Step: finish validation, independent review and publish this continuation.
+Open balance question: the $29M/18-build portfolio needs at least $27M crews in nine
+rounds, leaving $7M debt even after $9M completions before tolls; review prices/costs
+together after more evidence. See the archived PRWK analysis; no rule change approved.
+
+## Previous continuation — lab phone joining
 
 Owner reports the merged lab creates an iPad room but phones cannot join by code.
 Goal: the first testing phone joins that same lab by room code before or after

@@ -31,6 +31,8 @@ import {
 } from "./table";
 import { HandoffVeil, NarrationOverlay, currentActorId, useNarration } from "./tabletop";
 import { loadPlan, savePlan, planStorageKey, preparePlan, reconcilePlan, type PlanStatus, type SavedPlan } from "./plans";
+import type { DestinationHighlight } from "./companion";
+import { ReportSaveControls } from "./ReportSaveControls";
 import { generateAiPlaytestReport } from "./report";
 import {
   SUBWAY_CONFIG,
@@ -240,7 +242,7 @@ type BoardMode = "none" | "place" | "survey" | "planner";
 
 const PLAN_PHASES = new Set(["ENGINEERING", "SCHEDULING", "STARTER_PLACEMENT", "CONSTRUCTION"]);
 
-export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, lessonZone, lessonBeat = 0, boardOnly = false, remotePlans, onSaveGhost, highlightedStations = [] }: GameViewProps<SubwayState> & {lessonZone?: TableZone; lessonBeat?: number; boardOnly?: boolean; highlightedStations?: string[]; remotePlans?: Record<string,SavedPlan>; onSaveGhost?: (contractId:string,nodes:RouteNode[])=>Promise<void>}) {
+export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, lessonZone, lessonBeat = 0, boardOnly = false, remotePlans, onSaveGhost, highlightedStations = [], destinationHighlights = [] }: GameViewProps<SubwayState> & {lessonZone?: TableZone; lessonBeat?: number; boardOnly?: boolean; highlightedStations?: string[]; destinationHighlights?: DestinationHighlight[]; remotePlans?: Record<string,SavedPlan>; onSaveGhost?: (contractId:string,nodes:RouteNode[])=>Promise<void>}) {
   const raw = state as SubwayState | undefined;
   const stale = !!raw && raw.version !== SUBWAY_STATE_VERSION;
   const game = raw && !stale ? raw : undefined;
@@ -1386,7 +1388,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
                 </span>
               </div>
               <Board
-                highlightedStations={highlightedStations}
+                highlightedStations={highlightedStations} destinationHighlights={destinationHighlights}
                 game={game}
                 targets={canAct ? targets : []}
                 following={ghostEnabled && mode === "place" ? following : []}
@@ -1566,7 +1568,7 @@ function ResultsSheet({ game, roomCode, mode }: { game: SubwayState; roomCode: s
           </button>
         </div>
         <details><summary className="cursor-pointer font-bold">View report text</summary><textarea aria-label="AI playtest report text" readOnly className="mt-2 h-64 w-full border p-2 text-sm" value={report}/></details>
-        <a className="font-bold underline" download="subway-playtest.md" href={`data:text/markdown;charset=utf-8,${encodeURIComponent(report)}`}>Download AI Report</a>
+        <ReportSaveControls report={report} roomCode={roomCode}/>
         </details>
       </div>
     </Printed>
