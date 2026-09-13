@@ -21,6 +21,9 @@ cat >"$config" <<EOF
     "typeRoots": ["$repo_root/node_modules/@types"]
   },
   "include": [
+    "$repo_root/scripts/subway-card-audit-test.ts",
+    "$repo_root/src/games/subway/auditStorage.ts",
+    "$repo_root/src/games/subway/ReportSaveControls.tsx",
     "$repo_root/scripts/subway-gzzf-test.tsx",
     "$repo_root/scripts/subway-lab-test.ts",
     "$repo_root/scripts/subway-rules-test.ts",
@@ -49,3 +52,6 @@ NODE_PATH="$repo_root/node_modules" node "$out_dir/scripts/subway-gzzf-test.js"
 
 node scripts/subway-save-report-test.mjs
 node scripts/subway-bot-automation-test.mjs
+NODE_PATH="$repo_root/node_modules" node "$out_dir/scripts/subway-card-audit-test.js"
+NODE_PATH="$repo_root/node_modules" node scripts/subway-audit-storage-test.mjs "$out_dir"
+NODE_PATH="$repo_root/node_modules" node scripts/subway-audit-ui-test.mjs "$out_dir"

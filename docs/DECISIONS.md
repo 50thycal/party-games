@@ -1738,3 +1738,22 @@ current profile from historical control, and explain unmet scoring conditions.
 Segment fractions/chips/bar all consume completed segments, excluding starters.
 Alternatives considered: cash retuning deferred pending more evidence; retaining
 shared starters rejected by the owner's explicit rule.
+
+### DEC-049 — Automatic conditional-acquisition card audit
+
+Date: 2026-09-13. Status: owner-authorized implementation.
+
+Calvin approved one automatic run covering all Engineering and Destination cards
+at 2/3/4 players, matched normal/single-card pursuit, scoring checks, compact
+reports and separate detailed evidence. This extends WS-005's Lab, not the rules.
+Opening acquisition is legally replayable and shared between comparison arms;
+reported probabilities are conditional on that acquisition, not natural draw
+or draft rates. Rejection screening never fabricates a card in a player's hand.
+Failed simulations and exhausted acquisition screens remain separate from misses.
+
+Zero successes is “not demonstrated,” never proof of impossibility. Synthetic
+positive scoring fixtures are not legal construction witnesses. Bounded audit
+preferences do not change ordinary bot defaults or claim optimal/human play.
+Checkpoints are device-local; detailed economics and bounded replay examples
+are exported separately from the chat-sized Markdown. Alternatives: individual
+manual card testing rejected by the owner; automatic rule retuning excluded.

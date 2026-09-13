@@ -7,12 +7,13 @@ import type { LabSeat } from '@/games/subway/lab';
 import { parseRecord, replayRecord, recordMetrics, recordIdentity, RULES_FINGERPRINT, type GameRecord } from '@/games/subway/recording';
 import { SUBWAY_STATE_VERSION, type SubwayState } from '@/games/subway/config';
 import { SubwayGameView } from '@/games/subway/GameView';
+import { CardAuditPanel } from '@/games/subway/CardAuditPanel';
 const button='rounded-xl bg-teal-700 px-4 py-3 font-bold text-white disabled:opacity-50';
 const field='rounded-lg bg-slate-900 p-3 text-white';
 function download(name:string,value:unknown) {const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 type Imported={record:GameRecord;verified:boolean;cohort:'calibration'|'holdout'};
 export default function PlaytestLab() {
-  const [mode,setMode]=useState<'room'|'simulation'|'records'>('room');
+  const [mode,setMode]=useState<'room'|'simulation'|'records'|'audit'>('room');
   const [count,setCount]=useState(2),[seed,setSeed]=useState(1),[games,setGames]=useState(10);
   const [seats,setSeats]=useState<Omit<LabSeat,'id'>[]>(Array.from({length:4},(_,i)=>({name:`Company ${i+1}`,control:i===0?'human':'bot',bot:{...DEFAULT_BOT}})));
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[progress,setProgress]=useState(0);
@@ -65,9 +66,10 @@ export default function PlaytestLab() {
   return <main className="mx-auto min-h-dvh max-w-5xl space-y-5 p-4 text-white">
     <nav className="flex flex-wrap gap-4"><Link href="/subway/multiplayer">← Table & phones</Link><Link href="/subway">Quick tabletop</Link><Link href="/test/subway">Scene inspector</Link></nav>
     <header><h1 className="text-3xl font-black">Subway Playtest Lab</h1><p className="mt-2 text-slate-300">Rules v{SUBWAY_STATE_VERSION} · human games, bot opponents and repeatable experiments.</p></header>
-    <div className="flex flex-wrap gap-2">{(['room','simulation','records'] as const).map(m=><button disabled={busy} className={`${button} ${mode===m?'ring-2 ring-amber-400':''}`} key={m} onClick={()=>setMode(m)}>{m==='room'?'iPad playtest':m==='simulation'?'Simulate games':'Review exports'}</button>)}</div>
+    <div className="flex flex-wrap gap-2">{(['room','simulation','audit','records'] as const).map(m=><button disabled={busy} className={`${button} ${mode===m?'ring-2 ring-amber-400':''}`} key={m} onClick={()=>setMode(m)}>{m==='room'?'iPad playtest':m==='simulation'?'Simulate games':m==='audit'?'Card Audit':'Review exports'}</button>)}</div>
+    {mode==='audit'&&<CardAuditPanel onReplay={openRecord}/>}
     {error&&<p role="alert" className="rounded bg-rose-950 p-3">{error}</p>}
-    {mode!=='records'&&<><div className="flex flex-wrap gap-4"><label>Companies<select aria-label="Companies" disabled={busy} className={`${field} ml-2`} value={count} onChange={e=>setCount(+e.target.value)}>{[2,3,4].map(n=><option key={n}>{n}</option>)}</select></label><label>{mode==='room'?'Bot decision seed':'Seed'}<input aria-label="Seed" disabled={busy} className={`${field} ml-2 w-28`} type="number" value={seed} onChange={e=>setSeed(+e.target.value)}/></label></div>
+    {(mode==='room'||mode==='simulation')&&<><div className="flex flex-wrap gap-4"><label>Companies<select aria-label="Companies" disabled={busy} className={`${field} ml-2`} value={count} onChange={e=>setCount(+e.target.value)}>{[2,3,4].map(n=><option key={n}>{n}</option>)}</select></label><label>{mode==='room'?'Bot decision seed':'Seed'}<input aria-label="Seed" disabled={busy} className={`${field} ml-2 w-28`} type="number" value={seed} onChange={e=>setSeed(+e.target.value)}/></label></div>
     {mode==='room'&&<p>Open this setup on your iPad. Build on the iPad; use one testing phone to switch your companies, or invite friends on their phones.</p>}
     <div className="grid gap-3 sm:grid-cols-2">{seats.slice(0,count).map((seat,i)=><section className="space-y-3 rounded-xl bg-slate-800 p-4" key={i}><label>Company {i+1}<input aria-label={`Company ${i+1} name`} disabled={busy} className={`${field} mt-1 w-full`} maxLength={40} value={seat.name} onChange={e=>changeSeat(i,{name:e.target.value})}/></label>{mode==='room'&&<label className="block">Controlled by<select disabled={busy} aria-label={`Company ${i+1} control`} className={`${field} ml-2`} value={seat.control} onChange={e=>changeSeat(i,{control:e.target.value as LabSeat['control']})}><option value="human">Me</option><option value="bot">Bot</option><option value="remote">Friend’s phone</option></select></label>}{(mode==='simulation'||seat.control==='bot')&&<BotPicker value={seat.bot} disabled={busy} onChange={(bot:BotSettings)=>changeSeat(i,{bot})}/>}</section>)}</div></>}
     {mode==='room'&&<><button className={button} disabled={busy} onClick={()=>void createRoom()}>{busy?'Creating…':'Create iPad test room'}</button><p className="text-sm text-slate-300">Test rooms save automatically. Reopen Table & phones to resume with your device key.</p></>}
