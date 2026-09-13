@@ -1,13 +1,15 @@
 # WS-005 — Subway finished edition
 
 Build OS: v0.12
-Phase: BUILDING
+Phase: REVIEW
 Status: Active
 Updated: 2026-09-13
-Implementation State: full-deck Card Audit implemented locally; automated validation and independent review in progress. PR #178 is merged; earlier corrections retained below as history.
+Implementation State: full-deck Card Audit complete on merge of PR #179; automated validation passed and source review approved. Broader human balance/device acceptance remains. PR #178 is merged; earlier corrections retained below as history.
 Related PRs: [#177](https://github.com/50thycal/party-games/pull/177) (PRWK feedback); [#176](https://github.com/50thycal/party-games/pull/176) (phone joining; merged); [#175](https://github.com/50thycal/party-games/pull/175) (Playtest Lab); [#174](https://github.com/50thycal/party-games/pull/174) (transfer/objective continuation); [#173](https://github.com/50thycal/party-games/pull/173) (larger neighborhoods/reversed VP; merged); [#172](https://github.com/50thycal/party-games/pull/172) (guided turns, neighborhoods and tiers; merged); [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; merged); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
 ## Current continuation — Automatic Card Audit
+
+Related PR: [#179](https://github.com/50thycal/party-games/pull/179).
 
 Goal/non-goals/acceptance: [approved Build Card/spec](../build-specs/WS-005-card-audit.md).
 Owner approved the automatic all-card circuit; no new mission added to the legacy
@@ -15,11 +17,20 @@ board. Framework v0.12 was checked against canonical on 2026-09-13 and matches.
 Implementation: all 46 cards × 2/3/4 players, matched conditional-acquisition
 normal/targeted runs, synthetic scoring checks, compact MD, detailed statistics,
 bounded replay examples and device-local incremental checkpoints.
-Validation: 46 scoring-fixture groups and initial paired replay tests pass;
-full sweep and current build checks pending. Browser localhost:3001 is blocked
-by ERR_BLOCKED_BY_CLIENT; no new UI browser pass claimed.
-Review State: Pending independent review.
-Next Step: finish validation, publish this continuation, resolve review findings.
+Validation: current production build, lint and full Subway suite passed. All 46
+scoring-fixture groups and the 138-pair sweep passed: 276 full games with exact
+action replay, no failed/exhausted pairs, and a 5,450-character compact report.
+This is one smoke sample per card/count, not a calibrated probability estimate.
+Checkpoint CAS/stale replacement/stale replay and React/worker adapter lifecycle
+tests passed. Browser localhost:3001 is blocked by ERR_BLOCKED_BY_CLIENT; branch
+preview requires Vercel sign-in. No browser or physical iOS acceptance claimed.
+Review State: PR #179 Approved at source head ede6a5de2f73a90cc47ad713a4bb29755c1ffb78
+by /root/card_audit_review, implementation actor /root. Verdict:
+https://github.com/50thycal/party-games/pull/179#issuecomment-5653134827.
+No Blocking/Should-fix findings remain. Finalization: pushed; final-head
+verification is recorded separately on the PR. No merge performed.
+Next Step: None for Card Audit implementation. Broader WS-005 human balance and
+phone/iPad acceptance remain; no adjacent work admitted.
 
 ## Previous continuation — GZZF playtest corrections
 
