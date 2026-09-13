@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
       await setRoomState(roomCode,state);
       return reply({token:credential,controllerKey,view:companionView(state,tablet)});
     }
-    const code = typeof body.roomCode === "string" ? body.roomCode.toUpperCase() : "";
+    const code = typeof body.roomCode === "string" ? body.roomCode.trim().toUpperCase() : "";
     if (!/^[A-Z]{4}$/.test(code)) return fail("Enter a four-letter room code.");
     // Generate once per HTTP request; a losing CAS retry must retain identity.
     const credential = randomBytes(32).toString("hex");
@@ -65,14 +65,42 @@ export async function POST(req: NextRequest) {
       if (!current?.subwayCompanion) return fail("Companion room not found.",404);
       const device = current.subwayCompanion.devices.find(d=>d.tokenHash===hash(token));
       if (body.operation === "join") {
-        if (device) return reply({token,view:companionView(current,device)});
+        if (device) {
+          if(device.managedIds?.length&&current.subwayCompanion.lab&&!current.subwayCompanion.lab.controllerPaired) {
+            const next=structuredClone(current);
+            next.subwayCompanion!.lab!.controllerPaired=true;
+            next.subwayCompanion!.revision++;
+            if((await updateRoomState(code,next,current.version)).success) return reply({token,view:companionView(next,device)});
+            continue;
+          }
+          return reply({token,view:companionView(current,device)});
+        }
         if (body.role === "tablet") return fail("Enter the iPad recovery key to reopen its board.",401);
         if (token) return fail("Recovery key not recognized.",401);
+        const lab=current.subwayCompanion.lab;
+        // A lab's managed companies already exist. Pair the testing phone with
+        // those companies instead of trying to allocate another friend seat.
+        // Mixed labs require an explicit testing-phone choice; ordinary phone
+        // joins continue to claim only the reserved friend seats.
+        const testingPhone=body.role==='lab-phone'||(lab&&!lab.seats.some(s=>s.control==='remote'));
+        if(testingPhone) {
+          if(!lab) return fail('This is not a Playtest Lab room. Choose My phone for a normal game.');
+          const controller=current.subwayCompanion.devices.find(d=>d.role==='phone'&&d.managedIds?.length);
+          if(!controller) return fail('This lab has only friend seats. Choose My phone to join one.');
+          if(lab.controllerPaired||current.subwayCompanion.devices.some(d=>d.managedIds?.length&&d.requests.length)) return fail('The testing phone is already connected. Use its recovery key to reconnect.');
+          const next=structuredClone(current);
+          next.subwayCompanion!.lab!.controllerPaired=true;
+          const human=lab.seats.find(s=>s.control==='human'&&controller.managedIds!.includes(s.id));
+          const joined:CompanionDevice={tokenHash:hash(credential),role:'phone',playerId:human?.id??controller.playerId,managedIds:[...controller.managedIds!],requests:[]};
+          next.subwayCompanion!.devices.push(joined);
+          next.subwayCompanion!.revision++;
+          if((await updateRoomState(code,next,current.version)).success) return reply({token:credential,view:companionView(next,joined)});
+          continue;
+        }
         const name = typeof body.name === "string" ? body.name.trim().slice(0,40) : "";
         if (!name) return fail("Enter your company name.");
         if (current.gameState || (!current.subwayCompanion.lab && current.room.players.length>=4)) return fail("This game has started or already has four companies.");
         const next = structuredClone(current);
-        const lab=current.subwayCompanion.lab;
         const reserved=lab?.seats.find(s=>s.control==='remote'&&!current.subwayCompanion!.devices.some(d=>d.playerId===s.id&&d.role==='phone'));
         if(lab&&!reserved) return fail('No invited company seats remain.');
         const joined: CompanionDevice = {tokenHash:hash(credential),role:"phone",playerId:reserved?.id??playerId,requests:[]};

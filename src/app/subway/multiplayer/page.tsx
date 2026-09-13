@@ -146,9 +146,10 @@ export default function SubwayMultiplayerPage() {
       <button className={button} disabled={busy} onClick={()=>void enter("create")}>I am the iPad · Create game</button>
       <form className="space-y-3 border-t border-slate-600 pt-5" onSubmit={e=>{e.preventDefault();void enter("join");}}>
         <label className="block">Room code<input aria-label="Room code" className={input} maxLength={4} value={code} onChange={e=>setCode(e.target.value.toUpperCase())}/></label>
-        <label className="block">This device<select className={input} value={role} onChange={e=>setRole(e.target.value)}><option value="phone">My phone</option><option value="tablet">I am the iPad · Reconnect</option></select></label>
+        <label className="block">This device<select className={input} value={role} onChange={e=>setRole(e.target.value)}><option value="phone">My phone</option><option value="lab-phone">My testing phone · Playtest Lab</option><option value="tablet">I am the iPad · Reconnect</option></select></label>
         {role==="phone"&&<label className="block">Company name<input className={input} maxLength={40} value={name} onChange={e=>setName(e.target.value)}/></label>}
-        <label className="block text-sm">Recovery key {role==="phone"?"(only when rejoining)":"from the original iPad"}<input className={input} type="password" autoComplete="off" value={recovery} onChange={e=>setRecovery(e.target.value)}/></label>
+        {role==='lab-phone'&&<p className="text-sm">Enter the iPad’s room code to connect your first testing phone. You can switch between the lab’s managed companies; building stays on the iPad.</p>}
+        <label className="block text-sm">Recovery key {role!=="tablet"?"(only when rejoining)":"from the original iPad"}<input className={input} type="password" autoComplete="off" value={recovery} onChange={e=>setRecovery(e.target.value)}/></label>
         <button className={`${button} w-full`} disabled={busy||code.length!==4}>Join game</button>
       </form>
     </>}
@@ -177,7 +178,7 @@ export default function SubwayMultiplayerPage() {
   const notices=<><LabControls view={view} run={run} busy={controlsDisabled} auto={auto} setAuto={setAuto} follow={follow} setFollow={setFollow} onExport={()=>void exportRecord()} controllerKey={identity?.controllerKey}/>{game?.phase==='RESULTS'&&!view.lab&&<button className={button} onClick={()=>void exportRecord()}>Download replay JSON</button>}{completionNotice&&<div role="status" className="rounded-2xl border-2 border-amber-300 bg-emerald-900 p-5 text-center text-2xl font-black text-white"><p>{completionNotice}</p><button className="mt-2 text-sm underline" onClick={()=>setCompletionNotice(null)}>Dismiss</button></div>}{!online&&<p role="alert" className="rounded-lg bg-amber-950 p-3">Connection lost. Reconnecting… Board actions are paused.</p>}{error&&<p role="alert" className="rounded-lg bg-rose-950 p-3">{error}</p>}</>;
   if(!game) return <main className="mx-auto max-w-xl space-y-5 p-4">{header}{settings}{notices}
     <h1 className="text-2xl font-bold">Companies at the table</h1>
-    <div className="rounded-xl bg-slate-800 p-4"><p className="text-sm">Join on each phone at</p><p className="break-all font-bold">{typeof window!=="undefined"?window.location.host:""}/subway/multiplayer</p><p className="text-5xl font-black tracking-widest">{view.room.roomCode}</p></div>
+    <div className="rounded-xl bg-slate-800 p-4"><p className="text-sm">Join on each phone at</p><p className="break-all font-bold">{typeof window!=="undefined"?window.location.host:""}/subway/multiplayer</p><p className="text-5xl font-black tracking-widest">{view.room.roomCode}</p>{view.lab&&<p className="mt-3">Choose <strong>My testing phone · Playtest Lab</strong> on your phone to control your managed companies. First connection needs only this room code. Friends with reserved seats choose My phone.</p>}</div>
     {view.room.players.map(p=><p key={p.id} className="rounded-xl bg-white/10 p-4">{p.name} · ready</p>)}
     {tablet?<button className={button} disabled={controlsDisabled||view.room.players.length<2} onClick={()=>run("START_GAME")}>Start with {view.room.players.length} companies</button>:<p>Keep this phone with you. The iPad starts the game.</p>}
   </main>;

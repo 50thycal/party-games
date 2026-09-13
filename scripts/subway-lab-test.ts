@@ -36,6 +36,46 @@ async function main() {
   process.env.TURSO_DATABASE_URL=`file:/tmp/subway-lab-${process.pid}.db`;process.env.TURSO_AUTH_TOKEN='local';
   const post=async(body:unknown,token='')=>(await POST(new NextRequest('http://localhost/api/subway-companion',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(body)}))).json();
   const get=async(roomCode:string,token:string,extra='')=>(await GET(new NextRequest(`http://localhost/api/subway-companion?roomCode=${roomCode}${extra}`,{headers:{Authorization:`Bearer ${token}`}}))).json();
+  // Regression: the iPad preallocates every company, so code-only phone joins
+  // must pair with managed seats, even when START_GAME has already happened.
+  for(const started of [false,true]) {
+    const c=await post({operation:'create',lab:true,seats:[{name:'Me',control:'human',bot:DEFAULT_BOT},{name:'Bot',control:'bot',bot:DEFAULT_BOT}]});
+    const code=c.data.view.room.roomCode;
+    if(started) assert.equal((await post({roomCode:code,type:'START_GAME',revision:0,requestId:crypto.randomUUID()},c.data.token)).ok,true);
+    const joined=await post({operation:'join',roomCode:` ${code.toLowerCase()} `,role:started?'lab-phone':'phone'});
+    assert.equal(joined.ok,true,JSON.stringify(joined));
+    assert.equal(joined.data.view.role,'phone');assert.equal(joined.data.view.lab.managedIds.length,2);
+    assert.equal(joined.data.view.room.players.length,2);
+    assert.equal((await post({operation:'join',roomCode:code,role:'lab-phone'})).ok,false,'second code-only controller cannot take over');
+    assert.equal((await post({operation:'join',roomCode:code,role:'phone'},joined.data.token)).ok,true,'paired phone reconnects');
+    assert.equal((await post({operation:'join',roomCode:code,role:'lab-phone'},c.data.controllerKey)).ok,true,'original iPad recovery key still works');
+    assert.equal((await post({roomCode:code,type:'BUILD',revision:joined.data.view.revision,requestId:crypto.randomUUID()},joined.data.token)).ok,false,'phone cannot build');
+    assert.equal((await get(code,c.data.token)).data.room.roomCode,joined.data.view.room.roomCode);
+    if(started) {
+      const padView=(await get(code,c.data.token)).data;
+      const active=padView.game.procurement.offer.activeId;
+      const human=await post({roomCode:code,type:'LAB_CONTROL',payload:{playerId:active,control:'human',bot:DEFAULT_BOT},revision:padView.revision,requestId:crypto.randomUUID()},c.data.token);
+      assert.equal(human.ok,true);
+      const select=await post({roomCode:code,type:'LAB_SELECT',payload:{playerId:active},revision:human.data.view.revision,requestId:crypto.randomUUID()},joined.data.token);
+      assert.equal(select.ok,true);
+      const buy=await post({roomCode:code,type:'PROCURE',payload:{choice:'buy',contractId:select.data.view.game.procurement.row[0]},revision:select.data.view.revision,requestId:crypto.randomUUID()},joined.data.token);
+      assert.equal(buy.ok,true,JSON.stringify(buy));
+      assert.equal((await get(code,c.data.token)).data.revision,buy.data.view.revision,'iPad sees paired phone purchase');
+    }
+  }
+  const recoveryFirst=await post({operation:'create',lab:true,seats:[{name:'Me',control:'human',bot:DEFAULT_BOT},{name:'Bot',control:'bot',bot:DEFAULT_BOT}]});
+  const recoveryCode=recoveryFirst.data.view.room.roomCode;
+  assert.equal((await post({operation:'join',roomCode:recoveryCode,role:'phone'},recoveryFirst.data.controllerKey)).ok,true);
+  assert.equal((await post({operation:'join',roomCode:recoveryCode,role:'lab-phone'})).ok,false,'recovery-first pairing also closes code enrollment');
+  const racing=await post({operation:'create',lab:true,seats:[{name:'Me',control:'human',bot:DEFAULT_BOT},{name:'Bot',control:'bot',bot:DEFAULT_BOT}]});
+  const race=await Promise.all([1,2].map(()=>post({operation:'join',roomCode:racing.data.view.room.roomCode,role:'lab-phone'})));
+  assert.equal(race.filter(r=>r.ok).length,1,'concurrent phones cannot both claim controller');
+  const remoteOnly=await post({operation:'create',lab:true,seats:[1,2].map(i=>({name:`Friend ${i}`,control:'remote',bot:DEFAULT_BOT}))});
+  assert.equal((await post({operation:'join',roomCode:remoteOnly.data.view.room.roomCode,role:'lab-phone'})).ok,false);
+  assert.equal((await post({operation:'join',roomCode:remoteOnly.data.view.room.roomCode,role:'phone',name:'Friend'})).ok,true);
+  const normalRoom=await post({operation:'create'});
+  assert.equal((await post({operation:'join',roomCode:normalRoom.data.view.room.roomCode,role:'lab-phone'})).ok,false);
+  assert.equal((await post({operation:'join',roomCode:normalRoom.data.view.room.roomCode,role:'phone',name:'Normal company'})).ok,true);
   for(const count of [2,3,4]) {
     const created=await post({operation:'create',lab:true,seed:22,seats:Array.from({length:count},(_,i)=>({name:`Seat ${i+1}`,control:'bot',bot:DEFAULT_BOT}))});
     assert.equal(created.ok,true,JSON.stringify(created));
@@ -73,7 +113,9 @@ async function main() {
   // A real invited phone and the tester controller remain distinct credentials.
   const mixed=await post({operation:'create',lab:true,seats:[{name:'Me',control:'human',bot:DEFAULT_BOT},{name:'Friend',control:'remote',bot:DEFAULT_BOT}]});
   const pad=mixed.data.token,key=mixed.data.controllerKey,code=mixed.data.view.room.roomCode;
-  assert.equal((await post({roomCode:code,type:'START_GAME',revision:0,requestId:'early'},pad)).ok,false);
+  const testing=await post({operation:'join',roomCode:code,role:'lab-phone'});assert.equal(testing.ok,true);
+  assert.equal(testing.data.view.lab.managedIds.length,1,'testing phone cannot manage remote friend');
+  assert.equal((await post({roomCode:code,type:'START_GAME',revision:testing.data.view.revision,requestId:'early'},pad)).ok,false);
   const friend=await post({operation:'join',roomCode:code,name:'Friend',role:'phone'});assert.equal(friend.ok,true);
   assert.equal(friend.data.view.lab.seed,undefined,'friend cannot see bot seed');
   const forbiddenSeat=await post({roomCode:code,type:'LAB_SELECT',payload:{playerId:friend.data.view.playerId},revision:friend.data.view.revision,requestId:'steal'},key);assert.equal(forbiddenSeat.ok,false);
