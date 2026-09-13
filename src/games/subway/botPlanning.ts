@@ -25,7 +25,7 @@ export function immediateObjectiveBuild(state: SubwayState, id: string, index: n
  * completion cash, crew costs and final debt, rather than cheapest crews alone.
  * No hidden state or future placement information is inspected.
  */
-export function planBotCrews(state: SubwayState, id: string, cautious = false): number[] {
+export function planBotCrews(state: SubwayState, id: string, cautious = false, prioritizeCompletion = false): number[] {
   const me = state.players[id], rounds = SUBWAY_CONFIG.timelinePeriods + 1 - state.currentPeriod;
   const remaining = me.lines.map(lineActionsRemaining);
   const available = new Set(buildableLines(state, id));
@@ -61,7 +61,7 @@ export function planBotCrews(state: SubwayState, id: string, cautious = false): 
     const vp = finishing.reduce((v,l) => v + contractOf(l)!.completionVp - contractOf(l)!.incompletePenalty, 0);
     const all = remaining.every((n,i) => n === 0 || goals[i] > 0);
     const firstBonus = all && !state.firstCompletedPlayerId && me.engineeringHand.includes('crossing') ? 7 : 0;
-    const value = vp + firstBonus - Math.max(0, -cash) * SUBWAY_CONFIG.contact.debtVpPerMillion - plan.cost * (cautious ? .35 : .15);
+    const value = vp + firstBonus + (prioritizeCompletion&&all?30:0) - Math.max(0, -cash) * SUBWAY_CONFIG.contact.debtVpPerMillion - plan.cost * (cautious ? .35 : .15);
     if (value > bestValue || (value === bestValue && plan.urgency > chosen.urgency)) {bestValue = value; chosen = plan;}
   }
   const now=[...chosen.now];

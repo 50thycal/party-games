@@ -2,6 +2,7 @@
 import { SUBWAY_CONFIG, lineActionsRemaining, nextCompanyId, pendingStarters, legalTargets, stationAt, lineComplete, contractById, routeContacts, contactToll, destinationById, objectiveProgress, surveyBlocker, type SubwayState, type SubwayAction, type PlacementTarget } from './config';
 import { planBotCrews, immediateObjectiveBuild } from './botPlanning';
 import { missionPotential, engineeringPotential, remainingReach } from './objectiveGuidance';
+import { auditPotential, completionGoals } from './auditPolicy';
 
 export const BOT_VERSION = '2';
 export const PERSONALITIES = ['balanced', 'destination', 'completion', 'cautious'] as const;
@@ -22,7 +23,7 @@ export function botObservation(state: SubwayState, id: string): SubwayState {
   return s;
 }
 
-function bestTarget(s:SubwayState,id:string,index:number,starter:boolean,random:()=>number,settings:BotSettings): PlacementTarget|undefined {
+function bestTarget(s:SubwayState,id:string,index:number,starter:boolean,random:()=>number,settings:BotSettings,focus?:string): PlacementTarget|undefined {
   const targets=legalTargets(s,id,index,starter), me=s.players[id], line=me.lines[index];
   const w=weights[settings.personality];
   const desired=me.destinationHand.flatMap(id=>destinationById(id)?.stationIds??[]);
@@ -40,7 +41,7 @@ function bestTarget(s:SubwayState,id:string,index:number,starter:boolean,random:
     // No automatic neighborhood reward. Area utility comes from owned missions only.
     const trial={...me,lines:me.lines.map((l,i)=>i===index?{...l,route:[...l.route,{...target,...(st?{stationId:st.id}:{})}]}:l)};
     const value=(st&&desired.includes(st.id)&&!visited.has(st.id)?w.mission*2:0)-distance*w.mission*.12+Number(transfer)*w.mission+Number(survey)*3-toll*w.cost+missionPotential(s,trial)*w.mission+engineeringPotential(s,trial)*2+random()*(settings.skill==='casual'?5:w.noise);
-    return {target,value};
+    return {target,value:value+(focus?auditPotential(s,trial,focus):0)};
   }).sort((a,b)=>b.value-a.value).slice(0,settings.skill==='casual'?5:16);
   const opponents=Object.values(s.players).filter(p=>p.id!==id);
   const base=me.engineeringHand.reduce((sum,id)=>sum+objectiveProgress(id,me,opponents,s).points,0);
@@ -58,10 +59,11 @@ function bestTarget(s:SubwayState,id:string,index:number,starter:boolean,random:
   return candidates.sort((a,b)=>b.value-a.value)[0]?.target;
 }
 
-export function chooseBotAction(state:SubwayState,random:()=>number,settings:BotSettings=DEFAULT_BOT):SubwayAction|undefined {
+export function chooseBotAction(state:SubwayState,random:()=>number,settings:BotSettings=DEFAULT_BOT,focus?:string):SubwayAction|undefined {
   if(state.phase==='RESULTS') return;
   const id=nextCompanyId(state)!;
   const s=botObservation(state,id), me=s.players[id], w=weights[settings.personality];
+  if(focus&&!me.engineeringHand.includes(focus)&&!me.destinationHand.includes(focus)) focus=undefined;
   const action=(type:SubwayAction['type'],payload?:SubwayAction['payload']):SubwayAction=>({playerId:id,type,payload});
   switch(s.phase) {
     case 'PROCUREMENT': {
@@ -76,7 +78,7 @@ export function chooseBotAction(state:SubwayState,random:()=>number,settings:Bot
         // Blind draw is chosen without inspecting the hidden deck. The public row is always a legal fallback.
         return action('DRAFT_CARD',{deck:'engineering',cardId:ranked[0]?.cardId,expectedPick:s.market.picks});
       }
-      if(s.engineeringStep==='BUY_SURVEYS') return action('BUY_SURVEYS',{surveys:settings.personality==='cautious'?0:Math.min(me.money>10?1:0,SUBWAY_CONFIG.survey.max)});
+      if(s.engineeringStep==='BUY_SURVEYS') return action('BUY_SURVEYS',{surveys:focus==='minimal'&&me.money>=SUBWAY_CONFIG.survey.cost?1:settings.personality==='cautious'?0:Math.min(me.money>10?1:0,SUBWAY_CONFIG.survey.max)});
       if(s.engineeringStep==='SURVEY') {
         const options:PlacementTarget[]=[];
         for(let y=1;y<SUBWAY_CONFIG.board.rows-1;y++) for(let x=1;x<SUBWAY_CONFIG.board.columns-1;x++) if(!surveyBlocker(s,id,{x,y})) options.push({x,y});
@@ -87,18 +89,18 @@ export function chooseBotAction(state:SubwayState,random:()=>number,settings:Bot
       }
       throw new Error(`Unsupported engineering stage ${s.engineeringStep}`);
     case 'STARTER_PLACEMENT': {
-      const lineIndex=pendingStarters(me)[0], target=bestTarget(s,id,lineIndex,true,random,settings);
+      const lineIndex=pendingStarters(me)[0], target=bestTarget(s,id,lineIndex,true,random,settings,focus);
       if(!target) throw new Error('No legal starter');
       return action('PLACE_STARTER',{lineIndex,...target});
     }
     case 'CONSTRUCTION': {
       if(!me.crewsHired) {
         if(settings.personality==='destination'&&!me.destinationPurchased&&me.money>=15&&s.currentPeriod<=3) return action('BUY_DESTINATION',{period:s.currentPeriod});
-        return action('HIRE_CREWS',{lineIndexes:planBotCrews(s,id,settings.personality==='cautious'),period:s.currentPeriod});
+        return action('HIRE_CREWS',{lineIndexes:planBotCrews(s,id,settings.personality==='cautious',!!focus&&completionGoals.has(focus)),period:s.currentPeriod});
       }
       const lineIndex=me.pendingActions[0];
       const opportunity=lineActionsRemaining(me.lines[lineIndex])>SUBWAY_CONFIG.timelinePeriods+1-s.currentPeriod?immediateObjectiveBuild(s,id,lineIndex):undefined;
-      const target=opportunity?.target??bestTarget(s,id,lineIndex,false,random,settings);
+      const target=(!focus?opportunity?.target:undefined)??bestTarget(s,id,lineIndex,false,random,settings,focus);
       return target?action('BUILD',{lineIndex,...target}):action('SKIP_ACTION',{lineIndex});
     }
     case 'SCORING': return action('ADVANCE_SCORING');

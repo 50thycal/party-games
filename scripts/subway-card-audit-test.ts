@@ -1,0 +1,38 @@
+import assert from 'node:assert/strict';
+import { AUDIT_CARDS, auditCell, auditMarkdown, auditTasks, newAudit, runAuditPair, retainAuditExamples, interval } from '../src/games/subway/cardAudit';
+import { checkAuditCards } from '../src/games/subway/cardAuditChecks';
+import { fingerprint, replayRecord } from '../src/games/subway/recording';
+
+const settings={trials:1,seed:1},summary=newAudit(settings),tasks=auditTasks(settings);
+assert.equal(tasks.length,AUDIT_CARDS.length*3);
+assert.equal(new Set(tasks.map(t=>`${t.cardId}/${t.count}`)).size,tasks.length);
+assert.throws(()=>auditTasks({trials:0,seed:1}));assert.throws(()=>auditTasks({trials:1,seed:NaN}));
+const checks=checkAuditCards();assert.deepEqual(checks.filter(c=>!c.passed),[]);
+assert.equal(checks.length,AUDIT_CARDS.length);
+assert.equal(interval(0,100)[0],0);assert.ok(interval(0,100)[1]>.03);
+const selected=process.env.FULL_CARD_AUDIT==='1'?tasks:tasks.filter(t=>['minimal','dest-market-university'].includes(t.cardId)&&t.count===2);
+assert.ok(selected.length>0);
+const seen=new Set<string>();
+for(const task of selected) {
+  const result=runAuditPair(settings,task);
+  assert.equal(result.pair.error,undefined,JSON.stringify(result.pair));
+  assert.equal(result.pair.unavailable,undefined,JSON.stringify(result.pair));
+  assert.equal(result.records.length,2);
+  for(const record of result.records)assert.equal(fingerprint(replayRecord(record)),fingerprint(record.final));
+  const prefixLength=result.records[0].notes[0].actionIndex;
+  assert.equal(fingerprint(result.records[0].actions.slice(0,prefixLength)),fingerprint(result.records[1].actions.slice(0,prefixLength)));
+  const before=seen.size;const examples=retainAuditExamples(result,seen);assert.equal(seen.size,before+examples.length);assert.equal(retainAuditExamples(result,seen).length,0);
+  summary.pairs.push(result.pair);
+  console.log(`Audit ${summary.pairs.length}/${selected.length}: ${task.cardId}/${task.count} N=${result.pair.normal!.points} T=${result.pair.targeted!.points}`);
+}
+const again=runAuditPair(settings,selected[0]);assert.deepEqual(again.pair,summary.pairs[0]);
+const first=summary.pairs[0];
+summary.pairs.push({...first,error:'injected worker error'});
+assert.equal(auditCell(summary,first.task.cardId,first.task.count,'targeted').n,1);
+assert.equal(auditCell(summary,first.task.cardId,first.task.count,'targeted').errors,1);
+summary.pairs.pop();summary.status=selected.length===tasks.length?'complete':'stopped';
+const md=auditMarkdown(summary);
+assert.ok(md.length<14000,`Report too long: ${md.length}`);
+assert.ok(AUDIT_CARDS.every(c=>md.includes(c.name)));
+assert.ok(!md.includes('playersBefore'));assert.ok(md.includes('not proof of impossibility'));
+console.log(`Card Audit PASS: ${checks.length} card fixtures; ${selected.length} paired simulations; report ${md.length} characters.`);

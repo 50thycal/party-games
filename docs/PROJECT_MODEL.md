@@ -618,6 +618,28 @@ Area labels no longer advertise VP; rules/tutorial define borders and corners.
 
 ## Subway Playtest Lab (WS-005 continuation)
 
+### Full-deck Card Audit
+
+The Card Audit tab enumerates all Engineering/Destination definitions and runs
+paired normal/targeted trials at 2/3/4 players in a dedicated worker. Both arms
+begin at an identical legally recorded acquisition prefix; opening deal/offer
+screening is bounded and explicitly conditional, not a natural acquisition-rate
+estimate. Target utility is audit-only, activates only for an owned card and uses
+public state/own hand. Live bot defaults and game scoring remain unchanged.
+Scoring fixtures check positive, negative and tier cases separately from legal
+game records. Summary rates exclude failed/exhausted pairs and include matched n;
+detailed statistics include Wilson intervals, tier counts and per-game economics.
+The compact Markdown is one row per card; raw actions are separate replay files.
+
+IndexedDB `subway-card-audit-v1` stores the current audit metadata, incremental
+paired results and at most one success/miss replay per card/arm. Each write checks
+run identity/sequence against concurrent tabs. Reload resumes completed-pair
+boundaries only under the same rules/build/bot/audit version. Stop waits for the
+current pair; leaving the tab terminates its worker. Storage failure pauses;
+browser suspension is not server-side automation. Checkpoints are device-local
+and can be cleared by the browser; MD/detailed JSON/replay downloads are backups.
+Large full audits are owner-triggered, not implied by a smoke test.
+
 `/subway/lab` creates production companion test rooms, runs browser-worker simulation
 batches, and verifies/imports digital replays. `/subway` remains the quick complete
 tabletop and `/test/subway` retains the isolated scene inspector. No phone-only
