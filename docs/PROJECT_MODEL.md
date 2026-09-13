@@ -57,11 +57,12 @@ while another company drafts. Card status includes live VP and Completed text.
 A newly observed completed line produces a dismissible +$3M notice on both device
 roles; reconnecting to an already completed line does not replay the reward.
 
-An authenticated phone can explicitly share one owned Destination's station
-locations with the iPad during its acknowledged board turn. Only the current
-tablet projection includes the station IDs. A turn change hides them; the next
-company must make its own request. Clear removes the highlight. This intentional
-disclosure does not publish the full hand or unselected missions.
+An authenticated phone can toggle its owned Destinations on the shared iPad.
+Enabled selections persist across turns and reconnects until their owner disables
+them. Each card has a distinct company/card label and color; the iPad legend names
+its company and mission. Phones receive only their own selections. Clear removes
+only that company's highlights. This opt-in disclosure does not publish unselected
+missions or the full hand. See DEC-047 for the owner-requested persistence change.
 
 Ghost planning is a device-local Table setting, default off. Off hides saved
 ghosts, planning controls and next-step hints, but retains normal real-placement
