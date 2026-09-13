@@ -27,7 +27,7 @@ const seedFor=(value:unknown)=>parseInt(fingerprint(value),16)>>>0;
  * Estimates are CONDITIONAL on acquiring this card, not natural draw/draft probabilities.
  * Destination focus begins after START_GAME; Engineering focus begins after its draft.
  */
-export function runAuditPair(settings:AuditSettings,task:AuditTask):{pair:AuditPair;records:GameRecord[]} {
+export function runAuditPair(settings:AuditSettings,task:AuditTask,capture=true):{pair:AuditPair;records:GameRecord[]} {
   const card=AUDIT_CARDS.find(c=>c.id===task.cardId);if(!card) throw new Error('Unknown audit card');
   const seat=task.trial%task.count,id=`seat-${seat+1}`;
   const profiles:BotSettings[]=Array.from({length:task.count},(_,i)=>i===seat?{...DEFAULT_BOT}:{personality:PERSONALITIES[(task.trial+i)%PERSONALITIES.length],skill:'experienced'});
@@ -61,25 +61,42 @@ export function runAuditPair(settings:AuditSettings,task:AuditTask):{pair:AuditP
         const rng=seededRandom(seed);for(let i=0;i<prefix.actions.reduce((n,e)=>n+e.random.length,0);i++) rng();
         record.notes.push({at:0,actionIndex:prefix.actions.length,text:`Card Audit ${AUDIT_POLICY_VERSION}: ${arm}; ${card.id}; focal ${id}; conditional acquisition, not human calibration.`});
         const turns:Record<string,number>={};
-        while(state.phase!=='RESULTS'&&record.actions.length<500) {
+        let actionCount=prefix.actions.length;
+        while(state.phase!=='RESULTS'&&actionCount<500) {
           const actor=nextCompanyId(state)!;turns[actor]=(turns[actor]??0)+1;
           const a=chooseBotAction(state,seededRandom(seedFor([seed,actor,turns[actor]])),profiles[room.players.findIndex(p=>p.id===actor)]??DEFAULT_BOT,arm==='targeted'&&actor===id?card.id:undefined);
           if(!a) throw new Error(`${arm}: no action in ${state.phase}`);
           if(a.type==='ADVANCE_SCORING') a.playerId=room.hostId;
-          const next=recordedReducer(state,a,{room,playerId:a.playerId,random:rng,now:()=>record.actions.length+1},record,'bot');
-          if(next===state) throw new Error(`${arm}: rejected ${a.type}`);state=next;
+          const context={room,playerId:a.playerId,random:rng,now:()=>actionCount+1};
+          const next=capture?recordedReducer(state,a,context,record,'bot'):subwayGame.reducer(state,a,context);
+          if(next===state) throw new Error(`${arm}: rejected ${a.type}`);state=next;actionCount++;
         }
         if(state.phase!=='RESULTS') throw new Error(`${arm}: action limit`);
         record.final=state;
         const p=state.players[id],progress=objectiveProgress(card.id,p,Object.values(state.players).filter(p=>p.id!==id),state);
         const metrics=recordMetrics(record)[seat];
         pair[arm]={met:progress.met,points:progress.points,score:p.score??0,cash:p.money,debt:Math.max(0,-p.money),complete:metrics.complete,crews:metrics.crews,tolls:metrics.tolls,reason:objectiveExplanation(card.id,state,p)};
-        records.push(record);
+        if(capture) records.push(record);
       }
       return {pair,records};
     }
     pair.unavailable=true;return {pair,records:[]};
   } catch(e) {pair.error=e instanceof Error?e.message:String(e);return {pair,records:[]};}
+}
+
+export type AuditExample={key:string;record:GameRecord};
+export type AuditJobResult={pair:AuditPair;examples:AuditExample[]};
+/** Statistics use the same reducer, clocks and RNG without per-action hashing.
+ * Only missing witnesses are regenerated with full recording, compared and replayed.
+ */
+export function runAuditJob(settings:AuditSettings,task:AuditTask,seenKeys:string[]):AuditJobResult {
+  const result=runAuditPair(settings,task,false),seen=new Set(seenKeys);
+  if(result.pair.error||result.pair.unavailable) return {pair:result.pair,examples:[]};
+  const needed=(['normal','targeted'] as const).some(arm=>!seen.has(`${task.cardId}-${arm}-${result.pair[arm]!.met?'success':'miss'}`));
+  if(!needed) return {pair:result.pair,examples:[]};
+  const recorded=runAuditPair(settings,task);
+  if(JSON.stringify(recorded.pair)!==JSON.stringify(result.pair)) throw new Error('Audit replay regeneration differs from statistics.');
+  return {pair:result.pair,examples:retainAuditExamples(recorded,seen)};
 }
 
 export function interval(success:number,n:number):[number,number] {

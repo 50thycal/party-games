@@ -13,7 +13,8 @@ card at 2, 3 and 4 players and produces a compact, honest completion-rate report
 - Normal strategy versus single-card pursuit, matched starting situations.
 - Scoring checks, negative cases and every partial tier; legal simulation/replay
   evidence remains distinct from synthetic predicate checks.
-- Default 100 paired trials per card/count, configurable 1–1000. Round-robin
+- Quick Check defaults to 25 paired trials per card/count; Full Audit selects
+  100, with custom 1–1000 retained. Round-robin
   coverage, progress, stopping and saved checkpoints. No individual-card labor.
 - Chat report: one row/card, 2/3/4 completion rates, sample counts, targeted VP,
   important caveats. Detailed JSON carries economics, tier counts and Wilson
@@ -33,7 +34,9 @@ Engineering drafting before acquisition deliberately selects the audited offer.
 Therefore baseline is normal PLAY conditional on controlled acquisition, not
 natural drafting frequency. No acquisition probability is inferred from screening.
 
-Every played action uses recordedReducer. Game randomness resumes at the prefix's
+Every played action uses the production reducer. Statistics omit the recording
+wrapper after acquisition; selected witnesses are regenerated with recordedReducer,
+compared to the original pair and fully replayed before retention. Game randomness resumes at the prefix's
 recorded draw count; decisions use separate actor/turn streams. Later draws and
 opponent reactions can differ after strategies diverge. Synthetic score fixtures
 may violate recipe geometry and must never count as feasibility witnesses.
@@ -47,7 +50,10 @@ may violate recipe geometry and must never count as feasibility witnesses.
 - One row/card and report below 14,000 characters for current catalogs; action
   logs absent from compact/detailed statistical exports. Confidence and sample
   limits disclosed, including interrupted/empty runs.
-- Worker isolates CPU work. IndexedDB persists pairs incrementally and retains
+- Up to two workers isolate CPU work, using one on devices reporting fewer than
+  three logical cores (or no count). Bounded batches commit in catalog order;
+  stop drains the active batch, cancellation leaves a contiguous saved prefix.
+  IndexedDB persists pairs incrementally and retains
   at most one full success/miss record per card/arm. Storage errors pause visibly.
   Run identity and sequence checks reject concurrent-tab overwrites.
 - Build, lint, full Subway suite, all-card/all-count smoke sweep, independent
@@ -60,3 +66,12 @@ Engineering sampling excludes late drafts. Browser background suspension pauses
 work; no server scheduler, new external service or credentials. Checkpoints are
 device-local, not cloud backups. User must export to retain beyond browser data
 clearing. Larger statistical runs are owner-triggered, not a claim made by tests.
+
+## Approved speed continuation
+Calvin reported a roughly four-hour 100-trial run and approved Quick Check/Full
+Audit presets, reduced recording overhead and parallel pairs on 2026-09-13.
+No policy, seed, sample-selection, scoring or denominator changes. Acceptance:
+same-seed fast/recorded outcomes match across all cards/counts; selected witnesses
+replay; ordered checkpoint/stop/resume/error/unmount tests pass. Benchmark the
+recording optimization separately from sample reduction and concurrency; never
+promise a device runtime from a server-side microbenchmark.

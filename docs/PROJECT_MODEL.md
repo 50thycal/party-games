@@ -621,7 +621,10 @@ Area labels no longer advertise VP; rules/tutorial define borders and corners.
 ### Full-deck Card Audit
 
 The Card Audit tab enumerates all Engineering/Destination definitions and runs
-paired normal/targeted trials at 2/3/4 players in a dedicated worker. Both arms
+paired normal/targeted trials at 2/3/4 players. Quick Check defaults to 25 trials;
+Full Audit selects 100, and custom counts remain available. Up to two workers
+run bounded batches (one when fewer than three logical cores are reported).
+Responses commit in catalog order, preserving the contiguous checkpoint cursor. Both arms
 begin at an identical legally recorded acquisition prefix; opening deal/offer
 screening is bounded and explicitly conditional, not a natural acquisition-rate
 estimate. Target utility is audit-only, activates only for an owned card and uses
@@ -630,12 +633,17 @@ Scoring fixtures check positive, negative and tier cases separately from legal
 game records. Summary rates exclude failed/exhausted pairs and include matched n;
 detailed statistics include Wilson intervals, tier counts and per-game economics.
 The compact Markdown is one row per card; raw actions are separate replay files.
+Statistics use the same reducer without per-action recording/hashing after the
+acquisition prefix. Missing success/miss examples are deterministically rerun with
+full recording, compared against the statistics and replay-verified in the worker.
+Only statistics and selected witnesses cross back to the page. Policies/seeds and
+matched denominators are unchanged; zero successes never proves impossibility.
 
 IndexedDB `subway-card-audit-v1` stores the current audit metadata, incremental
 paired results and at most one success/miss replay per card/arm. Each write checks
 run identity/sequence against concurrent tabs. Reload resumes completed-pair
 boundaries only under the same rules/build/bot/audit version. Stop waits for the
-current pair; leaving the tab terminates its worker. Storage failure pauses;
+active batch of at most two pairs; leaving the tab terminates all workers. Storage failure pauses;
 browser suspension is not server-side automation. Checkpoints are device-local
 and can be cleared by the browser; MD/detailed JSON/replay downloads are backups.
 Large full audits are owner-triggered, not implied by a smoke test.

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { AUDIT_CARDS, auditCell, auditMarkdown, auditTasks, newAudit, runAuditPair, retainAuditExamples, interval } from '../src/games/subway/cardAudit';
+import { AUDIT_CARDS, auditCell, auditMarkdown, auditTasks, newAudit, runAuditPair, runAuditJob, retainAuditExamples, interval } from '../src/games/subway/cardAudit';
 import { checkAuditCards } from '../src/games/subway/cardAuditChecks';
 import { fingerprint, replayRecord } from '../src/games/subway/recording';
 
@@ -13,8 +13,14 @@ assert.equal(interval(0,100)[0],0);assert.ok(interval(0,100)[1]>.03);
 const selected=process.env.FULL_CARD_AUDIT==='1'?tasks:tasks.filter(t=>['minimal','dest-market-university'].includes(t.cardId)&&t.count===2);
 assert.ok(selected.length>0);
 const seen=new Set<string>();
+let recordedMs=0,fastMs=0;
 for(const task of selected) {
+  let started=performance.now();
   const result=runAuditPair(settings,task);
+  recordedMs+=performance.now()-started;started=performance.now();
+  const fast=runAuditPair(settings,task,false);
+  fastMs+=performance.now()-started;
+  assert.deepEqual(fast.pair,result.pair);assert.deepEqual(fast.records,[]);
   assert.equal(result.pair.error,undefined,JSON.stringify(result.pair));
   assert.equal(result.pair.unavailable,undefined,JSON.stringify(result.pair));
   assert.equal(result.records.length,2);
@@ -26,6 +32,9 @@ for(const task of selected) {
   console.log(`Audit ${summary.pairs.length}/${selected.length}: ${task.cardId}/${task.count} N=${result.pair.normal!.points} T=${result.pair.targeted!.points}`);
 }
 const again=runAuditPair(settings,selected[0]);assert.deepEqual(again.pair,summary.pairs[0]);
+const job=runAuditJob(settings,selected[0],[]);assert.deepEqual(job.pair,again.pair);assert.equal(job.examples.length,2);
+for(const example of job.examples)replayRecord(example.record);
+assert.deepEqual(runAuditJob(settings,selected[0],job.examples.map(e=>e.key)),{pair:again.pair,examples:[]});
 const first=summary.pairs[0];
 summary.pairs.push({...first,error:'injected worker error'});
 assert.equal(auditCell(summary,first.task.cardId,first.task.count,'targeted').n,1);
@@ -38,3 +47,4 @@ assert.ok(md.length<14000,`Report too long: ${md.length}`);
 assert.ok(AUDIT_CARDS.every(c=>md.includes(c.name)));
 assert.ok(!md.includes('playersBefore'));assert.ok(md.includes('not proof of impossibility'));
 console.log(`Card Audit PASS: ${checks.length} card fixtures; ${selected.length} paired simulations; report ${md.length} characters.`);
+console.log(`Audit same-seed benchmark (${selected.length} pairs): recorded ${Math.round(recordedMs)} ms; statistics ${Math.round(fastMs)} ms; ${(recordedMs/fastMs).toFixed(2)}x. Excludes worker concurrency and first-witness regeneration.`);

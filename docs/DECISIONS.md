@@ -1757,3 +1757,19 @@ preferences do not change ordinary bot defaults or claim optimal/human play.
 Checkpoints are device-local; detailed economics and bounded replay examples
 are exported separately from the chat-sized Markdown. Alternatives: individual
 manual card testing rejected by the owner; automatic rule retuning excluded.
+
+### DEC-050 — Faster audit execution with unchanged trials
+
+Date: 2026-09-13. Status: owner-authorized implementation.
+
+After a four-hour full run, Calvin approved a 25-trial Quick Check default and
+100-trial Full Audit preset, plus reduced recording and parallel pairs. Custom
+sample sizes remain. Both presets cover the entire catalog at 2/3/4 players.
+Statistics bypass per-action recording after the shared acquisition prefix;
+selected examples are regenerated, outcome-compared and fully replay-verified.
+The game reducer and bot decisions are unchanged. Two workers maximum limits
+memory/CPU pressure; low-core devices use one. Bounded batches save in fixed
+order so completion order cannot change trial selection or break resume.
+Stop drains active pairs. No server service or automatic statistical early stop;
+smaller samples explicitly trade precision for time. Benchmark evidence must
+separate recording savings from sample-size reduction and device concurrency.
