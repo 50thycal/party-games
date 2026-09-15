@@ -1,0 +1,545 @@
+{
+  "description": "All seats use the named policy; paired initial seeds, 3 seeds per player count. Fresh-seed smoke comparison, not human calibration.",
+  "results": [
+    {
+      "count": 2,
+      "seed": 91021,
+      "policy": "2",
+      "ms": 645,
+      "actions": 74,
+      "players": [
+        {
+          "score": 20,
+          "cash": 0,
+          "debt": 0,
+          "unfinished": 1,
+          "cards": 3
+        },
+        {
+          "score": 39,
+          "cash": -3,
+          "debt": 3,
+          "unfinished": 0,
+          "cards": 2
+        }
+      ]
+    },
+    {
+      "count": 2,
+      "seed": 91021,
+      "policy": "3",
+      "ms": 688,
+      "actions": 75,
+      "players": [
+        {
+          "score": 51,
+          "cash": 3,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 4
+        },
+        {
+          "score": 17,
+          "cash": -5,
+          "debt": 5,
+          "unfinished": 0,
+          "cards": 1
+        }
+      ]
+    },
+    {
+      "count": 2,
+      "seed": 91022,
+      "policy": "2",
+      "ms": 550,
+      "actions": 72,
+      "players": [
+        {
+          "score": 41,
+          "cash": 4,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 2
+        },
+        {
+          "score": 34,
+          "cash": 7,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 3
+        }
+      ]
+    },
+    {
+      "count": 2,
+      "seed": 91022,
+      "policy": "3",
+      "ms": 509,
+      "actions": 72,
+      "players": [
+        {
+          "score": 39,
+          "cash": 1,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 2
+        },
+        {
+          "score": 24,
+          "cash": 10,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 0
+        }
+      ]
+    },
+    {
+      "count": 2,
+      "seed": 91023,
+      "policy": "2",
+      "ms": 362,
+      "actions": 67,
+      "players": [
+        {
+          "score": -6,
+          "cash": -3,
+          "debt": 3,
+          "unfinished": 2,
+          "cards": 1
+        },
+        {
+          "score": 36,
+          "cash": 15,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 3
+        }
+      ]
+    },
+    {
+      "count": 2,
+      "seed": 91023,
+      "policy": "3",
+      "ms": 446,
+      "actions": 68,
+      "players": [
+        {
+          "score": 28,
+          "cash": 3,
+          "debt": 0,
+          "unfinished": 1,
+          "cards": 2
+        },
+        {
+          "score": 35,
+          "cash": 11,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 2
+        }
+      ]
+    },
+    {
+      "count": 3,
+      "seed": 91021,
+      "policy": "2",
+      "ms": 1186,
+      "actions": 108,
+      "players": [
+        {
+          "score": 38,
+          "cash": 4,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 2
+        },
+        {
+          "score": 24,
+          "cash": 3,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 0
+        },
+        {
+          "score": 32,
+          "cash": 1,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 1
+        }
+      ]
+    },
+    {
+      "count": 3,
+      "seed": 91021,
+      "policy": "3",
+      "ms": 1213,
+      "actions": 108,
+      "players": [
+        {
+          "score": 44,
+          "cash": 0,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 3
+        },
+        {
+          "score": 30,
+          "cash": 4,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 1
+        },
+        {
+          "score": 30,
+          "cash": 4,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 2
+        }
+      ]
+    },
+    {
+      "count": 3,
+      "seed": 91022,
+      "policy": "2",
+      "ms": 1116,
+      "actions": 105,
+      "players": [
+        {
+          "score": 31,
+          "cash": 9,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 2
+        },
+        {
+          "score": 33,
+          "cash": 8,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 2
+        },
+        {
+          "score": 9,
+          "cash": -4,
+          "debt": 4,
+          "unfinished": 1,
+          "cards": 2
+        }
+      ]
+    },
+    {
+      "count": 3,
+      "seed": 91022,
+      "policy": "3",
+      "ms": 1062,
+      "actions": 106,
+      "players": [
+        {
+          "score": 35,
+          "cash": 8,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 2
+        },
+        {
+          "score": 26,
+          "cash": 7,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 1
+        },
+        {
+          "score": 39,
+          "cash": 0,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 3
+        }
+      ]
+    },
+    {
+      "count": 3,
+      "seed": 91023,
+      "policy": "2",
+      "ms": 919,
+      "actions": 104,
+      "players": [
+        {
+          "score": 28,
+          "cash": 9,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 2
+        },
+        {
+          "score": 7,
+          "cash": -4,
+          "debt": 4,
+          "unfinished": 1,
+          "cards": 1
+        },
+        {
+          "score": 32,
+          "cash": 10,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 2
+        }
+      ]
+    },
+    {
+      "count": 3,
+      "seed": 91023,
+      "policy": "3",
+      "ms": 1027,
+      "actions": 104,
+      "players": [
+        {
+          "score": 34,
+          "cash": 6,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 2
+        },
+        {
+          "score": 23,
+          "cash": 1,
+          "debt": 0,
+          "unfinished": 1,
+          "cards": 1
+        },
+        {
+          "score": 34,
+          "cash": 8,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 2
+        }
+      ]
+    },
+    {
+      "count": 4,
+      "seed": 91021,
+      "policy": "2",
+      "ms": 2046,
+      "actions": 140,
+      "players": [
+        {
+          "score": 48,
+          "cash": 3,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 4
+        },
+        {
+          "score": 20,
+          "cash": 3,
+          "debt": 0,
+          "unfinished": 1,
+          "cards": 2
+        },
+        {
+          "score": 22,
+          "cash": 11,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 1
+        },
+        {
+          "score": 35,
+          "cash": -1,
+          "debt": 1,
+          "unfinished": 0,
+          "cards": 2
+        }
+      ]
+    },
+    {
+      "count": 4,
+      "seed": 91021,
+      "policy": "3",
+      "ms": 2272,
+      "actions": 143,
+      "players": [
+        {
+          "score": 37,
+          "cash": 3,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 3
+        },
+        {
+          "score": 10,
+          "cash": -5,
+          "debt": 5,
+          "unfinished": 0,
+          "cards": 0
+        },
+        {
+          "score": 25,
+          "cash": 4,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 1
+        },
+        {
+          "score": 17,
+          "cash": 7,
+          "debt": 0,
+          "unfinished": 1,
+          "cards": 2
+        }
+      ]
+    },
+    {
+      "count": 4,
+      "seed": 91022,
+      "policy": "2",
+      "ms": 2713,
+      "actions": 141,
+      "players": [
+        {
+          "score": 17,
+          "cash": -2,
+          "debt": 2,
+          "unfinished": 1,
+          "cards": 2
+        },
+        {
+          "score": 41,
+          "cash": 2,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 4
+        },
+        {
+          "score": 31,
+          "cash": 5,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 0
+        },
+        {
+          "score": 29,
+          "cash": 9,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 2
+        }
+      ]
+    },
+    {
+      "count": 4,
+      "seed": 91022,
+      "policy": "3",
+      "ms": 3058,
+      "actions": 142,
+      "players": [
+        {
+          "score": 14,
+          "cash": 6,
+          "debt": 0,
+          "unfinished": 1,
+          "cards": 2
+        },
+        {
+          "score": 30,
+          "cash": 3,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 2
+        },
+        {
+          "score": 23,
+          "cash": 1,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 0
+        },
+        {
+          "score": 43,
+          "cash": 0,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 1
+        }
+      ]
+    },
+    {
+      "count": 4,
+      "seed": 91023,
+      "policy": "2",
+      "ms": 2463,
+      "actions": 138,
+      "players": [
+        {
+          "score": 12,
+          "cash": -3,
+          "debt": 3,
+          "unfinished": 1,
+          "cards": 2
+        },
+        {
+          "score": 31,
+          "cash": -1,
+          "debt": 1,
+          "unfinished": 0,
+          "cards": 2
+        },
+        {
+          "score": 19,
+          "cash": 19,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 1
+        },
+        {
+          "score": 36,
+          "cash": 5,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 2
+        }
+      ]
+    },
+    {
+      "count": 4,
+      "seed": 91023,
+      "policy": "3",
+      "ms": 2542,
+      "actions": 138,
+      "players": [
+        {
+          "score": 22,
+          "cash": 6,
+          "debt": 0,
+          "unfinished": 1,
+          "cards": 0
+        },
+        {
+          "score": 31,
+          "cash": 7,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 2
+        },
+        {
+          "score": 35,
+          "cash": 5,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 3
+        },
+        {
+          "score": 34,
+          "cash": 2,
+          "debt": 0,
+          "unfinished": 0,
+          "cards": 3
+        }
+      ]
+    }
+  ]
+}

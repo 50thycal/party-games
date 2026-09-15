@@ -4,7 +4,7 @@
 
 - Canonical framework: [50thycal/build-os](https://github.com/50thycal/build-os)
 - Adopted version: v0.12
-- Last compatibility check: v0.12 on 2026-09-10
+- Last compatibility check: v0.12 on 2026-09-15
 - Operating mode: reviewed
 
 Before substantial design or architectural work, compare the adopted version against

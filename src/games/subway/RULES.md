@@ -115,6 +115,19 @@ chains qualify, but remote connections elsewhere do not replace the local hub.
 First to Open uses the earliest accepted completion of all three contracts;
 Undo of that placement restores the award opportunity.
 
+## Largest Cluster — public goal
+
+Group occupied route-node holes across all companies using horizontal/vertical
+adjacency. Shared holes join; diagonals and string-only links do not. Survey Pins
+do not count. Size is the number of distinct occupied holes. Each company counts
+once per hole, even when several of its lines share that hole.
+
+Find all clusters tied for largest and total each company's nodes across those
+clusters. Award the bonus once to the leaders: **6 VP** alone, **3 VP each** for
+two tied leaders, **2 VP each** for three, and **0 VP** for four. Empty boards
+award nothing; singleton occupied holes count as clusters. This does not change
+the company transfer or Longest Network rules.
+
 ## Longest network — public goal
 
 At scoring, find each company's longest continuous trail of built segments.
@@ -196,7 +209,7 @@ It does **not** refund the crew-hiring transaction.
 
 ## Scoring and the table
 
-Route completion/unfinished penalties, the longest network award,
+Route completion/unfinished penalties, the longest network and Largest Cluster awards,
 all held Engineering goals and Destinations, Survey Pins and final debt appear in
 the results breakdown. Neighborhood visits award no automatic VP. Ties break on large-neighborhood connections, then cash, then shared victory.
 
