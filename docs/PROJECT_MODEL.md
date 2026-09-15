@@ -2,7 +2,7 @@
 
 <!-- How does this system work TODAY? Present tense. Not a roadmap, not a history. -->
 
-**Last updated:** 2026-09-12 · **Build OS v0.12** (see [50thycal/build-os](https://github.com/50thycal/build-os))
+**Last updated:** 2026-09-15 · **Build OS v0.12** (see [50thycal/build-os](https://github.com/50thycal/build-os))
 
 Project memory has three layers: this file (how the system works today),
 [`DECISIONS.md`](DECISIONS.md) (why), and [`workstreams/`](workstreams/ACTIVE.md) (what is being
@@ -721,6 +721,33 @@ Results offer an MD File via the native share sheet directly from a user click,
 with blob download and existing copy/text fallbacks. Both companion phones and
 iPads expose it at results; quick tabletop uses the same save controls.
 Engineering descriptions identical to their requirements render only once.
+
+### Largest Cluster and company-aware bot planning (DEC-051)
+
+State v22 adds a separate public Largest Cluster award. The pure cluster helper
+groups route-node holes across companies with orthogonal adjacency, deduplicates
+each company's presence per hole, and ignores strings, diagonals and Survey Pins.
+It aggregates company counts across all equally largest groups, then awards once:
+6/3/2/0 VP per leader for one/two/three/four leaders. The existing score ledger and
+MD export display the result. Existing versions require restart; the deployment
+rules fingerprint includes the new cluster source as well as config/network.
+
+Bot policy v3 assigns whole Destination missions and unvisited Citywide areas to
+lines as heuristic jobs. A beam search compares up to eight hypothetical placements
+with hard 480-state experienced / 120-state casual bounds. Forecast utility includes
+owned card points, route completion/penalties, tolls, completion cash, final debt,
+cluster points and spatial guidance. First-to-complete ownership is forecast too.
+Future crews use an explicit $2M marginal estimate; the existing exact schedule
+search still chooses actual hiring, so this is not a perfect economic forecast.
+Procurement accounts for portfolio construction reserve. No LLM or external service.
+
+A bounded 96-entry memo retains computed paths for identical relevant observations.
+Actual node, cash, round, goal or profile changes replan; cold cache and warm cache
+give identical answers. This conservative invalidation avoids stale paths and
+preserves audit regeneration across workers; it does not reuse paths after moves.
+The fifth argument to chooseBotAction disables new planning for reproducible v2
+baseline comparisons; production callers use v3. Both policies still use current
+game rules. Historical audit checkpoints reject the changed bot/rules versions.
 
 ### GZZF bot, starter and report correction (DEC-048)
 

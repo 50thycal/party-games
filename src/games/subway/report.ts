@@ -94,6 +94,7 @@ export function generateAiPlaytestReport(game: SubwayState, context: SubwayRepor
       destinationPurchaseMillions: SUBWAY_CONFIG.destinationPurchaseCost,
       firstCompletedPlayerId: game.firstCompletedPlayerId,
       longestNetwork: "Peg-space length, no repeated segments; winner 5 VP, ties 3 VP each",
+      largestCluster: "Orthogonally adjacent occupied route-node holes across all companies; shared holes count once per company. Aggregate company nodes across all equally largest clusters. Majority award once: 6 VP alone, 3 each for two leaders, 2 each for three, 0 for four. No diagonals, string links or Survey Pins.",
       starterOccupancy: "New starter pegs require an empty non-neighborhood outer-border hole",
     }, null, 2),
     "```",
