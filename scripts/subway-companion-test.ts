@@ -25,7 +25,7 @@ for(const count of [2,3,4]) {
   const first=state.gameState as SubwayState;
   const secret=first.players[phones[1].playerId].destinationHand[0];
   const phoneView=companionView(state,phones[0]);
-  assert.ok(!JSON.stringify(phoneView).includes(secret),"opposing Destination never transmitted");
+  assert.ok(!JSON.stringify(phoneView).includes(JSON.stringify(secret)),"opposing Destination never transmitted");
   assert.equal(phoneView.game!.destinationDeck.length,0);
   assert.ok(!JSON.stringify(phoneView).includes("tablet-secret"));
   assert.equal(companionView(state,tablet).game!.players[phones[0].playerId].destinationHand.length,0);

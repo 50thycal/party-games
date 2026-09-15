@@ -1,3 +1,4 @@
+import { stationAccessContacts, type StationAccess } from './stationAccess';
 import { ENGINEERING_CARDS, engineeringMet, type EngineeringCard } from './engineering';
 export { ENGINEERING_CARDS, type EngineeringCard } from './engineering';
 import { companyNetwork, networkNodeKey, longestNetwork } from "./network";
@@ -28,7 +29,7 @@ import type { BaseAction, GameContext, Player } from "@/engine/types";
 // ============================================================================
 
 /** Bumped when the state shape changes; older rooms must restart. */
-export const SUBWAY_STATE_VERSION = 22;
+export const SUBWAY_STATE_VERSION = 23;
 
 // ----------------------------------------------------------------------------
 // Tunable configuration
@@ -134,7 +135,7 @@ export const neighborhoodSize = (station: Station): string =>
   station.kind === "major" ? "large" : station.kind === "minor" ? "small" : "medium";
 
 // ----------------------------------------------------------------------------
-// Line contracts — three per company per game, all of which must find an owner.
+// Line contracts — three per company per game, with one unused contract after drafting.
 // ----------------------------------------------------------------------------
 
 export type LineContract = {
@@ -214,6 +215,7 @@ LINE_CONTRACTS.push(
   { id: "university", name: "Yellow Line", code: "YE", color: "#a16207", dash: "4 6", recipe: [3, 2, 4, 3], cost: 6, completionVp: 4, incompletePenalty: -4 },
   { id: "orbital", name: "Gray Line", code: "GY", color: "#64748b", dash: "18 6 4 6", recipe: [4, 5, 2, 4, 3, 5], cost: 9, completionVp: 6, incompletePenalty: -6, },
   { id: "airport", name: "White Line", code: "WH", color: "#e2e8f0", dash: "28 10", recipe: [6, 3, 5, 4, 2], cost: 10, completionVp: 6, incompletePenalty: -6, },
+  { id: "copper", name: "Copper Line", code: "CO", color: "#b87333", dash: "22 5 3 5", recipe: [3, 5, 4, 6, 3, 5, 4], cost: 11, completionVp: 9, incompletePenalty: -8 },
   { id: "local", name: "Brown Line", code: "BR", color: "#78350f", dash: "10 5", recipe: [2, 3, 2, 4, 3], cost: 6, completionVp: 5, incompletePenalty: -5 },
 );
 
@@ -255,10 +257,10 @@ for (let i = 0; i < 10; i++) destinationSets.push([i, (i + 1) % 10, (i + 3) % 10
 for (let i = 0; i < 5; i++) destinationSets.push([i, i + 2, i + 5]);
 export const DESTINATION_CARDS: DestinationCard[] = destinationSets.map(indexes => {
   const stations = indexes.sort((a, b) => a - b).map(i => STATIONS[i]);
-  const names = stations.map(s => s.name).join(" ↔ ");
+  const names = stations.map(s => s.name).join(" + ");
   return {id: `dest-${stations.map(s => s.id).join("-")}`, stationIds: stations.map(s => s.id), name: names,
     description: "Connect these neighborhoods through your own network.",
-    requirement: `Connect ${names} through your own network. Different lines transfer at overlapping or horizontally/vertically adjacent nodes. Sharing an area or crossing strings does not connect lines. Completion is not required.`,
+    requirement: `Connect ${names} through your own network. Any order; no starter or final peg required. Different unfinished lines may contribute through horizontally/vertically adjacent nodes. Sharing an area or crossing strings does not connect lines. Completion is not required.`,
     vp: stations.length === 2 ? SUBWAY_CONFIG.destinationVp : SUBWAY_CONFIG.threeStationDestinationVp};
 });
 
@@ -395,6 +397,7 @@ export type SubwayPlayer = {
   properCrossings: number;
   /** $M paid to the opposition for route contacts, for the results breakdown. */
   tollsPaid: number;
+  stationAccess?: StationAccess[];
   score?: number;
   scoreBreakdown?: ScoreItem[];
 };
@@ -487,7 +490,16 @@ export type SubwayTelemetryEvent = {
 /** Public events kept in state; older ones fall off the front. */
 export const SUBWAY_EVENT_LIMIT = 20;
 
+export type MoneyEvent = {seq:number; actorId:string; reversed:boolean; payments:{from:string;to?:string;amount:number;reason:string}[]};
+
+function recordMoney(s:SubwayState,actorId:string,payments:MoneyEvent['payments'],reversed=false) {
+  const seq=s.nextMoneySeq??1;s.nextMoneySeq=seq+1;
+  s.moneyEvents=[...(s.moneyEvents??[]),{seq,actorId,payments,reversed}].slice(-20);
+}
+
 export interface SubwayState {
+  moneyEvents?: MoneyEvent[];
+  nextMoneySeq?: number;
   version: number;
   firstCompletedPlayerId?: string;
   phase: SubwayPhase;
@@ -890,7 +902,8 @@ export type RouteContact = {
   /** Coordinate key. One key is one charge, however many strings meet there. */
   key: string;
   ownerId: string;
-  kind: "peg" | "crossing" | "endpoint";
+  kind: "peg" | "crossing" | "endpoint" | "station";
+  stationAnchors?: string[];
   x: number;
   y: number;
 };
@@ -910,7 +923,8 @@ export function routeContacts(
   state: SubwayState,
   playerId: string,
   from: Point,
-  to: Point
+  to: Point,
+  lineIndex?: number
 ): RouteContact[] {
   const found = new Map<string, RouteContact>();
   const opposing = allLines(state).filter(({ playerId: owner }) => owner !== playerId);
@@ -940,7 +954,8 @@ export function routeContacts(
     }
   }
 
-  return Array.from(found.values());
+  const index=lineIndex??state.players[playerId]?.lines.findIndex(l=>l.route.at(-1)?.x===from.x&&l.route.at(-1)?.y===from.y);
+  return [...Array.from(found.values()),...(index!==undefined&&index>=0?stationAccessContacts(state,playerId,index,to):[])];
 }
 
 /** $M owed to the opposition for a candidate segment. */
@@ -969,7 +984,7 @@ export function stationCompanies(state: SubwayState, stationId: string): string[
  * Validates extending `lineIndex` of `playerId` to `p`. Returns a
  * human-readable reason when the placement is illegal, or null when allowed.
  *
- * Neighborhood holes use ordinary shared-peg rules; no area connection limit.
+ * Every hole holds at most one peg; no area-wide connection limit.
  */
 export function validateNode(
   state: SubwayState,
@@ -994,9 +1009,9 @@ export function validateNode(
   }
 
   const station = stationAt(p, state.stations);
-  if (starter && (Object.values(state.players).some(player => player.lines.some(line =>
+  if ((Object.values(state.players).some(player => player.lines.some(line =>
     line.route.some(node => node.x === p.x && node.y === p.y))))) {
-    return "Starter pegs must use an empty hole; another peg is already here.";
+    return starter ? "Starter pegs must use an empty hole; another peg is already here." : "One peg per hole. This hole is already occupied.";
   }
   if (starter && station) return "Starter pegs must use a normal hole.";
   // Starters enter from the edge of the map (OD-6): only holes on the outer
@@ -1016,9 +1031,8 @@ export function validateNode(
 
   // Every neighborhood hole follows ordinary peg contact rules. There are no
   // area-wide dock limits, offsets or exclusive slots.
-  // A normal hole is no longer exclusive, and nothing is excluded for being
-  // beside, on, or through an existing route (DEC-018). What that costs during
-  // Construction is priced by routeContacts(), not forbidden here.
+  // Empty holes beside/on a string remain legal. Peg stacking is always
+  // forbidden. String contacts and station access are priced by routeContacts().
 
   if (starter || !myLine.route.length) return null;
 
@@ -1439,7 +1453,7 @@ export function cardDraftBlocker(s: SubwayState, playerId: string, deck: CardDec
 function nextOffer(s: SubwayState, now: number): SubwayState {
   const proc = s.procurement;
   while (proc.row.length < s.playerOrder.length && proc.deck.length) proc.row.push(proc.deck.shift()!);
-  if (!proc.row.length) {
+  if (proc.offerIndex >= s.playerOrder.length * 3) {
     proc.offer = undefined;
     s.phase = "ENGINEERING";
     s.engineeringStep = "CARD_DRAFT";
@@ -1629,7 +1643,7 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       fresh.procurement.deck = shuffle(
         LINE_CONTRACTS.map((c) => c.id),
         ctx.random
-      ).slice(0, fresh.playerOrder.length * 3);
+      ).slice(0, fresh.playerOrder.length * 3 + 1);
       // Deal one pair and one triple to each company, without replacement.
       const pairs = shuffle(DESTINATION_CARDS.filter(c => c.stationIds.length === 2).map(c => c.id), ctx.random);
       const triples = shuffle(DESTINATION_CARDS.filter(c => c.stationIds.length === 3).map(c => c.id), ctx.random);
@@ -1699,6 +1713,9 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       if (line.start === undefined) return state;
       const pt = { x: action.payload?.x ?? -1, y: action.payload?.y ?? -1 };
       if (validateNode(s, me.id, lineIndex, pt, true)) return state;
+      const contacts=stationAccessContacts(s,me.id,lineIndex,pt);
+      for(const c of contacts){me.money-=SUBWAY_CONFIG.contact.toll;me.tollsPaid+=SUBWAY_CONFIG.contact.toll;s.players[c.ownerId].money+=SUBWAY_CONFIG.contact.toll;(me.stationAccess??=[]).push({contractId:line.contractId,ownerId:c.ownerId,anchors:c.stationAnchors!});}
+      if(contacts.length)recordMoney(s,me.id,contacts.map(c=>({from:me.id,to:c.ownerId,amount:SUBWAY_CONFIG.contact.toll,reason:'Station access'})));
       line.route = [pt];
       pushEvent(
         s,
@@ -1749,12 +1766,15 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       // contacts are free; each distinct opposing contact is $1M to its owner,
       // and Construction is the one phase allowed to go into debt (DEC-018).
       const station = stationAt(pt, s.stations);
-      const contacts = routeContacts(s, me.id, from, pt);
+      const contacts = routeContacts(s, me.id, from, pt, lineIndex);
       const toll = contactToll(contacts);
       if (toll > 0) {
         me.money -= toll;
         me.tollsPaid += toll;
         for (const contact of contacts) s.players[contact.ownerId].money += SUBWAY_CONFIG.contact.toll;
+      }
+      for(const contact of contacts.filter(c=>c.kind==='station')) {
+        (me.stationAccess??=[]).push({contractId:line.contractId,ownerId:contact.ownerId,anchors:contact.stationAnchors!});
       }
       me.properCrossings += countAnyCrossings(s, nodePoint(from), targetPoint(pt, slot, station));
       line.route.push({
@@ -1764,6 +1784,9 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
 
       // Legal BUILD rejects completed lines; Undo restores the prior balance.
       if (lineComplete(line)) me.money += SUBWAY_CONFIG.completionReward;
+      const payments:MoneyEvent['payments']=contacts.map(c=>({from:me.id,to:c.ownerId,amount:SUBWAY_CONFIG.contact.toll,reason:c.kind==='station'?'Station access':'Line contact'}));
+      if(lineComplete(line))payments.push({from:'bank',to:me.id,amount:SUBWAY_CONFIG.completionReward,reason:'Line completed'});
+      if(payments.length)recordMoney(s,me.id,payments);
       if (!s.firstCompletedPlayerId && me.lines.length === 3 && allLinesComplete(me)) s.firstCompletedPlayerId = me.id;
       me.pendingActions = removeOne(me.pendingActions, lineIndex);
       const contract = contractOf(line)!;
@@ -1826,6 +1849,10 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       restored.nextEventSeq = state.nextEventSeq;
       restored.telemetry = structuredClone(state.telemetry);
       restored.nextTelemetrySeq = state.nextTelemetrySeq;
+      restored.moneyEvents=structuredClone(state.moneyEvents??[]);
+      restored.nextMoneySeq=state.nextMoneySeq;
+      const last=(state.moneyEvents??[]).at(-1);
+      if(last&&!last.reversed&&last.seq>((record.state.moneyEvents??[]).at(-1)?.seq??0))recordMoney(restored,action.playerId,last.payments,true);
       pushEvent(
         restored,
         ctx.now(),

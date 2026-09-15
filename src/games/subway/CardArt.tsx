@@ -181,7 +181,7 @@ export function EngineeringCardFace({
       {!compact && resolved.description.trim() !== resolved.requirement.trim() && <p className="mt-1.5 text-[11px] leading-snug text-stone-600">{resolved.description}</p>}
       <p className="mt-1 text-[11px] font-semibold leading-snug text-stone-700">{resolved.requirement}</p>
       {resolved.tags.includes('Endpoints Only') && <p className="mt-2 text-[10px] text-stone-600">Endpoint = starter or completed final peg.</p>}
-      {resolved.category === 'Station' && <p className="mt-2 text-[10px] text-stone-600">Station = one local cluster of overlapping or horizontally/vertically adjacent nodes from different lines. Separate clusters count once each.</p>}
+      {resolved.category === 'Station' && <p className="mt-2 text-[10px] text-stone-600">Station = one local cluster of horizontally/vertically adjacent nodes from different lines. Separate clusters count once each.</p>}
       <p className="mt-2 text-[10px] text-stone-500">Scores once at game end. Live progress may change.</p>
       {footer}
     </>
@@ -249,9 +249,9 @@ export function DestinationCardFace({
       </div>
       <p className="text-[10px] font-black uppercase tracking-wider text-purple-700">Destination</p>
       <div className="flex gap-1">{stations.map(station => <EngineeringIllustration key={station.id} id={`dest-${station.id}`}/>)}</div>
-      <div className="mt-1.5">
-        <svg viewBox="0 0 120 40" aria-hidden="true" className="w-full rounded bg-purple-50"><path d="M15 20H105" stroke={color} strokeWidth="4"/>{stations.map((station,i)=><StationTile key={station.id} x={15+i*90/(stations.length-1)} y={20} major={station.kind === "major"}/>)}</svg>
-      </div>
+      <div className="mt-2 flex flex-wrap gap-1" aria-label="Required neighborhoods, any order">{stations.map(station=><span key={station.id} className="rounded-full border border-purple-300 bg-purple-50 px-2 py-1 text-xs font-bold text-purple-950">{station.name}</span>)}</div>
+      <p className="mt-2 text-[11px] font-bold text-purple-800">Connect all these neighborhoods · any order.</p>
+      <p className="mt-1 text-[11px] text-stone-700">No start or finish here required. Your connected lines may work together, even unfinished.</p>
       {!compact && <p className="mt-1.5 text-[11px] leading-snug text-stone-600">{resolved.description}</p>}
       <p className="mt-1 text-[11px] font-semibold leading-snug text-stone-700">{resolved.requirement}</p>
       {footer}

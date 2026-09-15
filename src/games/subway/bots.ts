@@ -4,7 +4,7 @@ import { planBotCrews, immediateObjectiveBuild } from './botPlanning';
 import { missionPotential, engineeringPotential, remainingReach } from './objectiveGuidance';
 import { auditPotential, completionGoals } from './auditPolicy';
 
-export const BOT_VERSION = '3';
+export const BOT_VERSION = '4';
 export const PERSONALITIES = ['balanced', 'destination', 'completion', 'cautious'] as const;
 export const SKILLS = ['casual', 'experienced'] as const;
 export type BotSettings = { personality: typeof PERSONALITIES[number]; skill: typeof SKILLS[number] };

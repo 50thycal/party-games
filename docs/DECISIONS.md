@@ -1793,3 +1793,28 @@ use larger bounded zoom-adaptive text, and share area identity with scoring.
 Accepted cost: VP are playtest hypotheses, not calibrated values. New artwork and
 remaining JNCG feedback are deferred to the owner's sequential review. Alternatives
 considered: retain old tiered deck/surveys rejected by owner; new artwork excluded.
+
+### DEC-052 — One-time station access, no stacking and public player pads
+
+Date: 2026-09-15. Status: owner-approved implementation.
+
+The owner approved one PR bundling public leader displays, phone cash/line progress,
+unordered Destination clarification, payment previews/animations, 3N+1 route
+drafting and a thirteenth contract. Copper fills the least represented seven-
+segment range with comparable economics. iPad player pads show names, cash and
+line ownership; progress dots belong only on the owner's phone. Existing longest-
+network VP remain; no new station VP introduced in this display scope.
+
+No peg may stack on any other peg. Orthogonally adjacent different-line pegs
+form stations. Joining an opponent station costs $1M once for that line/opponent/
+station; growth or merger never removes paid access. Existing participants do
+not pay the arriving company back. A different line/station may cost again.
+Every new geometric crossing/contact remains payable separately. Starter joins
+pay the same access fee; the base starter placement is free. This closes a
+starter-only access loophole and was explicitly explained during implementation.
+Undo restores both cash and access. State v23 protects old rooms and replays.
+
+Alternatives: repeated station charges rejected by owner; duplicate-color extra
+contract rejected in planning for readability; per-line progress on public iPad
+pads omitted at owner's request. Remaining highlight privacy and bendable segments
+remain parked for sequential review.

@@ -1,3 +1,5 @@
+import { PhoneStatus, PlayerPads } from '../src/games/subway/PlayerStatus';
+import { DestinationCardFace } from '../src/games/subway/CardArt';
 import assert from 'node:assert/strict';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ContractCard } from '../src/games/subway/cards';
@@ -40,7 +42,7 @@ for(const target of [{x:3,y:0},{x:5,y:0}]) {
 }
 assert.equal(validateNode(starters,id,1,{x:7,y:0},true),null);
 assert.equal(validateNode(starters,id,1,{x:4,y:0},true),null,'adjacent empty starter allowed');
-assert.equal(validateNode(starters,id,0,{x:5,y:0},false),null,'ordinary construction may still share a peg');
+assert.match(validateNode(starters,id,0,{x:5,y:0},false)!,/occupied/,'ordinary construction cannot stack either');
 
 const red=contractById('short')!;
 for(const built of [0,3,4]) {
@@ -104,3 +106,14 @@ goals.phase='RESULTS';
 assert.deepEqual(companionView(state,device).reportContext?.controllers?.[0].humanActions,1);
 assert.ok(!JSON.stringify(companionView(state,device).reportContext).includes('private'));
 console.log('GZZF deadlines, completion economics, starter occupancy, segment rendering, objective guidance and report provenance passed.');
+
+// Public pads contain ownership/cash only; private phone adds peg progress.
+{
+ const s=fixture();s.players[id].lines=[line('short',[[0,0],[2,0],[5,0]])];
+ const phone=renderToStaticMarkup(<PhoneStatus game={s} playerId={id}/>);
+ assert.match(phone,/2\/4 segments/);assert.match(phone,/2 pegs and 2 segments left/);assert.match(phone,/Diamond = starter/);
+ const pads=renderToStaticMarkup(<PlayerPads game={s} roomKey="fixture"/>);
+ assert.match(pads,/Player panels/);assert.doesNotMatch(pads,/segments left|Diamond = starter/);
+ const destination=renderToStaticMarkup(<DestinationCardFace card="dest-market-grand" color="#fff"/>);
+ assert.match(destination,/any order/);assert.match(destination,/No start or finish here required/);
+}

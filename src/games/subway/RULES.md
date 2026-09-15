@@ -8,7 +8,7 @@ A light-strategy route-building game for **2–4 companies**. Most victory point
 2. Draft three route contracts each, at list price, from a replenishing row of
    two/three/four choices for two/three/four players. No passing or discounts.
 3. Draft **three Engineering goals each**, choosing between two face-up cards or a blind draw.
-4. Place one free starter for each route on an **empty**, non-neighborhood outer-border hole. A starter cannot overlap any company's existing peg including your own. Adjacent empty holes are allowed. Later construction may still share pegs under the normal transfer and toll rules.
+4. Place one free starter for each route on an **empty**, non-neighborhood outer-border hole. A starter cannot overlap any company's existing peg including your own. Adjacent empty holes are allowed. No placement may stack pegs. Joining an opponent station with a starter pays its access fee; otherwise starters are free.
 5. Play up to **9 construction rounds**, choosing crews anew each turn. End
    immediately if no incomplete route has a legal next segment.
 6. Score all held goals and routes; subtract unfinished-route
@@ -20,8 +20,8 @@ Engineering cards describe their company-wide scoring conditions.
 
 ## Drafting
 
-The route pool supplies 6/9/12 unique routes for 2/3/4 companies. Refill the visible
-row after each purchase while the deck lasts. Every player must take one per turn.
+The route pool supplies 7/10/13 unique routes for 2/3/4 companies. Refill the visible
+row after each purchase while the deck lasts. Every player must take one per turn. Stop after three picks each; the final picker chooses between two and one card stays unused.
 
 The Engineering pile contains **one copy of each of 21 goals**. Each player drafts
 three goals. Show two face-up goals, refilling after each pick, or draw blind.
@@ -45,6 +45,7 @@ Pick order follows the same cyclic seats in both drafts and construction. Every 
 | Gray Line | GY | 4, 5, 2, 4, 3, 5 | $9M | 6 | -6 |
 | White Line | WH | 6, 3, 5, 4, 2 | $10M | 6 | -6 |
 | Brown Line | BR | 2, 3, 2, 4, 3 | $6M | 5 | -5 |
+| Copper Line | CO | 3, 5, 4, 6, 3, 5, 4 | $11M | 9 | -8 |
 
 Contracts retain their recipes, prices, completion points and unfinished penalties.
 Route-specific specials and per-line large neighborhood bonuses are removed. Neighborhood visits award no automatic VP. White Line uses dark casing and dark
@@ -58,9 +59,9 @@ Each neighborhood appears in exactly three pairs and four or five triples.
 Shuffle the remaining cards together for optional purchases.
 Two-neighborhood missions pay **4 VP**, three-neighborhood missions **7 VP**.
 
-All named neighborhoods must be reachable within one connected company network.
+All named neighborhoods must be reachable within one connected company network, in any order. None is a required starting or finishing point.
 Different lines may contribute and need not be complete. Different company lines
-transfer at overlapping nodes or immediately adjacent nodes horizontally/vertically,
+transfer at immediately adjacent nodes horizontally/vertically,
 anywhere on the board. Diagonal nodes, sharing an area without nearby nodes,
 string crossings and opponents' routes do not connect your lines.
 
@@ -85,7 +86,7 @@ Shared terms appear on cards with text and simple symbols:
 | Complete Line | Every printed segment has been built. |
 | Endpoints Only | A starter or the final peg of a completed line. Growing ends and intermediate pegs do not count. |
 | Consecutive Nodes | Two successive nodes on the same line, joined by one segment. |
-| Station cluster | A whole local group joined by overlapping or orthogonally adjacent different-line nodes. Same-line pairs alone do not form a station. |
+| Station cluster | A whole local group joined by orthogonally adjacent different-line nodes. Same-line pairs alone do not form a station. |
 | Distinct Stations | Separate whole clusters; merging two clusters makes them count once. |
 | Your Lines | Only nodes on your own different lines supply transfers. |
 | Opponent Contact | Shared Stations explicitly includes opponents. The same opponent can participate at both stations. |
@@ -137,11 +138,25 @@ Unless a card requires completion or a final peg, incomplete lines may qualify.
 ## Longest network — public goal
 
 At scoring, find each company's longest continuous trail of built segments.
-Measure length in **peg spaces between exact peg positions**; transfers add zero length. Transfer between different company lines at overlapping or horizontally/vertically adjacent nodes. A peg may be
+Measure length in **peg spaces between exact peg positions**; transfers add zero length. Transfer between different company lines at horizontally/vertically adjacent nodes. A peg may be
 revisited, but no segment may be used twice. Disconnected sections cannot be added;
 branches only count if a single trail can traverse them without reusing a segment.
 The longest company receives **5 VP**, or **3 VP each** when tied. An empty network
 never wins the award. Unfinished lines can contribute.
+
+## Public standings and player status
+
+The iPad shows current longest-network length and largest local station size.
+Largest-station leadership goes to the company with the most pegs in the largest
+cluster; equal majorities or equally large stations display tied leaders. These
+are live standings, not an additional VP award. Empty boards have no leader.
+The phone also shows your own network length and greatest own peg count in one
+station. Distant stations never become one cluster through strings alone.
+
+Bottom iPad player pads show names, cash and line colors/codes. Confirmed payments
+show corresponding debits/credits beside these pads, with reversed signs on Undo.
+The phone top bar adds own line progress: starter diamond plus filled/empty peg
+dots and segment counts. The starter never counts as a built segment.
 
 ## Construction rounds
 
@@ -185,10 +200,10 @@ is not service. There are **no dock limits**. Multiple companies and lines may
 serve the same area. Visits matter for destinations and Engineering objectives. Exact peg positions
 determine all segment lengths, turns and physical contacts.
 
-Different company lines transfer only at overlapping or horizontally/vertically
+Different company lines transfer only at horizontally/vertically
 adjacent nodes. Sharing a neighborhood alone does not connect lines. An opponent's route never joins your network. Shared areas alone cost no toll.
 
-Normal pegs may share holes, sit on other colors' strings, or be adjacent. A line
+Every hole holds at most one peg, regardless of company or line. Pegs may sit on other colors' strings at empty holes, or be adjacent. A line
 cannot cross or rejoin any earlier segment of its own color. Other colors may cross and
 pass through pegs. Only collinear **string overlap** is prohibited. Stations never
 block strings passing over them. The current route glows during construction; a
@@ -197,8 +212,19 @@ selected next node draws a translucent route-colored segment until Confirm.
 Each distinct contact with another company's network costs **$1M to that
 owner**. Multiple incident strings at one vertex cost once per owner. If several
 companies share a contacted point, pay each. Contacts with your own routes are
-free. Departing an already shared node is not charged again. Construction can incur debt; every $1M still owed
+free. Departing a previously contacted point is not charged again. Construction can incur debt; every $1M still owed
 at the end costs **−4 VP**.
+
+Joining an opponent's station costs **$1M once per line, opponent and local
+station**, including when the joining peg is a starter. Multiple neighboring pegs
+in that station do not multiply the access fee. Later additions on that same line
+are free at that station. A different line or separate station may require another
+payment. Existing station participants do not pay the newcomer back when they
+later expand. Growth and merged clusters preserve previously obtained access.
+Each participating opponent receives their respective access payment. Crossing
+or otherwise touching opposing strings is always priced separately—even after
+station access has been paid. Preview shows recipients/reasons before Confirm;
+Undo restores money and the access record.
 
 Each Confirm consumes one hired action. Undo restores the latest physical placement,
 its toll transfers and pending action, until another accepted action occurs.
@@ -224,7 +250,7 @@ complete accepted-action ledger: setup, cards, routes, placements, crew and toll
 economy, Undo actions, scoring, timing, and the construction end reason. Rejected
 actions are not tracked because they never change reducer state.
 
-State version **22** requires a fresh game for the new card deck and survey removal;
+State version **23** requires a fresh game for station access, no stacking and the expanded route pool;
 old saves are not migrated. Neighborhood names and size labels fit wholly inside
 their actual footprints, with wrapped text and camera-adaptive font sizes.
 Automated games test termination and rule behavior, not human enjoyment or
