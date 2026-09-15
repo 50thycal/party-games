@@ -1,0 +1,18 @@
+{
+  "id": "2c7a1abff042738c85b7b6a46065b428f7498069eda83d6d2aa0eb82df104ba3",
+  "path": "2c7a1abff042738c85b7b6a46065b428f7498069eda83d6d2aa0eb82df104ba3/original.txt",
+  "source": "human",
+  "stateVersion": 21,
+  "rules": null,
+  "build": null,
+  "players": 2,
+  "actions": 69,
+  "cohort": "reference",
+  "replay": "unavailable",
+  "validation": "legacy",
+  "comparisonEligible": false,
+  "archivedAt": "2026-09-15T02:13:38.112Z",
+  "reportedRoom": "JNCG",
+  "exportFormat": "legacy-markdown",
+  "sourceEvidence": "Controller table: 33 and 34 human gameplay actions, zero bot/unknown; two host setup/scoring actions excluded."
+}
