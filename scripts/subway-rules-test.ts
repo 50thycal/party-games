@@ -222,7 +222,7 @@ const DECK_ORDER = ["branch", "medium", "express", "crosstown", "long", "short"]
   assert.equal(validateNode(s, "red", 0, { x: 1, y: 2 }), null, "so is a 1-2 diagonal at 2.24");
   assert.match(validateNode(s, "red", 0, { x: 3, y: 0 }) ?? "", /must span 2/, "a 3 is not a 2");
   assert.match(validateNode(s, "red", 0, { x: 2, y: 2 }) ?? "", /must span 2/, "and neither is 2.83");
-  assert.match(validateNode(s, "red", 0, { x: 0, y: 0 }) ?? "", /must span 2/, "nor is no distance");
+  assert.match(validateNode(s, "red", 0, { x: 0, y: 0 }) ?? "", /occupied/, "cannot stack on the same peg");
 }
 
 // The recipe is ordered: the second segment must be the second length.
@@ -280,8 +280,8 @@ const DECK_ORDER = ["branch", "medium", "express", "crosstown", "long", "short"]
   assert.equal(s.players.red.lines[0].route[1].stationId,"garden");
   assert.equal(s.players.red.lines[0].route[1].stationSlot,undefined);
   const shared=dispatch(s,"blue","BUILD",{lineIndex:0,x:14,y:2});
-  assert.equal(shared.players.blue.lines[0].route.length,2,"another company can share the same peg");
-  assert.equal(shared.players.blue.tollsPaid,1,"ordinary contact toll still applies");
+  assert.equal(shared,s,"another company cannot stack on the same peg");
+  assert.equal(shared.players.blue.tollsPaid,0,"rejected stacking never charges");
   assert.equal(before.players.red.lines[0].route.length,1,"reducer preserves old state");
 }
 

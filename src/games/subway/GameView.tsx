@@ -2,6 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { PlayerPads, PublicLeaders } from "./PlayerStatus";
+import { quoteBuildCost } from "./buildCost";
+import { stationAccessContacts } from "./stationAccess";
+import { routeContacts } from "./config";
 import { CrewBoard } from "./CrewBoard";
 import { objectiveMet, objectiveProgress } from "./config";
 import { lessonForPhase } from "./tutorial";
@@ -201,7 +205,7 @@ type BoardMode = "none" | "place" | "planner";
 
 const PLAN_PHASES = new Set(["ENGINEERING", "SCHEDULING", "STARTER_PLACEMENT", "CONSTRUCTION"]);
 
-export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, lessonZone, lessonBeat = 0, boardOnly = false, remotePlans, onSaveGhost, highlightedStations = [], destinationHighlights = [], reportContext }: GameViewProps<SubwayState> & {reportContext?: SubwayReportContext; lessonZone?: TableZone; lessonBeat?: number; boardOnly?: boolean; highlightedStations?: string[]; destinationHighlights?: DestinationHighlight[]; remotePlans?: Record<string,SavedPlan>; onSaveGhost?: (contractId:string,nodes:RouteNode[])=>Promise<void>}) {
+export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, lessonZone, lessonBeat = 0, boardOnly = false, externalBottom = 0, remotePlans, onSaveGhost, highlightedStations = [], destinationHighlights = [], reportContext }: GameViewProps<SubwayState> & {reportContext?: SubwayReportContext; lessonZone?: TableZone; lessonBeat?: number; boardOnly?: boolean; externalBottom?: number; highlightedStations?: string[]; destinationHighlights?: DestinationHighlight[]; remotePlans?: Record<string,SavedPlan>; onSaveGhost?: (contractId:string,nodes:RouteNode[])=>Promise<void>}) {
   const raw = state as SubwayState | undefined;
   const stale = !!raw && raw.version !== SUBWAY_STATE_VERSION;
   const game = raw && !stale ? raw : undefined;
@@ -727,7 +731,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
         <p className="text-xs font-bold uppercase tracking-[.3em] text-amber-800">Metropolitan Transit Authority · 2–4 players</p>
         <h2 className="mt-2 font-serif text-3xl font-black">Subway</h2>
         <p className="mx-auto my-4 max-w-xl text-sm text-stone-600">
-          Build a city that connects. Each company takes three routes from a pool of twelve services. Each carries an
+          Build a city that connects. Each company takes three routes from a pool of thirteen services. Each carries an
           ordered recipe of segment lengths and its own line color. Draft Engineering goals,
           place starters, choose crews each round, then
           engineer the routes hole by hole — all on one table you pan and zoom around.
@@ -1039,8 +1043,15 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
 
   // ---- The screen-level strip: the only commitment control -------------------
 
+  const pricedContacts=me&&preview&&!manualPlanner&&activeLine
+    ? placingStarter?stationAccessContacts(game,me.id,activeLineIndex,preview):activeLine.route.length?routeContacts(game,me.id,activeLine.route.at(-1)!,preview,activeLineIndex):[]:[];
+  const price=me?quoteBuildCost(me,pricedContacts):null;
   const actionStrip = (
     <div className="pointer-events-auto rounded-2xl border-2 border-[#6b4b2c] bg-[#fffaf0]/95 p-2.5 text-stone-900 shadow-2xl backdrop-blur-sm">
+      {price&&preview&&!manualPlanner&&<div aria-label="Placement payment preview" className="mb-2 rounded-lg bg-amber-100 px-2 py-1 text-xs text-amber-950">
+        <b>{price.totalToll?`Pay $${price.totalToll}M before building · cash after payments $${price.cashAfter}M`:'No opponent payment for this placement'}</b>
+        {price.recipients.map(r=><p key={r.ownerId}>Pay {game.players[r.ownerId].name} ${r.amount}M · {Array.from(new Set(pricedContacts.filter(c=>c.ownerId===r.ownerId).map(c=>c.kind==='station'?'first station access':'crosses or touches their line'))).join(' + ')}</p>)}
+      </div>}
       {notice && (
         <p className="mb-1.5 rounded-lg bg-red-100 px-2 py-1 text-center text-xs font-bold text-red-900">{notice}</p>
       )}
@@ -1203,7 +1214,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
         </div>
       </div>
 
-      <NarrationOverlay event={mobile ? null : narration.overlay} onDismiss={narration.dismiss} />
+      <NarrationOverlay event={mobile || narration.overlay?.kind === "PLACEMENT" || narration.overlay?.kind === "ROUTE" ? null : narration.overlay} onDismiss={narration.dismiss} />
 
       <div
         ref={hudBottomRef}
@@ -1225,6 +1236,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
           ))}
         </div>
         <div className="w-full max-w-3xl">{actionStrip}</div>
+        {!boardOnly&&<><PublicLeaders game={game}/><PlayerPads game={game} roomKey={room.roomCode}/></>}
       </div>
     </div>
   );
@@ -1248,7 +1260,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
         onCamera={(scale) => setZoomPct((prev) => (Math.round(scale * 100) === prev ? prev : Math.round(scale * 100)))}
         overlay={hud}
         openZone={lessonZone ?? phaseZone}
-        bottomInset={0}
+        bottomInset={externalBottom}
         hudTop={bands.top}
         hudBottom={bands.bottom}
         label="Subway tabletop — drag to pan, pinch or scroll to zoom"

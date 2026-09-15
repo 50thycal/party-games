@@ -18,15 +18,14 @@ for(const size of [2,3]) {
     assert.ok(size===2?n===3:n===4||n===5);
   }
 }
-// Legal 15-segment witness: all four corners through three distinct contracts.
+// Legal 11-segment witness: opposite corners without any stacked pegs.
 // At most seven builds on any one line, so it fits inside nine rounds.
 {
   const game=subwayGame.initialState(testRoom(2).players);game.stations=[];
   const player=game.players["seat-1"];
   const routes: [string,number[][]][]=[
-    ["long",[[0,0],[4,0],[10,0],[13,0],[18,0],[19,2],[22,4],[26,0]]],
-    ["short",[[1,0],[0,2],[2,4],[2,6],[0,8]]],
-    ["tram",[[26,0],[26,2],[24,4],[26,8]]]
+    ["long",[[0,0],[4,0],[10,0],[13,0],[18,0],[19,2],[22,4],[26,8]]],
+    ["short",[[1,0],[0,2],[2,4],[2,6],[0,8]]]
   ];
   player.lines=routes.map(([contractId])=>({contractId,paid:0,route:[]}));
   // All distinct starters precede construction, as they do in a real game.

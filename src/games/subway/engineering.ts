@@ -37,7 +37,7 @@ export const ENGINEERING_RULES:Record<string,string> = {
   'Distinct Stations':'Separate whole local clusters. One cluster cannot count twice; merged clusters count once.',
   'Opponent Contact':'This card explicitly allows opponent nodes; ordinary transfer cards require your own lines.',
   'Your Lines':'Transfers require nodes from different lines belonging to you.',
-  'One Station':'One local cluster of overlapping or horizontally/vertically adjacent different-line nodes.',
+  'One Station':'One local cluster of horizontally/vertically adjacent different-line nodes.',
   'One Neighborhood':'The qualifying transfer nodes are inside the same neighborhood.',
 };
 export const qualifyingEndpoints = (lines:PlayerLine[]):RouteNode[] => lines.flatMap(l => l.route.length ? [l.route[0],...(lineComplete(l)?[l.route.at(-1)!]:[])] : []);

@@ -2,7 +2,7 @@
 
 <!-- How does this system work TODAY? Present tense. Not a roadmap, not a history. -->
 
-**Last updated:** 2026-09-12 · **Build OS v0.12** (see [50thycal/build-os](https://github.com/50thycal/build-os))
+**Last updated:** 2026-09-15 · **Build OS v0.12** (see [50thycal/build-os](https://github.com/50thycal/build-os))
 
 Project memory has three layers: this file (how the system works today),
 [`DECISIONS.md`](DECISIONS.md) (why), and [`workstreams/`](workstreams/ACTIVE.md) (what is being
@@ -54,8 +54,7 @@ select or construct real pegs. Poll failures disable board interaction until rec
 
 Phones show a persistent next-step instruction with a direct page link, including
 while another company drafts. Card status includes live VP and Completed text.
-A newly observed completed line produces a dismissible +$3M notice on both device
-roles; reconnecting to an already completed line does not replay the reward.
+Public money events drive player-panel debit/credit animations and completion rewards; remounting establishes a watermark without replaying old money events.
 
 An authenticated phone can toggle its owned Destinations on the shared iPad.
 Enabled selections persist across turns and reconnects until their owner disables
@@ -522,8 +521,7 @@ Construction cards and their special timing/economy effects have been removed.
 
 Cyclic draft helpers keep the same seat order within and between stages. Construction
 rounds keep the same opener so two-player round boundaries do not give double turns. Stale card-pick
-tokens and duplicate goals are rejected. BUY_SURVEYS follows drafting, then optional
-pin placement and all three route starters. There is no commitment or assignment.
+tokens and duplicate goals are rejected. The final Engineering pick proceeds directly to all three route starters. There is no commitment or assignment.
 Legacy schedule/commitment types and dormant helpers remain unreachable in v17.
 
 `network.ts` provides own-node connectivity and longest edge-simple trails. Shared
@@ -534,7 +532,7 @@ undo-restored first-completion player field. Longest network scores logical peg-
 length without segment reuse: 5 VP to one winner or 3 each on a tie. Route specials
 and per-contract Major bonuses are removed, retaining ordinary station scoring.
 
-Contracts keep stable internal IDs, recipes and prices, but display twelve color
+Contracts keep stable internal IDs, recipes and prices, and display thirteen color
 names with unique two-letter codes. Neighborhoods have no dock limits at any player count.
 Placed and planned area nodes retain the neighborhood ID plus the exact integer hole;
 there are no physical dock offsets.
@@ -555,7 +553,7 @@ Undo step reverses one unconfirmed sketch node, preserving the committed prefix 
 
 RouteBuildGuide derives starter instructions, next real segment length and remaining segments from the committed route, never from ghost sketches. The active contract and automatic planner share this guide; manual Plan remains separate. A static FROM marker identifies the growing real route endpoint without intercepting taps. Lines focus prefers the active contract and falls back to the first piece.
 
-Automatic framing also follows completed company handoffs and new construction rounds, but not routine polls. Focus magnification is capped at 110%; manual zoom can go closer. Survey purchase quantity is company/room-local and resets across handoffs.
+Automatic framing also follows completed company handoffs and new construction rounds, but not routine polls. Focus magnification is capped at 110%; manual zoom can go closer. Public player pads stay outside the camera and show cash and line ownership.
 
 All devices use TabletopCanvas: board, illustrated card faces and company pieces share one locally zoomable/pannable world. Phone overlays are limited to camera shortcuts and current placement controls. GameView owns targets, validation, pending peg, sketches and reducer dispatch. Settings contains public logbook entries; results also have a readable screen sheet and report text/download fallback. No state-version migration is required: presentation and previews are client-local.
 
@@ -579,7 +577,7 @@ State stores exact `cells`; `stationAt` tests membership. Old station IDs and ma
 minor internal category keys remain for cards, but no capacity field or dock cap remains.
 
 Only placing a node inside serves an area. Different company lines transfer at
-overlapping or orthogonally adjacent nodes, anywhere on the board. Sharing an area
+orthogonally adjacent nodes, anywhere on the board. Sharing an area
 alone, diagonals, string-only crossings and opponents do not supply transfers. Every
 physical contact uses actual hole geometry, including neighborhood pegs. Sharing an
 area alone costs nothing. Longest network counts built segments, not transfer distance.
@@ -598,7 +596,7 @@ deals one of each without replacement; remaining cards shuffle together for the
 once-per-game $5M purchase. A mission checks the intersection of component sets
 serving each named area: repeated area visits cannot merge separated networks.
 
-Transfer groups collapse only overlapping/orthogonal nodes from different lines.
+Transfer groups collapse only orthogonal nodes from different lines.
 Company components add built segments; longest trail traverses only those weighted
 segments with a used-edge mask, adding no transfer length and not summing branches.
 Engineering card scopes and awards are specified in the current RULES.md and
@@ -613,8 +611,7 @@ exposes the same score to draft/hand/phone copy, final ledger, reports, bots and
 the Card Audit. Single Line, Connected Network and Company-wide are separate
 scopes. Endpoint = starter or completed final peg; Across Town/Opposite Corners
 accept any qualifying pair in one own network, including two starters/two finals.
-Station predicates count whole local clusters of different-line overlapping or
-orthogonally adjacent nodes. Only Shared Stations includes opponents; opponents
+Station predicates count whole local clusters of different-line orthogonally adjacent nodes. Only Shared Stations includes opponents; opponents
 never bridge own networks. Cluster merging may remove a distinct-station award.
 All cards score once at game end, no tiers, with provisional live status.
 
@@ -629,6 +626,43 @@ footprint, wraps names and adapts fonts to camera zoom within that space. Board
 labels use the same area objects as hit testing and scoring, with stronger borders
 and size captions. Backings/text are pointer-transparent; peg targets render above.
 Generated layouts and the exact JNCG exported layout are regression fixtures.
+
+### Player status, station access and fair drafting (DEC-052, state v23)
+
+The route pool contains 3N+1 contracts for N companies. Copper is the second
+seven-segment service (3,5,4,6,3,5,4; $11M; complete 9 VP; unfinished -8 VP).
+The reducer ends Procurement after 3N picks, leaving one card. Refilling the
+player-count-sized row gives the final picker two choices at every supported count.
+Destination names use equal-neighborhood lists, with explicit any-order, no-endpoint
+copy shared by faces/reports. Connected unfinished own lines can contribute.
+
+All starter/build holes must be vacant across all companies and lines; plans use
+the same validator. Strings still may cross or contact at empty holes. Own network
+and Engineering transfer clusters retain orthogonal adjacency. State v23 requires
+restart and new plan/replay namespaces. Bot policy v4/audit policy v3 identify new rules.
+
+`stationAccess.ts` prices a newly joined local mixed-owner cluster once per line,
+opponent and station. Receipts anchor to actual holes, preserving access through
+growth/merges. Existing participants do not pay later arrivals back. A different
+line or separate station can incur another access fee. Starter joins pay access
+immediately but have no base placement cost. `routeContacts` adds new station
+fees to unchanged geometric contact charges; every new crossing remains priced.
+BUILD and starter reducers transfer cash, record receipts and create public money
+events. Full-state Undo restores cash/receipts and appends a monotonic reversal.
+
+Public money events include only recipients, amounts and reasons. They are bounded
+to 20, separate from private telemetry, and pass through companion projections.
+`PlayerPads` is outside the remounting iPad table: player name/cash/line codes and
+colors, no progress dots, with paired debit/credit and reduced-motion-compatible
+transfer animation. Initial load sets a watermark; repeated polls do not replay it.
+The measured pad height reserves canvas space. Hotseat uses the measured HUD band.
+Phone status is sticky above its scrolling cards and includes own line peg dots,
+a separate starter diamond and segment progress. Room/device details move to Settings.
+
+`publicStatus.ts` computes live longest-network ties and largest local station
+size/majority leaders from public built pegs. Equal largest clusters/majorities
+show tied leaders. This is a display, not a new station VP award. Empty boards
+have no leader; public pads never expose private goals or sketches.
 
 ## Subway Playtest Lab (WS-005 continuation)
 

@@ -15,9 +15,9 @@ const met = (id:string,s:SubwayState) => objectiveMet(id,s.players["seat-1"],[s.
 assert.equal(ENGINEERING_CARDS.length,21);
 assert.equal(new Set(ENGINEERING_CARDS.map(c=>c.id)).size,21);
 assert.equal(ENGINEERING_CARDS.some(c=>c.id==="parallel"),false);
-assert.equal(new Set(LINE_CONTRACTS.map(c=>c.code)).size,12);
+assert.equal(new Set(LINE_CONTRACTS.map(c=>c.code)).size,13);
 assert.ok(LINE_CONTRACTS.every(c=>/^[A-Z]{2}$/.test(c.code)));
-assert.deepEqual(new Set(LINE_CONTRACTS.map(c=>c.name)),new Set(["Red","Blue","Green","Yellow","Orange","Purple","Pink","Black","White","Gray","Teal","Brown"].map(c=>`${c} Line`)));
+assert.deepEqual(new Set(LINE_CONTRACTS.map(c=>c.name)),new Set(["Red","Blue","Green","Yellow","Orange","Purple","Pink","Black","White","Gray","Teal","Brown","Copper"].map(c=>`${c} Line`)));
 assert.equal(DESTINATION_CARDS.length,30);
 assert.equal(new Set(DESTINATION_CARDS.map(c=>c.id)).size,30);
 assert.ok(DESTINATION_CARDS.every(c=>c.vp===(c.stationIds.length===2?4:7)));
