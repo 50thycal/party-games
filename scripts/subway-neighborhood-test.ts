@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { randomStationLayout, stationAt, nodePoint, destinationMet, DESTINATION_CARDS, scoreGame, surveyBlocker, legalTargets, validateNode, type PlayerLine } from "../src/games/subway/config";
+import { randomStationLayout, stationAt, nodePoint, destinationMet, DESTINATION_CARDS, scoreGame, legalTargets, validateNode, type PlayerLine } from "../src/games/subway/config";
 import { companyNetwork, longestNetwork } from "../src/games/subway/network";
 import { startPlaytest, seededRandom } from "../src/games/subway/playtest";
 
@@ -33,7 +33,6 @@ for (const count of [2,3,4]) for (let seed=1;seed<=100;seed++) {
     s.players["seat-1"].lines[0].route=[from];
     assert.equal(validateNode(s,"seat-1",0,cell),null,"every area hole has a legal approach on an empty board");
     if (cell === area.cells![0]) assert.ok(legalTargets(s,"seat-1",0).some(t=>t.x===cell.x&&t.y===cell.y&&t.slot===undefined));
-    assert.ok(surveyBlocker(s,"seat-1",cell),"surveys cannot occupy neighborhoods");
   }
   layouts.add(JSON.stringify(areas));
 }

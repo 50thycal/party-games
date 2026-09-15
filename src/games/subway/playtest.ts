@@ -56,8 +56,7 @@ export function playtestAction(s: SubwayState, random: () => number): SubwayActi
     case "ENGINEERING":
       if(s.engineeringStep==="CARD_DRAFT") {const deck="engineering"; return action("DRAFT_CARD",{deck,cardId:s.market.decks[deck].length?undefined:s.market.rows[deck][0],expectedPick:s.market.picks});}
       if(s.engineeringStep==="DESTINATION_DRAFT") return action("PICK_DESTINATION",{destinationCardId:s.destinationRow[0]});
-      if(s.engineeringStep==="SURVEY") throw new Error("Playtester does not buy speculative survey pins.");
-      return action("BUY_SURVEYS",{surveys:0});
+      throw new Error("Unexpected Engineering step");
     case "SCHEDULING":
       return action(s.schedulingStep==="PLANNING" ? "SUBMIT_SCHEDULE" : "CONFIRM_SCHEDULE");
     case "STARTER_PLACEMENT": {

@@ -1,5 +1,6 @@
 "use client";
 
+import { neighborhoodLabel } from "./neighborhoodLabels";
 import type { DestinationHighlight } from "./companion";
 
 import {
@@ -7,7 +8,6 @@ import {
   SUBWAY_CONFIG,
   nodePoint,
   neighborhoodSize,
-  surveyFulfilled,
   type LineContract,
   type PlacementTarget,
   type Point,
@@ -59,6 +59,7 @@ export type DrawnLine = {
 
 export function Board({
   game,
+  zoom = 1,
   targets,
   following,
   selected,
@@ -70,6 +71,7 @@ export function Board({
   onTapHole,
 }: {
   game: SubwayState;
+  zoom?: number;
   targets: PlacementTarget[];
   /** Where the line could go *after* the selected target. Informational only. */
   following: PlacementTarget[];
@@ -154,6 +156,9 @@ export function Board({
       {/* Footprints sit behind every peg, route and legal-target marker. */}
       {game.stations.map((area) => {
         const footprint = area.cells ?? [area];
+        const label = neighborhoodLabel(area, zoom);
+        const labelX=PAD+(label.x+label.width/2)*STEP;
+        const labelY=PAD+(label.y+label.height/2)*STEP;
         const occupied = new Set(footprint.map(p => `${p.x},${p.y}`));
         const color = STATION_COLORS[Math.max(0, STATIONS.findIndex(s => s.id === area.id)) % STATION_COLORS.length];
         const markers=destinationHighlights.filter(h=>h.stationIds.includes(area.id));
@@ -173,14 +178,15 @@ export function Board({
           ];
         }).join(" ");
         return <g key={area.id} aria-label={`${area.name}: ${neighborhoodSize(area)} neighborhood${highlighted ? ", destination target" : ""}`} pointerEvents="none">
-          <title>{area.name} · {neighborhoodSize(area)} · Place a peg anywhere inside · No dock limit</title>
+          <title>{`${area.name} · ${neighborhoodSize(area)} · Place a peg anywhere inside · No dock limit`}</title>
           {footprint.map(p=>{const pos=holePos(p);return <rect key={`${p.x},${p.y}`} x={pos.x-STEP/2} y={pos.y-STEP/2} width={STEP} height={STEP} fill={markers[0]?.color ?? (highlighted ? "#facc15" : color)} fillOpacity={highlighted ? 0.38 : 0.18}/>;})}
-          <path d={edges} fill="none" stroke={markers[0]?.color ?? (highlighted ? "#eab308" : color)} strokeWidth={highlighted ? 8 : 3} strokeLinejoin="round"/>
+          <path d={edges} fill="none" stroke={markers[0]?.color ?? (highlighted ? "#eab308" : color)} strokeWidth={highlighted ? 8 : 5} strokeLinejoin="round"/>
           {markers.map((h,i)=><g key={h.playerId+h.cardId}><rect x={badgeX+(i%badgeColumns)*58} y={badgeY+Math.floor(i/badgeColumns)*22} width="56" height="20" rx="4" fill={h.color}/><text x={badgeX+28+(i%badgeColumns)*58} y={badgeY+14+Math.floor(i/badgeColumns)*22} textAnchor="middle" fontSize="11" fontWeight="800" fill="white">{h.label}</text></g>)}
-          <text x={PAD+(left+right)/2*STEP} y={PAD+top*STEP-23} textAnchor="middle" fontSize="17" fontWeight="800" fill={color} stroke="#eaece2" strokeWidth="5" paintOrder="stroke">
-            {area.name}
-          </text>
-          <text x={PAD+(left+right)/2*STEP} y={PAD+top*STEP-10} textAnchor="middle" fontSize="10" fontWeight="700" fill={color}>{neighborhoodSize(area).toUpperCase()}</text>
+          <g data-neighborhood-label={area.id} data-label-box={`${label.x},${label.y},${label.width},${label.height}`}>
+            <rect x={labelX-label.width*STEP/2+3} y={PAD+label.lineYs[0]*STEP-label.font*.65} width={label.width*STEP-6} height={(label.sizeY-label.lineYs[0])*STEP+label.font*.8} rx="8" fill="#fffdf5" fillOpacity=".94" />
+            {label.lines.map((word,i)=><text key={i} x={labelX} y={PAD+label.lineYs[i]*STEP} textAnchor="middle" dominantBaseline="middle" fontSize={label.font} fontWeight="900" fill={color}>{word}</text>)}
+            <text x={labelX} y={PAD+label.sizeY*STEP} textAnchor="middle" fontSize={label.font*.55} fontWeight="800" fill={color}>{area.kind === 'minor' ? 'S · SMALL' : area.kind === 'major' ? 'L · LARGE' : 'M · MEDIUM'}</text>
+          </g>
         </g>;
       })}
 
@@ -190,37 +196,6 @@ export function Board({
           <g key={`h-${c.x}-${c.y}`}>
             <circle cx={p.x} cy={p.y} r="8" fill="#c6d0c7" />
             <circle cx={p.x} cy={p.y} r="5.5" fill="#7c918b" />
-          </g>
-        );
-      })}
-
-      {/* Public Survey Pins. They never occupy a hole, so they sit above and
-          left of it and stay small enough not to hide a peg or string. */}
-      {game.surveyPins.map((pin, i) => {
-        const owner = game.players[pin.playerId];
-        const p = holePos(pin);
-        const cx = p.x - 21;
-        const cy = p.y - 21;
-        const done = !!owner && surveyFulfilled(owner, pin);
-        return (
-          <g key={`pin-${i}`}>
-            <path
-              d={`M ${cx} ${cy - 11} L ${cx + 9} ${cy} L ${cx} ${cy + 11} L ${cx - 9} ${cy} Z`}
-              fill={done ? owner?.color ?? "#78716c" : "#fdf6e3"}
-              stroke={owner?.color ?? "#78716c"}
-              strokeWidth="3"
-            />
-            <text
-              x={cx}
-              y={cy + 3.5}
-              textAnchor="middle"
-              fontSize="10"
-              fontWeight="800"
-              fill={done ? "#ffffff" : owner?.color ?? "#78716c"}
-            >
-              {done ? "✓" : "S"}
-            </text>
-            <circle cx={cx} cy={cy} r="14.5" fill="none" stroke={owner?.color ?? "#000"} strokeWidth="2" opacity="0.85" />
           </g>
         );
       })}

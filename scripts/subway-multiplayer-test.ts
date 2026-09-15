@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import "./subway-plans-test";
+import "./subway-engineering-test";
 import "./subway-objectives-test";
 import "./subway-transfers-test";
 import "./subway-companion-test";
@@ -16,7 +17,7 @@ const dispatch=(s:SubwayState,id:string,type:SubwayAction["type"],payload?:Subwa
 let checks=0;
 for(const count of [2,3,4]) for(const category of ["engineering"] as const) {
   let {state:s}=startPlaytest(count,42);
-  assert.equal(SUBWAY_STATE_VERSION,21);
+  assert.equal(SUBWAY_STATE_VERSION,22);
   assert.ok(!("construction" in s.market.rows) && !("construction" in s.market.decks));
   assert.ok(!("priorityQueue" in s));
   assert.ok(Object.values(s.players).every(p=>!("constructionHand" in p)));
@@ -25,8 +26,8 @@ for(const count of [2,3,4]) for(const category of ["engineering"] as const) {
   assert.equal(new Set(s.stations.map(p=>`${p.x},${p.y}`)).size,10);
   assert.equal(new Set(s.stations.flatMap(p=>p.cells!.map(c=>`${c.x},${c.y}`))).size,124);
   assert.deepEqual(["minor","major","medium"].map(kind=>s.stations.filter(p=>p.kind===kind).length),[3,6,1]);
-  assert.equal(s.market.rows.engineering.length+s.market.decks.engineering.length,16);
-  assert.equal(new Set([...s.market.rows.engineering,...s.market.decks.engineering]).size,16);
+  assert.equal(s.market.rows.engineering.length+s.market.decks.engineering.length,21);
+  assert.equal(new Set([...s.market.rows.engineering,...s.market.decks.engineering]).size,21);
   for(let pick=0;pick<count*3;pick++) {
     const id=nextCompanyId(s)!;
     assert.equal(id,draftTurnId(s,pick,0));
@@ -49,7 +50,7 @@ for(const count of [2,3,4]) for(const category of ["engineering"] as const) {
     assert.equal(dispatch(s,id,"DRAFT_CARD",payload),s);
   }
   assert.ok(Object.values(s.players).every(p=>draftPicks(p)===3));
-  assert.equal(s.engineeringStep,"BUY_SURVEYS");
+  assert.equal(s.phase,"STARTER_PLACEMENT");
   assert.equal(Object.values(s.players).reduce((n,p)=>n+p.engineeringHand.length,0),category==="engineering"?count*3:0,"either category can supply every pick");
   for(const id of s.playerOrder) {
     assert.equal(dispatch(s,id,"LOCK_ENGINEERING_PLAN",{cardIds:[]}),s,"commitment removed");
@@ -58,26 +59,13 @@ for(const count of [2,3,4]) for(const category of ["engineering"] as const) {
   assert.equal(s.phase,"STARTER_PLACEMENT","no separate destination or scheduling phase");
   checks+=10;
 }
-// Survey purchases are optional, paid once, and never allow commitment actions.
+// Removed survey actions are rejected even when sent directly.
 {
-  let {state:s}=runPlaytest(2,3,"BUY_SURVEYS");
-  const id=s.playerOrder[0], other=s.playerOrder[1], cash=s.players[id].money;
-  for(const surveys of [-1,6,1.5])assert.equal(dispatch(s,id,"BUY_SURVEYS",{surveys}),s);
-  s=dispatch(s,id,"BUY_SURVEYS",{surveys:1});
-  assert.equal(s.players[id].money,cash-1);
-  assert.equal(dispatch(s,id,"BUY_SURVEYS",{surveys:1}),s);
-  s=dispatch(s,other,"BUY_SURVEYS",{surveys:0});
-  assert.equal(s.engineeringStep,"SURVEY");
-  const station=s.stations[0];
-  assert.equal(dispatch(s,id,"PLACE_SURVEY",{x:station.x,y:station.y}),s);
-  for (const pt of [{x:0,y:4},{x:26,y:4},{x:12,y:0},{x:12,y:8}]) assert.equal(dispatch(s,id,"PLACE_SURVEY",pt),s,"Starter borders reject surveys");
-  const target=Array.from({length:25},(_,i)=>({x:i+1,y:1})).find(p=>!stationAt(p,s.stations))!;
-  s=dispatch(s,id,"PLACE_SURVEY",target);
-  assert.equal(s.phase,"STARTER_PLACEMENT");
-  const undone=dispatch(s,id,"UNDO_PLACEMENT");
-  assert.equal(undone.phase,"ENGINEERING");
-  assert.equal(undone.surveyPins.length,0);
-  assert.equal(undone.players[id].money,cash-1);
+  const {state:s}=runPlaytest(2,3,"STARTER_PLACEMENT");
+  for(const id of s.playerOrder){
+    assert.equal(dispatch(s,id,"BUY_SURVEYS",{surveys:1}),s);
+    assert.equal(dispatch(s,id,"PLACE_SURVEY",{x:4,y:4}),s);
+  }
 }
 // Economy pressure is intentional: route purchases fit, but expensive portfolios
 // must choose between speed, objectives, cash and debt within nine rounds.

@@ -26,7 +26,6 @@ export type TableZone =
   | "lines"
   | "hand"
   | "office"
-  | "survey"
   | "log"
   | "results";
 

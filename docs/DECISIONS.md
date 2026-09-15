@@ -1773,3 +1773,23 @@ order so completion order cannot change trial selection or break resume.
 Stop drains active pairs. No server service or automatic statistical early stop;
 smaller samples explicitly trade precision for time. Benchmark evidence must
 separate recording savings from sample-size reduction and device concurrency.
+
+### DEC-051 — Three Engineering categories, binary cards and no surveys
+
+Date: 2026-09-15. Status: owner-approved implementation.
+
+The owner approved seven cards each in Line, Station and Neighborhood, common
+scope terms, revised VP and placeholders instead of new artwork. This supersedes
+previous Engineering catalog/tier and survey behavior, while preserving route,
+Destination, longest-network and cash rules. Any qualifying endpoint pair may
+complete Across Town/Opposite Corners in one company network. A final peg only
+qualifies when its contract is complete. Opponents participate only in Shared
+Stations and never connect a company network. Stations are whole local clusters;
+merged clusters count once. Cards score once at game end with recomputed live status.
+
+Surveys are removed rather than replaced. State v22 forces restart for the deck
+and state-shape change. Labels must stay within actual neighborhood footprints,
+use larger bounded zoom-adaptive text, and share area identity with scoring.
+Accepted cost: VP are playtest hypotheses, not calibrated values. New artwork and
+remaining JNCG feedback are deferred to the owner's sequential review. Alternatives
+considered: retain old tiered deck/surveys rejected by owner; new artwork excluded.

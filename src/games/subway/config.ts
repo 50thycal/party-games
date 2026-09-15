@@ -1,4 +1,6 @@
-import { borderSides, distinctSides, companyNetwork, linesConnected, networkNodeKey, longestNetwork, companyComponents, interchangeAt } from "./network";
+import { ENGINEERING_CARDS, engineeringMet, type EngineeringCard } from './engineering';
+export { ENGINEERING_CARDS, type EngineeringCard } from './engineering';
+import { companyNetwork, networkNodeKey, longestNetwork } from "./network";
 export { longestNetwork } from "./network";
 import { defineGame } from "@/engine/defineGame";
 import type { BaseAction, GameContext, Player } from "@/engine/types";
@@ -17,9 +19,8 @@ import type { BaseAction, GameContext, Player } from "@/engine/types";
 // v0.4 (WS-002) turns freehand routes into engineered ones. Every contract owns
 // an ordered recipe of segment lengths and a permanent line color; construction
 // must hit the next length within half a peg and may not turn more than 90°;
-// station docks are chosen explicitly; Engineering splits into a planning step
-// (three objectives + line-bound Destinations + purchased Survey Pins) and a
-// public Survey placement step; and the latest physical placement may be undone.
+// Neighborhoods are served by nodes. Engineering drafts three goals, then
+// starter placement begins. The latest physical placement may be undone.
 //
 // WS-004 (DEC-021/DEC-022) adds a bounded, privacy-safe public event stream that
 // the view narrates over the pegboard, and restricts starter pegs to non-station
@@ -27,7 +28,7 @@ import type { BaseAction, GameContext, Player } from "@/engine/types";
 // ============================================================================
 
 /** Bumped when the state shape changes; older rooms must restart. */
-export const SUBWAY_STATE_VERSION = 21;
+export const SUBWAY_STATE_VERSION = 22;
 
 // ----------------------------------------------------------------------------
 // Tunable configuration
@@ -65,14 +66,6 @@ export const SUBWAY_CONFIG = {
     lengthTolerance: 0.5,
     /** Maximum heading change between consecutive segments, inclusive. */
     maxTurnDegrees: 90,
-  },
-  survey: {
-    /** $M per Survey Pin. */
-    cost: 1,
-    /** Most pins one company may buy in a game. */
-    max: 5,
-    /** VP for a pin the assigned line actually builds through. */
-    vp: 1,
   },
   /** Destination mission rewards and optional purchase. */
   destinationVp: 4,
@@ -237,157 +230,8 @@ export const contractNodes = (c: LineContract): number => c.recipe.length + 1;
 // Cards
 // ----------------------------------------------------------------------------
 
-export type EngineeringCard = {
-  id: string;
-  name: string;
-  description: string;
-  /** One-line statement of exactly what the scorer checks. */
-  requirement: string;
-  vp: number;
-  kind: "objective" | "permission";
-};
-
-export const ENGINEERING_CARDS: EngineeringCard[] = [
-  {
-    "id": "gentle",
-    "name": "Three-Way Service",
-    "description": "Complete all three lines with their final pegs on three different board sides.",
-    "requirement": "Complete all three lines with their final pegs on three different board sides.",
-    "vp": 6,
-    "kind": "objective"
-  },
-  {
-    "id": "bend",
-    "name": "Turning the Corner",
-    "description": "Complete all three lines: each starts on the east or west border and ends on the north or south border.",
-    "requirement": "Complete all three lines: each starts on the east or west border and ends on the north or south border.",
-    "vp": 6,
-    "kind": "objective"
-  },
-  {
-    "id": "straight",
-    "name": "Loop",
-    "description": "Complete all three lines: each ends on the same board side as its starter.",
-    "requirement": "Complete all three lines: each ends on the same board side as its starter.",
-    "vp": 7,
-    "kind": "objective"
-  },
-  {
-    "id": "approach",
-    "name": "Regional Service",
-    "description": "Complete one line serving three different large neighborhoods.",
-    "requirement": "Complete one line serving three different large neighborhoods.",
-    "vp": 6,
-    "kind": "objective"
-  },
-  {
-    "id": "through",
-    "name": "North–South Lines",
-    "description": "All three lines each have a node on both the north and south borders.",
-    "requirement": "All three lines each have a node on both the north and south borders.",
-    "vp": 7,
-    "kind": "objective"
-  },
-  {
-    "id": "network",
-    "name": "Integrated Network",
-    "description": "Complete all three lines and connect them through overlapping or horizontally/vertically adjacent nodes. Sharing an area or crossing strings does not connect lines.",
-    "requirement": "Complete all three lines and connect them through overlapping or horizontally/vertically adjacent nodes. Sharing an area or crossing strings does not connect lines.",
-    "vp": 7,
-    "kind": "objective"
-  },
-  {
-    "id": "terminal",
-    "name": "Citywide Service",
-    "description": "Place at least one company node in each of the ten neighborhoods. Lines need not connect or be complete.",
-    "requirement": "Place at least one company node in each of the ten neighborhoods. Lines need not connect or be complete.",
-    "vp": 10,
-    "kind": "objective"
-  },
-  {
-    "id": "minimal",
-    "name": "Surveyed System",
-    "description": "Complete all three lines and build through at least one of your purchased Survey Pins.",
-    "requirement": "Complete all three lines and build through at least one of your purchased Survey Pins.",
-    "vp": 7,
-    "kind": "objective"
-  },
-  {
-    "id": "crossing",
-    "name": "First to Open",
-    "description": "Be the first company to complete all three lines.",
-    "requirement": "Be the first company to complete all three lines.",
-    "vp": 7,
-    "kind": "objective"
-  },
-  {
-    "id": "crosstown-service",
-    "name": "Across Town",
-    "description": "4 VP: one company network reaches the exact east and west borders. 8 VP: that same network also reaches north and south. Use distinct nodes for each side. Multiple unfinished lines may contribute.",
-    "requirement": "4 VP: one company network reaches the exact east and west borders. 8 VP: that same network also reaches north and south. Use distinct nodes for each side. Multiple unfinished lines may contribute.",
-    "vp": 8,
-    "kind": "objective"
-  },
-  {
-    "id": "local-service",
-    "name": "Local Service",
-    "description": "One line serves all three small neighborhoods. The line need not be complete.",
-    "requirement": "One line serves all three small neighborhoods. The line need not be complete.",
-    "vp": 6,
-    "kind": "objective"
-  },
-  {
-    "id": "interchange",
-    "name": "Central Interchange",
-    "description": "All three lines form one connected group of overlapping or horizontally/vertically adjacent nodes inside the same large neighborhood. Completion is not required.",
-    "requirement": "All three lines form one connected group of overlapping or horizontally/vertically adjacent nodes inside the same large neighborhood. Completion is not required.",
-    "vp": 4,
-    "kind": "objective"
-  },
-  {
-    "id": "solvent",
-    "name": "On Budget",
-    "description": "Complete all three lines and finish with at least $5M.",
-    "requirement": "Complete all three lines and finish with at least $5M.",
-    "vp": 6,
-    "kind": "objective"
-  },
-  {
-    "id": "perimeter",
-    "name": "Perimeter Service",
-    "description": "1 / 2 / 3 completed lines each visiting at least three different border sides: 2 / 5 / 8 VP. Each side needs a distinct node.",
-    "requirement": "1 / 2 / 3 completed lines each visiting at least three different border sides: 2 / 5 / 8 VP. Each side needs a distinct node.",
-    "vp": 8,
-    "kind": "objective"
-  },
-  {
-    "id": "three-fronts",
-    "name": "Three Fronts",
-    "description": "Complete all three lines: their starters occupy three different board sides and their final pegs all occupy the same side.",
-    "requirement": "Complete all three lines: their starters occupy three different board sides and their final pegs all occupy the same side.",
-    "vp": 7,
-    "kind": "objective"
-  },
-  {
-    "id": "four-corners",
-    "name": "Four Corners",
-    "description": "5 VP: one company network connects two opposite corner pegs. 10 VP: that same network connects all four corner pegs. Multiple unfinished lines may contribute.",
-    "requirement": "5 VP: one company network connects two opposite corner pegs. 10 VP: that same network connects all four corner pegs. Multiple unfinished lines may contribute.",
-    "vp": 10,
-    "kind": "objective"
-  }
-];
-
-export const OBJECTIVE_TIERS: Record<string,string> = {
-  gentle: "1 / 2 / 3 different border sides among completed line ends: 2 / 4 / 6 VP.",
-  bend: "1 / 2 / 3 completed lines starting east or west and ending north or south: 2 / 4 / 6 VP.",
-  straight: "1 / 2 / 3 completed lines ending on their starter's border side: 2 / 4 / 7 VP.",
-  through: "1 / 2 / 3 lines touching both north and south borders: 2 / 4 / 7 VP. Completion is not required.",
-  "three-fronts": "1 / 2 / 3 completed lines with different starter sides and a common final border side: 2 / 4 / 7 VP.",
-};
-for (const card of ENGINEERING_CARDS) {
-  if (OBJECTIVE_TIERS[card.id]) card.description = card.requirement = OBJECTIVE_TIERS[card.id];
-}
+/** Retained empty for consumers of the former tiered API. New cards are binary. */
+export const OBJECTIVE_TIERS: Record<string,string> = {};
 
 export const engineeringById = (id: string): EngineeringCard | undefined =>
   ENGINEERING_CARDS.find((c) => c.id === id);
@@ -479,9 +323,9 @@ export type SubwayPhase =
 
 /**
  * Within ENGINEERING: draft Destinations from a public row, lock the private
- * plan, then place the Survey Pins that plan bought.
+ * plan. Legacy steps are tolerated in type-only callers; new games draft then place starters.
  */
-export type EngineeringStep = "BUY_SURVEYS" | "CARD_DRAFT" | "DESTINATION_DRAFT" | "PLAN" | "SURVEY";
+export type EngineeringStep = "CARD_DRAFT" | "DESTINATION_DRAFT" | "PLAN";
 
 /** Within SCHEDULING: plan privately, then reveal and adjust once. */
 export type SchedulingStep = "PLANNING" | "RESOLUTION";
@@ -512,16 +356,6 @@ export type DestinationCommitment = {
   lineIndex: number;
 };
 
-/**
- * A bought, publicly placed Survey Pin. Pins never occupy a hole, and they are
- * company-wide: any line the buyer owns fulfils one.
- */
-export type SurveyPin = {
-  playerId: string;
-  x: number;
-  y: number;
-};
-
 export type ScoreItem = { label: string; points: number; met?: boolean };
 
 export type SubwayPlayer = {
@@ -539,8 +373,6 @@ export type SubwayPlayer = {
   destinationPurchased?: boolean;
   /** Destination cards locked to a line at Engineering plan lock. */
   destinationCommitments: DestinationCommitment[];
-  /** Survey Pins bought at plan lock; paid for once, placed publicly after. */
-  surveysPurchased: number;
   schedulingHand: SchedulingCardId[];
   lines: PlayerLine[];
   /** Procurement decisions spent in the normal market phase. */
@@ -585,7 +417,7 @@ export type Market = {
 /** What the last physical placement was, so exactly that one can be undone. */
 export type UndoRecord = {
   playerId: string;
-  kind: "survey" | "starter" | "build";
+  kind: "starter" | "build";
   /** Human-readable name of the placement, for the undo affordance. */
   label: string;
   /** The complete pre-placement state. Never itself carries an undo record. */
@@ -625,7 +457,6 @@ export type SubwayTelemetryPlayer = {
   money: number;
   crewPaid: number;
   tollsPaid: number;
-  surveysPurchased: number;
   engineeringCards: string[];
   destinationCards: string[];
   destinationPurchased: boolean;
@@ -679,8 +510,6 @@ export interface SubwayState {
   /** The public face-up Destination row players draft from. */
   destinationRow: string[];
   schedulingStep: SchedulingStep;
-  /** Public Survey Pins, in placement order. */
-  surveyPins: SurveyPin[];
   currentPeriod: number;
   /** Companies still to build this period, in resolution order. */
   resolveQueue: string[];
@@ -1166,8 +995,7 @@ export function validateNode(
 
   const station = stationAt(p, state.stations);
   if (starter && (Object.values(state.players).some(player => player.lines.some(line =>
-    line.route.some(node => node.x === p.x && node.y === p.y))) ||
-    state.surveyPins.some(pin => pin.x === p.x && pin.y === p.y))) {
+    line.route.some(node => node.x === p.x && node.y === p.y))))) {
     return "Starter pegs must use an empty hole; another peg is already here.";
   }
   if (starter && station) return "Starter pegs must use a normal hole.";
@@ -1270,52 +1098,12 @@ export function buildableLines(state: SubwayState, playerId: string): number[] {
 }
 
 // ----------------------------------------------------------------------------
-// Survey Pins
+// Fair starter placement order
 // ----------------------------------------------------------------------------
 
-export const surveysPlaced = (s: SubwayState, playerId: string): number =>
-  s.surveyPins.filter((pin) => pin.playerId === playerId).length;
-
-export const surveysPending = (s: SubwayState, playerId: string): number =>
-  Math.max(0, (s.players[playerId]?.surveysPurchased ?? 0) - surveysPlaced(s, playerId));
-
-/** Why this company cannot pin that hole, if it cannot. */
-export function surveyBlocker(s: SubwayState, playerId: string, p: Point): string | null {
-  if (
-    !Number.isInteger(p.x) || !Number.isInteger(p.y) ||
-    p.x < 0 || p.y < 0 ||
-    p.x >= SUBWAY_CONFIG.board.columns || p.y >= SUBWAY_CONFIG.board.rows
-  ) {
-    return "Outside the pegboard.";
-  }
-  if (p.x === 0 || p.y === 0 || p.x === SUBWAY_CONFIG.board.columns - 1 || p.y === SUBWAY_CONFIG.board.rows - 1) return "Starter areas are reserved: place Survey Pins inside the border.";
-  if (stationAt(p, s.stations)) return "Survey Pins cannot be placed inside a neighborhood.";
-  if (s.surveyPins.some((pin) => pin.playerId === playerId && pin.x === p.x && pin.y === p.y)) {
-    return "You already surveyed that hole.";
-  }
-  return null;
-}
-
-/**
- * Whose turn it is to place a Survey Pin. Companies alternate, the odd-priority
- * company goes first, and whoever has placed fewer goes next — so unequal
- * purchases simply finish with the remaining company placing its balance.
- */
 function leastServed(s: SubwayState, waiting: string[], count: (id: string) => number): string | undefined {
   const rotation = s.playerOrder.map((_, i) => draftTurnId(s, i, 0));
   return [...waiting].sort((a, b) => count(a) - count(b) || rotation.indexOf(a) - rotation.indexOf(b))[0];
-}
-
-export function surveyTurnId(s: SubwayState): string | undefined {
-  const waiting = s.playerOrder.filter((id) => surveysPending(s, id) > 0);
-  return leastServed(s, waiting, (id) => surveysPlaced(s, id));
-}
-
-/** True when any line this company owns has built through the pin's hole. */
-export function surveyFulfilled(p: SubwayPlayer, pin: SurveyPin): boolean {
-  return p.lines.some((line) =>
-    line.route.some((n) => !n.stationId && n.x === pin.x && n.y === pin.y)
-  );
 }
 
 // ----------------------------------------------------------------------------
@@ -1394,82 +1182,14 @@ export function destinationProblems(
 
 export function objectiveMet(id: string, me: SubwayPlayer, opponents: SubwayPlayer[], state?: SubwayState): boolean {
   if (destinationById(id)) return destinationMet(me, id);
-  const all = me.lines.length === 3 && allLinesComplete(me);
-  const starts = me.lines.flatMap(line => line.route.slice(0, 1));
-  const ends = me.lines.flatMap(line => line.route.slice(-1));
-  const graph = () => companyNetwork(me);
-  switch (id) {
-    case "gentle": return all && distinctSides(ends, 3);
-    case "bend": return all && starts.every(p => borderSides(p).some(s => s === "east" || s === "west")) && ends.every(p => borderSides(p).some(s => s === "north" || s === "south"));
-    case "straight": return all && me.lines.every(line => borderSides(line.route[0]).some(s => borderSides(line.route.at(-1)!).includes(s)));
-    case "approach": return me.lines.some(line => lineComplete(line) && lineMajors(line).length >= 3);
-    case "through": return me.lines.length === 3 && me.lines.every(line => line.route.some(n => n.y === 0) && line.route.some(n => n.y === SUBWAY_CONFIG.board.rows - 1));
-    case "network": return all && linesConnected(me.lines, graph());
-    case "terminal": return connectedStations(me).length === STATIONS.length;
-    case "minimal": return all && !!state?.surveyPins.some(pin => pin.playerId === me.id && surveyFulfilled(me, pin));
-    case "crossing": return state?.firstCompletedPlayerId === me.id && all;
-    case "crosstown-service": return acrossTownTier(me) === 2;
-    case "local-service": return me.lines.some(line => STATIONS.filter(s => s.kind === "minor" && line.route.some(n => n.stationId === s.id)).length === 3);
-    case "interchange": return STATIONS.some(station => station.kind === "major" && interchangeAt(me.lines, station.id));
-    case "solvent": return all && me.money >= 5;
-    case "perimeter": return all && me.lines.every(line => distinctSides(line.route, 3));
-    case "three-fronts": return all && distinctSides(starts, 3) && borderSides(ends[0]).some(side => ends.every(n => borderSides(n).includes(side)));
-    case "four-corners": return fourCornersTier(me) === 2;
-    default: return false;
-  }
+  return engineeringMet(id, me, opponents, state);
 }
 
-/** Border objectives share the physical company graph and exact edge semantics. */
-function acrossTownTier(player: SubwayPlayer): number {
-  return Math.max(0, ...companyComponents(player).map(nodes => {
-    if (!nodes.some(n => n.x === 0) || !nodes.some(n => n.x === SUBWAY_CONFIG.board.columns - 1)) return 0;
-    return distinctSides(nodes, 4) ? 2 : 1;
-  }));
-}
-function fourCornersTier(player: SubwayPlayer): number {
-  const east = SUBWAY_CONFIG.board.columns - 1, south = SUBWAY_CONFIG.board.rows - 1;
-  return Math.max(0, ...companyComponents(player).map(nodes => {
-    const corners = [[0,0],[east,0],[0,south],[east,south]].map(([x,y]) => nodes.some(n => n.x === x && n.y === y));
-    return corners.every(Boolean) ? 2 : (corners[0] && corners[3]) || (corners[1] && corners[2]) ? 1 : 0;
-  }));
-}
-
-/** Live points, not banked points: Undo or changed conditions recompute them. */
+/** Live status is provisional, recomputed after every change and Undo. */
 export function objectiveProgress(id: string, me: SubwayPlayer, opponents: SubwayPlayer[], state?: SubwayState): {points:number;max:number;met:boolean;count?:number;tiers?:number[]} {
-  const card = engineeringById(id) ?? destinationById(id);
-  const max = card?.vp ?? 0;
-  const met = objectiveMet(id, me, opponents, state);
-  const complete = me.lines.filter(lineComplete);
-  let count: number | undefined;
-  const tiers = id === "perimeter" ? [2,5,8] : id === "crosstown-service" ? [4,8] : id === "four-corners" ? [5,10] : OBJECTIVE_TIERS[id] ? [2,4,max] : undefined;
-  switch (id) {
-    case "gentle": count = [1,2,3].filter(n => distinctSides(complete.flatMap(l=>l.route.slice(-1)),n)).length; break;
-    case "bend": count = complete.filter(l=>borderSides(l.route[0]).some(s=>s==="east"||s==="west") && borderSides(l.route.at(-1)!).some(s=>s==="north"||s==="south")).length; break;
-    case "straight": count = complete.filter(l=>borderSides(l.route[0]).some(s=>borderSides(l.route.at(-1)!).includes(s))).length; break;
-    case "through": count = me.lines.filter(l=>l.route.some(n=>n.y===0)&&l.route.some(n=>n.y===SUBWAY_CONFIG.board.rows-1)).length; break;
-    case "three-fronts": {
-      count = 0;
-      for (const side of ["north","south","east","west"] as const) {
-        const starts = complete.filter(l=>borderSides(l.route.at(-1)!).includes(side)).map(l=>l.route[0]);
-        count = Math.max(count,...[1,2,3].map(n=>distinctSides(starts,n)?n:0));
-      }
-      break;
-    }
-    case "perimeter": {
-      count = complete.filter(l => distinctSides(l.route, 3)).length;
-      break;
-    }
-    case "crosstown-service": {
-      count = acrossTownTier(me);
-      break;
-    }
-    case "four-corners": {
-      count = fourCornersTier(me);
-      break;
-    }
-  }
-
-  return {points: count === undefined ? (met ? max : 0) : count === 0 ? 0 : tiers![Math.min(count, tiers!.length) - 1], max, met, count, tiers};
+  const max = (engineeringById(id) ?? destinationById(id))?.vp ?? 0;
+  const met = objectiveMet(id,me,opponents,state);
+  return {points:met?max:0,max,met};
 }
 
 /** Live private status of one company's committed cards, for its own UI. */
@@ -1526,14 +1246,7 @@ export function scoreGame(state: SubwayState, now: number): SubwayState {
       items.push({ label: card.name, points: objectiveProgress(id,p,opponents,state).points, met });
     }
 
-    for (const pin of state.surveyPins.filter((entry) => entry.playerId === p.id)) {
-      const met = surveyFulfilled(p, pin);
-      items.push({
-        label: `Survey Pin ${pin.x + 1},${pin.y + 1}`,
-        points: met ? SUBWAY_CONFIG.survey.vp : 0,
-        met,
-      });
-    }
+
 
     // Construction debt. Only route contacts can push a company below zero, and
     // money received from the opposition pays it back down (DEC-018).
@@ -1595,7 +1308,6 @@ function makePlayer(p: Player, index: number): SubwayPlayer {
     engineeringLocked: false,
     destinationHand: [],
     destinationCommitments: [],
-    surveysPurchased: 0,
     schedulingHand: [...SUBWAY_CONFIG.startingHands.scheduling],
     lines: [],
     decisionsUsed: 0,
@@ -1629,7 +1341,6 @@ function initialState(players: Player[]): SubwayState {
     destinationDeck: [],
     destinationRow: [],
     schedulingStep: "PLANNING",
-    surveyPins: [],
     currentPeriod: 1,
     resolveQueue: [],
     events: [],
@@ -1653,7 +1364,7 @@ function shuffle<T>(items: T[], random: () => number): T[] {
 
 /** Six four-column interior bays each hold one 16-hole area. The complementary
  * connected space holds a 6- or 10-hole area in four randomly chosen bays.
- * This bounded packing covers 124 holes, leaving 51 interior survey holes and
+ * This bounded packing covers 124 holes, leaving 51 interior non-neighborhood holes and
  * every border hole clear. Areas may be adjacent, never overlapping.
  */
 export function randomStationLayout(random: () => number): Station[] {
@@ -1770,7 +1481,7 @@ export function autoSchedule(p: SubwayPlayer): void {
   p.lines.forEach((line, i) => { line.start = best[i]; });
 }
 
-/** Closes Engineering once every purchased Survey Pin is on the board. */
+/** Final Engineering pick proceeds directly to starter placement. */
 /** All purchased routes receive a starter; no timetable is created or paid for. */
 function toScheduling(s: SubwayState, now: number): SubwayState {
   s.phase = "STARTER_PLACEMENT";
@@ -1964,8 +1675,7 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       s.market.picks = (s.market.picks ?? 0) + 1;
       pushEvent(s, ctx.now(), "CARD", "notice", `${me.name} drafted a ${deck} card (${draftPicks(me)} of ${SUBWAY_CONFIG.engineeringPicks}).`, me.id);
       if (!cardDraftTurnId(s)) {
-        s.engineeringStep = "BUY_SURVEYS";
-        pushEvent(s, ctx.now(), "PHASE", "banner", "All goals are active. Optionally buy Survey Pins, then place your starters.");
+        return toScheduling(s, ctx.now());
       }
       return s;
     }
@@ -1976,38 +1686,6 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       me.destinationHand.push(s.destinationDeck.shift()!);
       me.destinationPurchased = true;
       pushEvent(s, ctx.now(), "CARD", "notice", `${me.name} bought a private Destination mission for $5M.`, me.id);
-      return s;
-    }
-
-    case "BUY_SURVEYS": {
-      if (s.phase !== "ENGINEERING" || s.engineeringStep !== "BUY_SURVEYS" || !me || me.engineeringLocked) return state;
-      const count = action.payload?.surveys;
-      if (!Number.isInteger(count) || count! < 0 || count! > SUBWAY_CONFIG.survey.max || count! * SUBWAY_CONFIG.survey.cost > me.money) return state;
-      me.surveysPurchased = count!;
-      me.money -= count! * SUBWAY_CONFIG.survey.cost;
-      me.engineeringLocked = true;
-      pushEvent(s, ctx.now(), "CARD", "notice", `${me.name} bought ${count} Survey Pins.`, me.id);
-      if (seats(s).every(p => p.engineeringLocked)) {
-        s.engineeringStep = "SURVEY";
-        if (!surveyTurnId(s)) return toScheduling(s, ctx.now());
-      }
-      return s;
-    }
-
-    case "PLACE_SURVEY": {
-      if (state.phase !== "ENGINEERING" || state.engineeringStep !== "SURVEY" || !me) return state;
-      if (surveyTurnId(state) !== me.id) return state;
-      const pt = { x: action.payload?.x ?? -1, y: action.payload?.y ?? -1 };
-      if (surveyBlocker(state, me.id, pt)) return state;
-
-      s.surveyPins.push({ playerId: me.id, x: pt.x, y: pt.y });
-      pushEvent(s, ctx.now(), "PLACEMENT", "notice", `${me.name} surveyed hole ${pt.x + 1},${pt.y + 1}.`, me.id);
-      s.undo = undoRecord(state, me.id, "survey", "Survey Pin");
-      if (!surveyTurnId(s)) {
-        const next = toScheduling(s, ctx.now());
-        next.undo = s.undo; // the placement is still the last thing that happened
-        return next;
-      }
       return s;
     }
 
@@ -2177,7 +1855,6 @@ function telemetryPlayers(state: SubwayState): Record<string, SubwayTelemetryPla
         money: p.money,
         crewPaid: p.crewPaid ?? 0,
         tollsPaid: p.tollsPaid,
-        surveysPurchased: p.surveysPurchased,
         engineeringCards: [...p.engineeringHand],
         destinationCards: [...p.destinationHand],
         destinationPurchased: !!p.destinationPurchased,
@@ -2259,7 +1936,6 @@ export function nextCompanyId(s: SubwayState): string | undefined {
     case "ENGINEERING":
       if (s.engineeringStep === "CARD_DRAFT") return cardDraftTurnId(s);
       if (s.engineeringStep === "DESTINATION_DRAFT") return destinationTurnId(s);
-      if (s.engineeringStep === "SURVEY") return surveyTurnId(s);
       return s.playerOrder.find((id) => !s.players[id].engineeringLocked);
     case "SCHEDULING": return s.playerOrder.find((id) => s.schedulingStep === "PLANNING" ? !s.players[id].scheduleSubmitted : !s.players[id].scheduleConfirmed);
     case "STARTER_PLACEMENT": return starterTurnId(s);
