@@ -1,13 +1,22 @@
 # WS-005 — Subway finished edition
 
 Build OS: v0.12
-Phase: REVIEW
+Phase: BUILDING
 Status: Active
-Updated: 2026-09-13
-Implementation State: audit speed continuation complete on merge of PR #180. Quick25/Full100 presets, selective recording and bounded parallel workers validated; source independently approved. PR #179 merged. Broader human balance/device acceptance remains.
+Updated: 2026-09-15
+Implementation State: JNCG approved 21-card redesign, survey removal and contained zoom-adaptive labels implemented; validating for one PR. Broader human balance/device acceptance remains.
 Related PRs: [#177](https://github.com/50thycal/party-games/pull/177) (PRWK feedback); [#176](https://github.com/50thycal/party-games/pull/176) (phone joining; merged); [#175](https://github.com/50thycal/party-games/pull/175) (Playtest Lab); [#174](https://github.com/50thycal/party-games/pull/174) (transfer/objective continuation); [#173](https://github.com/50thycal/party-games/pull/173) (larger neighborhoods/reversed VP; merged); [#172](https://github.com/50thycal/party-games/pull/172) (guided turns, neighborhoods and tiers; merged); [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; merged); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
-## Current continuation — Faster Card Audit
+## Current continuation — JNCG Engineering redesign
+
+Owner approved one PR for cards, survey removal and labels. Goal, non-goals and
+acceptance: [Build Card/spec](../build-specs/WS-005-engineering-redesign.md).
+Implementation State: implemented; build/lint passed before final label adjustment; full Subway suite passed. Final validation and independent review pending.
+Review State: pending independent review.
+Browser check: localhost preview blocked by ERR_BLOCKED_BY_CLIENT; JNCG SVG rendered and inspected. Physical iOS acceptance remains unconfirmed.
+Next Step: implement, validate and open one PR; remaining playtest items stay parked.
+
+## Previous continuation — Faster Card Audit
 
 Owner authorized the recommendations after reporting a four-hour full run.
 Scope/acceptance: speed continuation in the [approved spec](../build-specs/WS-005-card-audit.md).

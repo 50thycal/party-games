@@ -38,8 +38,7 @@ for(const target of [{x:3,y:0},{x:5,y:0}]) {
   assert.ok(!legalTargets(starters,id,1,true).some(p=>p.x===target.x&&p.y===target.y));
   assert.equal(subwayGame.reducer(starters,{playerId:id,type:'PLACE_STARTER',payload:{lineIndex:1,...target}},{room,playerId:id,now:()=>1,random:()=>.5}),starters);
 }
-starters.surveyPins=[{playerId:id,x:7,y:0}];
-assert.match(validateNode(starters,id,1,{x:7,y:0},true)!,/empty hole/);
+assert.equal(validateNode(starters,id,1,{x:7,y:0},true),null);
 assert.equal(validateNode(starters,id,1,{x:4,y:0},true),null,'adjacent empty starter allowed');
 assert.equal(validateNode(starters,id,0,{x:5,y:0},false),null,'ordinary construction may still share a peg');
 
@@ -62,17 +61,11 @@ assert.match(objectiveExplanation(p.destinationHand[0],goals,p),/Missing neighbo
 const far=missionPotential(goals,p);
 p.lines[0].route.push({x:4,y:1});
 assert.ok(missionPotential(goals,p)>far,'move toward reachable missing destination');
-p.engineeringHand=['bend'];
-p.lines=[line('short',[[4,0]])];const wrongSide=engineeringPotential(goals,p);
-p.lines=[line('short',[[0,4]])];assert.ok(engineeringPotential(goals,p)>wrongSide,'Turning the Corner favors a qualifying starter side');
-assert.match(objectiveExplanation('bend',goals,p),/Qualifying count\/tier: 0/);
-assert.match(objectiveExplanation('local-service',goals,p),/missing Market/);
-assert.match(objectiveExplanation('solvent',goals,p),/at least \$5M/);
-assert.match(objectiveExplanation('minimal',goals,p),/0\/0 placed Survey Pins/);
-assert.match(objectiveExplanation('interchange',goals,p),/local transfer group/);
-assert.match(objectiveExplanation('approach',goals,p),/large neighborhoods; incomplete/);
+p.engineeringHand=['turning-corner'];
 p.lines=[line('short',[[0,4],[2,4],[5,4],[7,4],[7,0]])];
-assert.match(objectiveExplanation('bend',goals,p),/Partial tier awarded/);
+assert.match(objectiveExplanation('turning-corner',goals,p),/Currently met: 3\/3 VP/);
+p.lines[0].route.pop();
+assert.match(objectiveExplanation('turning-corner',goals,p),/Not yet met: 0\/3 VP/);
 
 // Doomed completion can still earn a destination: hire and actually choose it.
 const mission=fixture();mission.currentPeriod=9;mission.players[id].money=10;

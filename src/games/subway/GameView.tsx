@@ -64,9 +64,6 @@ import {
   starterTurnId,
   stationAt,
   stationById,
-  surveyBlocker,
-  surveyTurnId,
-  surveysPending,
   validateNode,
   type CardDeckId,
   type PlacementTarget,
@@ -140,45 +137,7 @@ function statusFor(game: SubwayState, me: SubwayPlayer | undefined, isHost: bool
         detail: "Pick at list price. Three draft rounds, with alternating order.",
       };
     }
-    case "ENGINEERING": {
-      if (game.engineeringStep === "BUY_SURVEYS") return {headline:me.engineeringLocked ? "Waiting for survey purchases." : "Optionally buy Survey Pins at your cards.",tone:me.engineeringLocked?"wait":"act"};
-      if (game.engineeringStep === "CARD_DRAFT") return {headline: cardDraftTurnId(game) === me.id ? `Draft your hand: ${draftPicks(me)}/3 cards.` : `${game.players[cardDraftTurnId(game) ?? ""]?.name} is drafting.`, tone: cardDraftTurnId(game) === me.id ? "act" : "wait", detail:"Choose one of two face-up Engineering goals or draw blind. All three goals can score."};
-      if (game.engineeringStep === "DESTINATION_DRAFT") {
-        const turn = destinationTurnId(game);
-        const owed = SUBWAY_CONFIG.destinationsPerPlayer - destinationsHeld(me);
-        return turn === me.id
-          ? {
-              headline: `Draft a Destination — ${owed} to go.`,
-              tone: "act",
-              detail: "Three are face up in the contract office. Picks are free.",
-            }
-          : {
-              headline: `${game.players[turn ?? ""]?.name ?? oppName} is drafting a Destination.`,
-              tone: "wait",
-            };
-      }
-      if (game.engineeringStep === "PLAN") {
-        return me.engineeringLocked
-          ? { headline: `Plan locked — waiting for ${oppName}.`, tone: "wait" }
-          : {
-              headline: "Lock your Engineering plan.",
-              tone: "act",
-              detail: "Three objectives, any Destination assignments, and 0–5 Survey Pins.",
-            };
-      }
-      const turn = surveyTurnId(game);
-      if (turn !== me.id) {
-        return {
-          headline: `${game.players[turn ?? ""]?.name ?? oppName} is placing a Survey Pin.`,
-          tone: "wait",
-        };
-      }
-      return {
-        headline: `Place a Survey Pin — ${surveysPending(game, me.id)} left.`,
-        tone: "act",
-        detail: "Tap a normal hole. Pins are public and reserve nothing.",
-      };
-    }
+    case "ENGINEERING": return {headline: cardDraftTurnId(game) === me.id ? `Draft your hand: ${draftPicks(me)}/3 cards.` : `${game.players[cardDraftTurnId(game) ?? ""]?.name} is drafting.`, tone: cardDraftTurnId(game) === me.id ? "act" : "wait", detail:"Choose a Line, Station or Neighborhood Engineering card, or draw blind. All three held cards can score."};
     case "SCHEDULING":
       if (game.schedulingStep === "PLANNING") {
         return me.scheduleSubmitted
@@ -238,7 +197,7 @@ function statusFor(game: SubwayState, me: SubwayPlayer | undefined, isHost: bool
 }
 
 /** What the next tap on the board does. */
-type BoardMode = "none" | "place" | "survey" | "planner";
+type BoardMode = "none" | "place" | "planner";
 
 const PLAN_PHASES = new Set(["ENGINEERING", "SCHEDULING", "STARTER_PLACEMENT", "CONSTRUCTION"]);
 
@@ -251,8 +210,6 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
 
   const [chosen, setChosen] = useState<string[]>([]);
   const [assignments, setAssignments] = useState<Record<string, number>>({});
-  const [surveys, setSurveys] = useState(0);
-  useEffect(() => { setSurveys(0); }, [room.roomCode, playerId]);
   const [selectedLine, setSelectedLine] = useState(0);
   const [preview, setPreview] = useState<PlacementTarget | null>(null);
   const [busy, setBusy] = useState(false);
@@ -439,8 +396,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   const placingStarter = myStarterTurn && starterLine >= 0;
   const myBuild =
     !!game && !!me && game.phase === "CONSTRUCTION" && game.resolveQueue[0] === me.id && me.pendingActions.length > 0;
-  const mySurvey =
-    !!game && !!me && game.phase === "ENGINEERING" && game.engineeringStep === "SURVEY" && surveyTurnId(game) === me.id;
+
 
   const activeLineIndex = placingStarter
     ? starterLine
@@ -479,9 +435,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     ? "planner"
     : placingStarter || myBuild
       ? "place"
-      : mySurvey
-        ? "survey"
-        : "none";
+      : "none";
   const canAct = mode !== "none" && !busy && !veiled && (mode !== "place" || activeLineIndex >= 0);
 
   // The planner works against a copy of the board with the sketch dropped into
@@ -499,15 +453,6 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     if (!game || !me) return [];
     if (mode === "place" && activeLineIndex >= 0) {
       return legalTargets(game, me.id, activeLineIndex, placingStarter);
-    }
-    if (mode === "survey") {
-      const out: PlacementTarget[] = [];
-      for (let y = 0; y < SUBWAY_CONFIG.board.rows; y++) {
-        for (let x = 0; x < SUBWAY_CONFIG.board.columns; x++) {
-          if (!surveyBlocker(game, me.id, { x, y })) out.push({ x, y });
-        }
-      }
-      return out;
     }
     if (mode === "planner" && plannerState && plannerLine !== null) {
       if (!manualPlanner && !preview && activeLineIndex >= 0) {
@@ -712,17 +657,6 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       return;
     }
 
-    if (mode === "survey") {
-      const reason = surveyBlocker(game, me.id, p);
-      if (reason) {
-        setNotice(reason);
-        return;
-      }
-      setNotice(null);
-      act("PLACE_SURVEY", { x: p.x, y: p.y });
-      return;
-    }
-
     if (mode === "place" && activeLineIndex >= 0) {
       const reason = validateNode(game, me.id, activeLineIndex, p, placingStarter, slot);
       if (reason) {
@@ -765,7 +699,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     if (phase === "PROCUREMENT") return "office";
     if (phase === "SCHEDULING") return "schedule";
     if (phase === "ENGINEERING") {
-      return step === "CARD_DRAFT" ? "office" : step === "BUY_SURVEYS" ? "survey" : "board";
+      return step === "CARD_DRAFT" ? "office" : "board";
     }
     if (phase === "CONSTRUCTION") return "schedule";
     if (phase === "RESULTS") return "results";
@@ -795,7 +729,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
         <p className="mx-auto my-4 max-w-xl text-sm text-stone-600">
           Build a city that connects. Each company takes three routes from a pool of twelve services. Each carries an
           ordered recipe of segment lengths and its own line color. Draft Engineering goals,
-          optionally buy Survey Pins, choose crews each round, then
+          place starters, choose crews each round, then
           engineer the routes hole by hole — all on one table you pan and zoom around.
         </p>
         {stale && (
@@ -1181,20 +1115,6 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
         </div>
       )}
 
-      {mode === "survey" && me && (
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="rounded bg-emerald-700 px-1.5 py-0.5 text-[10px] font-black uppercase text-white">Survey</span>
-          <span className="text-xs text-stone-600">
-            Tap a glowing hole to place a pin — {surveysPending(game, me.id)} left. Pins are public and reserve nothing.
-          </span>
-          {planAvailable && (
-            <StripButton tone="plan" className="ml-auto" onClick={() => openPlanner(0)}>
-              Plan
-            </StripButton>
-          )}
-        </div>
-      )}
-
       {mode === "none" && (
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <span
@@ -1220,17 +1140,6 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       )}
     </div>
   );
-
-  const engineeringSlip = me && game.phase === "ENGINEERING" && game.engineeringStep === "BUY_SURVEYS" && !veiled ? (
-    <Printed zone="survey" title="Optional Survey Pins" tone="slip" style={{width:660}}>
-      <p className="text-xl">Every goal in your hand is active. Buy up to five Survey Pins for $1M each; earn +1 VP per pin your network reaches.</p>
-      {me.engineeringLocked ? <p className="text-xl">Survey purchase complete. Waiting for the other companies.</p> : <div className="mt-4 flex flex-wrap items-center gap-4">
-        <TableButton aria-label="Remove a Survey Pin" disabled={busy||surveys===0} onClick={()=>setSurveys(surveys-1)}>−</TableButton><b className="text-3xl">{surveys}</b>
-        <TableButton aria-label="Add a Survey Pin" disabled={busy||surveys>=5||surveys>=me.money} onClick={()=>setSurveys(surveys+1)}>+</TableButton>
-        <TableButton disabled={busy||surveys>me.money} onClick={()=>act("BUY_SURVEYS",{surveys})}>{surveys ? `Buy for $${surveys}M` : "No pins · continue"}</TableButton>
-      </div>}
-    </Printed>
-  ) : null;
 
   // ---- The table --------------------------------------------------------------
 
@@ -1388,6 +1297,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
                 </span>
               </div>
               <Board
+                zoom={zoomPct / 100}
                 highlightedStations={highlightedStations} destinationHighlights={destinationHighlights}
                 game={game}
                 targets={canAct ? targets : []}
@@ -1417,7 +1327,6 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
               selectableLines={myBuild && !veiled}
               onOpenCard={setFocus}
             >
-              {engineeringSlip}
             </PlayerTabletop>
           )}
 

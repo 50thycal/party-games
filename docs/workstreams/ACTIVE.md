@@ -3,11 +3,11 @@
 <!-- The project's active-work control board. What are we working on and where is each
      effort? One line per workstream; anything needing a paragraph belongs in its file. -->
 
-**Updated:** 2026-09-13 · **Build OS v0.12**
+**Updated:** 2026-09-15 · **Build OS v0.12**
 
 | ID | Workstream | Phase | Status | Current Next Step | Related PR |
 |---|---|---|---|---|---|
-| [WS-005](WS-005-subway-finished-edition.md) | Subway 2–4 player finished edition | REVIEW | Active | Audit speed complete on merge; no further implementation step. Broader human balance/device acceptance remains | [#180](https://github.com/50thycal/party-games/pull/180); #179 merged |
+| [WS-005](WS-005-subway-finished-edition.md) | Subway 2–4 player finished edition | BUILDING | Active | Validate and review one JNCG card/survey/label PR; then owner confirmation | Branch `codex/subway-engineering-redesign`; #180 prior audit |
 | [WS-001](WS-001-subway-v0-3-redesign.md) | Subway v0.3 gameplay redesign | REVIEW | Active | Independent design review of merged v0.3 against the reconstructed Build Card; owner to rule on D1–D4 | [#137](https://github.com/50thycal/party-games/pull/137), [#139](https://github.com/50thycal/party-games/pull/139) (both merged) |
 | [WS-002](WS-002-subway-route-engineering.md) | Subway route engineering and playtest UX | REVIEW | Active | Record the merged closeout; playtest follow-ups moved to WS-003 | [#141](https://github.com/50thycal/party-games/pull/141), [#142](https://github.com/50thycal/party-games/pull/142) (merged) |
 | [WS-003](WS-003-subway-construction-access.md) | Subway construction access and route lookahead | REVIEW | Active | Owner's balance playtest of the merged toll/debt/recipe changes; browser debt case and hotseat still unexercised | [#143](https://github.com/50thycal/party-games/pull/143) (merged design-only), [#144](https://github.com/50thycal/party-games/pull/144) (implementation, merged), [#145](https://github.com/50thycal/party-games/pull/145) (Build OS v0.5) |
@@ -22,6 +22,8 @@
 None yet. WS-001 is the first workstream on this board.
 
 ## Parking lot
+
+- PARK — Remaining JNCG feedback (draft row sizing, highlight privacy, player panels/notifications, public line/cluster display, toll/destination clarification and bendable segments) awaits sequential owner review after this approved card/survey/label build.
 
 - PARK — Subway blocked-move explanations and scoring highlights: considered but not selected for the active-route guidance iteration; no separate tickets.
 - PARK — Subway station finder and crew completion preview: considered but not selected for the build-cost iteration; no separate tickets.

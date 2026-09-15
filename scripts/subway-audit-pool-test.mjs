@@ -4,7 +4,7 @@ import path from 'node:path';
 const require=createRequire(import.meta.url);
 const {startAuditPool,auditConcurrency}=require(path.join(process.argv[2],'src/games/subway/auditPool.js'));
 assert.equal(auditConcurrency(undefined),1);assert.equal(auditConcurrency(2),1);assert.equal(auditConcurrency(8),2);
-const tasks=Array.from({length:5},(_,trial)=>({cardId:'minimal',count:2,trial}));
+const tasks=Array.from({length:5},(_,trial)=>({cardId:'north-south',count:2,trial}));
 const flush=async()=>{for(let i=0;i<10;i++)await new Promise(setImmediate);};
 function harness(overrides={}) {
   const workers=[],commits=[],finished=[],errors=[];

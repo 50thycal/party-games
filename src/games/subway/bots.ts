@@ -1,10 +1,10 @@
 /** Versioned, bounded heuristic policies. A policy receives only its own hand and public state. */
-import { SUBWAY_CONFIG, lineActionsRemaining, nextCompanyId, pendingStarters, legalTargets, stationAt, lineComplete, contractById, routeContacts, contactToll, destinationById, objectiveProgress, surveyBlocker, type SubwayState, type SubwayAction, type PlacementTarget } from './config';
+import { SUBWAY_CONFIG, lineActionsRemaining, nextCompanyId, pendingStarters, legalTargets, stationAt, lineComplete, contractById, routeContacts, contactToll, destinationById, objectiveProgress,  type SubwayState, type SubwayAction, type PlacementTarget } from './config';
 import { planBotCrews, immediateObjectiveBuild } from './botPlanning';
 import { missionPotential, engineeringPotential, remainingReach } from './objectiveGuidance';
 import { auditPotential, completionGoals } from './auditPolicy';
 
-export const BOT_VERSION = '2';
+export const BOT_VERSION = '3';
 export const PERSONALITIES = ['balanced', 'destination', 'completion', 'cautious'] as const;
 export const SKILLS = ['casual', 'experienced'] as const;
 export type BotSettings = { personality: typeof PERSONALITIES[number]; skill: typeof SKILLS[number] };
@@ -29,7 +29,6 @@ function bestTarget(s:SubwayState,id:string,index:number,starter:boolean,random:
   const desired=me.destinationHand.flatMap(id=>destinationById(id)?.stationIds??[]);
   const visited=new Set(line.route.map(n=>n.stationId));
   const areas=s.stations.filter(st=>desired.includes(st.id)&&!visited.has(st.id));
-  const pins=s.surveyPins.filter(p=>p.playerId===id);
   const otherNodes=me.lines.filter((_,i)=>i!==index).flatMap(l=>l.route);
   const candidates=targets.map(target=>{
     const st=stationAt(target,s.stations), from=line.route.at(-1);
@@ -37,10 +36,9 @@ function bestTarget(s:SubwayState,id:string,index:number,starter:boolean,random:
     const reach=remainingReach(me,index);
     const distance=Math.min(20,...areas.flatMap(st=>(st.cells??[st]).map(p=>Math.hypot(p.x-target.x,p.y-target.y))).filter(d=>d<=reach));
     const transfer=otherNodes.some(n=>Math.abs(n.x-target.x)+Math.abs(n.y-target.y)<=1);
-    const survey=pins.some(p=>p.x===target.x&&p.y===target.y);
     // No automatic neighborhood reward. Area utility comes from owned missions only.
     const trial={...me,lines:me.lines.map((l,i)=>i===index?{...l,route:[...l.route,{...target,...(st?{stationId:st.id}:{})}]}:l)};
-    const value=(st&&desired.includes(st.id)&&!visited.has(st.id)?w.mission*2:0)-distance*w.mission*.12+Number(transfer)*w.mission+Number(survey)*3-toll*w.cost+missionPotential(s,trial)*w.mission+engineeringPotential(s,trial)*2+random()*(settings.skill==='casual'?5:w.noise);
+    const value=(st&&desired.includes(st.id)&&!visited.has(st.id)?w.mission*2:0)-distance*w.mission*.12+Number(transfer)*w.mission-toll*w.cost+missionPotential(s,trial)*w.mission+engineeringPotential(s,trial)*2+random()*(settings.skill==='casual'?5:w.noise);
     return {target,value:value+(focus?auditPotential(s,trial,focus):0)};
   }).sort((a,b)=>b.value-a.value).slice(0,settings.skill==='casual'?5:16);
   const opponents=Object.values(s.players).filter(p=>p.id!==id);
@@ -77,15 +75,6 @@ export function chooseBotAction(state:SubwayState,random:()=>number,settings:Bot
         const ranked=visible.map(cardId=>({cardId,v:objectiveProgress(cardId,me,Object.values(s.players).filter(p=>p.id!==id),s).max+random()*5})).sort((a,b)=>b.v-a.v);
         // Blind draw is chosen without inspecting the hidden deck. The public row is always a legal fallback.
         return action('DRAFT_CARD',{deck:'engineering',cardId:ranked[0]?.cardId,expectedPick:s.market.picks});
-      }
-      if(s.engineeringStep==='BUY_SURVEYS') return action('BUY_SURVEYS',{surveys:focus==='minimal'&&me.money>=SUBWAY_CONFIG.survey.cost?1:settings.personality==='cautious'?0:Math.min(me.money>10?1:0,SUBWAY_CONFIG.survey.max)});
-      if(s.engineeringStep==='SURVEY') {
-        const options:PlacementTarget[]=[];
-        for(let y=1;y<SUBWAY_CONFIG.board.rows-1;y++) for(let x=1;x<SUBWAY_CONFIG.board.columns-1;x++) if(!surveyBlocker(s,id,{x,y})) options.push({x,y});
-        const desired=me.destinationHand.flatMap(id=>destinationById(id)?.stationIds??[]);
-        const targets=s.stations.filter(st=>desired.includes(st.id));
-        options.sort((a,b)=>Math.min(...targets.map(st=>Math.hypot(st.x-a.x,st.y-a.y)))-Math.min(...targets.map(st=>Math.hypot(st.x-b.x,st.y-b.y))));
-        return action('PLACE_SURVEY',options[Math.floor(random()*Math.min(5,options.length))]);
       }
       throw new Error(`Unsupported engineering stage ${s.engineeringStep}`);
     case 'STARTER_PLACEMENT': {

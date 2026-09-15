@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { EngineeringCardFace } from "./CardArt";
 import { VB_W, VB_H } from "./board";
 import { SUBWAY_CONFIG, activationCost, buildableLines, cardDraftBlocker, contractOf, contractById, destinationById, engineeringById, objectiveMet, type SubwayState } from "./config";
 
 /** Phone-sized pieces stay outside the map's zoom coordinate system. */
-export function MobileTable({game, playerId, busy, veiled, board, actions, survey, settings, act, selectLine, previewLine}: {
+export function MobileTable({game, playerId, busy, veiled, board, actions, settings, act, selectLine, previewLine}: {
   game: SubwayState; playerId: string; busy: boolean; veiled: boolean;
-  board: ReactNode; actions: ReactNode; survey: ReactNode; settings: ReactNode;
+  board: ReactNode; actions: ReactNode; settings: ReactNode;
   act: (type: string, payload?: Record<string, unknown>) => unknown;
   selectLine: (index: number) => void; previewLine: (index: number) => void;
 }) {
@@ -33,7 +34,7 @@ export function MobileTable({game, playerId, busy, veiled, board, actions, surve
   const card = "shrink-0 w-56 rounded-xl border-2 border-amber-800/60 bg-[#fff7e5] p-3 text-left shadow-md";
   const button = "rounded-lg border border-stone-400 bg-[#fff7e5] px-3 py-2 font-bold disabled:opacity-40";
   return <div className="phone-table flex flex-col gap-1 bg-[#193c40] text-stone-900" style={{height:"calc(100dvh - 80px)", minHeight:280,paddingBottom:"env(safe-area-inset-bottom)"}}>
-    <style>{`.phone-map svg { width:100%; height:auto; display:block; }.phone-table .phone-survey [data-zone] {width:auto!important}.phone-table .portrait-tip{display:none}@media(orientation:portrait){.phone-table .portrait-tip{display:flex}}`}</style>
+    <style>{`.phone-map svg { width:100%; height:auto; display:block; }.phone-table .portrait-tip{display:none}@media(orientation:portrait){.phone-table .portrait-tip{display:flex}}`}</style>
     {!rotateDismissed && <div className="portrait-tip items-center justify-between bg-amber-100 px-2 text-xs">Rotate for a larger board<button className={button} onClick={()=>setRotateDismissed(true)}>Continue portrait</button></div>}
     <div className="flex shrink-0 items-center gap-2 px-2 text-xs text-amber-50">
       <b>{p?.name} · ${p?.money}M · Round {game.currentPeriod}/{SUBWAY_CONFIG.timelinePeriods}</b>
@@ -56,10 +57,9 @@ export function MobileTable({game, playerId, busy, veiled, board, actions, surve
       {(tray||drafting) && <div className="flex max-h-[38dvh] shrink-0 gap-2 overflow-auto px-2 pb-1 text-sm" aria-label="Cards on the table">
         {game.phase === "PROCUREMENT" ? game.procurement.row.map(id=>{const c=contractById(id)!;return <article className={card} key={id} style={{borderColor:c.color}}><b>{c.name}</b><p>{c.recipe.join(" · ")} pegs</p><p>Finish +{c.completionVp} VP</p><button className={button} disabled={busy||game.procurement.offer?.activeId!==playerId||p.money<c.cost} onClick={()=>act("PROCURE",{choice:"buy",contractId:id})}>Sign · ${c.cost}M</button></article>;}) : game.engineeringStep === "CARD_DRAFT" && game.phase === "ENGINEERING" ? <div className="flex gap-2">{game.market.rows.engineering.map(id=>{const c=engineeringById(id)??destinationById(id);return <article className={card} key={id}><small>engineering</small><p className="font-bold">{c?.name}</p><p>{c?.description}</p><button className={button} disabled={busy||!!cardDraftBlocker(game,playerId,"engineering",id)} onClick={()=>act("DRAFT_CARD",{deck:"engineering",cardId:id,expectedPick:game.market.picks})}>Draft</button></article>;})}<button className={card} disabled={busy||!!cardDraftBlocker(game,playerId,"engineering")||!game.market.decks.engineering.length} onClick={()=>act("DRAFT_CARD",{deck:"engineering",expectedPick:game.market.picks})}>Blind draw<br/>engineering</button></div> : <>
           {p.lines.map((l,i)=><article className={card} key={l.contractId} style={{borderColor:contractOf(l)?.color}}><b>{contractOf(l)?.name}</b><p>{contractOf(l)?.recipe.map((n,j)=>j<l.route.length-1?`✓${n}`:n).join(" · ")}</p><button className={button} onClick={()=>previewLine(i)}>Preview remainder</button></article>)}
-          {p.engineeringHand.map(id=>{const c=engineeringById(id)??destinationById(id);return <article className={card} key={id}><b>{c?.name}</b><p>{c?.description}</p><p>+{c?.vp} VP · {objectiveMet(id,p,game.playerOrder.filter(id=>id!==playerId).map(id=>game.players[id]))?"Achieved":"In progress"}</p></article>;})}
+          {p.engineeringHand.map(id=><EngineeringCardFace key={id} card={id} color={p.color} state={objectiveMet(id,p,game.playerOrder.filter(id=>id!==playerId).map(id=>game.players[id]),game)?"met":"idle"} />)}
         </>}
       </div>}
-      {game.phase==="ENGINEERING" && game.engineeringStep!=="CARD_DRAFT" && <div className="phone-survey max-h-[32dvh] overflow-auto bg-amber-50">{survey}</div>}
     </>}
     <div className="max-h-[35dvh] shrink-0 overflow-auto">{actions}</div>
   </div>;

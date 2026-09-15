@@ -46,7 +46,6 @@ export default function SubwayMultiplayerPage() {
   const [busy,setBusy] = useState(false);
   const [online,setOnline] = useState(true);
   const [tab,setTab] = useState<Tab>("destinations");
-  const [surveys,setSurveys] = useState(0);
   const [deviceSettings,setDeviceSettings] = useState(false);
   const [completionNotice,setCompletionNotice] = useState<string|null>(null);
   const previousCompleted = useRef<Set<string>|null>(null);
@@ -179,7 +178,7 @@ export default function SubwayMultiplayerPage() {
   const actor=game?.players[view.actorId??""];
   const tablet=view.role==="tablet";
   const controlsDisabled=busy||!online;
-  const onPhone=game?.phase==="PROCUREMENT"||(game?.phase==="ENGINEERING"&&["CARD_DRAFT","BUY_SURVEYS"].includes(game.engineeringStep));
+  const onPhone=game?.phase==="PROCUREMENT"||(game?.phase==="ENGINEERING"&&game.engineeringStep==="CARD_DRAFT");
   const needsHandoff=tablet&&!onPhone&&!!view.actorId&&(view.seatedId!==view.actorId||acknowledgedTurn!==view.turn);
   const header=<header className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-[#193640] p-3 text-white">
     <strong>SUBWAY <span className="text-amber-300">·</span> {tablet?`Room ${view.room.roomCode}`:me?.name??view.room.players.find(p=>p.id===view.playerId)?.name}</strong>
@@ -201,7 +200,7 @@ export default function SubwayMultiplayerPage() {
 
   if(tablet) return <main className="space-y-2 p-2">{header}{settings}{notices}
     {view.canUndo&&!view.seatedId&&!needsHandoff&&<button className={button} disabled={controlsDisabled} onClick={()=>run("UNDO_PLACEMENT")}>Undo {game.undo?.label}</button>}
-    {onPhone&&<p className="rounded-xl bg-teal-950 p-3">{actor?`${actor.name}: choose on your phone.`:"Buy Survey Pins on your phones."}</p>}
+    {onPhone&&<p className="rounded-xl bg-teal-950 p-3">{actor?`${actor.name}: choose on your phone.`:"Waiting for the next company."}</p>}
     {needsHandoff?<section className="flex min-h-[65dvh] flex-col items-center justify-center gap-6 rounded-3xl bg-[#193640] p-8 text-center">
       <h1 className="text-3xl font-bold">Pass to {actor?.name}</h1><p>The previous company’s ghosts are hidden.</p>
       <button className={button} disabled={controlsDisabled} onClick={()=>run("ACK_COMPANY",{playerId:view.actorId})}>I am {actor?.name}</button>
@@ -221,7 +220,7 @@ export default function SubwayMultiplayerPage() {
     <div className="phone-portrait-prompt fixed inset-0 z-50 hidden flex-col items-center justify-center gap-3 bg-[#10252e] p-6 text-center"><span className="text-4xl" aria-hidden>↻</span><p className="text-xl font-bold">Turn your phone upright</p><p>Your cards are arranged for portrait play.</p></div>
     <section className="sticky top-0 z-20 rounded-xl border border-teal-500 bg-[#193640] p-3 shadow-lg" aria-live="polite"><p className="text-sm">{guidance.text}</p>{tab!==guidance.tab&&<button className={`${button} mt-2 w-full`} onClick={()=>{setTab(guidance.tab);window.scrollTo({top:0});}}>{guidance.label}</button>}</section>
     <h1 className="text-xl font-bold">{tabs.find(t=>t.id===tab)?.label}</h1>
-    {tab==="destinations"&&<>{me.destinationHand.map(id=><section key={id} className="space-y-2"><DestinationCardFace card={id} color={me.color} state={destinationMet(me,id)?"met":"idle"}/><p className={destinationMet(me,id)?"font-bold text-emerald-300":"text-sm text-slate-300"}>{destinationMet(me,id)?"✓ Completed":"Not yet connected"}</p><button className={`${button} w-full`} aria-pressed={view.destinationHighlights.some(h=>h.cardId===id)} disabled={controlsDisabled} onClick={()=>run("SHOW_DESTINATION",{cardId:id,enabled:!view.destinationHighlights.some(h=>h.cardId===id)})}>Highlights: {view.destinationHighlights.some(h=>h.cardId===id)?"On":"Off"} · C{view.room.players.findIndex(p=>p.id===me.id)+1}·D{me.destinationHand.indexOf(id)+1}</button></section>)}<p className="text-xs text-slate-300">Enabled destinations stay visible on the shared board until you turn them off, including during other companies’ turns.</p><button className={button} disabled={controlsDisabled} onClick={()=>run("SHOW_DESTINATION",{cardId:null})}>Clear board highlights</button>
+    {tab==="destinations"&&<>{me.destinationHand.map(id=><section key={id} className="space-y-2"><DestinationCardFace card={id} color={me.color} state={destinationMet(me,id)?"met":"idle"}/><p className={destinationMet(me,id)?"font-bold text-emerald-300":"text-sm text-slate-300"}>{destinationMet(me,id)?"✓ Currently met":"Not yet connected"}</p><button className={`${button} w-full`} aria-pressed={view.destinationHighlights.some(h=>h.cardId===id)} disabled={controlsDisabled} onClick={()=>run("SHOW_DESTINATION",{cardId:id,enabled:!view.destinationHighlights.some(h=>h.cardId===id)})}>Highlights: {view.destinationHighlights.some(h=>h.cardId===id)?"On":"Off"} · C{view.room.players.findIndex(p=>p.id===me.id)+1}·D{me.destinationHand.indexOf(id)+1}</button></section>)}<p className="text-xs text-slate-300">Enabled destinations stay visible on the shared board until you turn them off, including during other companies’ turns.</p><button className={button} disabled={controlsDisabled} onClick={()=>run("SHOW_DESTINATION",{cardId:null})}>Clear board highlights</button>
       {buyDestination&&<button className={`${button} w-full`} disabled={controlsDisabled||me.money<5} onClick={()=>run("BUY_DESTINATION",{period:game.currentPeriod})}>Buy another Destination · $5M</button>}
     </>}
     {tab==="lines"&&<>
@@ -236,10 +235,9 @@ export default function SubwayMultiplayerPage() {
         {game.market.rows.engineering.map(id=><div key={id}><EngineeringCardFace card={id} color={me.color}/><button className={`${button} mt-2 w-full`} disabled={controlsDisabled||!myTurn} onClick={()=>run("DRAFT_CARD",{deck:"engineering",cardId:id,expectedPick:game.market.picks})}>Choose this goal</button></div>)}
         <button className={`${button} w-full`} disabled={controlsDisabled||!myTurn||!view.engineeringRemaining} onClick={()=>run("DRAFT_CARD",{deck:"engineering",expectedPick:game.market.picks})}>Draw blind · {view.engineeringRemaining} left</button>
       </section>}
-      {me.engineeringHand.map(id=>{const progress=objectiveProgress(id,me,Object.values(game.players).filter(p=>p.id!==me.id),game);return <section key={id} className="space-y-2"><EngineeringCardFace card={id} color={me.color} state={progress.met?"met":"idle"}/><p className={progress.met?"font-bold text-emerald-300":"font-bold text-amber-200"}>{progress.met?"✓ Completed":"In progress"} · {progress.points}/{progress.max} VP now</p>{progress.count!==undefined&&progress.tiers&&<p className="text-sm">Tiers: {progress.tiers.join(" / ")} VP. Current tier: {Math.min(progress.tiers.length,progress.count)}/{progress.tiers.length}.</p>}</section>;})}
+      {me.engineeringHand.map(id=>{const progress=objectiveProgress(id,me,Object.values(game.players).filter(p=>p.id!==me.id),game);return <section key={id} className="space-y-2"><EngineeringCardFace card={id} color={me.color} state={progress.met?"met":"idle"}/><p className={progress.met?"font-bold text-emerald-300":"font-bold text-amber-200"}>{progress.met?"✓ Currently met":"In progress"} · {progress.points}/{progress.max} VP now</p>{progress.count!==undefined&&progress.tiers&&<p className="text-sm">Tiers: {progress.tiers.join(" / ")} VP. Current tier: {Math.min(progress.tiers.length,progress.count)}/{progress.tiers.length}.</p>}</section>;})}
     </>}
     {tab==="general"&&<>
-      {game.phase==="ENGINEERING"&&game.engineeringStep==="BUY_SURVEYS"&&!me.engineeringLocked&&<section className="space-y-3 rounded-xl bg-white/10 p-4"><label>Survey Pins · $1M each<select className={input} value={surveys} onChange={e=>setSurveys(Number(e.target.value))}>{[0,1,2,3,4,5].map(n=><option key={n} value={n}>{n} pins</option>)}</select></label><button className={button} disabled={controlsDisabled||me.money<surveys} onClick={()=>run("BUY_SURVEYS",{surveys})}>Confirm {surveys} pins</button></section>}
       {buyDestination&&<button className={button} disabled={controlsDisabled||me.money<5} onClick={()=>run("BUY_DESTINATION",{period:game.currentPeriod})}>Buy Destination · $5M</button>}
       {game.playerOrder.map(id=>{const p=game.players[id];return <section key={id} className="space-y-2 rounded-xl border border-white/20 p-4"><strong>{p.name} · ${p.money}M {p.score!==undefined?`· ${p.score} VP`:""}</strong><p>{p.lines.filter(lineComplete).length}/3 lines complete</p>{p.lines.map(l=><p key={l.contractId}>{contractOf(l)?.name}: {segmentsBuilt(l)}/{contractOf(l)?.recipe.length} segments</p>)}{game.phase==="RESULTS"&&p.scoreBreakdown?.map((s,i)=><p key={i} className="text-sm">{s.label}: {s.points} VP</p>)}</section>;})}
       <p className="text-sm">Crews: $1M / $3M / $6M. Completing each line pays $3M. Final debt costs 4 VP per $1M.</p>
