@@ -314,4 +314,3 @@ $3 million reward.
 | White Line | WH | 6, 3, 5, 4, 2 | $10M | 6 | -6 |
 | Brown Line | BR | 2, 3, 2, 4, 3 | $6M | 5 | -5 |
 | Copper Line | CO | 3, 5, 4, 6, 3, 5, 4 | $11M | 9 | -8 |
-
