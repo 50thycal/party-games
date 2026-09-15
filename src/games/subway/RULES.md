@@ -1,5 +1,10 @@
 # Subway — Metropolitan Transit
 
+> **DRAFT — NEEDS OWNER REVIEW.** Existing rules reference retained for review;
+> publication is not owner approval of the rules.
+
+[Quick-start guide](QUICK_START.md) · [Full rulebook draft](RULEBOOK.md) · [Planned graphics](RULEBOOK_GRAPHICS.md)
+
 A light-strategy route-building game for **2–4 companies**. Most victory points wins.
 
 ## Game flow

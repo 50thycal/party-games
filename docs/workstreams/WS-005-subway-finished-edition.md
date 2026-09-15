@@ -1,13 +1,20 @@
 # WS-005 — Subway finished edition
 
 Build OS: v0.12
-Phase: REVIEW
+Phase: BUILDING
 Status: Active
 Updated: 2026-09-15
-Implementation State: public status, payments, no-stacking and fair route draft continuation complete on merge of PR #185. Broader WS-005 device/balance acceptance remains.
+Implementation State: building owner-authorized draft rules and current-player highlight fix; PR #185 merged.
 Related PRs: [#185](https://github.com/50thycal/party-games/pull/185) (public status/payments/draft); [#184](https://github.com/50thycal/party-games/pull/184) (JNCG cards/surveys/labels); [#177](https://github.com/50thycal/party-games/pull/177) (PRWK feedback); [#176](https://github.com/50thycal/party-games/pull/176) (phone joining; merged); [#175](https://github.com/50thycal/party-games/pull/175) (Playtest Lab); [#174](https://github.com/50thycal/party-games/pull/174) (transfer/objective continuation); [#173](https://github.com/50thycal/party-games/pull/173) (larger neighborhoods/reversed VP; merged); [#172](https://github.com/50thycal/party-games/pull/172) (guided turns, neighborhoods and tiers; merged); [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; merged); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
-## Current continuation — Public status and station access
+## Current continuation — Draft rules and destination highlights
+
+Goal/non-goals/acceptance: [Build Card/spec](../build-specs/WS-005-draft-rules-highlights.md).
+Implementation State: building. Save both review drafts and fix tablet projections.
+Review State: pending independent review.
+Next Step: validate and publish one PR; no merge. Turn question follows completion.
+
+## Previous continuation — Public status and station access
 
 Goal/non-goals/acceptance: [approved Build Card/spec](../build-specs/WS-005-player-status-payments.md).
 Implementation State: complete on merge of PR #185. Public standings, phone progress, iPad pads, recipient/reason previews and paired payment events, any-order destination copy, 7/10/13 route drafts, Copper, no stacking and one-time station access are implemented. State v23 requires fresh games.

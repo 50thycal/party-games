@@ -87,8 +87,11 @@ export function companionView(state: RoomState, device: CompanionDevice): Compan
     }
   }
   const selections=store.destinationHighlights??(store.destinationHighlight?{[store.destinationHighlight.playerId]:[store.destinationHighlight.cardId]}:{});
+  // Selections persist per company; the shared board follows the actual turn,
+  // not a stale tablet acknowledgement. Phones retain their own selections.
+  const highlightOwner=device.role==='phone'?device.playerId:companionActor(original);
   const destinationHighlights:DestinationHighlight[]=state.room.players.flatMap((p,pi)=>
-    device.role==='phone'&&p.id!==device.playerId?[]:(original?.players[p.id]?.destinationHand??[]).flatMap((cardId,ci)=>{
+    p.id!==highlightOwner?[]:(original?.players[p.id]?.destinationHand??[]).flatMap((cardId,ci)=>{
       const card=destinationById(cardId);
       return card&&selections[p.id]?.includes(cardId)?[{playerId:p.id,cardId,label:`C${pi+1}·D${ci+1}`,color:DESTINATION_COLORS[(pi*3+ci)%DESTINATION_COLORS.length],stationIds:card.stationIds,name:`${p.name}: ${card.name}`}]:[];
     }));
