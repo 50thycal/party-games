@@ -1,0 +1,3179 @@
+{
+  "checks": [
+    {
+      "cardId": "through",
+      "passed": true,
+      "checks": 5,
+      "errors": []
+    },
+    {
+      "cardId": "terminal",
+      "passed": true,
+      "checks": 3,
+      "errors": []
+    },
+    {
+      "cardId": "four-corners",
+      "passed": true,
+      "checks": 4,
+      "errors": []
+    }
+  ],
+  "expanded": 117378,
+  "results": [
+    {
+      "card": "through",
+      "count": 2,
+      "trial": 0,
+      "seed": 10207,
+      "unavailable": true
+    },
+    {
+      "card": "through",
+      "count": 2,
+      "trial": 1,
+      "seed": 11206,
+      "progress": {
+        "points": 7,
+        "max": 7,
+        "met": true,
+        "count": 3,
+        "tiers": [
+          2,
+          4,
+          7
+        ]
+      },
+      "neighborhoods": 3,
+      "northSouthLines": 3,
+      "cornersByComponent": [
+        0
+      ],
+      "cash": 10,
+      "score": 28,
+      "contracts": [
+        "tram",
+        "branch",
+        "express"
+      ],
+      "actions": 70,
+      "paths": [
+        [
+          {
+            "x": 3,
+            "y": 0
+          },
+          {
+            "x": 2,
+            "y": 2
+          },
+          {
+            "x": 1,
+            "y": 5,
+            "stationId": "harbor"
+          },
+          {
+            "x": 3,
+            "y": 8
+          },
+          {
+            "x": 5,
+            "y": 7
+          }
+        ],
+        [
+          {
+            "x": 13,
+            "y": 0
+          },
+          {
+            "x": 11,
+            "y": 4,
+            "stationId": "grand"
+          },
+          {
+            "x": 10,
+            "y": 6,
+            "stationId": "grand"
+          },
+          {
+            "x": 8,
+            "y": 8
+          },
+          {
+            "x": 4,
+            "y": 8
+          },
+          {
+            "x": 4,
+            "y": 6,
+            "stationId": "harbor"
+          }
+        ],
+        [
+          {
+            "x": 23,
+            "y": 0
+          },
+          {
+            "x": 21,
+            "y": 6,
+            "stationId": "theatre"
+          },
+          {
+            "x": 17,
+            "y": 8
+          },
+          {
+            "x": 13,
+            "y": 5,
+            "stationId": "grand"
+          },
+          {
+            "x": 10,
+            "y": 6,
+            "stationId": "grand"
+          },
+          {
+            "x": 4,
+            "y": 7,
+            "stationId": "harbor"
+          }
+        ]
+      ]
+    },
+    {
+      "card": "through",
+      "count": 2,
+      "trial": 2,
+      "seed": 12200,
+      "progress": {
+        "points": 7,
+        "max": 7,
+        "met": true,
+        "count": 3,
+        "tiers": [
+          2,
+          4,
+          7
+        ]
+      },
+      "neighborhoods": 8,
+      "northSouthLines": 3,
+      "cornersByComponent": [
+        0,
+        0
+      ],
+      "cash": 4,
+      "score": 32,
+      "contracts": [
+        "university",
+        "orbital",
+        "crosstown"
+      ],
+      "actions": 71,
+      "paths": [
+        [
+          {
+            "x": 3,
+            "y": 0
+          },
+          {
+            "x": 2,
+            "y": 3,
+            "stationId": "museum"
+          },
+          {
+            "x": 1,
+            "y": 5,
+            "stationId": "museum"
+          },
+          {
+            "x": 3,
+            "y": 8
+          },
+          {
+            "x": 6,
+            "y": 7,
+            "stationId": "stadium"
+          }
+        ],
+        [
+          {
+            "x": 13,
+            "y": 0
+          },
+          {
+            "x": 11,
+            "y": 4,
+            "stationId": "airport"
+          },
+          {
+            "x": 8,
+            "y": 8
+          },
+          {
+            "x": 6,
+            "y": 8
+          },
+          {
+            "x": 4,
+            "y": 5,
+            "stationId": "garden"
+          },
+          {
+            "x": 6,
+            "y": 3,
+            "stationId": "library"
+          },
+          {
+            "x": 10,
+            "y": 0
+          }
+        ],
+        [
+          {
+            "x": 23,
+            "y": 0
+          },
+          {
+            "x": 21,
+            "y": 5,
+            "stationId": "grand"
+          },
+          {
+            "x": 20,
+            "y": 8
+          },
+          {
+            "x": 16,
+            "y": 7,
+            "stationId": "university"
+          },
+          {
+            "x": 16,
+            "y": 5,
+            "stationId": "university"
+          },
+          {
+            "x": 20,
+            "y": 2,
+            "stationId": "market"
+          },
+          {
+            "x": 22,
+            "y": 0
+          }
+        ]
+      ]
+    },
+    {
+      "card": "through",
+      "count": 2,
+      "trial": 3,
+      "seed": 13203,
+      "progress": {
+        "points": 7,
+        "max": 7,
+        "met": true,
+        "count": 3,
+        "tiers": [
+          2,
+          4,
+          7
+        ]
+      },
+      "neighborhoods": 3,
+      "northSouthLines": 3,
+      "cornersByComponent": [
+        1
+      ],
+      "cash": -4,
+      "score": 5,
+      "contracts": [
+        "crosstown",
+        "medium",
+        "express"
+      ],
+      "actions": 67,
+      "paths": [
+        [
+          {
+            "x": 3,
+            "y": 0
+          },
+          {
+            "x": 1,
+            "y": 5
+          },
+          {
+            "x": 0,
+            "y": 8
+          }
+        ],
+        [
+          {
+            "x": 13,
+            "y": 0
+          },
+          {
+            "x": 12,
+            "y": 3,
+            "stationId": "market"
+          },
+          {
+            "x": 10,
+            "y": 8
+          },
+          {
+            "x": 8,
+            "y": 8
+          },
+          {
+            "x": 4,
+            "y": 7,
+            "stationId": "theatre"
+          },
+          {
+            "x": 2,
+            "y": 5,
+            "stationId": "theatre"
+          },
+          {
+            "x": 5,
+            "y": 1
+          }
+        ],
+        [
+          {
+            "x": 23,
+            "y": 0
+          },
+          {
+            "x": 21,
+            "y": 6
+          },
+          {
+            "x": 17,
+            "y": 8
+          },
+          {
+            "x": 14,
+            "y": 4,
+            "stationId": "grand"
+          },
+          {
+            "x": 12,
+            "y": 2,
+            "stationId": "market"
+          },
+          {
+            "x": 6,
+            "y": 1
+          }
+        ]
+      ]
+    },
+    {
+      "card": "through",
+      "count": 3,
+      "trial": 0,
+      "seed": 10302,
+      "progress": {
+        "points": 7,
+        "max": 7,
+        "met": true,
+        "count": 3,
+        "tiers": [
+          2,
+          4,
+          7
+        ]
+      },
+      "neighborhoods": 3,
+      "northSouthLines": 3,
+      "cornersByComponent": [
+        1,
+        0
+      ],
+      "cash": 0,
+      "score": 19,
+      "contracts": [
+        "crosstown",
+        "long",
+        "tram"
+      ],
+      "actions": 106,
+      "paths": [
+        [
+          {
+            "x": 3,
+            "y": 0
+          },
+          {
+            "x": 1,
+            "y": 5,
+            "stationId": "airport"
+          },
+          {
+            "x": 0,
+            "y": 8
+          }
+        ],
+        [
+          {
+            "x": 13,
+            "y": 0
+          },
+          {
+            "x": 11,
+            "y": 4,
+            "stationId": "harbor"
+          },
+          {
+            "x": 6,
+            "y": 8
+          },
+          {
+            "x": 3,
+            "y": 7,
+            "stationId": "airport"
+          },
+          {
+            "x": 0,
+            "y": 3
+          },
+          {
+            "x": 0,
+            "y": 1
+          },
+          {
+            "x": 4,
+            "y": 0
+          },
+          {
+            "x": 6,
+            "y": 6,
+            "stationId": "theatre"
+          }
+        ],
+        [
+          {
+            "x": 23,
+            "y": 0
+          },
+          {
+            "x": 22,
+            "y": 2
+          },
+          {
+            "x": 21,
+            "y": 5
+          },
+          {
+            "x": 18,
+            "y": 8
+          },
+          {
+            "x": 16,
+            "y": 8
+          }
+        ]
+      ]
+    },
+    {
+      "card": "through",
+      "count": 3,
+      "trial": 1,
+      "seed": 11306,
+      "unavailable": true
+    },
+    {
+      "card": "through",
+      "count": 3,
+      "trial": 2,
+      "seed": 12302,
+      "progress": {
+        "points": 7,
+        "max": 7,
+        "met": true,
+        "count": 3,
+        "tiers": [
+          2,
+          4,
+          7
+        ]
+      },
+      "neighborhoods": 4,
+      "northSouthLines": 3,
+      "cornersByComponent": [
+        0,
+        0
+      ],
+      "cash": 8,
+      "score": 27,
+      "contracts": [
+        "short",
+        "tram",
+        "airport"
+      ],
+      "actions": 102,
+      "paths": [
+        [
+          {
+            "x": 3,
+            "y": 0
+          },
+          {
+            "x": 2,
+            "y": 2,
+            "stationId": "grand"
+          },
+          {
+            "x": 1,
+            "y": 5,
+            "stationId": "theatre"
+          },
+          {
+            "x": 2,
+            "y": 7,
+            "stationId": "theatre"
+          },
+          {
+            "x": 5,
+            "y": 8
+          }
+        ],
+        [
+          {
+            "x": 13,
+            "y": 0
+          },
+          {
+            "x": 12,
+            "y": 2,
+            "stationId": "university"
+          },
+          {
+            "x": 11,
+            "y": 5
+          },
+          {
+            "x": 8,
+            "y": 8
+          },
+          {
+            "x": 6,
+            "y": 7,
+            "stationId": "harbor"
+          }
+        ],
+        [
+          {
+            "x": 23,
+            "y": 0
+          },
+          {
+            "x": 21,
+            "y": 6
+          },
+          {
+            "x": 19,
+            "y": 8
+          },
+          {
+            "x": 15,
+            "y": 5
+          },
+          {
+            "x": 12,
+            "y": 3,
+            "stationId": "university"
+          },
+          {
+            "x": 10,
+            "y": 4,
+            "stationId": "university"
+          }
+        ]
+      ]
+    },
+    {
+      "card": "through",
+      "count": 3,
+      "trial": 3,
+      "seed": 13302,
+      "progress": {
+        "points": 7,
+        "max": 7,
+        "met": true,
+        "count": 3,
+        "tiers": [
+          2,
+          4,
+          7
+        ]
+      },
+      "neighborhoods": 4,
+      "northSouthLines": 3,
+      "cornersByComponent": [
+        1,
+        0,
+        0
+      ],
+      "cash": 10,
+      "score": 11,
+      "contracts": [
+        "crosstown",
+        "university",
+        "local"
+      ],
+      "actions": 104,
+      "paths": [
+        [
+          {
+            "x": 3,
+            "y": 0
+          },
+          {
+            "x": 1,
+            "y": 5,
+            "stationId": "harbor"
+          },
+          {
+            "x": 0,
+            "y": 8
+          }
+        ],
+        [
+          {
+            "x": 13,
+            "y": 0
+          },
+          {
+            "x": 12,
+            "y": 3,
+            "stationId": "grand"
+          },
+          {
+            "x": 11,
+            "y": 5,
+            "stationId": "grand"
+          },
+          {
+            "x": 9,
+            "y": 8
+          },
+          {
+            "x": 6,
+            "y": 8
+          }
+        ],
+        [
+          {
+            "x": 23,
+            "y": 0
+          },
+          {
+            "x": 22,
+            "y": 2,
+            "stationId": "library"
+          },
+          {
+            "x": 21,
+            "y": 5,
+            "stationId": "garden"
+          },
+          {
+            "x": 20,
+            "y": 7,
+            "stationId": "garden"
+          },
+          {
+            "x": 16,
+            "y": 8
+          },
+          {
+            "x": 13,
+            "y": 8
+          }
+        ]
+      ]
+    },
+    {
+      "card": "through",
+      "count": 4,
+      "trial": 0,
+      "seed": 10525,
+      "progress": {
+        "points": 7,
+        "max": 7,
+        "met": true,
+        "count": 3,
+        "tiers": [
+          2,
+          4,
+          7
+        ]
+      },
+      "neighborhoods": 6,
+      "northSouthLines": 3,
+      "cornersByComponent": [
+        0,
+        0
+      ],
+      "cash": 9,
+      "score": 28,
+      "contracts": [
+        "tram",
+        "express",
+        "river"
+      ],
+      "actions": 140,
+      "paths": [
+        [
+          {
+            "x": 3,
+            "y": 0
+          },
+          {
+            "x": 2,
+            "y": 2,
+            "stationId": "airport"
+          },
+          {
+            "x": 1,
+            "y": 5,
+            "stationId": "market"
+          },
+          {
+            "x": 3,
+            "y": 8
+          },
+          {
+            "x": 5,
+            "y": 7,
+            "stationId": "grand"
+          }
+        ],
+        [
+          {
+            "x": 13,
+            "y": 0
+          },
+          {
+            "x": 11,
+            "y": 6,
+            "stationId": "stadium"
+          },
+          {
+            "x": 7,
+            "y": 8
+          },
+          {
+            "x": 3,
+            "y": 5
+          },
+          {
+            "x": 3,
+            "y": 2,
+            "stationId": "airport"
+          },
+          {
+            "x": 9,
+            "y": 2
+          }
+        ],
+        [
+          {
+            "x": 23,
+            "y": 0
+          },
+          {
+            "x": 21,
+            "y": 4,
+            "stationId": "university"
+          },
+          {
+            "x": 20,
+            "y": 6
+          },
+          {
+            "x": 15,
+            "y": 8
+          },
+          {
+            "x": 13,
+            "y": 6,
+            "stationId": "stadium"
+          },
+          {
+            "x": 12,
+            "y": 2,
+            "stationId": "theatre"
+          }
+        ]
+      ]
+    },
+    {
+      "card": "through",
+      "count": 4,
+      "trial": 1,
+      "seed": 11405,
+      "progress": {
+        "points": 7,
+        "max": 7,
+        "met": true,
+        "count": 3,
+        "tiers": [
+          2,
+          4,
+          7
+        ]
+      },
+      "neighborhoods": 4,
+      "northSouthLines": 3,
+      "cornersByComponent": [
+        0
+      ],
+      "cash": -13,
+      "score": -16,
+      "contracts": [
+        "long",
+        "river",
+        "orbital"
+      ],
+      "actions": 144,
+      "paths": [
+        [
+          {
+            "x": 3,
+            "y": 0
+          },
+          {
+            "x": 1,
+            "y": 4
+          },
+          {
+            "x": 5,
+            "y": 8
+          },
+          {
+            "x": 7,
+            "y": 6
+          },
+          {
+            "x": 12,
+            "y": 4,
+            "stationId": "university"
+          },
+          {
+            "x": 14,
+            "y": 3
+          },
+          {
+            "x": 17,
+            "y": 1,
+            "stationId": "garden"
+          },
+          {
+            "x": 21,
+            "y": 5,
+            "stationId": "stadium"
+          }
+        ],
+        [
+          {
+            "x": 13,
+            "y": 0
+          },
+          {
+            "x": 11,
+            "y": 4,
+            "stationId": "university"
+          },
+          {
+            "x": 10,
+            "y": 6,
+            "stationId": "university"
+          },
+          {
+            "x": 5,
+            "y": 8
+          },
+          {
+            "x": 2,
+            "y": 8
+          },
+          {
+            "x": 1,
+            "y": 4
+          }
+        ],
+        [
+          {
+            "x": 23,
+            "y": 0
+          },
+          {
+            "x": 21,
+            "y": 4,
+            "stationId": "stadium"
+          },
+          {
+            "x": 18,
+            "y": 8
+          },
+          {
+            "x": 16,
+            "y": 8
+          },
+          {
+            "x": 14,
+            "y": 4,
+            "stationId": "airport"
+          },
+          {
+            "x": 16,
+            "y": 2,
+            "stationId": "garden"
+          },
+          {
+            "x": 20,
+            "y": 5,
+            "stationId": "stadium"
+          }
+        ]
+      ]
+    },
+    {
+      "card": "through",
+      "count": 4,
+      "trial": 2,
+      "seed": 12401,
+      "unavailable": true
+    },
+    {
+      "card": "through",
+      "count": 4,
+      "trial": 3,
+      "seed": 13413,
+      "unavailable": true
+    },
+    {
+      "card": "through",
+      "count": 4,
+      "trial": 4,
+      "seed": 14404,
+      "unavailable": true
+    },
+    {
+      "card": "through",
+      "count": 4,
+      "trial": 5,
+      "seed": 15414,
+      "unavailable": true
+    },
+    {
+      "card": "through",
+      "count": 4,
+      "trial": 6,
+      "seed": 16403,
+      "progress": {
+        "points": 7,
+        "max": 7,
+        "met": true,
+        "count": 3,
+        "tiers": [
+          2,
+          4,
+          7
+        ]
+      },
+      "neighborhoods": 5,
+      "northSouthLines": 3,
+      "cornersByComponent": [
+        0,
+        0
+      ],
+      "cash": 20,
+      "score": 20,
+      "contracts": [
+        "short",
+        "tram",
+        "river"
+      ],
+      "actions": 138,
+      "paths": [
+        [
+          {
+            "x": 3,
+            "y": 0
+          },
+          {
+            "x": 2,
+            "y": 2,
+            "stationId": "university"
+          },
+          {
+            "x": 1,
+            "y": 5
+          },
+          {
+            "x": 1,
+            "y": 7
+          },
+          {
+            "x": 4,
+            "y": 8
+          }
+        ],
+        [
+          {
+            "x": 13,
+            "y": 0
+          },
+          {
+            "x": 12,
+            "y": 2,
+            "stationId": "grand"
+          },
+          {
+            "x": 11,
+            "y": 5
+          },
+          {
+            "x": 8,
+            "y": 8
+          },
+          {
+            "x": 6,
+            "y": 7,
+            "stationId": "museum"
+          }
+        ],
+        [
+          {
+            "x": 23,
+            "y": 0
+          },
+          {
+            "x": 21,
+            "y": 4,
+            "stationId": "airport"
+          },
+          {
+            "x": 20,
+            "y": 6,
+            "stationId": "airport"
+          },
+          {
+            "x": 15,
+            "y": 8
+          },
+          {
+            "x": 12,
+            "y": 7,
+            "stationId": "garden"
+          },
+          {
+            "x": 8,
+            "y": 7,
+            "stationId": "museum"
+          }
+        ]
+      ]
+    },
+    {
+      "card": "terminal",
+      "count": 2,
+      "trial": 0,
+      "seed": 10209,
+      "unavailable": true
+    },
+    {
+      "card": "terminal",
+      "count": 2,
+      "trial": 1,
+      "seed": 11205,
+      "progress": {
+        "points": 0,
+        "max": 10,
+        "met": false
+      },
+      "neighborhoods": 9,
+      "northSouthLines": 0,
+      "cornersByComponent": [
+        0,
+        0
+      ],
+      "cash": 8,
+      "score": 30,
+      "contracts": [
+        "short",
+        "tram",
+        "long"
+      ],
+      "actions": 70,
+      "paths": [
+        [
+          {
+            "x": 2,
+            "y": 8
+          },
+          {
+            "x": 4,
+            "y": 7,
+            "stationId": "museum"
+          },
+          {
+            "x": 7,
+            "y": 6,
+            "stationId": "university"
+          },
+          {
+            "x": 7,
+            "y": 4,
+            "stationId": "university"
+          },
+          {
+            "x": 4,
+            "y": 3,
+            "stationId": "museum"
+          }
+        ],
+        [
+          {
+            "x": 13,
+            "y": 0
+          },
+          {
+            "x": 14,
+            "y": 2,
+            "stationId": "garden"
+          },
+          {
+            "x": 12,
+            "y": 4,
+            "stationId": "harbor"
+          },
+          {
+            "x": 8,
+            "y": 2
+          },
+          {
+            "x": 6,
+            "y": 1
+          }
+        ],
+        [
+          {
+            "x": 24,
+            "y": 8
+          },
+          {
+            "x": 23,
+            "y": 4,
+            "stationId": "grand"
+          },
+          {
+            "x": 17,
+            "y": 4,
+            "stationId": "airport"
+          },
+          {
+            "x": 14,
+            "y": 4,
+            "stationId": "stadium"
+          },
+          {
+            "x": 9,
+            "y": 4,
+            "stationId": "harbor"
+          },
+          {
+            "x": 9,
+            "y": 6,
+            "stationId": "library"
+          },
+          {
+            "x": 5,
+            "y": 7,
+            "stationId": "university"
+          },
+          {
+            "x": 3,
+            "y": 1,
+            "stationId": "theatre"
+          }
+        ]
+      ]
+    },
+    {
+      "card": "terminal",
+      "count": 2,
+      "trial": 2,
+      "seed": 12201,
+      "unavailable": true
+    },
+    {
+      "card": "terminal",
+      "count": 2,
+      "trial": 3,
+      "seed": 13207,
+      "progress": {
+        "points": 0,
+        "max": 10,
+        "met": false
+      },
+      "neighborhoods": 8,
+      "northSouthLines": 0,
+      "cornersByComponent": [
+        0
+      ],
+      "cash": -6,
+      "score": -1,
+      "contracts": [
+        "river",
+        "medium",
+        "airport"
+      ],
+      "actions": 73,
+      "paths": [
+        [
+          {
+            "x": 2,
+            "y": 8
+          },
+          {
+            "x": 4,
+            "y": 4,
+            "stationId": "harbor"
+          },
+          {
+            "x": 6,
+            "y": 3
+          },
+          {
+            "x": 11,
+            "y": 1,
+            "stationId": "airport"
+          }
+        ],
+        [
+          {
+            "x": 13,
+            "y": 0
+          },
+          {
+            "x": 10,
+            "y": 1,
+            "stationId": "airport"
+          },
+          {
+            "x": 9,
+            "y": 6,
+            "stationId": "university"
+          },
+          {
+            "x": 11,
+            "y": 7,
+            "stationId": "theatre"
+          },
+          {
+            "x": 15,
+            "y": 5,
+            "stationId": "grand"
+          },
+          {
+            "x": 15,
+            "y": 2,
+            "stationId": "market"
+          },
+          {
+            "x": 10,
+            "y": 2,
+            "stationId": "airport"
+          }
+        ],
+        [
+          {
+            "x": 24,
+            "y": 8
+          },
+          {
+            "x": 24,
+            "y": 2,
+            "stationId": "museum"
+          },
+          {
+            "x": 21,
+            "y": 1,
+            "stationId": "stadium"
+          },
+          {
+            "x": 16,
+            "y": 2,
+            "stationId": "market"
+          },
+          {
+            "x": 12,
+            "y": 1,
+            "stationId": "airport"
+          },
+          {
+            "x": 10,
+            "y": 1,
+            "stationId": "airport"
+          }
+        ]
+      ]
+    },
+    {
+      "card": "terminal",
+      "count": 2,
+      "trial": 4,
+      "seed": 14234,
+      "progress": {
+        "points": 10,
+        "max": 10,
+        "met": true
+      },
+      "neighborhoods": 10,
+      "northSouthLines": 0,
+      "cornersByComponent": [
+        0,
+        0,
+        0
+      ],
+      "cash": -4,
+      "score": -13,
+      "contracts": [
+        "local",
+        "river",
+        "university"
+      ],
+      "actions": 73,
+      "paths": [
+        [
+          {
+            "x": 2,
+            "y": 8
+          },
+          {
+            "x": 4,
+            "y": 7,
+            "stationId": "theatre"
+          },
+          {
+            "x": 5,
+            "y": 4,
+            "stationId": "airport"
+          },
+          {
+            "x": 7,
+            "y": 3,
+            "stationId": "grand"
+          },
+          {
+            "x": 9,
+            "y": 6,
+            "stationId": "market"
+          }
+        ],
+        [
+          {
+            "x": 13,
+            "y": 0
+          },
+          {
+            "x": 12,
+            "y": 4,
+            "stationId": "museum"
+          },
+          {
+            "x": 14,
+            "y": 5,
+            "stationId": "garden"
+          },
+          {
+            "x": 17,
+            "y": 1,
+            "stationId": "stadium"
+          },
+          {
+            "x": 20,
+            "y": 1,
+            "stationId": "university"
+          }
+        ],
+        [
+          {
+            "x": 24,
+            "y": 8
+          },
+          {
+            "x": 23,
+            "y": 5,
+            "stationId": "library"
+          },
+          {
+            "x": 22,
+            "y": 3,
+            "stationId": "harbor"
+          }
+        ]
+      ]
+    },
+    {
+      "card": "terminal",
+      "count": 3,
+      "trial": 0,
+      "seed": 10300,
+      "unavailable": true
+    },
+    {
+      "card": "terminal",
+      "count": 3,
+      "trial": 1,
+      "seed": 11301,
+      "unavailable": true
+    },
+    {
+      "card": "terminal",
+      "count": 3,
+      "trial": 2,
+      "seed": 12300,
+      "unavailable": true
+    },
+    {
+      "card": "terminal",
+      "count": 3,
+      "trial": 3,
+      "seed": 13427,
+      "progress": {
+        "points": 0,
+        "max": 10,
+        "met": false
+      },
+      "neighborhoods": 9,
+      "northSouthLines": 0,
+      "cornersByComponent": [
+        0
+      ],
+      "cash": -6,
+      "score": 6,
+      "contracts": [
+        "medium",
+        "express",
+        "airport"
+      ],
+      "actions": 106,
+      "paths": [
+        [
+          {
+            "x": 2,
+            "y": 8
+          },
+          {
+            "x": 3,
+            "y": 5,
+            "stationId": "stadium"
+          },
+          {
+            "x": 7,
+            "y": 2,
+            "stationId": "harbor"
+          },
+          {
+            "x": 9,
+            "y": 2,
+            "stationId": "market"
+          },
+          {
+            "x": 13,
+            "y": 1
+          },
+          {
+            "x": 14,
+            "y": 4,
+            "stationId": "museum"
+          },
+          {
+            "x": 9,
+            "y": 6,
+            "stationId": "university"
+          }
+        ],
+        [
+          {
+            "x": 13,
+            "y": 0
+          },
+          {
+            "x": 16,
+            "y": 5,
+            "stationId": "library"
+          },
+          {
+            "x": 20,
+            "y": 7,
+            "stationId": "theatre"
+          },
+          {
+            "x": 23,
+            "y": 3,
+            "stationId": "airport"
+          },
+          {
+            "x": 21,
+            "y": 1,
+            "stationId": "grand"
+          },
+          {
+            "x": 15,
+            "y": 2,
+            "stationId": "museum"
+          }
+        ],
+        [
+          {
+            "x": 24,
+            "y": 8
+          },
+          {
+            "x": 24,
+            "y": 2,
+            "stationId": "airport"
+          },
+          {
+            "x": 21,
+            "y": 2,
+            "stationId": "grand"
+          },
+          {
+            "x": 16,
+            "y": 4,
+            "stationId": "museum"
+          },
+          {
+            "x": 12,
+            "y": 4,
+            "stationId": "university"
+          },
+          {
+            "x": 10,
+            "y": 3
+          }
+        ]
+      ]
+    },
+    {
+      "card": "terminal",
+      "count": 3,
+      "trial": 4,
+      "seed": 14302,
+      "progress": {
+        "points": 10,
+        "max": 10,
+        "met": true
+      },
+      "neighborhoods": 10,
+      "northSouthLines": 0,
+      "cornersByComponent": [
+        0,
+        0
+      ],
+      "cash": -5,
+      "score": -9,
+      "contracts": [
+        "local",
+        "orbital",
+        "short"
+      ],
+      "actions": 108,
+      "paths": [
+        [
+          {
+            "x": 2,
+            "y": 8
+          },
+          {
+            "x": 4,
+            "y": 7,
+            "stationId": "garden"
+          },
+          {
+            "x": 5,
+            "y": 4,
+            "stationId": "museum"
+          },
+          {
+            "x": 7,
+            "y": 4,
+            "stationId": "airport"
+          },
+          {
+            "x": 9,
+            "y": 7,
+            "stationId": "theatre"
+          },
+          {
+            "x": 12,
+            "y": 6,
+            "stationId": "harbor"
+          }
+        ],
+        [
+          {
+            "x": 13,
+            "y": 0
+          },
+          {
+            "x": 15,
+            "y": 4,
+            "stationId": "stadium"
+          },
+          {
+            "x": 20,
+            "y": 3,
+            "stationId": "market"
+          },
+          {
+            "x": 22,
+            "y": 3,
+            "stationId": "library"
+          },
+          {
+            "x": 22,
+            "y": 7,
+            "stationId": "university"
+          },
+          {
+            "x": 19,
+            "y": 7,
+            "stationId": "grand"
+          }
+        ],
+        [
+          {
+            "x": 24,
+            "y": 8
+          },
+          {
+            "x": 22,
+            "y": 7,
+            "stationId": "university"
+          },
+          {
+            "x": 19,
+            "y": 6,
+            "stationId": "grand"
+          },
+          {
+            "x": 17,
+            "y": 5
+          }
+        ]
+      ]
+    },
+    {
+      "card": "terminal",
+      "count": 3,
+      "trial": 5,
+      "seed": 15303,
+      "unavailable": true
+    },
+    {
+      "card": "terminal",
+      "count": 3,
+      "trial": 6,
+      "seed": 16306,
+      "progress": {
+        "points": 0,
+        "max": 10,
+        "met": false
+      },
+      "neighborhoods": 9,
+      "northSouthLines": 0,
+      "cornersByComponent": [
+        0
+      ],
+      "cash": 3,
+      "score": 30,
+      "contracts": [
+        "university",
+        "medium",
+        "long"
+      ],
+      "actions": 111,
+      "paths": [
+        [
+          {
+            "x": 2,
+            "y": 8
+          },
+          {
+            "x": 2,
+            "y": 5
+          },
+          {
+            "x": 4,
+            "y": 4,
+            "stationId": "museum"
+          },
+          {
+            "x": 8,
+            "y": 4,
+            "stationId": "stadium"
+          },
+          {
+            "x": 11,
+            "y": 4
+          }
+        ],
+        [
+          {
+            "x": 13,
+            "y": 0
+          },
+          {
+            "x": 10,
+            "y": 1,
+            "stationId": "garden"
+          },
+          {
+            "x": 5,
+            "y": 2,
+            "stationId": "theatre"
+          },
+          {
+            "x": 4,
+            "y": 4,
+            "stationId": "museum"
+          },
+          {
+            "x": 8,
+            "y": 6,
+            "stationId": "stadium"
+          },
+          {
+            "x": 11,
+            "y": 5,
+            "stationId": "harbor"
+          },
+          {
+            "x": 16,
+            "y": 4
+          }
+        ],
+        [
+          {
+            "x": 24,
+            "y": 8
+          },
+          {
+            "x": 24,
+            "y": 4,
+            "stationId": "university"
+          },
+          {
+            "x": 18,
+            "y": 2,
+            "stationId": "market"
+          },
+          {
+            "x": 15,
+            "y": 3,
+            "stationId": "airport"
+          },
+          {
+            "x": 10,
+            "y": 5,
+            "stationId": "harbor"
+          },
+          {
+            "x": 10,
+            "y": 7,
+            "stationId": "harbor"
+          },
+          {
+            "x": 14,
+            "y": 7
+          },
+          {
+            "x": 20,
+            "y": 6,
+            "stationId": "grand"
+          }
+        ]
+      ]
+    },
+    {
+      "card": "terminal",
+      "count": 4,
+      "trial": 0,
+      "seed": 10400,
+      "unavailable": true
+    },
+    {
+      "card": "terminal",
+      "count": 4,
+      "trial": 1,
+      "seed": 11404,
+      "progress": {
+        "points": 0,
+        "max": 10,
+        "met": false
+      },
+      "neighborhoods": 8,
+      "northSouthLines": 1,
+      "cornersByComponent": [
+        0,
+        0
+      ],
+      "cash": 7,
+      "score": 20,
+      "contracts": [
+        "university",
+        "short",
+        "orbital"
+      ],
+      "actions": 144,
+      "paths": [
+        [
+          {
+            "x": 2,
+            "y": 8
+          },
+          {
+            "x": 2,
+            "y": 5,
+            "stationId": "theatre"
+          },
+          {
+            "x": 3,
+            "y": 3,
+            "stationId": "university"
+          },
+          {
+            "x": 7,
+            "y": 4,
+            "stationId": "grand"
+          },
+          {
+            "x": 10,
+            "y": 3
+          }
+        ],
+        [
+          {
+            "x": 13,
+            "y": 0
+          },
+          {
+            "x": 13,
+            "y": 2,
+            "stationId": "stadium"
+          },
+          {
+            "x": 11,
+            "y": 4,
+            "stationId": "airport"
+          },
+          {
+            "x": 9,
+            "y": 5,
+            "stationId": "airport"
+          },
+          {
+            "x": 10,
+            "y": 8
+          }
+        ],
+        [
+          {
+            "x": 24,
+            "y": 8
+          },
+          {
+            "x": 21,
+            "y": 5,
+            "stationId": "market"
+          },
+          {
+            "x": 16,
+            "y": 5,
+            "stationId": "library"
+          },
+          {
+            "x": 14,
+            "y": 5
+          },
+          {
+            "x": 10,
+            "y": 7,
+            "stationId": "airport"
+          },
+          {
+            "x": 7,
+            "y": 7,
+            "stationId": "garden"
+          },
+          {
+            "x": 7,
+            "y": 2,
+            "stationId": "grand"
+          }
+        ]
+      ]
+    },
+    {
+      "card": "terminal",
+      "count": 4,
+      "trial": 2,
+      "seed": 12404,
+      "unavailable": true
+    },
+    {
+      "card": "terminal",
+      "count": 4,
+      "trial": 3,
+      "seed": 13436,
+      "unavailable": true
+    },
+    {
+      "card": "terminal",
+      "count": 4,
+      "trial": 4,
+      "seed": 14404,
+      "unavailable": true
+    },
+    {
+      "card": "terminal",
+      "count": 4,
+      "trial": 5,
+      "seed": 15430,
+      "unavailable": true
+    },
+    {
+      "card": "terminal",
+      "count": 4,
+      "trial": 6,
+      "seed": 16401,
+      "progress": {
+        "points": 10,
+        "max": 10,
+        "met": true
+      },
+      "neighborhoods": 10,
+      "northSouthLines": 0,
+      "cornersByComponent": [
+        0,
+        0
+      ],
+      "cash": -1,
+      "score": 15,
+      "contracts": [
+        "crosstown",
+        "tram",
+        "river"
+      ],
+      "actions": 147,
+      "paths": [
+        [
+          {
+            "x": 2,
+            "y": 8
+          },
+          {
+            "x": 4,
+            "y": 3,
+            "stationId": "grand"
+          },
+          {
+            "x": 7,
+            "y": 2,
+            "stationId": "university"
+          },
+          {
+            "x": 10,
+            "y": 4,
+            "stationId": "museum"
+          },
+          {
+            "x": 11,
+            "y": 6,
+            "stationId": "garden"
+          },
+          {
+            "x": 16,
+            "y": 5,
+            "stationId": "theatre"
+          },
+          {
+            "x": 19,
+            "y": 6,
+            "stationId": "library"
+          }
+        ],
+        [
+          {
+            "x": 1,
+            "y": 0
+          },
+          {
+            "x": 3,
+            "y": 1,
+            "stationId": "grand"
+          },
+          {
+            "x": 6,
+            "y": 1,
+            "stationId": "university"
+          },
+          {
+            "x": 10,
+            "y": 2,
+            "stationId": "museum"
+          }
+        ],
+        [
+          {
+            "x": 24,
+            "y": 8
+          },
+          {
+            "x": 24,
+            "y": 4,
+            "stationId": "harbor"
+          },
+          {
+            "x": 23,
+            "y": 2,
+            "stationId": "market"
+          },
+          {
+            "x": 18,
+            "y": 2,
+            "stationId": "stadium"
+          },
+          {
+            "x": 16,
+            "y": 4,
+            "stationId": "airport"
+          }
+        ]
+      ]
+    },
+    {
+      "card": "terminal",
+      "count": 4,
+      "trial": 7,
+      "seed": 17402,
+      "progress": {
+        "points": 10,
+        "max": 10,
+        "met": true
+      },
+      "neighborhoods": 10,
+      "northSouthLines": 0,
+      "cornersByComponent": [
+        0,
+        0,
+        0
+      ],
+      "cash": 6,
+      "score": 5,
+      "contracts": [
+        "tram",
+        "short",
+        "local"
+      ],
+      "actions": 142,
+      "paths": [
+        [
+          {
+            "x": 2,
+            "y": 8
+          },
+          {
+            "x": 3,
+            "y": 6,
+            "stationId": "stadium"
+          },
+          {
+            "x": 4,
+            "y": 3,
+            "stationId": "library"
+          },
+          {
+            "x": 8,
+            "y": 4,
+            "stationId": "grand"
+          },
+          {
+            "x": 8,
+            "y": 6,
+            "stationId": "garden"
+          }
+        ],
+        [
+          {
+            "x": 13,
+            "y": 0
+          },
+          {
+            "x": 13,
+            "y": 2,
+            "stationId": "theatre"
+          },
+          {
+            "x": 10,
+            "y": 2,
+            "stationId": "market"
+          },
+          {
+            "x": 10,
+            "y": 4,
+            "stationId": "museum"
+          }
+        ],
+        [
+          {
+            "x": 24,
+            "y": 8
+          },
+          {
+            "x": 22,
+            "y": 7,
+            "stationId": "university"
+          },
+          {
+            "x": 19,
+            "y": 6,
+            "stationId": "airport"
+          },
+          {
+            "x": 17,
+            "y": 5
+          },
+          {
+            "x": 13,
+            "y": 6,
+            "stationId": "harbor"
+          }
+        ]
+      ]
+    },
+    {
+      "card": "four-corners",
+      "count": 2,
+      "trial": 0,
+      "seed": 10203,
+      "blueprintUnavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 2,
+      "trial": 1,
+      "seed": 11201,
+      "progress": {
+        "points": 0,
+        "max": 10,
+        "met": false,
+        "count": 0,
+        "tiers": [
+          5,
+          10
+        ]
+      },
+      "neighborhoods": 1,
+      "northSouthLines": 2,
+      "cornersByComponent": [
+        2,
+        2
+      ],
+      "cash": -6,
+      "score": -46,
+      "contracts": [
+        "crosstown",
+        "express",
+        "long"
+      ],
+      "actions": 62,
+      "paths": [
+        [
+          {
+            "x": 0,
+            "y": 8
+          },
+          {
+            "x": 0,
+            "y": 3
+          },
+          {
+            "x": 0,
+            "y": 0
+          }
+        ],
+        [
+          {
+            "x": 26,
+            "y": 8
+          },
+          {
+            "x": 23,
+            "y": 3
+          },
+          {
+            "x": 26,
+            "y": 0
+          }
+        ],
+        [
+          {
+            "x": 9,
+            "y": 0
+          },
+          {
+            "x": 13,
+            "y": 0
+          },
+          {
+            "x": 19,
+            "y": 2,
+            "stationId": "theatre"
+          },
+          {
+            "x": 21,
+            "y": 0
+          },
+          {
+            "x": 26,
+            "y": 0
+          }
+        ]
+      ]
+    },
+    {
+      "card": "four-corners",
+      "count": 2,
+      "trial": 2,
+      "seed": 12307,
+      "unavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 2,
+      "trial": 3,
+      "seed": 13226,
+      "blueprintUnavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 2,
+      "trial": 4,
+      "seed": 14203,
+      "unavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 2,
+      "trial": 5,
+      "seed": 15203,
+      "blueprintUnavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 2,
+      "trial": 6,
+      "seed": 16200,
+      "blueprintUnavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 2,
+      "trial": 7,
+      "seed": 17219,
+      "blueprintUnavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 2,
+      "trial": 8,
+      "seed": 18204,
+      "blueprintUnavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 2,
+      "trial": 9,
+      "seed": 19200,
+      "blueprintUnavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 2,
+      "trial": 10,
+      "seed": 20206,
+      "progress": {
+        "points": 0,
+        "max": 10,
+        "met": false,
+        "count": 0,
+        "tiers": [
+          5,
+          10
+        ]
+      },
+      "neighborhoods": 2,
+      "northSouthLines": 2,
+      "cornersByComponent": [
+        2,
+        2
+      ],
+      "cash": -7,
+      "score": -48,
+      "contracts": [
+        "orbital",
+        "airport",
+        "long"
+      ],
+      "actions": 67,
+      "paths": [
+        [
+          {
+            "x": 26,
+            "y": 8
+          },
+          {
+            "x": 24,
+            "y": 5,
+            "stationId": "stadium"
+          },
+          {
+            "x": 26,
+            "y": 0
+          }
+        ],
+        [
+          {
+            "x": 0,
+            "y": 8
+          },
+          {
+            "x": 2,
+            "y": 2,
+            "stationId": "grand"
+          },
+          {
+            "x": 0,
+            "y": 0
+          }
+        ],
+        [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 4,
+            "y": 0
+          },
+          {
+            "x": 10,
+            "y": 0
+          },
+          {
+            "x": 13,
+            "y": 0
+          },
+          {
+            "x": 18,
+            "y": 0
+          },
+          {
+            "x": 20,
+            "y": 0
+          },
+          {
+            "x": 24,
+            "y": 0
+          }
+        ]
+      ]
+    },
+    {
+      "card": "four-corners",
+      "count": 2,
+      "trial": 11,
+      "seed": 21200,
+      "progress": {
+        "points": 10,
+        "max": 10,
+        "met": true,
+        "count": 2,
+        "tiers": [
+          5,
+          10
+        ]
+      },
+      "neighborhoods": 3,
+      "northSouthLines": 2,
+      "cornersByComponent": [
+        4
+      ],
+      "cash": -10,
+      "score": -45,
+      "contracts": [
+        "river",
+        "orbital",
+        "long"
+      ],
+      "actions": 71,
+      "paths": [
+        [
+          {
+            "x": 0,
+            "y": 8
+          },
+          {
+            "x": 3,
+            "y": 5,
+            "stationId": "market"
+          },
+          {
+            "x": 4,
+            "y": 3,
+            "stationId": "university"
+          },
+          {
+            "x": 0,
+            "y": 0
+          }
+        ],
+        [
+          {
+            "x": 26,
+            "y": 8
+          },
+          {
+            "x": 24,
+            "y": 5,
+            "stationId": "theatre"
+          },
+          {
+            "x": 26,
+            "y": 0
+          }
+        ],
+        [
+          {
+            "x": 1,
+            "y": 0
+          },
+          {
+            "x": 5,
+            "y": 0
+          },
+          {
+            "x": 11,
+            "y": 0
+          },
+          {
+            "x": 14,
+            "y": 0
+          },
+          {
+            "x": 19,
+            "y": 0
+          },
+          {
+            "x": 21,
+            "y": 0
+          },
+          {
+            "x": 25,
+            "y": 0
+          }
+        ]
+      ]
+    },
+    {
+      "card": "four-corners",
+      "count": 3,
+      "trial": 0,
+      "seed": 10328,
+      "unavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 3,
+      "trial": 1,
+      "seed": 11315,
+      "progress": {
+        "points": 0,
+        "max": 10,
+        "met": false,
+        "count": 0,
+        "tiers": [
+          5,
+          10
+        ]
+      },
+      "neighborhoods": 1,
+      "northSouthLines": 1,
+      "cornersByComponent": [
+        1,
+        2
+      ],
+      "cash": -9,
+      "score": -57,
+      "contracts": [
+        "long",
+        "orbital",
+        "crosstown"
+      ],
+      "actions": 103,
+      "paths": [
+        [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 4,
+            "y": 0
+          },
+          {
+            "x": 10,
+            "y": 0
+          },
+          {
+            "x": 13,
+            "y": 0
+          },
+          {
+            "x": 18,
+            "y": 0
+          },
+          {
+            "x": 20,
+            "y": 0
+          },
+          {
+            "x": 24,
+            "y": 0
+          }
+        ],
+        [
+          {
+            "x": 26,
+            "y": 8
+          },
+          {
+            "x": 24,
+            "y": 5
+          },
+          {
+            "x": 26,
+            "y": 0
+          }
+        ],
+        [
+          {
+            "x": 4,
+            "y": 0
+          },
+          {
+            "x": 5,
+            "y": 5
+          },
+          {
+            "x": 2,
+            "y": 6,
+            "stationId": "grand"
+          },
+          {
+            "x": 0,
+            "y": 2
+          },
+          {
+            "x": 0,
+            "y": 0
+          }
+        ]
+      ]
+    },
+    {
+      "card": "four-corners",
+      "count": 3,
+      "trial": 2,
+      "seed": 12307,
+      "unavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 3,
+      "trial": 3,
+      "seed": 13302,
+      "unavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 3,
+      "trial": 4,
+      "seed": 14301,
+      "unavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 3,
+      "trial": 5,
+      "seed": 15311,
+      "progress": {
+        "points": 0,
+        "max": 10,
+        "met": false,
+        "count": 0,
+        "tiers": [
+          5,
+          10
+        ]
+      },
+      "neighborhoods": 2,
+      "northSouthLines": 2,
+      "cornersByComponent": [
+        2,
+        2
+      ],
+      "cash": -5,
+      "score": -41,
+      "contracts": [
+        "orbital",
+        "express",
+        "long"
+      ],
+      "actions": 104,
+      "paths": [
+        [
+          {
+            "x": 0,
+            "y": 8
+          },
+          {
+            "x": 2,
+            "y": 5,
+            "stationId": "museum"
+          },
+          {
+            "x": 0,
+            "y": 0
+          }
+        ],
+        [
+          {
+            "x": 26,
+            "y": 8
+          },
+          {
+            "x": 23,
+            "y": 3,
+            "stationId": "harbor"
+          },
+          {
+            "x": 26,
+            "y": 0
+          }
+        ],
+        [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 4,
+            "y": 0
+          },
+          {
+            "x": 10,
+            "y": 0
+          },
+          {
+            "x": 13,
+            "y": 0
+          },
+          {
+            "x": 18,
+            "y": 0
+          },
+          {
+            "x": 20,
+            "y": 0
+          },
+          {
+            "x": 24,
+            "y": 0
+          }
+        ]
+      ]
+    },
+    {
+      "card": "four-corners",
+      "count": 3,
+      "trial": 6,
+      "seed": 16304,
+      "unavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 3,
+      "trial": 7,
+      "seed": 17427,
+      "unavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 3,
+      "trial": 8,
+      "seed": 18303,
+      "unavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 3,
+      "trial": 9,
+      "seed": 19304,
+      "unavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 3,
+      "trial": 10,
+      "seed": 20302,
+      "unavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 3,
+      "trial": 11,
+      "seed": 21301,
+      "unavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 3,
+      "trial": 12,
+      "seed": 22301,
+      "blueprintUnavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 3,
+      "trial": 13,
+      "seed": 23301,
+      "progress": {
+        "points": 0,
+        "max": 10,
+        "met": false,
+        "count": 0,
+        "tiers": [
+          5,
+          10
+        ]
+      },
+      "neighborhoods": 2,
+      "northSouthLines": 2,
+      "cornersByComponent": [
+        2,
+        2
+      ],
+      "cash": -7,
+      "score": -48,
+      "contracts": [
+        "medium",
+        "airport",
+        "long"
+      ],
+      "actions": 99,
+      "paths": [
+        [
+          {
+            "x": 26,
+            "y": 8
+          },
+          {
+            "x": 26,
+            "y": 5
+          },
+          {
+            "x": 26,
+            "y": 0
+          }
+        ],
+        [
+          {
+            "x": 0,
+            "y": 8
+          },
+          {
+            "x": 2,
+            "y": 2,
+            "stationId": "grand"
+          },
+          {
+            "x": 0,
+            "y": 0
+          }
+        ],
+        [
+          {
+            "x": 5,
+            "y": 0
+          },
+          {
+            "x": 9,
+            "y": 0
+          },
+          {
+            "x": 15,
+            "y": 0
+          },
+          {
+            "x": 18,
+            "y": 0
+          },
+          {
+            "x": 22,
+            "y": 3,
+            "stationId": "harbor"
+          },
+          {
+            "x": 24,
+            "y": 3,
+            "stationId": "harbor"
+          },
+          {
+            "x": 26,
+            "y": 0
+          }
+        ]
+      ]
+    },
+    {
+      "card": "four-corners",
+      "count": 4,
+      "trial": 0,
+      "seed": 10404,
+      "unavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 4,
+      "trial": 1,
+      "seed": 11411,
+      "unavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 4,
+      "trial": 2,
+      "seed": 12412,
+      "unavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 4,
+      "trial": 3,
+      "seed": 13426,
+      "unavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 4,
+      "trial": 4,
+      "seed": 14408,
+      "unavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 4,
+      "trial": 5,
+      "seed": 15406,
+      "progress": {
+        "points": 0,
+        "max": 10,
+        "met": false,
+        "count": 0,
+        "tiers": [
+          5,
+          10
+        ]
+      },
+      "neighborhoods": 1,
+      "northSouthLines": 2,
+      "cornersByComponent": [
+        2,
+        2
+      ],
+      "cash": -6,
+      "score": -45,
+      "contracts": [
+        "medium",
+        "long",
+        "express"
+      ],
+      "actions": 134,
+      "paths": [
+        [
+          {
+            "x": 0,
+            "y": 8
+          },
+          {
+            "x": 0,
+            "y": 5
+          },
+          {
+            "x": 0,
+            "y": 0
+          }
+        ],
+        [
+          {
+            "x": 8,
+            "y": 0
+          },
+          {
+            "x": 12,
+            "y": 0
+          },
+          {
+            "x": 18,
+            "y": 0
+          },
+          {
+            "x": 21,
+            "y": 0
+          },
+          {
+            "x": 26,
+            "y": 0
+          }
+        ],
+        [
+          {
+            "x": 26,
+            "y": 8
+          },
+          {
+            "x": 23,
+            "y": 3,
+            "stationId": "museum"
+          },
+          {
+            "x": 26,
+            "y": 0
+          }
+        ]
+      ]
+    },
+    {
+      "card": "four-corners",
+      "count": 4,
+      "trial": 6,
+      "seed": 16412,
+      "unavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 4,
+      "trial": 7,
+      "seed": 17457,
+      "unavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 4,
+      "trial": 8,
+      "seed": 18413,
+      "unavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 4,
+      "trial": 9,
+      "seed": 19407,
+      "unavailable": true
+    },
+    {
+      "card": "four-corners",
+      "count": 4,
+      "trial": 10,
+      "seed": 20407,
+      "progress": {
+        "points": 0,
+        "max": 10,
+        "met": false,
+        "count": 0,
+        "tiers": [
+          5,
+          10
+        ]
+      },
+      "neighborhoods": 1,
+      "northSouthLines": 1,
+      "cornersByComponent": [
+        2,
+        1
+      ],
+      "cash": -3,
+      "score": -33,
+      "contracts": [
+        "crosstown",
+        "long",
+        "orbital"
+      ],
+      "actions": 130,
+      "paths": [
+        [
+          {
+            "x": 0,
+            "y": 8
+          },
+          {
+            "x": 0,
+            "y": 3
+          },
+          {
+            "x": 0,
+            "y": 0
+          }
+        ],
+        [
+          {
+            "x": 14,
+            "y": 0
+          },
+          {
+            "x": 18,
+            "y": 0
+          },
+          {
+            "x": 24,
+            "y": 2,
+            "stationId": "grand"
+          },
+          {
+            "x": 26,
+            "y": 0
+          }
+        ],
+        [
+          {
+            "x": 22,
+            "y": 0
+          },
+          {
+            "x": 26,
+            "y": 0
+          }
+        ]
+      ]
+    },
+    {
+      "card": "four-corners",
+      "count": 4,
+      "trial": 11,
+      "seed": 21406,
+      "progress": {
+        "points": 0,
+        "max": 10,
+        "met": false,
+        "count": 0,
+        "tiers": [
+          5,
+          10
+        ]
+      },
+      "neighborhoods": 2,
+      "northSouthLines": 2,
+      "cornersByComponent": [
+        2,
+        2
+      ],
+      "cash": 1,
+      "score": -17,
+      "contracts": [
+        "orbital",
+        "long",
+        "express"
+      ],
+      "actions": 138,
+      "paths": [
+        [
+          {
+            "x": 0,
+            "y": 8
+          },
+          {
+            "x": 2,
+            "y": 5,
+            "stationId": "museum"
+          },
+          {
+            "x": 0,
+            "y": 0
+          }
+        ],
+        [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 4,
+            "y": 0
+          },
+          {
+            "x": 10,
+            "y": 0
+          },
+          {
+            "x": 13,
+            "y": 0
+          },
+          {
+            "x": 18,
+            "y": 1,
+            "stationId": "grand"
+          },
+          {
+            "x": 20,
+            "y": 1,
+            "stationId": "grand"
+          },
+          {
+            "x": 24,
+            "y": 0
+          }
+        ],
+        [
+          {
+            "x": 26,
+            "y": 8
+          },
+          {
+            "x": 23,
+            "y": 3
+          },
+          {
+            "x": 26,
+            "y": 0
+          }
+        ]
+      ]
+    }
+  ]
+}

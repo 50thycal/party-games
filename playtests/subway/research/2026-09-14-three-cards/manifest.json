@@ -1,0 +1,23 @@
+{
+  "source": "simulation; bespoke diagnostic planner versus DEFAULT_BOT opponents",
+  "stateVersion": 21,
+  "localSourceCommit": "acfe2396a4cd28ec41a7757ac19a1da1d57e39d1",
+  "verifiedMainCommit": "fc5bc3bd915bfb26e680250b61107ae0f6601491",
+  "rulesFingerprint": "83115475",
+  "recordBuildField": "unrecorded-local-build; source provenance supplied here without rewriting records",
+  "beamWidth": 48,
+  "horizon": 8,
+  "seedSearchLimit": 128,
+  "candidateTrialsLimitPerCardAndCount": 30,
+  "completedGamesPerCardAndCount": 3,
+  "retainedReplays": "one full-completion example per card; every completed game was replay-verified during the run",
+  "files": {
+    "README.md": "bd08e4f5b53c93de7b9a3be026c6c482d94ccb44903c319468a02ab304d6a17c",
+    "REPRODUCE.md": "45fdc256b3f3b4be3a11b462f27e87da65476c134ecb71dc831d13a40ed87d09",
+    "four-corners-2-11.json": "1d44fc5acbc1f1bfa509293c7863e1fed62baab5858f09e2f3b19acc21173818",
+    "investigation.cjs": "8cd999f0bc4b07f265223cb7b438f79b8c10268c00930d9e5c95bd186102ab65",
+    "results.json": "90329e35ecd1f9942fe6afb2641d676a77deccd7d5ac4c13f7d0984e4c687b1d",
+    "terminal-4-7.json": "83029910963683180bfa528ec93f658407e4359b3aa6884a978b49ad276c160e",
+    "through-2-2.json": "c28b4f881e8422791b8faaa2e949046787532dc73aa3efb449ca25155449f3e1"
+  }
+}
