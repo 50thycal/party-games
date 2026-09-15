@@ -1818,3 +1818,19 @@ Alternatives: repeated station charges rejected by owner; duplicate-color extra
 contract rejected in planning for readability; per-line progress on public iPad
 pads omitted at owner's request. Remaining highlight privacy and bendable segments
 remain parked for sequential review.
+
+### DEC-053 — Current-player highlights and unreviewed rulebook drafts
+
+Date: 2026-09-15. Status: owner-authorized publication and bug fix.
+
+Selected Destination cards persist by company, but the shared tablet projection
+now filters by the current turn actor. Phones keep their own selections off-turn.
+When no actor exists, no tablet highlight is shown. This supersedes persistent
+cross-company shared visibility described in earlier companion guidance; it does
+not reset selections or change gameplay state.
+
+The owner requested publication of the quick-start and full rulebook without a
+thorough review. Both, and the existing rules reference, are explicitly drafts
+needing owner review. Saving them is not approval of rule wording or balance.
+Graphics follow wording approval. The turn question is next; bendable connections
+remain last. No turn, scoring or geometry change is authorized by this decision.

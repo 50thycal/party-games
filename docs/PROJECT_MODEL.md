@@ -58,10 +58,15 @@ Public money events drive player-panel debit/credit animations and completion re
 
 An authenticated phone can toggle its owned Destinations on the shared iPad.
 Enabled selections persist across turns and reconnects until their owner disables
-them. Each card has a distinct company/card label and color; the iPad legend names
-its company and mission. Phones receive only their own selections. Clear removes
+them. The tablet projection includes only the current actor's selections, even
+before tablet acknowledgement, and none when no actor exists. Both board markers
+and the legend use that projection. Each card has a distinct company/card label
+and color. Phones receive only their own selections, including off-turn. Clear removes
 only that company's highlights. This opt-in disclosure does not publish unselected
-missions or the full hand. See DEC-047 for the owner-requested persistence change.
+missions or the full hand. See DEC-047 for selection persistence and DEC-053 for
+current-player-only shared visibility. The quick-start, full rulebook and existing
+rules reference are marked DRAFT — NEEDS OWNER REVIEW; graphics follow wording
+approval. Repository publication does not imply owner approval of their rules.
 
 Ghost planning is a device-local Table setting, default off. Off hides saved
 ghosts, planning controls and next-step hints, but retains normal real-placement
