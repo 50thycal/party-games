@@ -569,7 +569,7 @@ Goal: restore a full navigable table on mobile after owner screenshots exposed a
 
 Implemented: one TabletopCanvas for all devices, illustrations in the card market, compact phone overlays/header, 16px native selects, touch drag from cards, midpoint-anchored pinch/pan, and keyboard-only focus camera movement. Temporary previews and real peg Confirm remain unchanged. Canonical VERSION.md rechecked: v0.12, compatible.
 
-Acceptance: inside-table pan/zoom leaves page controls unchanged; cards readable by navigating the table; Confirm does not commit ghost tails; phone portrait/landscape and two-player browser flow verified before merge. Automated gates and browser preview pending. Review State: PR #187 Approved with follow-ups at source fc9f01ee1e7df0f8f5e49ef9825b5fbd50462c3c by /root/bend_review; implementation actor /root. No unresolved Blocking/Should-fix findings. Finalization: pushed; resulting head verification recorded separately on PR. Follow-ups are hands-on phone/iPad and experiment balance playtests. Next Step: validate and publish correction, then verify deployed preview.
+Acceptance: inside-table pan/zoom leaves page controls unchanged; cards readable by navigating the table; Confirm does not commit ghost tails; phone portrait/landscape and two-player browser flow verified before merge. Automated gates and browser preview pending. Review State: pending independent review. Next Step: validate and publish correction, then verify deployed preview.
 
 ### PR #160 browser findings
 
