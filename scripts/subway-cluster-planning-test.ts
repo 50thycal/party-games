@@ -28,8 +28,8 @@ assert.equal(r.points['seat-1'],3);assert.equal(r.points['seat-3'],3);
 s.players['seat-4'].lines=[line([[20,0],[26,8]])];
 assert.deepEqual(largestCluster(s.players),r);
 const scored=scoreGame(s,1);
-assert.equal(scored.players['seat-1'].scoreBreakdown?.find(i=>i.label.startsWith('Largest cluster'))?.points,3);
-assert.equal(scored.players['seat-4'].scoreBreakdown?.find(i=>i.label.startsWith('Largest cluster'))?.points,0);
+assert.equal(scored.players['seat-1'].scoreBreakdown?.find(i=>i.label.startsWith('Largest Transfer Station'))?.points,3);
+assert.equal(scored.players['seat-4'].scoreBreakdown?.find(i=>i.label.startsWith('Largest Transfer Station'))?.points,0);
 
 const game=fixture(2),id='seat-1';game.phase='CONSTRUCTION';game.currentPeriod=1;game.resolveQueue=[id];
 game.players[id].lines=[line([[3,0]]),line([[13,0]]),line([[23,0]])];

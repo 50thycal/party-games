@@ -444,7 +444,7 @@ export function ScheduleBoard({
       subtitle={`${PERIODS} periods · one crew per company · companies take turns in cyclic order`}
       className="w-full"
     >
-      {editable && !veiled && <div className="mb-[18px]"><TableButton size="sm" disabled={busy} onClick={() => act("AUTO_SCHEDULE")}>Suggest lowest-cost schedule</TableButton><p className="mt-2 text-[18px] text-stone-600">Keeps all three routes. Adjust the timing to race for stations.</p></div>}
+      {editable && !veiled && <div className="mb-[18px]"><TableButton size="sm" disabled={busy} onClick={() => act("AUTO_SCHEDULE")}>Suggest lowest-cost schedule</TableButton><p className="mt-2 text-[18px] text-stone-600">Keeps all three lines. Adjust the timing to race for stations.</p></div>}
       <div className="grid items-center gap-[6px]" style={{ gridTemplateColumns: columns }}>
         <div className="text-[19px] font-black uppercase tracking-[.14em] text-stone-500">Period</div>
         {Array.from({ length: PERIODS }, (_, i) => {
@@ -663,8 +663,8 @@ export function ContractOffice({
     <Printed zone="office" title="Contract office" className="w-full" style={{ width: TABLE.side }}>
       {game.phase === "PROCUREMENT" && (
         <div className="space-y-[12px]">
-          <p className="text-[20px] font-bold">Route draft · {Math.floor(game.procurement.offerIndex / game.playerOrder.length) + 1}/3</p>
-          <p className="text-[20px]">Choose one route · {me ? `${money(me.money)} available` : "List price"}.</p>
+          <p className="text-[20px] font-bold">Line draft · {Math.floor(game.procurement.offerIndex / game.playerOrder.length) + 1}/3</p>
+          <p className="text-[20px]">Choose one line · {me ? `${money(me.money)} available` : "List price"}.</p>
           {game.procurement.row.map((id) => {
             const c = contractById(id)!;
             const mine = !veiled && me?.id === offer?.activeId;
@@ -784,7 +784,7 @@ export function RouteBuildGuide({ line, compact = false }: { line: PlayerLine; c
   const remaining = Math.max(0, contract.recipe.length - segmentsBuilt(line));
   const starter = line.route.length === 0;
   return <div aria-label={`Build guide for ${contract.name}`} className={`rounded-lg border-l-4 bg-amber-50 ${compact ? "px-2 py-1 text-xs" : "mt-[16px] px-[16px] py-[12px] text-[24px]"}`} style={{ borderColor: contract.color }}>
-    <b>{starter ? "Place starter on a border hole" : remaining ? `Next segment: ${nextSegmentLength(line)} peg spaces` : "Route complete"}</b>
+    <b>{starter ? "Place starter on a border hole" : remaining ? `Next segment: ${nextSegmentLength(line)} peg spaces` : "Line complete"}</b>
     <span> · {remaining} segment{remaining === 1 ? "" : "s"} left</span>
     {starter && <span> · First segment: {contract.recipe[0]} peg spaces</span>}
   </div>;
@@ -858,7 +858,7 @@ export function LineContractBoard({
         )}
         {pendingActions > 0 && <Pill tone="warn">{pendingActions} action{pendingActions === 1 ? "" : "s"} due</Pill>}
         <span className="ml-auto text-[28px] font-black tabular-nums">
-          {line.route.length}/{nodes} <span className="text-[19px] font-bold text-stone-500">nodes</span>
+          {line.route.length}/{nodes} <span className="text-[19px] font-bold text-stone-500">stations</span>
         </span>
       </div>
 
@@ -866,7 +866,7 @@ export function LineContractBoard({
 
       {/* The recipe, big enough to read as the line's shape. */}
       <div className="mt-[18px]">
-        <p className="text-[17px] font-black uppercase tracking-[.14em] text-stone-500">Ordered recipe (pegs per segment)</p>
+        <p className="text-[17px] font-black uppercase tracking-[.14em] text-stone-500">Ordered recipe (peg spaces per segment)</p>
         <div className="mt-[10px] flex flex-wrap items-center gap-[10px]">
           {contract.recipe.map((length, i) => {
             const done = i < built;
@@ -908,7 +908,7 @@ export function LineContractBoard({
         <b>
           {built}/{contract.recipe.length}
         </b>
-        <span className="text-stone-500">Nodes remaining</span>
+        <span className="text-stone-500">Stations remaining</span>
         <b>{Math.max(0, nodes - line.route.length)}</b>
         <span className="text-stone-500">Next segment</span>
         <b>{next === undefined ? "—" : `${next} peg spaces`}</b>
@@ -965,7 +965,7 @@ export function LineContractBoard({
         )}
         {planAvailable && (
           <TableButton size="sm" tone="plan" onClick={() => onOpenPlanner(lineIndex)}>
-            {planChip?.saved ? "Edit plan" : "Plan route"}
+            {planChip?.saved ? "Edit plan" : "Plan line"}
           </TableButton>
         )}
         {selectable && onSelectLine && (

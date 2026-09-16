@@ -51,7 +51,7 @@ export function MobileTable({game, playerId, busy, veiled, board, actions, setti
         <button className={button} disabled={busy} onClick={()=>act("HIRE_CREWS",{lineIndexes:indexes,period:game.currentPeriod})}>{indexes.length?`Hire ${indexes.length} · $${activationCost(p,indexes.length)}M`:"No crews · end turn"}</button>
       </div>}
       <div className="flex shrink-0 items-center gap-2 px-2 text-xs text-amber-50">
-        <button className="rounded bg-white/15 px-3 py-2" aria-expanded={tray||drafting} onClick={()=>setTray(v=>!v)}>{tray?"Put cards away":"Routes & cards"}</button>
+        <button className="rounded bg-white/15 px-3 py-2" aria-expanded={tray||drafting} onClick={()=>setTray(v=>!v)}>{tray?"Put cards away":"Lines & cards"}</button>
         {p.lines.map((l,i)=><button key={l.contractId} className="rounded border px-2 py-2" style={{borderColor:contractOf(l)?.color}} onClick={()=>selectLine(i)}>{contractOf(l)?.code ?? contractOf(l)?.name} {Math.max(0,l.route.length-1)}/{contractOf(l)?.recipe.length}</button>)}
       </div>
       {(tray||drafting) && <div className="flex max-h-[38dvh] shrink-0 gap-2 overflow-auto px-2 pb-1 text-sm" aria-label="Cards on the table">

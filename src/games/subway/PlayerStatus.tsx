@@ -9,7 +9,7 @@ export function PublicLeaders({game}:{game:SubwayState}) {
   const names=(ids:string[])=>ids.length?`${ids.map(id=>game.players[id].name).join(' / ')}${ids.length>1?' (tied)':''}`:'No leader yet';
   return <div aria-label="Public leaders" className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-teal-100">
     <span>Longest network: <b>{names(standings.networkLeaders)}</b> · {standings.length.toFixed(1)} spaces</span>
-    <span>Largest cluster: <b>{names(standings.stationLeaders)}</b> · {standings.size} pegs</span>
+    <span>Largest Transfer Station: <b>{names(standings.stationLeaders)}</b> · {standings.size} stations</span>
   </div>;
 }
 
@@ -51,14 +51,14 @@ export function PhoneStatus({game,playerId}:{game:SubwayState;playerId:string}) 
   const me=game.players[playerId],standings=useMemo(()=>publicStandings(game),[game]);
   if(!me)return null;
   return <section aria-label="Your company status" className="rounded-xl bg-[#193640] p-3 text-white shadow-lg">
-    <div className="flex flex-wrap justify-between gap-1 text-xs"><b>{me.name} · ${me.money}M</b><span>Your network {standings.lengths[playerId].toFixed(1)} spaces · Pegs in leading clusters {standings.stationCounts[playerId]}</span></div>
+    <div className="flex flex-wrap justify-between gap-1 text-xs"><b>{me.name} · ${me.money}M</b><span>Your network {standings.lengths[playerId].toFixed(1)} spaces · Stations in leading transfer stations {standings.stationCounts[playerId]}</span></div>
     <p className="mt-1 text-xs">{BEND_LABELS[game.bendMode??'straight']}{game.bendMode==='tokens'?` · ${me.bendTokens??0} bend tokens`:''}</p>
     <div className="my-2"><PublicLeaders game={game}/></div>
-    <div className="space-y-1">{me.lines.map((l,index)=>{const c=contractOf(l)!,built=segmentsBuilt(l),left=c.recipe.length-built;return <div key={c.id} className="flex flex-wrap items-center gap-x-2 text-[11px]" aria-label={`${c.name}: ${built} of ${c.recipe.length} segments built; ${c.recipe.length+1-l.route.length} pegs and ${left} segments left`}>
+    <div className="space-y-1">{me.lines.map((l,index)=>{const c=contractOf(l)!,built=segmentsBuilt(l),left=c.recipe.length-built;return <div key={c.id} className="flex flex-wrap items-center gap-x-2 text-[11px]" aria-label={`${c.name}: ${built} of ${c.recipe.length} segments built; ${c.recipe.length+1-l.route.length} stations and ${left} segments left`}>
       <b className="w-7 border-b-4" style={{borderColor:c.color}}>{c.code}</b>
       <span className="flex gap-1" aria-hidden>{Array.from({length:c.recipe.length+1},(_,i)=><span key={i} className={`inline-block h-2.5 w-2.5 border ${i===0?'rotate-45':'rounded-full'}`} style={{borderColor:c.color,background:i<l.route.length?c.color:'transparent'}}/>)}</span>
       <span>{built}/{c.recipe.length} segments · {left} left{l.work?.length?` · Worksite: ${remainingLength(game,playerId,index).toFixed(1)} spaces to finish`:""}</span>
     </div>;})}</div>
-    {me.lines.length>0&&<p className="mt-1 text-[10px] text-slate-300">Diamond = starter · filled = placed · empty = remaining pegs</p>}
+    {me.lines.length>0&&<p className="mt-1 text-[10px] text-slate-300">Diamond = starter · filled = placed · empty = remaining stations</p>}
   </section>;
 }

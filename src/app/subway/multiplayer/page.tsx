@@ -252,7 +252,7 @@ export default function SubwayMultiplayerPage() {
 }
 
 function GhostDiagram({nodes,color,built}:{nodes:RouteNode[];color:string;built:number}) {
-  return <div className="mt-3"><p className="text-xs">Saved ghost · edit on the iPad</p><svg viewBox="-1 -1 28 10" role="img" aria-label="Your saved route plan" className="mt-2 w-full rounded-lg bg-stone-200 p-2">
+  return <div className="mt-3"><p className="text-xs">Saved ghost · edit on the iPad</p><svg viewBox="-1 -1 28 10" role="img" aria-label="Your saved line plan" className="mt-2 w-full rounded-lg bg-stone-200 p-2">
     {nodes.slice(1).map((n,i)=><line key={`l${i}`} x1={nodes[i].x} y1={nodes[i].y} x2={n.x} y2={n.y} stroke={color} strokeWidth=".18" strokeDasharray={i+1>=built?".3 .2":undefined} opacity={i+1>=built?.5:1}/>)}
     {nodes.map((n,i)=><circle key={i} cx={n.x} cy={n.y} r=".22" fill={color} opacity={i>=built?.5:1}/>)}
   </svg></div>;

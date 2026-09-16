@@ -7,10 +7,10 @@
 
 ## 1. Your goal
 
-Subway is a route-building strategy game for **two to four players**. Each player
+Subway is a line-building strategy game for **two to four players**. Each player
 runs a company with three subway lines. Earn victory points by completing lines,
 fulfilling private Destination missions, meeting Engineering goals, and building
-the Longest Network and Largest Cluster public goals.
+the Longest Network and Largest Transfer Station public goals.
 
 Money pays for contracts, crews, and access to opponents' infrastructure.
 Unfinished lines and unpaid debt reduce your final score.
@@ -22,9 +22,8 @@ west. It contains three small neighborhoods of six holes each, one medium of ten
 holes, and six large neighborhoods of sixteen holes each. Locations and shapes
 vary between games.
 
-A **peg**, also called a **node**, marks a stop. A **segment** is the
-connection between successive pegs. A **line** consists of its starter and the
-segments listed on its contract. “Route” is another word for a line.
+A **station** is one placed peg. A **segment** connects successive stations.
+A **line** consists of its starter station and the segments listed on its contract.
 
 A **peg space** measures distance, not the number of pegs placed. A **round**
 gives each company a **turn**. Each hired line gets one **construction
@@ -61,12 +60,12 @@ Take one Engineering card per turn until everyone holds three. Choose one of two
 face-up cards or draw blind. Refill an empty face-up space. The deck has twenty-one
 cards: seven Line, seven Station and seven Neighborhood cards.
 
-### Place starter pegs
+### Place starter stations
 
 Place one starter for each line on an empty outer-border hole. Neighborhoods do
 not occupy the border. Starters may be beside another peg, but never on top.
 Placement has no base cost. A starter joining an opponent's station pays the
-applicable station-access fee immediately.
+applicable transfer-access fee immediately.
 
 ## 4. Construction rounds
 
@@ -127,7 +126,7 @@ Each leg joins board holes and changes heading by at most **90 degrees**.
 Add the actual leg lengths; apply the existing ±0.5-space tolerance once to the
 whole printed segment. A stop must leave at least one space available to finish.
 Bends and worksites are **not pegs or stations**: they do not serve neighborhoods,
-create transfers, satisfy peg objectives or count as endpoints. Partial strings
+create transfers, satisfy station objectives or count as line ends. Partial strings
 are physical: crossings cost money when built and overlaps remain forbidden.
 Only completed segments contribute network length, using their full bent path.
 No completion reward is paid until all printed segments are finished. The game
@@ -155,14 +154,15 @@ Two different lines belonging to you connect when their pegs occupy immediately
 neighboring holes horizontally or vertically. This creates a transfer.
 
 Diagonal adjacency, crossing strings, visiting the same neighborhood without
-adjacent pegs, and routes through an opponent's line do **not** connect your lines.
-An opponent may share a local station, but never bridges your company network.
+adjacent pegs, and lines through an opponent's line do **not** connect your lines.
+An opponent may share a local transfer station, but never bridges your company network.
 
-A **station cluster** is a local group linked by horizontal/vertical adjacency
-between pegs on different lines. Two adjacent pegs on the same line alone do not
-create a transfer. Clusters may contain several lines and companies and cross
+A **transfer station** is a local group of horizontally/vertically adjacent
+stations. For Station cards and company-network connections, group stations only
+through adjacency between different lines; same-line adjacency alone does not
+create a qualifying transfer. Transfer stations may contain several lines and companies and cross
 neighborhood boundaries. Strings between distant locations do not make one
-station. Two local clusters that grow together become one station.
+transfer station. Two local transfer stations that grow together become one transfer station.
 
 **Single Line:** One line supplies the entire requirement.
 
@@ -173,22 +173,22 @@ Disconnected sections cannot be combined.
 
 ## 7. Paying other companies
 
-### Station access
+### Transfer access
 
-When your line joins a local station containing an opponent's pegs, pay that
+When your line joins a local transfer station containing an opponent's pegs, pay that
 opponent **$1 million**. Pay once for that combination of your line, that opponent,
-and that local station.
+and that local transfer station.
 
-Further pegs at the same station on the same line do not repeat the fee. Several
+Further pegs at the same transfer station on the same line do not repeat the fee. Several
 neighboring pegs belonging to one opponent do not multiply it. A different line
-joining may owe its own fee; joining a separate station may also cost again.
+joining may owe its own fee; joining a separate transfer station may also cost again.
 When multiple opponents participate, pay each whose access fee is due.
 
-Paid access survives station growth and mergers. Existing participants do not pay
-a newcomer back merely because they later expand the station.
+Paid access survives transfer-station growth and mergers. Existing participants do not pay
+a newcomer back merely because they later expand the transfer station.
 
-**Example:** Zoe has a peg at a station. Calvin places a Red Line peg beside it
-and pays Zoe $1 million. Another Red Line peg at that station does not charge
+**Example:** Zoe has a station. Calvin places a Red Line station beside it
+and pays Zoe $1 million. Another Red Line station at that transfer station does not charge
 again. His Blue Line joining separately may owe its own access fee.
 
 This rule also applies when the joining peg is a starter.
@@ -202,7 +202,7 @@ point cost $1 million at that point. Pay each owner when several opponents share
 a contacted point.
 
 Extending away from an already contacted starting point does not charge for that
-same departure again. **Station access never grants free crossings.** One
+same departure again. **Transfer access never grants free crossings.** One
 placement can owe both access and separate string-contact fees. The preview
 identifies recipients, amounts and reasons before confirmation.
 
@@ -226,14 +226,14 @@ Score each of your three cards once at game end, for its full printed value or
 zero. One construction may satisfy several cards. Live “Currently met” indicators
 are provisional: later actions can change fulfillment.
 
-A **qualifying endpoint** is a starter or the final peg of a completed line. The
-growing tip of an unfinished line does not count as a completed final peg.
-**Consecutive nodes** are successive pegs joined by one segment on a line.
-**Distinct stations** are separate clusters; merged clusters count once.
+A **qualifying line end** is a starter or the final station of a completed line. The
+growing tip of an unfinished line does not count as a completed final station.
+**Consecutive stations** are successive stations joined by one segment on a line.
+**Distinct transfer stations** are separate transfer stations; merged transfer stations count once.
 
 A corner belongs to two border sides, but distinct-side requirements need a
 different peg for each side. Opposite corners are northwest–southeast or
-northeast–southwest. Unless completion or final pegs are required, unfinished lines
+northeast–southwest. Unless completion or final stations are required, unfinished lines
 may contribute. Station-card transfers use your own different lines unless the
 card explicitly includes opponents.
 
@@ -241,25 +241,25 @@ card explicitly includes opponents.
 
 | Card | VP | Requirement |
 |---|---:|---|
-| North–South Connection | 3 | Start one line on the north border and finish it on the south border, or vice versa. Intermediate nodes do not count. |
-| Four-Side Service | 4 | Have a starter or completed final peg on each of the four borders. Different sides need different nodes; lines need not connect. |
+| North–South Connection | 3 | Start one line on the north border and finish it on the south border, or vice versa. Intermediate stations do not count. |
+| Four-Side Service | 4 | Have a starter or completed final station on each of the four borders. Different sides need different stations; lines need not connect. |
 | Turning the Corner | 3 | Start one line on an east/west border and finish on a north/south border, or vice versa. |
 | Return Service | 3 | Finish one line on the same border side as its starter. |
-| Across Town | 5 | Connect qualifying endpoints on the east and west borders. Each may be a starter or a completed final peg, on the same or different lines. |
-| Perimeter Service | 5 | One line has distinct nodes on at least three different border sides. Any nodes count; completion is not required. |
-| Opposite Corners | 6 | Connect qualifying endpoints in diagonally opposite corners. Each may be a starter or a completed final peg, on the same or different lines. |
+| Across Town | 5 | Connect qualifying line ends on the east and west borders. Each may be a starter or a completed final station, on the same or different lines. |
+| Perimeter Service | 5 | One line has distinct stations on at least three different border sides. Any stations count; completion is not required. |
+| Opposite Corners | 6 | Connect qualifying line ends in diagonally opposite corners. Each may be a starter or a completed final station, on the same or different lines. |
 
 ### Station cards
 
 | Card | VP | Requirement |
 |---|---:|---|
-| Transfer Station | 3 | Form a transfer between two of your lines inside one neighborhood. |
-| Three-Line Hub | 4 | Bring all three of your lines together in one station cluster, anywhere on the board. |
-| Shared Stations | 4 | Participate in two separate station clusters containing your nodes and opponent nodes. The same opponent may join both. No neighborhood restriction. |
-| Back-to-Back Stations | 4 | Two consecutive nodes on one of your lines belong to two distinct transfers to your other lines. No neighborhood restriction. |
-| Station Chain | 5 | Have three distinct transfer stations between your lines in one connected company network. No neighborhood restriction. |
-| Neighborhood Interchange | 5 | Form one station cluster spanning two touching neighborhoods, with nodes from at least two of your lines. |
-| Terminal Interchanges | 6 | The starter and final peg of one completed line belong to two distinct transfers to your other lines. |
+| Transfer Station | 3 | Form a transfer station between two of your lines inside one neighborhood. |
+| Three-Line Hub | 4 | Bring all three of your lines together in one transfer station, anywhere on the board. |
+| Shared Transfer Stations | 4 | Participate in two separate transfer stations containing your stations and opponent stations. The same opponent may join both. No neighborhood restriction. |
+| Back-to-Back Transfer Stations | 4 | Two consecutive stations on one of your lines belong to two distinct transfer stations connecting to your other lines. No neighborhood restriction. |
+| Transfer Station Chain | 5 | Have three distinct transfer stations between your lines in one connected company network. No neighborhood restriction. |
+| Neighborhood Interchange | 5 | Form one transfer station spanning two touching neighborhoods, with stations from at least two of your lines. |
+| Terminal Interchanges | 6 | The starter and final station of one completed line belong to two distinct transfer stations connecting to your other lines. |
 
 ### Neighborhood cards
 
@@ -268,10 +268,10 @@ card explicitly includes opponents.
 | Small Neighborhood Pair | 3 | Serve two different small neighborhoods with one line. |
 | Mixed Service | 4 | Serve one small, one medium and one large neighborhood in one connected company network. |
 | Large Neighborhood Trio | 3 | Serve three different large neighborhoods in one connected company network. |
-| Large Neighborhood Presence | 2 | Place your nodes on three distinct holes in one large neighborhood. Any of your lines may contribute, connected or not. |
+| Large Neighborhood Presence | 2 | Place your stations on three distinct holes in one large neighborhood. Any of your lines may contribute, connected or not. |
 | Citywide Coverage | 7 | Serve eight different neighborhoods in one connected company network. |
-| Small Neighborhood Focus | 5 | Place two nodes of the same line on distinct holes in one small neighborhood. They need not be consecutive. |
-| Neighborhood Stopover | 2 | Place two consecutive nodes of one line inside the same neighborhood, of any size. |
+| Small Neighborhood Focus | 5 | Place two stations of the same line on distinct holes in one small neighborhood. They need not be consecutive. |
+| Neighborhood Stopover | 2 | Place two consecutive stations of one line inside the same neighborhood, of any size. |
 
 ## 10. Public standings
 
@@ -285,14 +285,14 @@ branch or disconnected section together.
 The longest company receives **5 VP**, or **3 VP each** when tied. Empty networks
 cannot win.
 
-### Largest Cluster
+### Largest Transfer Station
 
 Group all occupied peg holes by horizontal/vertical adjacency across every
 company, including pegs on the same line. Diagonals and strings do not join
-clusters. A single occupied hole is a valid cluster.
+transfer stations. A single occupied hole is a size-one group for this award.
 
-Find all equally largest clusters, then add each company's pegs across those
-clusters. Award once to the company or companies with the greatest total:
+Find all equally largest transfer stations, then add each company's pegs across those
+transfer stations. Award once to the company or companies with the greatest total:
 **6 VP** for one leader, **3 each** for two, **2 each** for three, and **zero**
 for four. An empty board awards nothing. The public display uses this same rule.
 
@@ -326,7 +326,7 @@ company can still build.
 2. Apply unfinished-line penalties.
 3. Add fulfilled Engineering cards.
 4. Add fulfilled Destination cards.
-5. Add any longest-network and Largest Cluster awards.
+5. Add any longest-network and Largest Transfer Station awards.
 6. Subtract **4 VP for each $1 million of final debt**.
 
 There are no automatic points for neighborhood visits or leftover
@@ -338,7 +338,7 @@ neighborhoods served, then remaining cash, then shared victory.
 Build lengths in listed order. Every completed line also pays the immediate
 $3 million reward.
 
-| Route | Code | Segment recipe | Price | Complete VP | Unfinished VP |
+| Line | Code | Segment recipe | Price | Complete VP | Unfinished VP |
 |---|---|---|---:|---:|---:|
 | Red Line | RE | 2, 3, 2, 3 | $5M | 4 | -4 |
 | Orange Line | OR | 4, 2, 3, 4, 2 | $6M | 5 | -5 |

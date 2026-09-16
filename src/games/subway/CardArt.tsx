@@ -180,8 +180,8 @@ export function EngineeringCardFace({
       </div>
       {!compact && resolved.description.trim() !== resolved.requirement.trim() && <p className="mt-1.5 text-[11px] leading-snug text-stone-600">{resolved.description}</p>}
       <p className="mt-1 text-[11px] font-semibold leading-snug text-stone-700">{resolved.requirement}</p>
-      {resolved.tags.includes('Endpoints Only') && <p className="mt-2 text-[10px] text-stone-600">Endpoint = starter or completed final peg.</p>}
-      {resolved.category === 'Station' && <p className="mt-2 text-[10px] text-stone-600">Station = one local cluster of horizontally/vertically adjacent nodes from different lines. Separate clusters count once each.</p>}
+      {resolved.tags.includes('Line Ends Only') && <p className="mt-2 text-[10px] text-stone-600">Line end = starter or completed final station.</p>}
+      {resolved.category === 'Station' && <p className="mt-2 text-[10px] text-stone-600">Station = one placed peg. For transfer cards, group stations through horizontal/vertical adjacency between different lines. Separate qualifying transfer stations count once each.</p>}
       <p className="mt-2 text-[10px] text-stone-500">Scores once at game end. Live progress may change.</p>
       {footer}
     </>

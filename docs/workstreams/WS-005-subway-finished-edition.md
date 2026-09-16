@@ -1,20 +1,21 @@
 # WS-005 — Subway finished edition
 
 Build OS: v0.12
-Phase: REVIEW
+Phase: BUILDING
 Status: Active
 Updated: 2026-09-16
-Implementation State: terminology audit and crew wording correction complete on merge.
+Implementation State: owner-approved station/transfer-station vocabulary expansion in progress on PR #188.
 Related PRs: [#188](https://github.com/50thycal/party-games/pull/188) (terminology audit); [#187](https://github.com/50thycal/party-games/pull/187) (optional bend modes); [#186](https://github.com/50thycal/party-games/pull/186) (draft rules/highlights); [#185](https://github.com/50thycal/party-games/pull/185) (public status/payments/draft); [#184](https://github.com/50thycal/party-games/pull/184) (JNCG cards/surveys/labels); [#177](https://github.com/50thycal/party-games/pull/177) (PRWK feedback); [#176](https://github.com/50thycal/party-games/pull/176) (phone joining; merged); [#175](https://github.com/50thycal/party-games/pull/175) (Playtest Lab); [#174](https://github.com/50thycal/party-games/pull/174) (transfer/objective continuation); [#173](https://github.com/50thycal/party-games/pull/173) (larger neighborhoods/reversed VP; merged); [#172](https://github.com/50thycal/party-games/pull/172) (guided turns, neighborhoods and tiers; merged); [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; merged); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
 ## Current continuation — Terminology audit
 
-Goal: fix delayed-mode crew wording and audit current player-facing language for consistency.
+Goal: mode-aware crew guidance and owner-approved consistent station/transfer-station/line vocabulary across active UI, cards, guides and reports.
 Scope/acceptance/non-goals: [audit and glossary](../../src/games/subway/TERMINOLOGY.md).
-Implementation State: copy corrections across active guidance/cards/help/tutorial/rules/reports; no gameplay changes.
-Validation: production build, lint and full Subway suite passed, including three-mode crew/phone wording assertions. No gameplay, card-value, schema or rules-fingerprint changes. No interactive preview-device test of this copy update.
-Review State: PR #188 Approved at source 0dc366aa75ea26c7674ab50d50952819268441fc by /root/bend_review; implementation actor /root. No unresolved Blocking/Should-fix findings. Finalization: pushed; final-head verification recorded separately on PR.
-Next Step: None for terminology continuation. No merge performed. Owner review of draft rulebook remains parked.
+Owner authorization: approved all proposed vocabulary changes, including Largest Transfer Station, Line Ends Only and Consecutive Stations. Single stations remain distinct from qualifying transfer groups.
+Implementation State: copy changes implemented; validation and independent review in progress. Gameplay, card values, schema and internal compatibility IDs unchanged. Copy in fingerprint inputs changes the rules fingerprint; historical exports remain untouched.
+Validation: production build, lint and full Subway suite running. No interactive preview-device test of this copy update.
+Review State: PR #188 prior source 0dc366aa75ea26c7674ab50d50952819268441fc and final 308fc8cc5d2baca738ed023e04ad17f6f29ec725 were approved by /root/bend_review. Owner expansion supersedes that approval; new source review pending. Implementation actor /root.
+Next Step: complete validation, independent source review and docs-only finalization on PR #188. Owner review of draft rulebook remains parked.
 
 ## Previous continuation — Optional bends
 

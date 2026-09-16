@@ -263,7 +263,7 @@ export const DESTINATION_CARDS: DestinationCard[] = destinationSets.map(indexes 
   const names = stations.map(s => s.name).join(" + ");
   return {id: `dest-${stations.map(s => s.id).join("-")}`, stationIds: stations.map(s => s.id), name: names,
     description: "Connect these neighborhoods through your own network.",
-    requirement: `Connect ${names} through your own network. Any order; no starter or final peg required. Different unfinished lines may contribute through horizontally/vertically adjacent nodes. Sharing an area or crossing strings does not connect lines. Completion is not required.`,
+    requirement: `Connect ${names} through your own network. Any order; no starter or final peg required. Different unfinished lines may contribute through horizontally/vertically adjacent stations. Sharing an area or crossing strings does not connect lines. Completion is not required.`,
     vp: stations.length === 2 ? SUBWAY_CONFIG.destinationVp : SUBWAY_CONFIG.threeStationDestinationVp};
 });
 
@@ -1251,7 +1251,7 @@ export function scoreGame(state: SubwayState, now: number): SubwayState {
     const length = lengths.find(entry => entry.id === p.id)!.length;
     const longestMet = longest.some(entry => entry.id === p.id);
     items.push({label: `Longest network (${length.toFixed(1)} peg spaces)`, points: longestMet ? (longest.length === 1 ? 5 : 3) : 0, met:longestMet});
-    items.push({label: `Largest cluster (${cluster.size} holes; ${cluster.counts[p.id]} company nodes across ${cluster.clusters.length} tied-largest cluster(s))`, points: cluster.points[p.id], met: cluster.points[p.id] > 0});
+    items.push({label: `Largest Transfer Station (${cluster.size} stations; ${cluster.counts[p.id]} company stations across ${cluster.clusters.length} tied-largest transfer station(s))`, points: cluster.points[p.id], met: cluster.points[p.id] > 0});
     p.scoreBreakdown = items;
     p.score = items.reduce((sum, i) => sum + i.points, 0);
   }
@@ -1440,7 +1440,7 @@ function nextOffer(s: SubwayState, now: number): SubwayState {
   const id = draftTurnId(s, proc.offerIndex, 0);
   const c = contractById(proc.row[0])!;
   proc.offer = {contractId:c.id, price:c.cost, activeId:id};
-  s.message = `${s.players[id].name}: choose one route at list price. Draft round ${Math.floor(proc.offerIndex / s.playerOrder.length) + 1} of 3.`;
+  s.message = `${s.players[id].name}: choose one line at list price. Draft round ${Math.floor(proc.offerIndex / s.playerOrder.length) + 1} of 3.`;
   return s;
 }
 
@@ -1477,7 +1477,7 @@ export function autoSchedule(p: SubwayPlayer): void {
 function toScheduling(s: SubwayState, now: number): SubwayState {
   s.phase = "STARTER_PLACEMENT";
   for (const p of seats(s)) for (const line of p.lines) line.start = 1;
-  pushEvent(s, now, "PHASE", "banner", "Place one free border starter for each route.");
+  pushEvent(s, now, "PHASE", "banner", "Place each starter station on an empty border hole. Transfer access fees may apply.");
   return s;
 }
 
@@ -1695,7 +1695,7 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       if (validateNode(s, me.id, lineIndex, pt, true)) return state;
       const contacts=stationAccessContacts(s,me.id,lineIndex,pt);
       for(const c of contacts){me.money-=SUBWAY_CONFIG.contact.toll;me.tollsPaid+=SUBWAY_CONFIG.contact.toll;s.players[c.ownerId].money+=SUBWAY_CONFIG.contact.toll;(me.stationAccess??=[]).push({contractId:line.contractId,ownerId:c.ownerId,anchors:c.stationAnchors!});}
-      if(contacts.length)recordMoney(s,me.id,contacts.map(c=>({from:me.id,to:c.ownerId,amount:SUBWAY_CONFIG.contact.toll,reason:'Station access'})));
+      if(contacts.length)recordMoney(s,me.id,contacts.map(c=>({from:me.id,to:c.ownerId,amount:SUBWAY_CONFIG.contact.toll,reason:'Transfer access'})));
       line.route = [pt];
       pushEvent(
         s,
@@ -1774,7 +1774,7 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
 
       // Legal BUILD rejects completed lines; Undo restores the prior balance.
       if (lineComplete(line)) me.money += SUBWAY_CONFIG.completionReward;
-      const payments:MoneyEvent['payments']=contacts.map(c=>({from:me.id,to:c.ownerId,amount:SUBWAY_CONFIG.contact.toll,reason:c.kind==='station'?'Station access':'Line contact'}));
+      const payments:MoneyEvent['payments']=contacts.map(c=>({from:me.id,to:c.ownerId,amount:SUBWAY_CONFIG.contact.toll,reason:c.kind==='station'?'Transfer access':'Line contact'}));
       if(extraTokens)payments.push({from:me.id,amount:extraTokens,reason:'Bend tokens'});
       if(lineComplete(line))payments.push({from:'bank',to:me.id,amount:SUBWAY_CONFIG.completionReward,reason:'Line completed'});
       if(payments.length)recordMoney(s,me.id,payments);
@@ -1799,7 +1799,7 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
           : pause?`${me.name} paused ${contract.name} at a bend. Hire this line again to finish.`:`${me.name} extended the ${contract.name} to ${where}.`) + tollNote,
         me.id
       );
-      const record = undoRecord(state, me.id, "build", `${contract.name} ${pause?'worksite':'node'}`);
+      const record = undoRecord(state, me.id, "build", `${contract.name} ${pause?'worksite':'station'}`);
 
       prunePendingActions(s, me.id);
       if (constructionExhausted(s)) {

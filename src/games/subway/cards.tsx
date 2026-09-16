@@ -138,7 +138,7 @@ export function ContractCard({
         </p>
       </div>
       <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] text-stone-600">
-        <span>{contractNodes(contract)} pegs</span>
+        <span>{contractNodes(contract)} stations</span>
         <span>{contractActions(contract)} segments</span>
         <span>Complete +{contract.completionVp} VP</span>
         <span className="col-span-2">Incomplete {contract.incompletePenalty} VP</span>

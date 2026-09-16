@@ -204,7 +204,7 @@ export function HandoffVeil({
         <p className="text-xs font-bold uppercase tracking-[.3em] text-amber-800">Hotseat handoff</p>
         <h3 className="mt-2 font-serif text-2xl font-black">Pass the device to {name}</h3>
         <p className="mt-2 text-sm text-stone-600">
-          Private mats, hands, and saved route plans stay hidden until {name} confirms. The public
+          Private mats, hands, and saved line plans stay hidden until {name} confirms. The public
           board and event record are safe for everyone to see.
         </p>
         <button

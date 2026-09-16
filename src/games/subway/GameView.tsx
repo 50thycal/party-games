@@ -140,7 +140,7 @@ function statusFor(game: SubwayState, me: SubwayPlayer | undefined, isHost: bool
       const offer = game.procurement.offer;
       if (!offer) return { headline: "Shuffling the contract deck…", tone: "wait" };
       return {
-        headline: offer.activeId === me.id ? "Choose one route contract." : `${game.players[offer.activeId]?.name} is choosing a route.`,
+        headline: offer.activeId === me.id ? "Choose one line contract." : `${game.players[offer.activeId]?.name} is choosing a line.`,
         tone: offer.activeId === me.id ? "act" : "wait",
         detail: "Pick at list price. Three draft rounds, with alternating order.",
       };
@@ -752,10 +752,10 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
         <p className="text-xs font-bold uppercase tracking-[.3em] text-amber-800">Metropolitan Transit Authority · 2–4 players</p>
         <h2 className="mt-2 font-serif text-3xl font-black">Subway</h2>
         <p className="mx-auto my-4 max-w-xl text-sm text-stone-600">
-          Build a city that connects. Each company takes three routes from a pool of thirteen services. Each carries an
+          Build a city that connects. Each company takes three lines from a pool of thirteen services. Each carries an
           ordered recipe of segment lengths and its own line color. Draft Engineering goals,
           place starters, choose crews each round, then
-          engineer the routes hole by hole — all on one table you pan and zoom around.
+          engineer the lines hole by hole — all on one table you pan and zoom around.
         </p>
         {stale && (
           <p className="mx-auto mb-4 max-w-md rounded-lg bg-amber-100 px-3 py-2 text-sm font-semibold text-amber-900">
@@ -806,7 +806,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     const value = {nodes:[...sketch],savedAt:Date.now()};
     sessionPlans.current[planStorageKey(room.roomCode, playerId, contractId)] = value;
     setPlans(prev => ({...prev, [contractId]:value}));
-    setNotice(saved ? "Ghost route saved on this device. Nothing built or reserved." : "Storage unavailable: ghost kept for this session only.");
+    setNotice(saved ? "Ghost line saved on this device. Nothing built or reserved." : "Storage unavailable: ghost kept for this session only.");
   };
   const resetSketch = (nodes: RouteNode[]) => {
     setSketch(nodes);
@@ -922,7 +922,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       const onOffer = game.phase === "PROCUREMENT" && game.procurement.row.includes(focus.id);
       const mine = onOffer && offer?.activeId === me.id;
       const actions: FocusAction[] = mine ? [{
-        label: `Sign route for ${money(contract.cost)}`,
+        label: `Sign line for ${money(contract.cost)}`,
         disabled: busy || me.money < contract.cost,
         run: () => playWithFlight(contract.name, contract.color, "lines", () => act("PROCURE", {choice:"buy", contractId:contract.id})),
       }] : [];
@@ -933,7 +933,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
           face={<ContractCard contract={contract} price={focus.price} />}
           note={
             <>
-              {contractNodes(contract)} pegs over {contract.recipe.length} segments.{" "}
+              {contractNodes(contract)} stations over {contract.recipe.length} segments.{" "}
               {contractsOutstanding(game)} contract{contractsOutstanding(game) === 1 ? "" : "s"} still need an
               owner; you hold {me.lines.length} of {SUBWAY_CONFIG.maxContractsPerPlayer}.
             </>
@@ -1074,7 +1074,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       {tokenBill>0&&<p className="mb-1 text-sm font-bold">Buy extra bend tokens: ${tokenBill}M · paid on Confirm</p>}
       {price&&preview&&!manualPlanner&&<div aria-label="Placement payment preview" className="mb-2 rounded-lg bg-amber-100 px-2 py-1 text-xs text-amber-950">
         <b>{price.totalToll?`Pay $${price.totalToll}M before building · cash after payments $${price.cashAfter}M`:'No opponent payment for this placement'}</b>
-        {price.recipients.map(r=><p key={r.ownerId}>Pay {game.players[r.ownerId].name} ${r.amount}M · {Array.from(new Set(pricedContacts.filter(c=>c.ownerId===r.ownerId).map(c=>c.kind==='station'?'first station access':'crosses or touches their line'))).join(' + ')}</p>)}
+        {price.recipients.map(r=><p key={r.ownerId}>Pay {game.players[r.ownerId].name} ${r.amount}M · {Array.from(new Set(pricedContacts.filter(c=>c.ownerId===r.ownerId).map(c=>c.kind==='station'?'first transfer access':'crosses or touches their line'))).join(' + ')}</p>)}
       </div>}
       {notice && (
         <p className="mb-1.5 rounded-lg bg-red-100 px-2 py-1 text-center text-xs font-bold text-red-900">{notice}</p>
@@ -1509,7 +1509,7 @@ function ResultsSheet({ game, roomCode, mode, reportContext }: { game: SubwaySta
         <div className="flex flex-wrap items-center justify-between gap-[14px] rounded-[18px] border-[4px] border-[#1b3945] bg-[#eaf3f2] p-[18px]">
           <div>
             <p className="text-[24px] font-black">AI playtest report</p>
-            <p className="text-[17px] text-stone-600">Copies the full action log, routes, cards, budgets, scoring, and end condition.</p>
+            <p className="text-[17px] text-stone-600">Copies the full action log, lines, cards, budgets, scoring, and end condition.</p>
           </div>
           <button
             type="button"

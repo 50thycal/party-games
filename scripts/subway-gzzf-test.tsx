@@ -53,7 +53,7 @@ for(const built of [0,3,4]) {
   const html=renderToStaticMarkup(<ContractCard contract={red} progress={{built,total:4}}/>);
   assert.equal((html.match(/— built/g)??[]).length,built);
   assert.equal((html.match(/ring-2 ring-offset-1/g)??[]).length,built===4?0:1);
-  if(built===3) assert.match(html,/title="Segment 4: 3 pegs"/);
+  if(built===3) assert.match(html,/title="Segment 4: 3 peg spaces"/);
 }
 
 const goals=fixture(), p=goals.players[id];
@@ -115,7 +115,7 @@ console.log('GZZF deadlines, completion economics, starter occupancy, segment re
 {
  const s=fixture();s.players[id].lines=[line('short',[[0,0],[2,0],[5,0]])];
  const phone=renderToStaticMarkup(<PhoneStatus game={s} playerId={id}/>);
- assert.match(phone,/2\/4 segments/);assert.match(phone,/2 pegs and 2 segments left/);assert.match(phone,/Diamond = starter/);
+ assert.match(phone,/2\/4 segments/);assert.match(phone,/2 stations and 2 segments left/);assert.match(phone,/Diamond = starter/);
  const pads=renderToStaticMarkup(<PlayerPads game={s} roomKey="fixture"/>);
  assert.match(pads,/Player panels/);assert.doesNotMatch(pads,/segments left|Diamond = starter/);
  const destination=renderToStaticMarkup(<DestinationCardFace card="dest-market-grand" color="#fff"/>);
