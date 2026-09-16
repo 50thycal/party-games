@@ -3,11 +3,54 @@
 Build OS: v0.12
 Phase: REVIEW
 Status: Active
-Updated: 2026-09-15
-Implementation State: draft guides and current-player highlight fix complete on merge of PR #186. Owner rule review remains pending.
+Updated: 2026-09-16
+Implementation State: PR #183 conflict integration complete on merge; merged #184–#186 behaviors retained.
 Related PRs: [#186](https://github.com/50thycal/party-games/pull/186) (draft rules/highlights); [#185](https://github.com/50thycal/party-games/pull/185) (public status/payments/draft); [#184](https://github.com/50thycal/party-games/pull/184) (JNCG cards/surveys/labels); [#177](https://github.com/50thycal/party-games/pull/177) (PRWK feedback); [#176](https://github.com/50thycal/party-games/pull/176) (phone joining; merged); [#175](https://github.com/50thycal/party-games/pull/175) (Playtest Lab); [#174](https://github.com/50thycal/party-games/pull/174) (transfer/objective continuation); [#173](https://github.com/50thycal/party-games/pull/173) (larger neighborhoods/reversed VP; merged); [#172](https://github.com/50thycal/party-games/pull/172) (guided turns, neighborhoods and tiers; merged); [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; merged); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
-## Current continuation — Draft rules and destination highlights
+## Current continuation — PR #183 conflict integration
+
+Goal/acceptance: [cluster spec integration](../build-specs/WS-005-cluster-planning.md).
+Preserve merged cards/payment/no-stack/highlight/draft work while restoring the
+approved Largest Cluster scoring and adapting bot planning to current rules.
+Implementation State: conflict integration complete on merge. State v24/bot v5/audit v4; scoring/display share occupied-hole clustering; forecasts honor station receipts and current cards. Draft labels and current-player highlights retained. No bends built.
+Validation: build, lint, full Subway suite passed; updated cluster/planning regression passed after recompilation; 18 current-policy benchmark games completed with accepted actions and exact replay. Historical benchmarks are not current effectiveness claims.
+Review State: PR #183 Approved at source b8f23be79edfee151870cbaec0b42349d073c60a by /root/pr183_review; implementation actor /root. No open Blocking/Should-fix findings. Finalization: pushed; reviewer verifies resulting head separately on PR.
+Limitations: browser/device verification remains unavailable; rules remain draft pending owner review.
+Next Step: None for conflict integration. Bend tokens and delayed construction remain planning-only alternatives for the next owner discussion. No merge performed.
+
+## Previous PR #183 source review — Largest Cluster and bot planning
+
+Related PR: [#183](https://github.com/50thycal/party-games/pull/183). Earlier three-card
+research remains separately archived in [#182](https://github.com/50thycal/party-games/pull/182).
+
+Owner approved the 6/3/2/0 shared-cluster award, aggregation across tied-largest
+clusters, and bounded non-LLM company planning. Goal/non-goals/acceptance checks:
+[Build Spec](../build-specs/WS-005-cluster-planning.md). Framework preflight:
+canonical v0.12 checked 2026-09-15, matches adoption. Continue WS-005; no new mission.
+Implementation State: state v22 cluster scoring and policy v3 bounded lookahead,
+company objective allocation, economic evaluation and memoized plans implemented.
+Build, lint, full Subway suite and 18 fresh-seed games passed; all benchmark games
+replayed exactly. Mean score 27.37→30.00, debt .78→.37, unfinished .30→.19;
+full-card completions 1.93→1.74. Runtime 12.000→12.817 s. Small selected seed set,
+not human calibration. [Evidence](../../playtests/subway/research/2026-09-15-policy-v3/README.md).
+Source review found missing First to Open forecasting, mixed Citywide/Destination
+guidance and incomplete cache tests; all corrected. Memo reuse is conservatively
+limited to unchanged observations rather than retaining paths after board moves.
+Browser local preview returned ERR_BLOCKED_BY_CLIENT; visual acceptance remains
+unverified. No access restrictions changed or deployment claim made.
+Review State:
+
+| PR | Verdict | Reviewed head | Finalization |
+|---|---|---|---|
+| #183 | Approved | 6b02eff56781424f83b238e665a96bc4f041f0e4 | pushed; final-head verification follows on PR |
+
+Independent reviewer: /root/cluster_planning_review. Implementation actor: /root
+(cluster-planning implementation). [Verdict](https://github.com/50thycal/party-games/pull/183#issuecomment-5672873734).
+No open Blocking/Should-fix findings. No merge performed.
+Next Step: None for this implementation on merge. Existing broader human/device
+acceptance remains; no adjacent mission added.
+
+## Previous continuation — Draft rules and destination highlights
 
 Goal/non-goals/acceptance: [Build Card/spec](../build-specs/WS-005-draft-rules-highlights.md).
 Implementation State: complete on merge of PR #186. Quick-start and full rulebook saved, existing rules reference also marked DRAFT — NEEDS OWNER REVIEW. Planned graphics recorded without images. Tablet projection shows only current actor's selected destinations; phone selections persist off-turn and through reconnects.

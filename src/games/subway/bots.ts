@@ -3,8 +3,10 @@ import { SUBWAY_CONFIG, lineActionsRemaining, nextCompanyId, pendingStarters, le
 import { planBotCrews, immediateObjectiveBuild } from './botPlanning';
 import { missionPotential, engineeringPotential, remainingReach } from './objectiveGuidance';
 import { auditPotential, completionGoals } from './auditPolicy';
+import { plannedBotRoute } from './botRoutes';
+import { stationAccessContacts } from './stationAccess';
 
-export const BOT_VERSION = '4';
+export const BOT_VERSION = '5';
 export const PERSONALITIES = ['balanced', 'destination', 'completion', 'cautious'] as const;
 export const SKILLS = ['casual', 'experienced'] as const;
 export type BotSettings = { personality: typeof PERSONALITIES[number]; skill: typeof SKILLS[number] };
@@ -32,7 +34,7 @@ function bestTarget(s:SubwayState,id:string,index:number,starter:boolean,random:
   const otherNodes=me.lines.filter((_,i)=>i!==index).flatMap(l=>l.route);
   const candidates=targets.map(target=>{
     const st=stationAt(target,s.stations), from=line.route.at(-1);
-    const toll=from?contactToll(routeContacts(s,id,from,target)):0;
+    const toll=contactToll(starter?stationAccessContacts(s,id,index,target):from?routeContacts(s,id,from,target,index):[]);
     const reach=remainingReach(me,index);
     const distance=Math.min(20,...areas.flatMap(st=>(st.cells??[st]).map(p=>Math.hypot(p.x-target.x,p.y-target.y))).filter(d=>d<=reach));
     const transfer=otherNodes.some(n=>Math.abs(n.x-target.x)+Math.abs(n.y-target.y)<=1);
@@ -57,7 +59,7 @@ function bestTarget(s:SubwayState,id:string,index:number,starter:boolean,random:
   return candidates.sort((a,b)=>b.value-a.value)[0]?.target;
 }
 
-export function chooseBotAction(state:SubwayState,random:()=>number,settings:BotSettings=DEFAULT_BOT,focus?:string):SubwayAction|undefined {
+export function chooseBotAction(state:SubwayState,random:()=>number,settings:BotSettings=DEFAULT_BOT,focus?:string,planning=true):SubwayAction|undefined {
   if(state.phase==='RESULTS') return;
   const id=nextCompanyId(state)!;
   const s=botObservation(state,id), me=s.players[id], w=weights[settings.personality];
@@ -66,7 +68,12 @@ export function chooseBotAction(state:SubwayState,random:()=>number,settings:Bot
   switch(s.phase) {
     case 'PROCUREMENT': {
       const choices=s.procurement.row.map(contractById).filter((c):c is NonNullable<typeof c>=>!!c);
-      const ranked=choices.map(c=>({c,v:c.completionVp-(c.recipe.length*w.cost*.4)-c.cost*w.cost*.2+random()*3})).sort((a,b)=>b.v-a.v);
+      const ranked=choices.map(c=>{
+        const work=me.lines.reduce((n,l)=>n+lineActionsRemaining(l),0)+c.recipe.length;
+        const reserve=work+Math.max(0,work-SUBWAY_CONFIG.timelinePeriods);
+        const projected=me.money-c.cost-reserve+(me.lines.length+1)*SUBWAY_CONFIG.completionReward;
+        return {c,v:c.completionVp-(c.recipe.length*w.cost*.4)-c.cost*w.cost*.2+random()*3-(planning?Math.max(0,-projected)*4:0)};
+      }).sort((a,b)=>b.v-a.v);
       return action('PROCURE',{choice:'buy',contractId:ranked[0]?.c.id??s.procurement.offer!.contractId});
     }
     case 'ENGINEERING':
@@ -78,7 +85,7 @@ export function chooseBotAction(state:SubwayState,random:()=>number,settings:Bot
       }
       throw new Error(`Unsupported engineering stage ${s.engineeringStep}`);
     case 'STARTER_PLACEMENT': {
-      const lineIndex=pendingStarters(me)[0], target=bestTarget(s,id,lineIndex,true,random,settings,focus);
+      const lineIndex=pendingStarters(me)[0], target=(planning?plannedBotRoute(s,id,lineIndex,true,settings,focus).target:undefined)??bestTarget(s,id,lineIndex,true,random,settings,focus);
       if(!target) throw new Error('No legal starter');
       return action('PLACE_STARTER',{lineIndex,...target});
     }
@@ -89,7 +96,7 @@ export function chooseBotAction(state:SubwayState,random:()=>number,settings:Bot
       }
       const lineIndex=me.pendingActions[0];
       const opportunity=lineActionsRemaining(me.lines[lineIndex])>SUBWAY_CONFIG.timelinePeriods+1-s.currentPeriod?immediateObjectiveBuild(s,id,lineIndex):undefined;
-      const target=(!focus?opportunity?.target:undefined)??bestTarget(s,id,lineIndex,false,random,settings,focus);
+      const target=(!focus?opportunity?.target:undefined)??(planning?plannedBotRoute(s,id,lineIndex,false,settings,focus).target:undefined)??bestTarget(s,id,lineIndex,false,random,settings,focus);
       return target?action('BUILD',{lineIndex,...target}):action('SKIP_ACTION',{lineIndex});
     }
     case 'SCORING': return action('ADVANCE_SCORING');

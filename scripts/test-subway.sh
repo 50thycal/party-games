@@ -21,6 +21,8 @@ cat >"$config" <<EOF
     "typeRoots": ["$repo_root/node_modules/@types"]
   },
   "include": [
+    "$repo_root/scripts/subway-cluster-planning-test.ts",
+    "$repo_root/scripts/subway-policy-benchmark.ts",
     "$repo_root/scripts/subway-card-audit-test.ts",
     "$repo_root/src/games/subway/auditStorage.ts",
     "$repo_root/src/games/subway/auditPool.ts",
@@ -43,6 +45,7 @@ mkdir -p "$out_dir/node_modules/@"
 ln -s "$out_dir/src/engine" "$out_dir/node_modules/@/engine"
 ln -s "$out_dir/src/games" "$out_dir/node_modules/@/games"
 node "$out_dir/scripts/subway-rules-test.js"
+node "$out_dir/scripts/subway-cluster-planning-test.js"
 
 node "$out_dir/scripts/subway-multiplayer-test.js"
 NODE_PATH="$repo_root/node_modules" node "$out_dir/scripts/subway-companion-api-test.js"

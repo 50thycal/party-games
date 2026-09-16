@@ -140,6 +140,19 @@ Unless a card requires completion or a final peg, incomplete lines may qualify.
 | Small Neighborhood Focus | 5 | Place two nodes of the same line on distinct holes in one small neighborhood. They need not be consecutive. |
 | Neighborhood Stopover | 2 | Place two consecutive nodes of one line inside the same neighborhood, of any size. |
 
+## Largest Cluster — public goal
+
+Group occupied route-node holes across all companies using horizontal/vertical
+adjacency. Shared holes join; diagonals and string-only links do not. Survey Pins
+do not count. Size is the number of distinct occupied holes. Each company counts
+once per hole, even when several of its lines share that hole.
+
+Find all clusters tied for largest and total each company's nodes across those
+clusters. Award the bonus once to the leaders: **6 VP** alone, **3 VP each** for
+two tied leaders, **2 VP each** for three, and **0 VP** for four. Empty boards
+award nothing; singleton occupied holes count as clusters. This does not change
+the company transfer or Longest Network rules.
+
 ## Longest network — public goal
 
 At scoring, find each company's longest continuous trail of built segments.
@@ -151,12 +164,11 @@ never wins the award. Unfinished lines can contribute.
 
 ## Public standings and player status
 
-The iPad shows current longest-network length and largest local station size.
-Largest-station leadership goes to the company with the most pegs in the largest
-cluster; equal majorities or equally large stations display tied leaders. These
-are live standings, not an additional VP award. Empty boards have no leader.
-The phone also shows your own network length and greatest own peg count in one
-station. Distant stations never become one cluster through strings alone.
+The iPad and phone show current longest-network length and Largest Cluster
+standings using the same occupied-hole grouping and tied-largest aggregation as
+scoring. Same-line adjacent pegs count for this public award, unlike the different-
+line transfers required for Station cards. The phone shows your peg total across
+all equally largest clusters. Empty boards have no leader.
 
 Bottom iPad player pads show names, cash and line colors/codes. Confirmed payments
 show corresponding debits/credits beside these pads, with reversed signs on Undo.
@@ -237,7 +249,7 @@ It does **not** refund the crew-hiring transaction.
 
 ## Scoring and the table
 
-Route completion/unfinished penalties, the longest network award,
+Route completion/unfinished penalties, the longest network and Largest Cluster awards,
 all held Engineering goals and Destinations, and final debt appear in
 the results breakdown. Neighborhood visits award no automatic VP. Ties break on large-neighborhood connections, then cash, then shared victory.
 
@@ -255,7 +267,7 @@ complete accepted-action ledger: setup, cards, routes, placements, crew and toll
 economy, Undo actions, scoring, timing, and the construction end reason. Rejected
 actions are not tracked because they never change reducer state.
 
-State version **23** requires a fresh game for station access, no stacking and the expanded route pool;
+State version **24** requires a fresh game for station access, no stacking and the expanded route pool;
 old saves are not migrated. Neighborhood names and size labels fit wholly inside
 their actual footprints, with wrapped text and camera-adaptive font sizes.
 Automated games test termination and rule behavior, not human enjoyment or

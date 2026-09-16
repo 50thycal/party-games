@@ -75,7 +75,7 @@ others allow a connected network or any of your lines.
 
 The game ends after round nine, or earlier when no player has a legal next segment
 left. Add completed-line points, fulfilled Engineering and Destination cards, and
-any longest-network award. Subtract unfinished-line penalties and **4 points for
+any longest-network and Largest Cluster awards. Subtract unfinished-line penalties and **4 points for
 every $1 million of remaining debt**. Neighborhood visits do not earn points by
 themselves.
 

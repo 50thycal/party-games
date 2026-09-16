@@ -664,10 +664,10 @@ The measured pad height reserves canvas space. Hotseat uses the measured HUD ban
 Phone status is sticky above its scrolling cards and includes own line peg dots,
 a separate starter diamond and segment progress. Room/device details move to Settings.
 
-`publicStatus.ts` computes live longest-network ties and largest local station
-size/majority leaders from public built pegs. Equal largest clusters/majorities
-show tied leaders. This is a display, not a new station VP award. Empty boards
-have no leader; public pads never expose private goals or sketches.
+`publicStatus.ts` uses the scoring helper for Largest Cluster size, leaders and
+company counts across equally largest groups. Same-line adjacency counts for this
+award, unlike Station-card transfers. The display and score cannot disagree due
+to separate grouping algorithms. Empty boards have no leader.
 
 ## Subway Playtest Lab (WS-005 continuation)
 
@@ -775,6 +775,33 @@ with blob download and existing copy/text fallbacks. Both companion phones and
 iPads expose it at results; quick tabletop uses the same save controls.
 Engineering descriptions identical to their requirements render only once.
 
+### Largest Cluster and company-aware bot planning (DEC-054)
+
+State v24 integrates the separate public Largest Cluster award with the later no-stacking/card/payment rules. The pure cluster helper
+groups route-node holes across companies with orthogonal adjacency, deduplicates
+each company's presence per hole, and ignores strings, diagonals and Survey Pins.
+It aggregates company counts across all equally largest groups, then awards once:
+6/3/2/0 VP per leader for one/two/three/four leaders. The existing score ledger and
+MD export display the result. Existing versions require restart; the deployment
+rules fingerprint includes the new cluster source as well as config/network.
+
+Bot policy v5 assigns whole Destination missions and unvisited Citywide areas to
+lines as heuristic jobs. A beam search compares up to eight hypothetical placements
+with hard 480-state experienced / 120-state casual bounds. Forecast utility includes
+owned card points, route completion/penalties, tolls, completion cash, final debt,
+cluster points and spatial guidance. First-to-complete ownership is forecast too.
+Future crews use an explicit $2M marginal estimate; the existing exact schedule
+search still chooses actual hiring, so this is not a perfect economic forecast.
+Procurement accounts for portfolio construction reserve. No LLM or external service.
+
+A bounded 96-entry memo retains computed paths for identical relevant observations.
+Actual node, cash, round, goal or profile changes replan; cold cache and warm cache
+give identical answers. This conservative invalidation avoids stale paths and
+preserves audit regeneration across workers; it does not reuse paths after moves.
+The fifth argument to chooseBotAction disables new planning for reproducible v2
+baseline comparisons; production callers use v3. Both policies still use current
+game rules. Historical audit checkpoints reject the changed bot/rules versions.
+
 ### GZZF bot, starter and report correction (DEC-048)
 
 State v21 requires empty starter holes: any company's existing route node or a
@@ -797,3 +824,10 @@ without provenance reports say Unknown. Mixed/missing tags never become pure-hum
 evidence. Objective diagnostics give missing areas, disconnected networks, exact
 Engineering requirements and binary status. ContractCard receives completed
 segments consistently for fraction, recipe chips and bar.
+
+PR #183 integration (2026-09-16): state v24, bot v5 and audit v4 prevent reuse of
+older scoring/planning evidence. Forecasts charge starter access, retain paid
+access and credit opponents. Current Engineering guidance replaces obsolete card
+heuristics. Historical policy-v3 benchmarks remain evidence of the older rules,
+not performance claims about this integrated version. Rulebook drafts remain
+unreviewed; their Largest Cluster scoring text now reflects PR #183.

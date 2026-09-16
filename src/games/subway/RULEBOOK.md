@@ -254,11 +254,19 @@ branch or disconnected section together.
 The longest company receives **5 VP**, or **3 VP each** when tied. Empty networks
 cannot win.
 
-### Largest station
+### Largest Cluster
 
-The display identifies the largest local station cluster and the company with
-the most pegs in it. Equal ownership shares or equally large stations may produce
-tied leaders. **Under current rules, this display awards no victory points.**
+Group all occupied peg holes by horizontal/vertical adjacency across every
+company, including pegs on the same line. Diagonals and strings do not join
+clusters. A single occupied hole is a valid cluster.
+
+Find all equally largest clusters, then add each company's pegs across those
+clusters. Award once to the company or companies with the greatest total:
+**6 VP** for one leader, **3 each** for two, **2 each** for three, and **zero**
+for four. An empty board awards nothing. The public display uses this same rule.
+
+This occupied-hole award is distinct from Station-card transfers, which require
+different-line adjacency. Opponents still never bridge your company network.
 
 ## 11. Planning, confirming and Undo
 
@@ -287,10 +295,10 @@ company can still build.
 2. Apply unfinished-line penalties.
 3. Add fulfilled Engineering cards.
 4. Add fulfilled Destination cards.
-5. Add any longest-network award.
+5. Add any longest-network and Largest Cluster awards.
 6. Subtract **4 VP for each $1 million of final debt**.
 
-There are no automatic points for neighborhood visits, station size, or leftover
+There are no automatic points for neighborhood visits or leftover
 positive cash. Highest total wins. Break ties by number of different large
 neighborhoods served, then remaining cash, then shared victory.
 

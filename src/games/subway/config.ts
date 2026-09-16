@@ -1,3 +1,4 @@
+import { largestCluster } from './clusters';
 import { stationAccessContacts, type StationAccess } from './stationAccess';
 import { ENGINEERING_CARDS, engineeringMet, type EngineeringCard } from './engineering';
 export { ENGINEERING_CARDS, type EngineeringCard } from './engineering';
@@ -29,7 +30,7 @@ import type { BaseAction, GameContext, Player } from "@/engine/types";
 // ============================================================================
 
 /** Bumped when the state shape changes; older rooms must restart. */
-export const SUBWAY_STATE_VERSION = 23;
+export const SUBWAY_STATE_VERSION = 24;
 
 // ----------------------------------------------------------------------------
 // Tunable configuration
@@ -1232,6 +1233,7 @@ export function scoreGame(state: SubwayState, now: number): SubwayState {
   const lengths = Object.values(players).map(p => ({id:p.id, length:longestNetwork(p)}));
   const max = Math.max(0, ...lengths.map(entry => entry.length));
   const longest = lengths.filter(entry => max > 0 && Math.abs(entry.length - max) < EPS);
+  const cluster = largestCluster(players);
 
   for (const p of Object.values(players)) {
     const items: ScoreItem[] = [];
@@ -1275,6 +1277,7 @@ export function scoreGame(state: SubwayState, now: number): SubwayState {
     const length = lengths.find(entry => entry.id === p.id)!.length;
     const longestMet = longest.some(entry => entry.id === p.id);
     items.push({label: `Longest network (${length.toFixed(1)} peg spaces)`, points: longestMet ? (longest.length === 1 ? 5 : 3) : 0, met:longestMet});
+    items.push({label: `Largest cluster (${cluster.size} holes; ${cluster.counts[p.id]} company nodes across ${cluster.clusters.length} tied-largest cluster(s))`, points: cluster.points[p.id], met: cluster.points[p.id] > 0});
     p.scoreBreakdown = items;
     p.score = items.reduce((sum, i) => sum + i.points, 0);
   }

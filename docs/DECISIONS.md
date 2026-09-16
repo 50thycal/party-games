@@ -1758,6 +1758,27 @@ Checkpoints are device-local; detailed economics and bounded replay examples
 are exported separately from the chat-sized Markdown. Alternatives: individual
 manual card testing rejected by the owner; automatic rule retuning excluded.
 
+### DEC-054 — Shared Largest Cluster and bounded algorithmic planning
+
+Date: 2026-09-15. Status: owner-authorized implementation; independent review pending.
+
+Calvin approved a second global goal: the company with the most route nodes in
+the largest shared orthogonal cluster earns 6 VP. Aggregate company counts across
+equally largest clusters and award once; split 3/2 each for two/three leaders and
+award zero for four. His final clarification chose no points for a four-way tie.
+Count distinct occupied holes and each company's presence once at a shared hole;
+Survey Pins and diagonal/string-only connections are excluded. Longest Network
+and company-transfer rules remain unchanged. State v22 protects existing games.
+
+Owner also approved non-LLM company planning, bounded lookahead, economic evaluation
+and plan reuse. Policy v3 uses heuristic line jobs, bounded beam search, explicit
+future-cost approximations and existing exact crew scheduling. Memoized paths are
+reused for unchanged observations only; changed geometry/economy/objectives replan
+to keep cold/warm execution and audit regeneration deterministic. This conservative
+reuse is not a persistent multi-turn commitment. No claim of optimal or human play.
+Alternatives: per-turn LLM decisions rejected for cost/complexity; changing card
+requirements before improving bots deferred. Compare old/new under current rules.
+
 ### DEC-050 — Faster audit execution with unchanged trials
 
 Date: 2026-09-13. Status: owner-authorized implementation.
@@ -1834,3 +1855,9 @@ thorough review. Both, and the existing rules reference, are explicitly drafts
 needing owner review. Saving them is not approval of rule wording or balance.
 Graphics follow wording approval. The turn question is next; bendable connections
 remain last. No turn, scoring or geometry change is authorized by this decision.
+
+PR #183 integration note (2026-09-16): the unmerged cluster entry is numbered
+DEC-054 to avoid collision with merged card DEC-051. Its occupied-hole scoring
+semantics remain unchanged. Display/draft rules now include this award, superseding
+PR #185's temporary display-only scope. State v24/bot v5/audit v4 combine both rule
+sets. No bending rule is implemented by this conflict resolution.
