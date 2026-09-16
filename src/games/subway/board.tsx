@@ -1,4 +1,5 @@
 "use client";
+import {lineLegs} from './paths';
 
 import { neighborhoodLabel } from "./neighborhoodLabels";
 import type { DestinationHighlight } from "./companion";
@@ -42,6 +43,7 @@ export const targetKey = (t: PlacementTarget) => `${t.x},${t.y},${t.slot ?? "-"}
 export type DrawnLine = {
   key: string;
   route: RouteNode[];
+  work?: Point[];
   contract: LineContract;
   ownerColor: string;
   active: boolean;
@@ -301,9 +303,9 @@ export function Board({
           carries a distinct dash pattern so color is never the only cue.
           Phantom plans draw dashed and translucent; stale ones fainter still. */}
       {drawn.filter((d) => d.active && !d.ghost && !d.pending).flatMap((d) =>
-        d.route.slice(1).map((n, i) => {
-          const a = nodePx(d.route[i]);
-          const b = nodePx(n);
+        lineLegs(d).map(([start,end], i) => {
+          const a = nodePx(start);
+          const b = nodePx(end);
           return (
             <line
               key={`active-${d.key}-${i}`}
@@ -321,9 +323,9 @@ export function Board({
         })
       )}
       {drawn.flatMap((d) =>
-        d.route.slice(1).map((n, i) => {
-          const a = nodePx(d.route[i]);
-          const b = nodePx(n);
+        lineLegs(d).map(([start,end], i) => {
+          const a = nodePx(start);
+          const b = nodePx(end);
           return (
             <line
               key={`o-${d.key}-${i}`}
@@ -340,9 +342,9 @@ export function Board({
         })
       )}
       {drawn.flatMap((d) =>
-        d.route.slice(1).map((n, i) => {
-          const a = nodePx(d.route[i]);
-          const b = nodePx(n);
+        lineLegs(d).map(([start,end], i) => {
+          const a = nodePx(start);
+          const b = nodePx(end);
           return (
             <line
               key={`c-${d.key}-${i}`}
@@ -361,9 +363,10 @@ export function Board({
         })
       )}
 
+      {drawn.filter(d=>d.work?.length).map(d=>{const p=nodePx(d.work!.at(-1)!);return <g key={`work-${d.key}`} aria-label={`${d.contract.name} unfinished worksite`} data-worksite="true" opacity={d.pending?.5:1}><rect x={p.x-9} y={p.y-9} width="18" height="18" fill={d.contract.color} stroke="#78350f" strokeWidth="3"/><text x={p.x} y={p.y-16} textAnchor="middle" fontSize="12" fontWeight="bold">WORK</text></g>;})}
       {/* Pegs: the line's color inside, the owning company's color around. */}
       {drawn.filter(d => d.active && d.growing && !d.ghost && !d.pending && d.route.length > 0).map(d => {
-        const p = nodePx(d.route[d.route.length - 1]);
+        const p = nodePx(d.work?.at(-1)??d.route[d.route.length - 1]);
         return <g key={`from-${d.key}`} pointerEvents="none" aria-label={`Build from here: ${d.contract.name}`}>
           <circle cx={p.x} cy={p.y} r="24" fill="none" stroke="#92400e" strokeWidth="4" />
           <rect x={p.x - 39} y={p.y - 53} width="78" height="25" rx="6" fill="#78350f" />

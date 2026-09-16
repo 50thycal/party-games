@@ -1861,3 +1861,29 @@ DEC-054 to avoid collision with merged card DEC-051. Its occupied-hole scoring
 semantics remain unchanged. Display/draft rules now include this award, superseding
 PR #185's temporary display-only scope. State v24/bot v5/audit v4 combine both rule
 sets. No bending rule is implemented by this conflict resolution.
+
+### DEC-055 — Game-start bend experiments share physical geometry
+
+**Date:** 2026-09-16
+**Status:** Accepted by owner; wording and balance remain draft.
+
+**Context:** The owner approved building token and delayed-construction experiments
+as alternatives chosen at game setup, preserving straight play by default.
+
+**Decision:** Three tokens per company, $3M cash-only extra tokens on Confirm;
+one token per bend. Delayed mode consumes one line activation per leg, with
+re-hiring to continue and no future reservation. Heading changes remain at most
+90 degrees and total path length receives one tolerance. Neither bends nor
+worksites become scoring pegs. Part-built strings charge physical contacts but
+only completed segments enter the network graph. Nine rounds remain.
+
+**Rationale:** The experiments offer different costs for flexibility while
+keeping peg-based destinations, transfers, cards and completion rules stable.
+
+**Alternatives considered:** Always-free bending and combining both costs are
+out of this experiment. Straight remains an explicit selectable mode.
+
+**Consequences:** Completed endpoints carry incoming bend vertices; incomplete
+work belongs to the line. Geometry/drawing use physical legs; scoring sees real
+pegs and completed path lengths. State v25 restarts older rooms; bot v6/audit v5
+identify the changed policy/rules. Browser device validation remains unavailable.

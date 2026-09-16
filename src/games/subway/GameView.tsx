@@ -1,5 +1,9 @@
 "use client";
 
+import {validatePath,pathContacts,tokenCost,remainingLength,BEND_LABELS} from './bends';
+import {constructionTip} from './paths';
+import {BendModeSelect} from "./BendModeSelect";
+import {type BendMode} from "./bends";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { PlayerPads, PublicLeaders } from "./PlayerStatus";
@@ -212,6 +216,9 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   const me = game?.players[playerId];
   const isHotseat = room.mode === "hotseat";
 
+  const [bendMode,setBendMode]=useState<BendMode>('straight');
+  const [bendDraft,setBendDraft]=useState<Point[]>([]);
+  const [bendPick,setBendPick]=useState(false);
   const [chosen, setChosen] = useState<string[]>([]);
   const [assignments, setAssignments] = useState<Record<string, number>>({});
   const [selectedLine, setSelectedLine] = useState(0);
@@ -301,7 +308,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     if (!isHotseat) setSeatedId(playerId);
   }, [isHotseat, playerId]);
 
-  const realRouteKey = me?.lines.map(l=>JSON.stringify(l.route)).join("|");
+  const realRouteKey = me?.lines.map(l=>JSON.stringify([l.route,l.work])).join("|");
   const turnKey = game ? currentActorId(game) : undefined;
 
   const narration = useNarration(game, room.roomCode, playerId);
@@ -377,6 +384,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     const line = me.lines[lineIndex];
     if (!line) return;
     const initial = preparePlan(game, playerId, lineIndex, plans[line.contractId]);
+    setBendDraft([]);setBendPick(false);
     setSketchBase(initial.base);
     setPlannerLine(lineIndex);
     setSketch(initial.nodes);
@@ -416,8 +424,8 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   useEffect(() => {
     if (openedContext.current === automaticContext) return;
     openedContext.current = automaticContext;
-    setPlanMode(false); setManualPlanner(false); setPlannerLine(null); setSketch([]); setSketchBase([]); setPreview(null);
-    if (!planAvailable || !game || !me || activeLineIndex < 0) return;
+    setPlanMode(false); setManualPlanner(false); setPlannerLine(null); setSketch([]); setSketchBase([]); setPreview(null); setBendDraft([]); setBendPick(false);
+    if (!planAvailable || !game || !me || activeLineIndex < 0 || game.bendMode&&game.bendMode!=='straight') return;
     const line = me.lines[activeLineIndex];
     const saved = remotePlans ? remotePlans[line.contractId] : sessionPlans.current[planStorageKey(room.roomCode, playerId, line.contractId)] ?? loadPlan(room.roomCode, playerId, line.contractId);
     const initial = preparePlan(game, playerId, activeLineIndex, saved);
@@ -450,12 +458,18 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     const line = clone.players[me.id]?.lines[plannerLine];
     if (!line) return undefined;
     line.route = sketch;
+    if(sketch.length>me.lines[plannerLine].route.length)line.work=undefined;
     return clone;
   }, [game, me, plannerActive, plannerLine, sketch]);
 
   const targets = useMemo<PlacementTarget[]>(() => {
     if (!game || !me) return [];
     if (mode === "place" && activeLineIndex >= 0) {
+      if(!placingStarter&&game.bendMode&&game.bendMode!=='straight') {
+        const out:PlacementTarget[]=[];
+        for(let y=0;y<9;y++)for(let x=0;x<27;x++)if(!validatePath(game,me.id,activeLineIndex,[...bendDraft,{x,y}],bendPick,true))out.push({x,y});
+        return out;
+      }
       return legalTargets(game, me.id, activeLineIndex, placingStarter);
     }
     if (mode === "planner" && plannerState && plannerLine !== null) {
@@ -465,12 +479,12 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       return legalTargets(plannerState, me.id, plannerLine, sketch.length === 0);
     }
     return [];
-  }, [game, me, mode, activeLineIndex, placingStarter, plannerState, plannerLine, sketch, manualPlanner, preview]);
+  }, [game, me, mode, activeLineIndex, placingStarter, plannerState, plannerLine, sketch, manualPlanner, preview, bendDraft, bendPick]);
 
   // The board as it would be if the selected target were confirmed. Yellow is
   // derived from this by the reducer's own rules (OD-5).
   const previewState = useMemo(() => {
-    if (!game || !me || !preview || activeLineIndex < 0 || mode !== "place") return undefined;
+    if (!game || !me || !preview || activeLineIndex < 0 || mode !== "place" || bendPick) return undefined;
     const clone = cloneState(game);
     const line = clone.players[me.id]?.lines[activeLineIndex];
     if (!line) return undefined;
@@ -479,9 +493,11 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       x: preview.x,
       y: preview.y,
       ...(station ? { stationId: station.id } : {}),
+      ...((line.work?.length||bendDraft.length)?{via:[...(line.work??[]),...bendDraft]}:{}),
     });
+    line.work=undefined;
     return clone;
-  }, [game, me, preview, activeLineIndex, mode]);
+  }, [game, me, preview, activeLineIndex, mode, bendDraft, bendPick]);
 
   const following = useMemo<PlacementTarget[]>(() => {
     if (!previewState || !me || activeLineIndex < 0) return [];
@@ -502,6 +518,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
         out.push({
           key: `${id}-${li}`,
           route: line.route,
+          work: line.work,
           contract,
           ownerColor: p.color,
           active: id === playerId && li === activeLineIndex,
@@ -513,20 +530,22 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     // in route colour. It follows selection changes and disappears on Cancel,
     // Confirm, Cancel, or a line switch. Confirm revalidates against current
     // state, so routine multiplayer polls cannot erase a valid selection.
-    if (privateVisible && me && preview && (mode === "place" || (mode === "planner" && !manualPlanner)) && activeLineIndex >= 0) {
+    if (privateVisible && me && (preview || bendDraft.length>0) && (mode === "place" || (mode === "planner" && !manualPlanner)) && activeLineIndex >= 0) {
       const line = me.lines[activeLineIndex];
       const contract = line && contractOf(line);
-      const anchor = line?.route.at(-1);
+      const anchor = line && constructionTip(line);
       if (line && contract) {
-        const station = stationAt(preview, game.stations);
+        const station = preview?stationAt(preview, game.stations):undefined;
         out.push({
           key: `live-preview-${activeLineIndex}`,
-          route: [
+          work: bendPick||!preview?[...bendDraft,...(preview?[preview]:[])]:undefined,
+          route: bendPick||!preview?(anchor?[anchor]:[]):[
             ...(anchor ? [anchor] : []),
             {
               x: preview.x,
               y: preview.y,
               ...(station ? { stationId: station.id } : {}),
+              ...(bendDraft.length?{via:bendDraft}:{}),
             },
           ],
           contract,
@@ -615,7 +634,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       });
     }
     return out;
-  }, [game, playerId, activeLineIndex, privateVisible, me, mode, preview, plannerActive, plannerLine, sketch, planStatuses, manualPlanner, ghostEnabled]);
+  }, [game, playerId, activeLineIndex, privateVisible, me, mode, preview, plannerActive, plannerLine, sketch, planStatuses, manualPlanner, ghostEnabled, bendDraft, bendPick]);
 
   const onTapHole = (p: Point, slot?: number) => {
     if (!game || !me || !canAct) return;
@@ -657,12 +676,12 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       if (!manualPlanner && sketch.length === me.lines[plannerLine].route.length) {
         setPreview({x:p.x,y:p.y});
       }
-      setSketch([...sketch, { ...p, ...(station ? { stationId: station.id } : {}) }]);
+      setSketch([...sketch, { ...p, ...(station ? { stationId: station.id } : {}),...(plannerState.players[me.id].lines[plannerLine].work?.length?{via:plannerState.players[me.id].lines[plannerLine].work}: {}) }]);
       return;
     }
 
     if (mode === "place" && activeLineIndex >= 0) {
-      const reason = validateNode(game, me.id, activeLineIndex, p, placingStarter, slot);
+      const reason = placingStarter?validateNode(game,me.id,activeLineIndex,p,true,slot):validatePath(game,me.id,activeLineIndex,[...bendDraft,p],bendPick,true);
       if (reason) {
         setNotice(reason);
         return;
@@ -677,13 +696,14 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     if (!game || !me || !preview || activeLineIndex < 0 || (mode !== "place" && !(mode === "planner" && plannerLine === activeLineIndex))) return;
     // Revalidate the exact target against current state before dispatching; the
     // reducer revalidates again and a rejection costs nothing (R 5.3).
-    const reason = validateNode(game, me.id, activeLineIndex, preview, placingStarter, preview.slot);
+    const reason = placingStarter?validateNode(game,me.id,activeLineIndex,preview,true,preview.slot):validatePath(game,me.id,activeLineIndex,[...bendDraft,preview],bendPick);
     if (reason) {
       setNotice(reason);
       setPreview(null);
       return;
     }
     const target = preview;
+    setBendDraft([]);setBendPick(false);
     exitPlanner();
     setPreview(null);
     act(placingStarter ? "PLACE_STARTER" : "BUILD", {
@@ -691,6 +711,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       x: target.x,
       y: target.y,
       ...(target.slot !== undefined ? { slot: target.slot } : {}),
+      bends:bendDraft,pause:bendPick,
     });
   };
 
@@ -746,10 +767,11 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
           Companies: {room.players.slice(0, 4).map((p) => p.name).join(" vs ") || "waiting…"}
           {room.players.length > 4 && ` · ${room.players.length - 4} spectating`}
         </p>
-        {isHost ? (
+        {isHost&&<BendModeSelect value={bendMode} onChange={setBendMode}/>}
+      {isHost ? (
           <button
             disabled={busy || !enough}
-            onClick={() => act("START_GAME")}
+            onClick={() => act("START_GAME",{bendMode})}
             className="rounded-xl bg-emerald-700 px-6 py-3 font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-40"
           >
             {busy ? "Starting…" : enough ? "Start Subway" : "Waiting for a second player"}
@@ -1044,10 +1066,12 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   // ---- The screen-level strip: the only commitment control -------------------
 
   const pricedContacts=me&&preview&&!manualPlanner&&activeLine
-    ? placingStarter?stationAccessContacts(game,me.id,activeLineIndex,preview):activeLine.route.length?routeContacts(game,me.id,activeLine.route.at(-1)!,preview,activeLineIndex):[]:[];
-  const price=me?quoteBuildCost(me,pricedContacts):null;
+    ? placingStarter?stationAccessContacts(game,me.id,activeLineIndex,preview):activeLine.route.length?pathContacts(game,me.id,activeLineIndex,[...bendDraft,preview],bendPick):[]:[];
+  const tokenBill=me&&game.bendMode==='tokens'?tokenCost(game,me.id,bendDraft.length+Number(bendPick)):0;
+  const price=me?quoteBuildCost({...me,money:me.money-tokenBill},pricedContacts):null;
   const actionStrip = (
     <div className="pointer-events-auto rounded-2xl border-2 border-[#6b4b2c] bg-[#fffaf0]/95 p-2.5 text-stone-900 shadow-2xl backdrop-blur-sm">
+      {tokenBill>0&&<p className="mb-1 text-sm font-bold">Buy extra bend tokens: ${tokenBill}M · paid on Confirm</p>}
       {price&&preview&&!manualPlanner&&<div aria-label="Placement payment preview" className="mb-2 rounded-lg bg-amber-100 px-2 py-1 text-xs text-amber-950">
         <b>{price.totalToll?`Pay $${price.totalToll}M before building · cash after payments $${price.cashAfter}M`:'No opponent payment for this placement'}</b>
         {price.recipients.map(r=><p key={r.ownerId}>Pay {game.players[r.ownerId].name} ${r.amount}M · {Array.from(new Set(pricedContacts.filter(c=>c.ownerId===r.ownerId).map(c=>c.kind==='station'?'first station access':'crosses or touches their line'))).join(' + ')}</p>)}
@@ -1100,12 +1124,19 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
                   } pegs`}
             </span>
           </div>
+          {!placingStarter&&game.bendMode&&game.bendMode!=='straight'&&<div className="space-y-2 text-sm">
+            <p>{BEND_LABELS[game.bendMode]} · {game.bendMode==='tokens'?`${me.bendTokens??0} tokens left · ${bendDraft.length} bends in preview`:`${remainingLength(game,me.id,activeLineIndex).toFixed(1)} spaces left · next hire continues this line`}</p>
+            <div className="flex flex-wrap gap-2"><StripButton aria-pressed={!bendPick} onClick={()=>{setBendPick(false);setPreview(null);}}>Finish segment</StripButton><StripButton aria-pressed={bendPick} onClick={()=>{setBendPick(true);setPreview(null);}}>{game.bendMode==='tokens'?'Choose a bend':'Stop at a bend'}</StripButton>
+            {game.bendMode==='tokens'&&bendPick&&<StripButton disabled={!preview} onClick={()=>{if(preview){setBendDraft([...bendDraft,preview]);setPreview(null);setBendPick(false);}}}>Add bend to preview</StripButton>}
+            {!!bendDraft.length&&<StripButton onClick={()=>{setBendDraft(bendDraft.slice(0,-1));setPreview(null);}}>Undo preview bend</StripButton>}</div>
+            {bendPick&&<p>{game.bendMode==='tokens'?'Tap a highlighted hole, then add it to the preview. Finish at a real peg before confirming.':'Confirm builds this leg and ends this line’s activation. Other hired lines can still build. Worksites are not stations; unbuilt space is not reserved.'}</p>}
+          </div>}
           <div className="flex flex-wrap items-center gap-1.5">
-            <StripButton disabled={busy || !preview} onClick={() => setPreview(null)}>
+            <StripButton disabled={busy || !preview&&!bendDraft.length} onClick={() => {setPreview(null);setBendDraft([]);setBendPick(false);}}>
               Cancel
             </StripButton>
-            <StripButton tone="go" disabled={busy || !preview} onClick={confirmPlacement} data-confirm-placement>
-              Confirm placement
+            <StripButton tone="go" disabled={busy || !preview || game.bendMode==='tokens'&&bendPick} onClick={confirmPlacement} data-confirm-placement>
+              {bendPick?'Confirm worksite':'Confirm placement'}
             </StripButton>
             {planAvailable && (
               <StripButton tone="plan" onClick={() => openPlanner(activeLineIndex >= 0 ? activeLineIndex : 0)}>

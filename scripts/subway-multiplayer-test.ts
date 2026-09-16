@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import "./subway-plans-test";
+import "./subway-bends-test";
 import "./subway-status-test";
 import "./subway-engineering-test";
 import "./subway-objectives-test";
@@ -18,7 +19,7 @@ const dispatch=(s:SubwayState,id:string,type:SubwayAction["type"],payload?:Subwa
 let checks=0;
 for(const count of [2,3,4]) for(const category of ["engineering"] as const) {
   let {state:s}=startPlaytest(count,42);
-  assert.equal(SUBWAY_STATE_VERSION,24);
+  assert.equal(SUBWAY_STATE_VERSION,25);
   assert.ok(!("construction" in s.market.rows) && !("construction" in s.market.decks));
   assert.ok(!("priorityQueue" in s));
   assert.ok(Object.values(s.players).every(p=>!("constructionHand" in p)));

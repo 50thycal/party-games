@@ -831,3 +831,21 @@ access and credit opponents. Current Engineering guidance replaces obsolete card
 heuristics. Historical policy-v3 benchmarks remain evidence of the older rules,
 not performance claims about this integrated version. Rulebook drafts remain
 unreviewed; their Largest Cluster scoring text now reflects PR #183.
+
+### Optional Subway bend modes (DEC-055)
+
+Setup on local, companion-host and Lab surfaces selects immutable `bendMode`:
+straight (default), tokens, or delayed. State v25 protects older persisted rooms.
+`paths.ts` separates physical legs from scoring nodes: endpoint `via` stores
+completed incoming bends; line `work` stores unfinished construction vertices.
+`bends.ts` owns shared path validation, actual contact projection and legal-move
+search. Reducer BUILD validates path, buys/spends tokens if needed, charges only
+new physical contacts, then appends work or a scoring peg. Undo restores all
+placement effects. Work consumes the selected crew without consuming other crews.
+
+Board strings, overlap and crossing checks use all physical legs. Transfers,
+neighborhoods and cards still see real route pegs only. Network graph keeps one
+edge per completed segment, weighted by its entire path; partial work earns no
+length. Setup mode and resources survive JSON storage, reconnect and replay and
+appear in exports. Bot v6/audit v5 discover legal mode-aware actions. Saved plans
+retain actual bend vertices but remain private non-binding sketches.

@@ -1,3 +1,5 @@
+import {Board, holePos} from '../src/games/subway/board';
+import {BendModeSelect} from '../src/games/subway/BendModeSelect';
 import { PhoneStatus, PlayerPads } from '../src/games/subway/PlayerStatus';
 import { DestinationCardFace } from '../src/games/subway/CardArt';
 import assert from 'node:assert/strict';
@@ -116,4 +118,22 @@ console.log('GZZF deadlines, completion economics, starter occupancy, segment re
  assert.match(pads,/Player panels/);assert.doesNotMatch(pads,/segments left|Diamond = starter/);
  const destination=renderToStaticMarkup(<DestinationCardFace card="dest-market-grand" color="#fff"/>);
  assert.match(destination,/any order/);assert.match(destination,/No start or finish here required/);
+}
+
+// Bent strings follow actual legs; vertices are never rendered as scoring pegs.
+{
+ const b=fixture();b.bendMode='tokens';b.players[id].bendTokens=2;
+ const l={contractId:'short',paid:5,route:[{x:0,y:0},{x:1,y:1,via:[{x:1,y:0}]}]};b.players[id].lines=[l];
+ const props={game:b,targets:[],following:[],canAct:false,onTapHole:()=>{},drawn:[{key:'test',...l,contract:contractById('short')!,ownerColor:'red',active:true,growing:true}]};
+ const html=renderToStaticMarkup(<Board {...props}/>);
+ assert.equal((html.match(/data-route-kind="built"/g)??[]).length,2);
+ assert.equal((html.match(/data-peg-kind="built"/g)??[]).length,2);
+ const a=holePos({x:0,y:0}),z=holePos({x:1,y:1});
+ assert.ok(!html.includes(`x1="${a.x}" y1="${a.y}" x2="${z.x}" y2="${z.y}"`),'no chord between endpoints');
+ const work=renderToStaticMarkup(<Board {...props} drawn={[{...props.drawn[0],route:[{x:0,y:0}],work:[{x:1,y:0}]}]}/>);
+ assert.equal((work.match(/data-peg-kind="built"/g)??[]).length,1);assert.match(work,/data-worksite="true"/);
+ assert.match(renderToStaticMarkup(<PhoneStatus game={b} playerId={id}/>),/2 bend tokens/);
+ const options=renderToStaticMarkup(<BendModeSelect value="tokens" onChange={()=>{}}/>);
+ assert.equal((options.match(/<option/g)??[]).length,3);assert.match(options,/value="tokens" selected/);
+ console.log('Bend UI: setup options, phone resources, physical legs, worksite and real-peg rendering passed.');
 }

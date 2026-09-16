@@ -1,3 +1,4 @@
+import {validatePath} from './bends';
 import {
   SUBWAY_CONFIG,
   SUBWAY_STATE_VERSION,
@@ -44,6 +45,7 @@ const isPlanNode = (n: unknown): n is RouteNode => {
     if (!station) return false;
 
   }
+  if(node.via!==undefined&&(!Array.isArray(node.via)||node.via.length>7||node.via.some(p=>!p||typeof p!=='object'||!Number.isInteger(p.x)||!Number.isInteger(p.y)||p.x<0||p.y<0||p.x>=27||p.y>=9)))return false;
   return true;
 };
 
@@ -52,6 +54,7 @@ export const cleanNode = (n: RouteNode): RouteNode => ({
   x: n.x,
   y: n.y,
   ...(n.stationId !== undefined ? { stationId: n.stationId } : {}),
+  ...(n.via?.length?{via:n.via.map(p=>({x:p.x,y:p.y}))}:{}),
 });
 
 export function validPlanNodes(nodes: unknown): nodes is RouteNode[] {
@@ -138,7 +141,7 @@ export type PlanStatus = {
 const sameNode = (a: RouteNode, b: RouteNode): boolean =>
   a.x === b.x &&
   a.y === b.y &&
-  (a.stationId ?? null) === (b.stationId ?? null);
+  (a.stationId ?? null) === (b.stationId ?? null)&&JSON.stringify(a.via??[])===JSON.stringify(b.via??[]);
 
 /**
  * Reconciles a plan against authoritative state using the reducer's own
@@ -174,7 +177,10 @@ export function reconcilePlan(
   let stale = false;
   for (const n of phantom) {
     const starter = cloneLine.route.length === 0;
-    const reason = validateNode(
+    const work=cloneLine.work??[],via=n.via??[];
+    if(work.length&&JSON.stringify(via.slice(0,work.length))!==JSON.stringify(work)){stale=true;break;}
+    const remainingVia=via.slice(work.length);
+    const reason = !starter&&via.length?validatePath(clone,playerId,lineIndex,[...remainingVia,n]):validateNode(
       clone,
       playerId,
       lineIndex,
@@ -187,6 +193,7 @@ export function reconcilePlan(
       break;
     }
     cloneLine.route.push(cleanNode(n));
+    cloneLine.work=undefined;
   }
   return { matched: route.length, phantom, stale };
 }
