@@ -1,10 +1,10 @@
 # WS-005 — Subway finished edition
 
 Build OS: v0.12
-Phase: BUILDING
+Phase: REVIEW
 Status: Active
 Updated: 2026-09-16
-Implementation State: integrating PR #183 with merged #184–#186; renewed review required.
+Implementation State: PR #183 conflict integration complete on merge; merged #184–#186 behaviors retained.
 Related PRs: [#186](https://github.com/50thycal/party-games/pull/186) (draft rules/highlights); [#185](https://github.com/50thycal/party-games/pull/185) (public status/payments/draft); [#184](https://github.com/50thycal/party-games/pull/184) (JNCG cards/surveys/labels); [#177](https://github.com/50thycal/party-games/pull/177) (PRWK feedback); [#176](https://github.com/50thycal/party-games/pull/176) (phone joining; merged); [#175](https://github.com/50thycal/party-games/pull/175) (Playtest Lab); [#174](https://github.com/50thycal/party-games/pull/174) (transfer/objective continuation); [#173](https://github.com/50thycal/party-games/pull/173) (larger neighborhoods/reversed VP; merged); [#172](https://github.com/50thycal/party-games/pull/172) (guided turns, neighborhoods and tiers; merged); [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; merged); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
 ## Current continuation — PR #183 conflict integration
@@ -12,9 +12,11 @@ Related PRs: [#186](https://github.com/50thycal/party-games/pull/186) (draft rul
 Goal/acceptance: [cluster spec integration](../build-specs/WS-005-cluster-planning.md).
 Preserve merged cards/payment/no-stack/highlight/draft work while restoring the
 approved Largest Cluster scoring and adapting bot planning to current rules.
-Implementation State: integration under validation; no bends built.
-Review State: prior PR approval stale after integration; pending independent review.
-Next Step: validate, update existing PR #183, finalize review; do not merge.
+Implementation State: conflict integration complete on merge. State v24/bot v5/audit v4; scoring/display share occupied-hole clustering; forecasts honor station receipts and current cards. Draft labels and current-player highlights retained. No bends built.
+Validation: build, lint, full Subway suite passed; updated cluster/planning regression passed after recompilation; 18 current-policy benchmark games completed with accepted actions and exact replay. Historical benchmarks are not current effectiveness claims.
+Review State: PR #183 Approved at source b8f23be79edfee151870cbaec0b42349d073c60a by /root/pr183_review; implementation actor /root. No open Blocking/Should-fix findings. Finalization: pushed; reviewer verifies resulting head separately on PR.
+Limitations: browser/device verification remains unavailable; rules remain draft pending owner review.
+Next Step: None for conflict integration. Bend tokens and delayed construction remain planning-only alternatives for the next owner discussion. No merge performed.
 
 ## Previous PR #183 source review — Largest Cluster and bot planning
 
