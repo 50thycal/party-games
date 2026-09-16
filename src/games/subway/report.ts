@@ -88,9 +88,9 @@ export function generateAiPlaytestReport(game: SubwayState, context: SubwayRepor
       pegStackingAllowed: false,
       bendMode: game.bendMode??'straight',
       bendRules: 'Tokens: 3 per company, extras $3M cash; delayed: one leg per activation; max 90 degrees; total path length; bends/worksites are not pegs; partial track excludes network length until finished',
-      stationAccess: "$1M once per line/opponent/local station; starter joins included; crossings always separate",
+      stationAccess: "$1M once per line/opponent/local transfer station; starter joins included; crossings always separate",
       routeDraftPool: game.playerOrder.length * 3 + 1,
-      largestStation: "Uses Largest Cluster occupied-hole scoring and tied-largest aggregation",
+      largestStation: "Uses Largest Transfer Station occupied-hole scoring and tied-largest aggregation",
       contactTollMillions: SUBWAY_CONFIG.contact.toll,
       stationScores: SUBWAY_CONFIG.stationScores,
       board: SUBWAY_CONFIG.board,
@@ -98,8 +98,8 @@ export function generateAiPlaytestReport(game: SubwayState, context: SubwayRepor
       engineeringPicks: SUBWAY_CONFIG.engineeringPicks,
       destinationPurchaseMillions: SUBWAY_CONFIG.destinationPurchaseCost,
       firstCompletedPlayerId: game.firstCompletedPlayerId,
-      longestNetwork: "Peg-space length, no repeated segments; winner 5 VP, ties 3 VP each",
-      largestCluster: "Orthogonally adjacent occupied route-node holes across all companies; shared holes count once per company. Aggregate company nodes across all equally largest clusters. Majority award once: 6 VP alone, 3 each for two leaders, 2 each for three, 0 for four. No diagonals, string links or Survey Pins.",
+      longestNetwork: "Actual path length of completed segments in peg spaces, no repeated segments; winner 5 VP, ties 3 VP each",
+      largestCluster: "Horizontally/vertically adjacent occupied peg holes across all companies, including the same line; one peg per hole. Total each company’s stations across all equally largest transfer stations. Leader award once: 6 VP alone, 3 each for two leaders, 2 each for three, 0 for four. No diagonals, string links, bends or worksites.",
       starterOccupancy: "New starter pegs require an empty non-neighborhood outer-border hole",
     }, null, 2),
     "```",
@@ -112,7 +112,7 @@ export function generateAiPlaytestReport(game: SubwayState, context: SubwayRepor
     "",
     "## Final ranking and economy",
     "",
-    row(["Rank", "Company", "Score", "Cash", "Crew spend", "Tolls paid", "Routes complete"]),
+    row(["Rank", "Company", "Score", "Cash", "Crew spend", "Tolls paid", "Lines complete"]),
     row(["---:", "---", "---:", "---:", "---:", "---:", "---:"]),
     ...ranking.map((p, index) => row([
       index + 1,
@@ -130,9 +130,9 @@ export function generateAiPlaytestReport(game: SubwayState, context: SubwayRepor
     lines.push(
       `## ${p.name}`,
       "",
-      "### Routes",
+      "### Lines",
       "",
-      row(["Route", "Paid", "Progress", "Status", "Node path"]),
+      row(["Line", "Paid", "Progress", "Status", "Station path"]),
       row(["---", "---:", "---", "---", "---"]),
       ...p.lines.map((line) => {
         const contract = contractOf(line);

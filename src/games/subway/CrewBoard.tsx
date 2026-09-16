@@ -1,5 +1,6 @@
 "use client";
 
+import { crewActivationText } from "./terminology";
 import { useState } from "react";
 import { activationCost, buildableLines, contractOf, SUBWAY_CONFIG, type SubwayState } from "./config";
 import { Printed, TableButton } from "./table";
@@ -19,7 +20,7 @@ export function CrewBoard({game,viewerId,busy,veiled,act,boardOnly=false}:{game:
   return <Printed style={{width:1720, maxWidth:"100%"}} zone="schedule" title="Construction schedule" subtitle={`Round ${game.currentPeriod} / ${SUBWAY_CONFIG.timelinePeriods}`}>
     <div className="grid grid-cols-[640px_1fr] items-start gap-8">
     <div data-turn-controls={game.phase === "CONSTRUCTION" ? "true" : undefined}>
-    {game.phase!=="CONSTRUCTION"?<p className="mt-3 text-xl">Choose routes afresh each construction round. There is no advance timetable.</p>:<>
+    {game.phase!=="CONSTRUCTION"?<p className="mt-3 text-xl">Choose lines afresh each construction round. There is no advance timetable.</p>:<>
       <p className="mt-3 text-2xl font-bold">{game.players[actor]?.name}: {hiring?"choose your crews":"construction turn"}</p>
       {p&&!veiled&&<>
         {hiring&&<div className="mt-4 space-y-4">
@@ -37,13 +38,13 @@ export function CrewBoard({game,viewerId,busy,veiled,act,boardOnly=false}:{game:
         {game.undo?.playerId===viewerId&&<div className="mt-4">
           <TableButton disabled={busy} onClick={()=>act("UNDO_PLACEMENT")}>Undo {game.undo.label}</TableButton>
         </div>}
-        <p className="mt-4 text-xl">1 crew $1M · 2 crews $3M · 3 crews $6M. One segment per chosen route. Unpaid debt: −4 VP per $1M.</p>
+        <p className="mt-4 text-xl">1 crew $1M · 2 crews $3M · 3 crews $6M. {crewActivationText(game.bendMode)} Unpaid debt: −4 VP per $1M.</p>
       </>}
     </>}
     </div>
     <div className="border-l-2 border-stone-300 pl-8">
-    <p className="mb-3 text-lg">Longest continuous company network: +5 VP, or +3 each if tied. Measure built segments in peg spaces; no segment counts twice. Different company lines transfer at horizontally/vertically adjacent nodes, adding no length. Sharing a neighborhood alone does not connect lines.</p>
-    <p className="mb-3 text-lg">Largest Cluster: group occupied peg holes side-to-side across all companies, including the same line. No diagonals or string-only links. Across all equally largest clusters, total each company’s pegs. Award once: 6 VP to one leader, 3 each to two, 2 each to three, none to four.</p>
+    <p className="mb-3 text-lg">Longest continuous company network: +5 VP, or +3 each if tied. Measure built segments in peg spaces; no segment counts twice. Different lines of your company transfer at horizontally/vertically adjacent stations, adding no length. Sharing a neighborhood alone does not connect lines.</p>
+    <p className="mb-3 text-lg">Largest Transfer Station: group occupied peg holes side-to-side across all companies, including the same line. No diagonals or string-only links. Across all equally largest transfer stations, total each company’s stations. Award once: 6 VP to one leader, 3 each to two, 2 each to three, none to four.</p>
     <div className="flex flex-wrap gap-2" aria-label="Construction rounds">{Array.from({length:SUBWAY_CONFIG.timelinePeriods},(_,i)=><button key={i} aria-label={`View round ${i+1}`} aria-pressed={historyRound===i+1} onClick={()=>setHistoryRound(i+1)} className={`rounded px-3 py-2 text-xl font-bold ${historyRound===i+1?"bg-teal-700 text-white":"bg-stone-200"}`}>{i+1}</button>)}</div>
     <p className="mt-3 text-lg">Round {historyRound} · {historyRound>game.currentPeriod?"Projected construction order":"Construction order"}</p>
     <div className="mt-3 grid grid-cols-2 items-start gap-3">{history.order.map((id,rank)=>{

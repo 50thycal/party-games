@@ -1,3 +1,5 @@
+import {CrewBoard} from "../src/games/subway/CrewBoard";
+import {phoneGuidance} from "../src/games/subway/guidance";
 import {Board, holePos} from '../src/games/subway/board';
 import {BendModeSelect} from '../src/games/subway/BendModeSelect';
 import { PhoneStatus, PlayerPads } from '../src/games/subway/PlayerStatus';
@@ -51,7 +53,7 @@ for(const built of [0,3,4]) {
   const html=renderToStaticMarkup(<ContractCard contract={red} progress={{built,total:4}}/>);
   assert.equal((html.match(/— built/g)??[]).length,built);
   assert.equal((html.match(/ring-2 ring-offset-1/g)??[]).length,built===4?0:1);
-  if(built===3) assert.match(html,/title="Segment 4: 3 pegs"/);
+  if(built===3) assert.match(html,/title="Segment 4: 3 peg spaces"/);
 }
 
 const goals=fixture(), p=goals.players[id];
@@ -113,7 +115,7 @@ console.log('GZZF deadlines, completion economics, starter occupancy, segment re
 {
  const s=fixture();s.players[id].lines=[line('short',[[0,0],[2,0],[5,0]])];
  const phone=renderToStaticMarkup(<PhoneStatus game={s} playerId={id}/>);
- assert.match(phone,/2\/4 segments/);assert.match(phone,/2 pegs and 2 segments left/);assert.match(phone,/Diamond = starter/);
+ assert.match(phone,/2\/4 segments/);assert.match(phone,/2 stations and 2 segments left/);assert.match(phone,/Diamond = starter/);
  const pads=renderToStaticMarkup(<PlayerPads game={s} roomKey="fixture"/>);
  assert.match(pads,/Player panels/);assert.doesNotMatch(pads,/segments left|Diamond = starter/);
  const destination=renderToStaticMarkup(<DestinationCardFace card="dest-market-grand" color="#fff"/>);
@@ -136,4 +138,20 @@ console.log('GZZF deadlines, completion economics, starter occupancy, segment re
  const options=renderToStaticMarkup(<BendModeSelect value="tokens" onChange={()=>{}}/>);
  assert.equal((options.match(/<option/g)??[]).length,3);assert.match(options,/value="tokens" selected/);
  console.log('Bend UI: setup options, phone resources, physical legs, worksite and real-peg rendering passed.');
+}
+
+// All active crew instructions must explain partial construction in delayed mode.
+{
+ const s=fixture();s.players[id].crewsHired=true;
+ for(const mode of ['straight','tokens','delayed'] as const){
+  s.bendMode=mode;
+  const html=renderToStaticMarkup(<CrewBoard game={s} viewerId={id} busy={false} veiled={false} act={()=>{}}/>);
+  const phone=phoneGuidance(s,id).text;
+  for(const text of [html,phone]){
+   assert.match(text,/construction activation/);
+   if(mode==='delayed'){assert.match(text,/stop at a bend/);assert.match(text,/other hired lines can still build/);assert.doesNotMatch(text,/One segment per chosen route/);}
+   if(mode==='tokens')assert.match(text,/available cash/);
+   if(mode==='straight')assert.match(text,/straight segment/);
+  }
+ }
 }

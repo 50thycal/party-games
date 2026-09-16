@@ -178,7 +178,7 @@ export function companionAction(state: RoomState, device: CompanionDevice, input
   } else if (input.type === "SAVE_GHOST") {
     if (device.role !== "tablet" || !seated || seated !== actor || !game) throw new Error("Confirm your company first.");
     const contractId = payload.contractId;
-    if (typeof contractId !== "string" || !game.players[seated].lines.some(l=>l.contractId===contractId) || !validPlanNodes(payload.nodes)) throw new Error("Invalid ghost route.");
+    if (typeof contractId !== "string" || !game.players[seated].lines.some(l=>l.contractId===contractId) || !validPlanNodes(payload.nodes)) throw new Error("Invalid ghost line.");
     session.plans[seated] ??= {};
     session.plans[seated][contractId] = {nodes:payload.nodes.map(cleanNode),savedAt:clock.now()};
   } else {

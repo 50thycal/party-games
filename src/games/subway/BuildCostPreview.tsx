@@ -15,7 +15,7 @@ export function BuildCostPreview({ player, contacts, game }: {
     </div>
     <p className="mt-1">
       {quote.recipients.length
-        ? <>Paid to: {quote.recipients.map(p => `${game.players[p.ownerId]?.name ?? "Route owner"} ${money(p.amount)}`).join(" · ")}</>
+        ? <>Paid to: {quote.recipients.map(p => `${game.players[p.ownerId]?.name ?? "Line owner"} ${money(p.amount)}`).join(" · ")}</>
         : "No contact toll."}
     </p>
     {quote.debtPenalty < 0 && <p className="mt-1 font-bold text-red-800">If the game ended here: {quote.debtPenalty} VP from debt.</p>}

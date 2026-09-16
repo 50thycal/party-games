@@ -8,6 +8,10 @@
 Build a subway company across the city. Complete lines, connect neighborhoods,
 and create transfer stations to earn victory points. Most points wins.
 
+A **station** is one placed peg. A **transfer station** is a group of
+horizontally/vertically adjacent stations. Card transfers require different-line
+adjacency; Largest Transfer Station also counts same-line adjacency.
+
 ## 1. Set up your company
 
 Each player starts with **$40 million** and two private Destination cards: one
@@ -23,7 +27,7 @@ face-up cards or taking a blind draw. These are additional scoring goals.
 Place one starter peg for each line on an empty hole along the outer border.
 **One hole holds one peg.** You cannot stack on your own or another player's pegs.
 Starter placement has no base cost. If your starter joins an opponent's station,
-you pay the station-access fee.
+you pay the transfer-access fee.
 
 ## 3. Build on your turn
 
@@ -57,8 +61,8 @@ cannot connect your network for you.
 ## 5. Watch your payments
 
 Joining an opponent's station costs **$1 million once per line, per opponent,
-at that station**. Adding more pegs there with the same line does not repeat it.
-Crossing or touching an opponent's string costs separately. Paying for station
+at that transfer station**. Adding more pegs there with the same line does not repeat it.
+Crossing or touching an opponent's string costs separately. Paying for transfer
 access does not make later crossings free. Check the payment preview before
 confirming. Player panels show who pays and who receives the money.
 
@@ -75,7 +79,7 @@ others allow a connected network or any of your lines.
 
 The game ends after round nine, or earlier when no player has a legal next segment
 left. Add completed-line points, fulfilled Engineering and Destination cards, and
-any longest-network and Largest Cluster awards. Subtract unfinished-line penalties and **4 points for
+any longest-network and Largest Transfer Station awards. Subtract unfinished-line penalties and **4 points for
 every $1 million of remaining debt**. Neighborhood visits do not earn points by
 themselves.
 
