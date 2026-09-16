@@ -29,6 +29,10 @@ and player counts, and keep mixed/bot games out of the human baseline. More
 simulations do not establish human validity. Archive batch simulations only when
 useful as a deliberate experiment checkpoint, not every generated game.
 
+## Diagnostic research
+
+- [2026-09-14: North–South, Citywide, and Four Corners](research/2026-09-14-three-cards/README.md) — 27 selected simulated games, scorer checks, and three legal-completion replays. Custom planning establishes feasibility, not normal-game probabilities.
+
 The app downloads records; it does not carry GitHub credentials or push commits.
 Repository ingestion is performed by the development agent when Calvin shares an
 export. Saving a browser import is not the same as archiving it in this repository.
