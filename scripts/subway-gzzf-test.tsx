@@ -1,3 +1,5 @@
+import {CrewBoard} from "../src/games/subway/CrewBoard";
+import {phoneGuidance} from "../src/games/subway/guidance";
 import {Board, holePos} from '../src/games/subway/board';
 import {BendModeSelect} from '../src/games/subway/BendModeSelect';
 import { PhoneStatus, PlayerPads } from '../src/games/subway/PlayerStatus';
@@ -136,4 +138,20 @@ console.log('GZZF deadlines, completion economics, starter occupancy, segment re
  const options=renderToStaticMarkup(<BendModeSelect value="tokens" onChange={()=>{}}/>);
  assert.equal((options.match(/<option/g)??[]).length,3);assert.match(options,/value="tokens" selected/);
  console.log('Bend UI: setup options, phone resources, physical legs, worksite and real-peg rendering passed.');
+}
+
+// All active crew instructions must explain partial construction in delayed mode.
+{
+ const s=fixture();s.players[id].crewsHired=true;
+ for(const mode of ['straight','tokens','delayed'] as const){
+  s.bendMode=mode;
+  const html=renderToStaticMarkup(<CrewBoard game={s} viewerId={id} busy={false} veiled={false} act={()=>{}}/>);
+  const phone=phoneGuidance(s,id).text;
+  for(const text of [html,phone]){
+   assert.match(text,/construction activation/);
+   if(mode==='delayed'){assert.match(text,/stop at a bend/);assert.match(text,/other hired lines can still build/);assert.doesNotMatch(text,/One segment per chosen route/);}
+   if(mode==='tokens')assert.match(text,/available cash/);
+   if(mode==='straight')assert.match(text,/straight segment/);
+  }
+ }
 }

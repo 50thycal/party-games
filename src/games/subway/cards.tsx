@@ -68,7 +68,7 @@ export function RecipeStrip({
                   : undefined
             }
             title={
-              done ? `Segment ${i + 1}: ${length} pegs — built` : `Segment ${i + 1}: ${length} pegs`
+              done ? `Segment ${i + 1}: ${length} peg spaces — built` : `Segment ${i + 1}: ${length} peg spaces`
             }
           >
             {done ? "✓" : length}
@@ -134,12 +134,12 @@ export function ContractCard({
           highlightCurrent={!!progress}
         />
         <p className="mt-0.5 text-[10px] uppercase tracking-wide text-stone-400">
-          ordered segment lengths (pegs)
+          ordered segment lengths (peg spaces)
         </p>
       </div>
       <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] text-stone-600">
-        <span>{contractNodes(contract)} nodes</span>
-        <span>{contractActions(contract)} build periods</span>
+        <span>{contractNodes(contract)} pegs</span>
+        <span>{contractActions(contract)} segments</span>
         <span>Complete +{contract.completionVp} VP</span>
         <span className="col-span-2">Incomplete {contract.incompletePenalty} VP</span>
       </div>

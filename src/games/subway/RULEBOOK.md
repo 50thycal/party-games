@@ -10,7 +10,7 @@
 Subway is a route-building strategy game for **two to four players**. Each player
 runs a company with three subway lines. Earn victory points by completing lines,
 fulfilling private Destination missions, meeting Engineering goals, and building
-the longest connected route through your network.
+the Longest Network and Largest Cluster public goals.
 
 Money pays for contracts, crews, and access to opponents' infrastructure.
 Unfinished lines and unpaid debt reduce your final score.
@@ -24,7 +24,13 @@ vary between games.
 
 A **peg**, also called a **node**, marks a stop. A **segment** is the
 connection between successive pegs. A **line** consists of its starter and the
-segments listed on its contract.
+segments listed on its contract. “Route” is another word for a line.
+
+A **peg space** measures distance, not the number of pegs placed. A **round**
+gives each company a **turn**. Each hired line gets one **construction
+activation** during that turn. In delayed mode, an activation may build only
+one **leg** of a segment and leave an unfinished **worksite**. A bend or worksite
+is not a peg. See [terminology](TERMINOLOGY.md) for shared card and scoring terms.
 
 To **serve a neighborhood**, place a peg on a hole inside its boundary. Passing a
 string through does not serve it. Several companies may serve the same

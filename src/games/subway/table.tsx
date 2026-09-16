@@ -784,9 +784,9 @@ export function RouteBuildGuide({ line, compact = false }: { line: PlayerLine; c
   const remaining = Math.max(0, contract.recipe.length - segmentsBuilt(line));
   const starter = line.route.length === 0;
   return <div aria-label={`Build guide for ${contract.name}`} className={`rounded-lg border-l-4 bg-amber-50 ${compact ? "px-2 py-1 text-xs" : "mt-[16px] px-[16px] py-[12px] text-[24px]"}`} style={{ borderColor: contract.color }}>
-    <b>{starter ? "Place starter on a border hole" : remaining ? `Build ${nextSegmentLength(line)} pegs` : "Route complete"}</b>
+    <b>{starter ? "Place starter on a border hole" : remaining ? `Next segment: ${nextSegmentLength(line)} peg spaces` : "Route complete"}</b>
     <span> · {remaining} segment{remaining === 1 ? "" : "s"} left</span>
-    {starter && <span> · First segment: {contract.recipe[0]} pegs</span>}
+    {starter && <span> · First segment: {contract.recipe[0]} peg spaces</span>}
   </div>;
 }
 
@@ -885,7 +885,7 @@ export function LineContractBoard({
                         ? { borderColor: contract.color, color: contract.color, boxShadow: `0 0 0 5px ${contract.color}33` }
                         : undefined
                   }
-                  title={`Segment ${i + 1}: ${length} pegs${done ? " — built" : current ? " — next" : ""}`}
+                  title={`Segment ${i + 1}: ${length} peg spaces${done ? " — built" : current ? " — next" : ""}`}
                 >
                   {done ? <s className="opacity-90">{length}</s> : length}
                   {current && (
@@ -911,7 +911,7 @@ export function LineContractBoard({
         <span className="text-stone-500">Nodes remaining</span>
         <b>{Math.max(0, nodes - line.route.length)}</b>
         <span className="text-stone-500">Next segment</span>
-        <b>{next === undefined ? "—" : `${next} pegs`}</b>
+        <b>{next === undefined ? "—" : `${next} peg spaces`}</b>
         <span className="text-stone-500">Paid</span>
         <b>
           {money(line.paid)}

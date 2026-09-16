@@ -188,9 +188,9 @@ function statusFor(game: SubwayState, me: SubwayPlayer | undefined, isHost: bool
         };
       }
       return {
-        headline: `Period ${game.currentPeriod} — ${game.players[actorId]?.name ?? "opponent"} builds.`,
+        headline: `Round ${game.currentPeriod} — ${game.players[actorId]?.name ?? "opponent"} builds.`,
         tone: "wait",
-        detail: game.resolveQueue.includes(me.id) ? "You build next this period." : undefined,
+        detail: game.resolveQueue.includes(me.id) ? "You build later this round." : undefined,
       };
     }
     case "SCORING":
@@ -933,7 +933,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
           face={<ContractCard contract={contract} price={focus.price} />}
           note={
             <>
-              {contractNodes(contract)} nodes over {contract.recipe.length} segments.{" "}
+              {contractNodes(contract)} pegs over {contract.recipe.length} segments.{" "}
               {contractsOutstanding(game)} contract{contractsOutstanding(game) === 1 ? "" : "s"} still need an
               owner; you hold {me.lines.length} of {SUBWAY_CONFIG.maxContractsPerPlayer}.
             </>
@@ -1121,7 +1121,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
                 ? "starter peg · border holes only"
                 : `segment ${segmentsBuilt(activeLine) + 1}/${contractOf(activeLine)?.recipe.length} · ${
                     nextSegmentLength(activeLine) ?? "—"
-                  } pegs`}
+                  } peg spaces`}
             </span>
           </div>
           {!placingStarter&&game.bendMode&&game.bendMode!=='straight'&&<div className="space-y-2 text-sm">
@@ -1208,7 +1208,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
           <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-amber-800">
             {PHASE_LABELS[game.phase] ?? game.phase}
             {game.phase === "CONSTRUCTION" &&
-              ` · period ${Math.min(game.currentPeriod, SUBWAY_CONFIG.timelinePeriods)}/${SUBWAY_CONFIG.timelinePeriods}`}
+              ` · round ${Math.min(game.currentPeriod, SUBWAY_CONFIG.timelinePeriods)}/${SUBWAY_CONFIG.timelinePeriods}`}
           </p>
           <p className="flex items-center gap-2 text-[12px] font-bold leading-snug text-stone-900 sm:text-sm">
             {status.tone === "act" && <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-emerald-600" />}

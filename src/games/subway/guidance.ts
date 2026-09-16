@@ -1,3 +1,4 @@
+import { crewActivationText } from "./terminology";
 import { cardDraftTurnId, starterTurnId,  type SubwayState } from "./config";
 
 export type PhoneTab = "destinations" | "lines" | "engineering" | "general";
@@ -13,7 +14,7 @@ export function phoneGuidance(game:SubwayState, playerId:string): {text:string;t
   if (game.phase==="STARTER_PLACEMENT") return {text:starterTurnId(game)===playerId?"Take the iPad, confirm your company, select an empty border hole and confirm your starter peg.":`${game.players[starterTurnId(game)??""]?.name??"Another company"} is placing a starter on the iPad. Review your lines.`,tab:"lines",label:"Open Lines"};
   if (game.phase==="CONSTRUCTION") {
     const active=game.resolveQueue[0]===playerId;
-    return {text:active?(me?.crewsHired?"On the iPad, select a peg for each hired line and confirm each placement.":"Take the iPad and confirm your company. Choose crews above the board; you may buy a Destination on your phone before hiring."):`${game.players[game.resolveQueue[0]]?.name??"Another company"} is building on the iPad. Review your goals while you wait.`,tab:"destinations",label:"Open Destinations"};
+    return {text:active?(me?.crewsHired?`On the iPad, preview and confirm each placement. ${crewActivationText(game.bendMode)}`:"Take the iPad and confirm your company. Choose crews above the board; you may buy a Destination on your phone before hiring."):`${game.players[game.resolveQueue[0]]?.name??"Another company"} is building on the iPad. Review your goals while you wait.`,tab:"destinations",label:"Open Destinations"};
   }
   return {text:game.phase==="RESULTS"?"Game complete. Open General for final scores and the company breakdown.":"Construction is complete. Reveal final scores on the iPad.",tab:"general",label:"Open General"};
 }

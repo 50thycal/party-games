@@ -142,10 +142,9 @@ Unless a card requires completion or a final peg, incomplete lines may qualify.
 
 ## Largest Cluster — public goal
 
-Group occupied route-node holes across all companies using horizontal/vertical
-adjacency. Shared holes join; diagonals and string-only links do not. Survey Pins
-do not count. Size is the number of distinct occupied holes. Each company counts
-once per hole, even when several of its lines share that hole.
+Group occupied peg holes across all companies, including pegs on the same line,
+using horizontal/vertical adjacency. One hole holds one peg. Diagonals, strings,
+bends and worksites do not join or enlarge clusters. Size is the number of occupied holes.
 
 Find all clusters tied for largest and total each company's nodes across those
 clusters. Award the bonus once to the leaders: **6 VP** alone, **3 VP each** for
@@ -155,8 +154,8 @@ the company transfer or Longest Network rules.
 
 ## Longest network — public goal
 
-At scoring, find each company's longest continuous trail of built segments.
-Measure length in **peg spaces between exact peg positions**; transfers add zero length. Transfer between different company lines at horizontally/vertically adjacent nodes. A peg may be
+At scoring, find each company's longest continuous trail of completed segments.
+Measure the actual path length in **peg spaces**, including bends on completed segments; transfers add zero length. Transfer between different lines of your company at horizontally/vertically adjacent nodes. A peg may be
 revisited, but no segment may be used twice. Disconnected sections cannot be added;
 branches only count if a single trail can traverse them without reusing a segment.
 The longest company receives **5 VP**, or **3 VP each** when tied. An empty network
@@ -292,7 +291,7 @@ complete accepted-action ledger: setup, cards, routes, placements, crew and toll
 economy, Undo actions, scoring, timing, and the construction end reason. Rejected
 actions are not tracked because they never change reducer state.
 
-State version **24** requires a fresh game for station access, no stacking and the expanded route pool;
+State version **25** requires a fresh game for the optional bend modes;
 old saves are not migrated. Neighborhood names and size labels fit wholly inside
 their actual footprints, with wrapped text and camera-adaptive font sizes.
 Automated games test termination and rule behavior, not human enjoyment or
