@@ -25,7 +25,7 @@ for(const count of [2,3,4]) {
   const first=state.gameState as SubwayState;
   const secret=first.players[phones[1].playerId].destinationHand[0];
   const phoneView=companionView(state,phones[0]);
-  assert.ok(!JSON.stringify(phoneView).includes(secret),"opposing Destination never transmitted");
+  assert.ok(!JSON.stringify(phoneView).includes(JSON.stringify(secret)),"opposing Destination never transmitted");
   assert.equal(phoneView.game!.destinationDeck.length,0);
   assert.ok(!JSON.stringify(phoneView).includes("tablet-secret"));
   assert.equal(companionView(state,tablet).game!.players[phones[0].playerId].destinationHand.length,0);
@@ -48,7 +48,7 @@ for(const count of [2,3,4]) {
       const before=companionView(state,tablet);
       if(before.seatedId!==before.actorId) {
         assert.deepEqual(before.plans,{},"handoff carries no outgoing ghosts");
-        if(planSaved) assert.ok(before.destinationHighlights.length>0,"enabled destination survives handoff");
+        assert.ok(before.destinationHighlights.every(h=>h.playerId===before.actorId),"handoff never carries outgoing highlights");
         assert.throws(()=>send(tablet,action.type,action.payload),"board waits for acknowledgement");
         send(tablet,"ACK_COMPANY",{playerId:before.actorId});
       }
@@ -74,9 +74,11 @@ for(const count of [2,3,4]) {
         assert.equal(companionView(state,tablet).destinationHighlights.length,1);
         const otherCard=game.players[other.playerId].destinationHand[0];
         send(other,"SHOW_DESTINATION",{cardId:otherCard});
-        assert.equal(companionView(state,tablet).destinationHighlights.length,2,'other company may toggle outside its turn');
+        assert.equal(companionView(state,tablet).destinationHighlights.length,1,'off-turn selections do not enter shared projection');
+        assert.equal(companionView(state,other).destinationHighlights[0].cardId,otherCard,'phone retains own off-turn selection');
         send(owner,"SHOW_DESTINATION",{cardId:null});
-        assert.equal(companionView(state,tablet).destinationHighlights[0].playerId,other.playerId,'clear only affects own highlights');
+        assert.deepEqual(companionView(state,tablet).destinationHighlights,[],'active player with cleared selection shows no highlights');
+        assert.equal(companionView(state,other).destinationHighlights[0].cardId,otherCard,'clear only affects own highlights');
         send(owner,"SHOW_DESTINATION",{cardId});
         const contractId=game.players[action.playerId].lines[0].contractId;
         const nodes=[{x:0,y:0},{x:2,y:0}];
@@ -91,6 +93,15 @@ for(const count of [2,3,4]) {
     }
     send(device,action.type,action.payload);
     const projected=companionView(state,tablet);
+    const current=companionActor(state.gameState as SubwayState);
+    const expected=current?(state.subwayCompanion!.destinationHighlights?.[current]??[]):[];
+    assert.deepEqual(projected.destinationHighlights.map(h=>h.cardId),expected,"shared projection switches to incoming player and restores choices on return turns");
+    assert.ok(projected.destinationHighlights.every(h=>h.playerId===current));
+    assert.deepEqual(projected.highlightedStations,Array.from(new Set(expected.flatMap(id=>destinationById(id)!.stationIds))));
+    assert.deepEqual(companionView(JSON.parse(JSON.stringify(state)),tablet).destinationHighlights,projected.destinationHighlights,"reconnect preserves current-player projection");
+    for(const phone of phones) {
+      assert.deepEqual(companionView(state,phone).destinationHighlights.map(h=>h.cardId),state.subwayCompanion!.destinationHighlights?.[phone.playerId]??[],"phones retain only own choices throughout turns");
+    }
     if(action.type === "BUILD" && projected.game?.phase === "SCORING") {
       assert.equal(projected.canUndo,true,"last build remains undoable after the scoring transition");
       const balances=Object.fromEntries(Object.entries(projected.game.players).map(([id,p])=>[id,p.money]));
@@ -104,6 +115,15 @@ for(const count of [2,3,4]) {
   }
   assert.equal((state.gameState as SubwayState).phase,"RESULTS");
   assert.ok(planSaved);
+  assert.deepEqual(companionView(state,tablet).destinationHighlights,[],"results have no actor or shared highlight");
+  const legacy=structuredClone(state);
+  const legacyGame=legacy.gameState as SubwayState;
+  legacyGame.phase="CONSTRUCTION"; legacyGame.resolveQueue=[phones[0].playerId];
+  legacy.subwayCompanion!.destinationHighlights=undefined;
+  legacy.subwayCompanion!.destinationHighlight={turn:"legacy-turn",playerId:phones[0].playerId,cardId:legacyGame.players[phones[0].playerId].destinationHand[0]};
+  assert.equal(companionView(legacy,tablet).destinationHighlights.length,1,"legacy single selection remains supported");
+  legacyGame.resolveQueue=[phones[1].playerId];
+  assert.deepEqual(companionView(legacy,tablet).destinationHighlights,[],"legacy selection does not leak into another turn");
 }
 
 // Compare spending cadence over all 220 portfolios, excluding optional pins/tolls.

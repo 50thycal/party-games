@@ -1,13 +1,22 @@
 # WS-005 — Subway finished edition
 
 Build OS: v0.12
-Phase: REVIEW
+Phase: BUILDING
 Status: Active
-Updated: 2026-09-15
-Implementation State: Largest Cluster and bounded policy-v3 planning complete on merge of PR #183; build/lint/Subway suite and 18-game benchmark passed. Source independently approved. Browser preview blocked; no phone/iPad visual acceptance claimed.
-Related PRs: [#177](https://github.com/50thycal/party-games/pull/177) (PRWK feedback); [#176](https://github.com/50thycal/party-games/pull/176) (phone joining; merged); [#175](https://github.com/50thycal/party-games/pull/175) (Playtest Lab); [#174](https://github.com/50thycal/party-games/pull/174) (transfer/objective continuation); [#173](https://github.com/50thycal/party-games/pull/173) (larger neighborhoods/reversed VP; merged); [#172](https://github.com/50thycal/party-games/pull/172) (guided turns, neighborhoods and tiers; merged); [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; merged); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
+Updated: 2026-09-16
+Implementation State: integrating PR #183 with merged #184–#186; renewed review required.
+Related PRs: [#186](https://github.com/50thycal/party-games/pull/186) (draft rules/highlights); [#185](https://github.com/50thycal/party-games/pull/185) (public status/payments/draft); [#184](https://github.com/50thycal/party-games/pull/184) (JNCG cards/surveys/labels); [#177](https://github.com/50thycal/party-games/pull/177) (PRWK feedback); [#176](https://github.com/50thycal/party-games/pull/176) (phone joining; merged); [#175](https://github.com/50thycal/party-games/pull/175) (Playtest Lab); [#174](https://github.com/50thycal/party-games/pull/174) (transfer/objective continuation); [#173](https://github.com/50thycal/party-games/pull/173) (larger neighborhoods/reversed VP; merged); [#172](https://github.com/50thycal/party-games/pull/172) (guided turns, neighborhoods and tiers; merged); [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; merged); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
-## Current continuation — Largest Cluster and bot planning
+## Current continuation — PR #183 conflict integration
+
+Goal/acceptance: [cluster spec integration](../build-specs/WS-005-cluster-planning.md).
+Preserve merged cards/payment/no-stack/highlight/draft work while restoring the
+approved Largest Cluster scoring and adapting bot planning to current rules.
+Implementation State: integration under validation; no bends built.
+Review State: prior PR approval stale after integration; pending independent review.
+Next Step: validate, update existing PR #183, finalize review; do not merge.
+
+## Previous PR #183 source review — Largest Cluster and bot planning
 
 Related PR: [#183](https://github.com/50thycal/party-games/pull/183). Earlier three-card
 research remains separately archived in [#182](https://github.com/50thycal/party-games/pull/182).
@@ -38,6 +47,39 @@ Independent reviewer: /root/cluster_planning_review. Implementation actor: /root
 No open Blocking/Should-fix findings. No merge performed.
 Next Step: None for this implementation on merge. Existing broader human/device
 acceptance remains; no adjacent mission added.
+
+## Previous continuation — Draft rules and destination highlights
+
+Goal/non-goals/acceptance: [Build Card/spec](../build-specs/WS-005-draft-rules-highlights.md).
+Implementation State: complete on merge of PR #186. Quick-start and full rulebook saved, existing rules reference also marked DRAFT — NEEDS OWNER REVIEW. Planned graphics recorded without images. Tablet projection shows only current actor's selected destinations; phone selections persist off-turn and through reconnects.
+Related PR: [#186](https://github.com/50thycal/party-games/pull/186).
+Validation: build, lint and full Subway suite passed, including 2/3/4-player highlight handoffs/return turns/reconnect/legacy isolation, 36 complete games, 286 portfolio checks, 51 card fixtures, API/replay and audit/UI checks. Diff check clean.
+Review State: PR #186 Approved at source head 2dd3a75367d23e21b6c0b299181e774bd6776093 by /root/draft_rules_review; implementation actor /root. No open Blocking/Should-fix findings. Finalization: pushed; final-head verification is recorded separately on the PR after it exists.
+Spec deviations: None. Browser/device verification unavailable due to environment policy. Owner rule review remains intentionally deferred; publication is not rules approval.
+Next Step: None for this implementation. Turn question is the next owner discussion; bendable connections remain last. No turn/scoring/geometry changes or merge performed.
+
+## Previous continuation — Public status and station access
+
+Goal/non-goals/acceptance: [approved Build Card/spec](../build-specs/WS-005-player-status-payments.md).
+Implementation State: complete on merge of PR #185. Public standings, phone progress, iPad pads, recipient/reason previews and paired payment events, any-order destination copy, 7/10/13 route drafts, Copper, no stacking and one-time station access are implemented. State v23 requires fresh games.
+Related PR: [#185](https://github.com/50thycal/party-games/pull/185).
+Validation: production build and lint passed; full Subway suite passed, including 36 complete games, 286 portfolio checks, API/replay simulations, 51 card fixtures, audit and event lifecycle tests. Independent reviewer also ran payment tests.
+Review State: PR #185 Approved at source head ae3fcd58848e1b9d9a67de700d7232f284c114c5 by /root/status_payment_review; implementation actor /root. Whole-bundle review, no open Blocking/Should-fix findings. Finalization: pushed; the final head is verified separately on the PR after it exists.
+Review corrections: starters joining an opponent station pay access immediately (no base starter cost); incumbent participants never pay newcomers back. Undo reverses completion reward text as well as balances.
+Spec deviations/limitations: starter fee timing clarified to apply at joining; interactive browser/device verification was blocked by environment URL policy, so no layout/animation acceptance is claimed. Static rendering and component lifecycle checks passed.
+Next Step: None for this implementation. Broader work remains in owner playtesting and parked JNCG items; no merge performed.
+
+## Previous continuation — JNCG Engineering redesign
+
+Owner approved one PR for cards, survey removal and labels. Goal, non-goals and
+acceptance: [Build Card/spec](../build-specs/WS-005-engineering-redesign.md).
+Implementation State: complete on merge of PR #184. Approved titles, descriptions, VP and predicates for 7/7/7 cards; surveys removed; labels fit actual footprints and avoid peg rows. Rulebook, tutorial, reports and audit updated. State v22 requires fresh games.
+Related PR: [#184](https://github.com/50thycal/party-games/pull/184).
+Validation: production build, lint and full Subway suite passed. 51 card fixture groups; 36 complete games plus policy/API simulations and replay; 31 layouts × 10 neighborhoods × 5 zooms; JNCG SVG rendered and inspected.
+Review State: PR #184 Approved at source head aa51c7c7d30e73204df3cf8b9302fc9aa27389d7 by /root/engineering_review; implementation actor /root. No open Blocking/Should-fix findings. Finalization: pushed; final-head verification is recorded separately on the PR.
+Browser check: localhost blocked by ERR_BLOCKED_BY_CLIENT. Vercel connector cannot list this account's projects. No interactive desktop/phone/iOS acceptance claimed.
+Spec deviations: None in behavior; browser verification remains a disclosed limitation.
+Next Step: None for this implementation. Owner confirms the fresh-game playtest before choosing the next parked JNCG item. No merge performed.
 
 ## Previous continuation — Faster Card Audit
 

@@ -2,6 +2,8 @@
 import { SUBWAY_CONFIG, contractOf, destinationById, lineComplete, lineActionsRemaining, objectiveProgress, stationAt, validateNode, routeContacts, contactToll, type SubwayState, type SubwayPlayer, type PlacementTarget } from './config';
 import { companyComponents } from './network';
 import { largestCluster } from './clusters';
+import { stationAccessContacts } from './stationAccess';
+import { engineeringPotential } from './objectiveGuidance';
 import type { BotSettings } from './bots';
 
 export const ROUTE_SEARCH_LIMIT = 480;
@@ -10,8 +12,6 @@ type Result = {target?: PlacementTarget; path: PlacementTarget[]; expanded: numb
 const cache = new Map<string, Result>();
 export const clearBotRouteCache = () => cache.clear();
 const dist = (a: PlacementTarget,b: PlacementTarget) => Math.hypot(a.x-b.x,a.y-b.y);
-const corners = [{x:0,y:0},{x:26,y:0},{x:0,y:8},{x:26,y:8}];
-const near = (a: PlacementTarget,b: PlacementTarget) => Math.abs(a.x-b.x)+Math.abs(a.y-b.y)<=1;
 
 /** Assign whole destination missions to a line; distribute Citywide areas by reach/load.
  * This is guidance, not a binding restriction: better economic alternatives may win.
@@ -30,16 +30,19 @@ export function companyJobs(s: SubwayState,id:string): LineJob[] {
   for(const card of me.destinationHand) {
     if(!objectiveProgress(card,me,Object.values(s.players).filter(p=>p.id!==id),s).met) assign(destinationById(card)?.stationIds??[],'destination');
   }
-  if(me.engineeringHand.includes('terminal')) {
-    const visited=new Set(me.lines.flatMap(l=>l.route).map(n=>n.stationId));
-    for(const st of s.stations) if(!visited.has(st.id)) assign([st.id],'citywide');
+  if(me.engineeringHand.includes('citywide-coverage')&&!objectiveProgress('citywide-coverage',me,Object.values(s.players).filter(p=>p.id!==id),s).met) {
+    // Component-aware filtering happens per line; a disconnected visit cannot
+    // remove an area from the company's candidate jobs.
+    for(const st of s.stations) assign([st.id],'citywide');
   }
   return jobs.map(j=>({destination:Array.from(new Set(j.destination)),citywide:Array.from(new Set(j.citywide))}));
 }
 
 export function missingJobStops(me:SubwayPlayer,index:number,job:LineJob):string[] {
   const own=new Set(me.lines[index].route.map(n=>n.stationId));
-  const all=new Set(me.lines.flatMap(l=>l.route).map(n=>n.stationId));
+  const anchor=me.lines[index].route[0];
+  const component=anchor?companyComponents(me).find(ns=>ns.some(n=>n.x===anchor.x&&n.y===anchor.y)):undefined;
+  const all=new Set(me.lines.flatMap(l=>l.route).filter(n=>component?.some(p=>p.x===n.x&&p.y===n.y)).map(n=>n.stationId));
   return Array.from(new Set([...job.destination.filter(id=>!own.has(id)),...job.citywide.filter(id=>!all.has(id))]));
 }
 
@@ -67,13 +70,16 @@ function options(s:SubwayState,id:string,index:number,starter:boolean):Placement
 export function forecastBotBuild(s:SubwayState,id:string,index:number,target:PlacementTarget,starter:boolean,first:boolean):SubwayState {
   const me=s.players[id],line=me.lines[index],st=stationAt(target,s.stations),from=line.route.at(-1);
   const next={...line,route:[...line.route,{...target,...(st?{stationId:st.id}:{})}]};
-  const toll=from?contactToll(routeContacts(s,id,from,target)):0;
+  const contacts=starter?stationAccessContacts(s,id,index,target):from?routeContacts(s,id,from,target,index):[];
+  const toll=contactToll(contacts);
   // Already hired work is paid. Future work uses a conservative $2M marginal
   // estimate; the exact crew scheduler still chooses the real bill each round.
   const crew=starter||first&&me.crewsHired?0:2;
   const money=me.money-toll-crew+(lineComplete(next)?SUBWAY_CONFIG.completionReward:0);
   const lines=me.lines.map((l,i)=>i===index?next:l);
-  return {...s,firstCompletedPlayerId:s.firstCompletedPlayerId??(lines.length===3&&lines.every(lineComplete)?id:undefined),players:{...s.players,[id]:{...me,money,lines}}};
+  const players={...s.players,[id]:{...me,money,lines,tollsPaid:me.tollsPaid+toll,stationAccess:[...(me.stationAccess??[]),...contacts.filter(c=>c.kind==='station').map(c=>({contractId:line.contractId,ownerId:c.ownerId,anchors:c.stationAnchors!}))]}};
+  for(const c of contacts) players[c.ownerId]={...players[c.ownerId],money:players[c.ownerId].money+SUBWAY_CONFIG.contact.toll};
+  return {...s,firstCompletedPlayerId:s.firstCompletedPlayerId??(lines.length===3&&lines.every(lineComplete)?id:undefined),players};
 }
 
 function value(s:SubwayState,id:string,index:number,jobs:LineJob[],settings:BotSettings,focus?:string):number {
@@ -84,24 +90,11 @@ function value(s:SubwayState,id:string,index:number,jobs:LineJob[],settings:BotS
   score-=Math.max(0,-me.money)*SUBWAY_CONFIG.contact.debtVpPerMillion;
   score+=me.money*(settings.personality==='cautious'?.3:.1);
   score+=largestCluster(s.players).points[id]*.7;
-  const allVisited=new Set(me.lines.flatMap(l=>l.route).map(n=>n.stationId).filter(Boolean));
   const missing=missingJobStops(me,index,jobs[index]);
   score+=(new Set([...jobs[index].destination,...jobs[index].citywide]).size-missing.length)*1.2;
   if(missing.length) score-=Math.min(...s.stations.filter(st=>missing.includes(st.id)).flatMap(st=>(st.cells??[st]).map(p=>dist(end,p))))*.3;
-  if(me.engineeringHand.includes('terminal')) score+=allVisited.size*1.5;
-  if(me.engineeringHand.includes('through')) {
-    const north=line.route.some(n=>n.y===0),south=line.route.some(n=>n.y===8);
-    score-=(north?0:end.y)*.4+(south?0:8-end.y)*.4;
-  }
-  if(me.engineeringHand.includes('four-corners')) {
-    const comps=companyComponents(me);
-    score+=Math.max(0,...comps.map(ns=>corners.filter(c=>ns.some(n=>n.x===c.x&&n.y===c.y)).length))*2;
-    const uncovered=corners.filter(c=>!me.lines.some(l=>l.route.some(n=>n.x===c.x&&n.y===c.y)));
-    if(uncovered.length) score-=Math.min(...uncovered.map(c=>dist(end,c)))*.2;
-    // A branch must join another own branch, not merely visit another corner.
-    const siblings=me.lines.filter((_,i)=>i!==index).flatMap(l=>l.route);
-    if(siblings.length&&!line.route.some(n=>siblings.some(p=>near(n,p)))) score-=Math.min(...siblings.map(n=>dist(end,n)))*.2;
-  }
+  // Current card guidance includes endpoint-only and connected-network semantics.
+  score+=engineeringPotential(s,me)*2;
   return score;
 }
 
@@ -110,7 +103,7 @@ function value(s:SubwayState,id:string,index:number,jobs:LineJob[],settings:BotS
  * change choices, so worker scheduling, cold starts and replay regeneration agree.
  */
 export function plannedBotRoute(s:SubwayState,id:string,index:number,starter:boolean,settings:BotSettings,focus?:string):Result {
-  const key=JSON.stringify([s.players,s.stations,s.surveyPins,s.currentPeriod,s.firstCompletedPlayerId,id,index,starter,settings,focus]);
+  const key=JSON.stringify([s.players,s.stations,s.currentPeriod,s.firstCompletedPlayerId,id,index,starter,settings,focus]);
   const saved=cache.get(key); if(saved) return structuredClone(saved);
   const jobs=companyJobs(s,id),limit=settings.skill==='casual'?120:ROUTE_SEARCH_LIMIT,width=settings.skill==='casual'?3:6;
   type Candidate={s:SubwayState;path:PlacementTarget[];v:number};
@@ -121,16 +114,11 @@ export function plannedBotRoute(s:SubwayState,id:string,index:number,starter:boo
     const next:Candidate[]=[];
     // Round-robin expansion prevents the first branch consuming the whole budget.
     const choices=beam.map(b=>{
-      const me=b.s.players[id],line=me.lines[index];
+      const me=b.s.players[id];
       const missing=missingJobStops(me,index,jobs[index]);
       const desired=b.s.stations.filter(st=>missing.includes(st.id));
       const priority=(p:PlacementTarget)=>{
         let v=desired.length?-Math.min(...desired.map(st=>dist(p,st))):0;
-        if(me.engineeringHand.includes('through')) {
-          if(!line.route.some(n=>n.y===0)) v-=p.y;
-          if(!line.route.some(n=>n.y===8)) v-=8-p.y;
-        }
-        if(me.engineeringHand.includes('four-corners')) v-=Math.min(...corners.filter(c=>!line.route.some(n=>n.x===c.x&&n.y===c.y)).map(c=>dist(p,c)));
         return v;
       };
       return options(b.s,id,index,starter&&depth===0).map(p=>({p,v:priority(p)})).sort((a,b)=>b.v-a.v).slice(0,8).map(c=>c.p);

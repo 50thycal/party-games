@@ -5,7 +5,7 @@ import {
   cardDraftTurnId,
   destinationTurnId,
   starterTurnId,
-  surveyTurnId,
+
   type SubwayEvent,
   type SubwayState,
 } from "./config";
@@ -35,7 +35,6 @@ export function currentActorId(game: SubwayState): string | undefined {
     case "ENGINEERING":
       if (game.engineeringStep === "CARD_DRAFT") return cardDraftTurnId(game);
       if (game.engineeringStep === "DESTINATION_DRAFT") return destinationTurnId(game);
-      if (game.engineeringStep === "SURVEY") return surveyTurnId(game);
       return undefined; // both plan simultaneously
     case "STARTER_PLACEMENT":
       return starterTurnId(game);

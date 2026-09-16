@@ -1,4 +1,5 @@
 "use client";
+import { ENGINEERING_RULES } from "./engineering";
 
 import {
   ENGINEERING_CARDS,
@@ -112,26 +113,7 @@ function StationTile({ x, y, major = false }: { x: number; y: number; major?: bo
 
 /** The diagram body for one Engineering card id. */
 function Diagram({ id, color }: { id: string; color: string }) {
-  const shapes: Record<string, {paths:P[][]; label:string}> = {
-    gentle: {paths:[[[12,30],[36,20],[36,10]],[[12,38],[58,32],[108,32]],[[12,46],[80,46],[80,54]]], label:"3 different end borders"},
-    bend: {paths:[[[12,28],[32,28],[32,10]],[[108,28],[80,28],[80,10]],[[12,38],[56,38],[56,54]]], label:"E/W starts → N/S ends"},
-    straight: {paths:[[[12,24],[34,24],[34,42],[12,42]],[[46,10],[46,30],[66,30],[66,10]],[[108,24],[86,24],[86,42],[108,42]]], label:"Each line returns to its side"},
-    through: {paths:[[[28,10],[28,54]],[[58,10],[58,54]],[[90,10],[90,54]]], label:"All 3 lines: north + south"},
-    network: {paths:[[[12,42],[42,32]],[[42,32],[76,32]],[[76,32],[108,20]]], label:"3 completed lines · connected"},
-    perimeter: {paths:[[[12,32],[36,10],[80,10],[108,32]]], label:"1 completed line · 3 borders"},
-    "three-fronts": {paths:[[[12,32],[28,44],[28,54]],[[60,10],[60,54]],[[108,32],[92,44],[92,54]]], label:"3 start sides → 1 end side"},
-    "four-corners": {paths:[[[12,10],[44,24]],[[44,24],[76,40]],[[76,40],[108,54]]], label:"Opposite corners · 3 linked lines"},
-    "crosstown-service": {paths:[[[18,42],[52,32],[100,22]]], label:"First 3 ↔ last 3 columns"},
-  };
-  const shape = shapes[id];
-  if (shape) return <><rect x="12" y="10" width="96" height="44" fill="none" stroke={RULE}/>
-    {shape.paths.map((points,i)=><Route key={i} points={points} color={[color,"#b45309","#0369a1"][i]} width={3}/>)}
-    <text x="60" y="63" textAnchor="middle" fontSize="6" fontWeight="700" fill={RULE}>{shape.label}</text></>;
-  const labels:Record<string,string>={approach:"1 finished line · 2 LARGE",terminal:"Ends inside neighborhoods",minimal:"3 complete + Survey Pin",crossing:"FIRST to finish all 3", "local-service":"1 line · all 3 SMALL",interchange:"Same LARGE · 2 / 3 lines",solvent:"3 complete + $5M"};
-  return <><Route points={[[12,32],[60,32],[108,32]]} color={color}/>
-    {id === "approach" && <><StationTile x={12} y={32} major/><StationTile x={108} y={32} major/></>}
-    {id === "interchange" && <StationTile x={60} y={32} major/>}
-    <text x="60" y="60" textAnchor="middle" fontSize="7" fontWeight="700" fill={RULE}>{labels[id]}</text></>;
+  return <Route points={[[12,32],[60,32],[108,32]]} color={color}/>;
 
 }
 
@@ -186,18 +168,21 @@ export function EngineeringCardFace({
         <strong className="text-[13px] leading-tight text-stone-900">{resolved.name}</strong>
         <span
           className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-black ${
-            resolved.kind === "permission" ? "bg-sky-800 text-sky-50" : "bg-amber-600 text-white"
+            "bg-amber-600 text-white"
           }`}
         >
           +{resolved.vp}
         </span>
       </div>
-      <EngineeringIllustration id={resolved.id}/>
-      <div className="mt-1.5">
-        <EngineeringArt id={resolved.id} color={color} />
+      <p className="mt-2 text-[12px] font-black uppercase tracking-wide" style={{color}}>{resolved.category} Engineering</p>
+      <div className="my-2 flex flex-wrap gap-1" data-engineering-tags={resolved.id}>
+        {resolved.tags.map(tag=><span key={tag} title={ENGINEERING_RULES[tag] ?? tag} className="rounded border border-stone-300 bg-white px-1.5 py-1 text-[10px] font-bold">{tag === 'Single Line' ? '① ' : tag === 'Connected Network' ? '↔ ' : tag === 'Company-wide' ? '③ ' : tag === 'Complete Line' ? '✓ ' : ''}{tag}</span>)}
       </div>
       {!compact && resolved.description.trim() !== resolved.requirement.trim() && <p className="mt-1.5 text-[11px] leading-snug text-stone-600">{resolved.description}</p>}
       <p className="mt-1 text-[11px] font-semibold leading-snug text-stone-700">{resolved.requirement}</p>
+      {resolved.tags.includes('Endpoints Only') && <p className="mt-2 text-[10px] text-stone-600">Endpoint = starter or completed final peg.</p>}
+      {resolved.category === 'Station' && <p className="mt-2 text-[10px] text-stone-600">Station = one local cluster of horizontally/vertically adjacent nodes from different lines. Separate clusters count once each.</p>}
+      <p className="mt-2 text-[10px] text-stone-500">Scores once at game end. Live progress may change.</p>
       {footer}
     </>
   );
@@ -264,9 +249,9 @@ export function DestinationCardFace({
       </div>
       <p className="text-[10px] font-black uppercase tracking-wider text-purple-700">Destination</p>
       <div className="flex gap-1">{stations.map(station => <EngineeringIllustration key={station.id} id={`dest-${station.id}`}/>)}</div>
-      <div className="mt-1.5">
-        <svg viewBox="0 0 120 40" aria-hidden="true" className="w-full rounded bg-purple-50"><path d="M15 20H105" stroke={color} strokeWidth="4"/>{stations.map((station,i)=><StationTile key={station.id} x={15+i*90/(stations.length-1)} y={20} major={station.kind === "major"}/>)}</svg>
-      </div>
+      <div className="mt-2 flex flex-wrap gap-1" aria-label="Required neighborhoods, any order">{stations.map(station=><span key={station.id} className="rounded-full border border-purple-300 bg-purple-50 px-2 py-1 text-xs font-bold text-purple-950">{station.name}</span>)}</div>
+      <p className="mt-2 text-[11px] font-bold text-purple-800">Connect all these neighborhoods · any order.</p>
+      <p className="mt-1 text-[11px] text-stone-700">No start or finish here required. Your connected lines may work together, even unfinished.</p>
       {!compact && <p className="mt-1.5 text-[11px] leading-snug text-stone-600">{resolved.description}</p>}
       <p className="mt-1 text-[11px] font-semibold leading-snug text-stone-700">{resolved.requirement}</p>
       {footer}

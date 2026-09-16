@@ -25,3 +25,12 @@ Company-wide objective allocation across lines, bounded multi-step candidate sea
 
 ## Non-goals
 No other economy/card retuning, diagonal transfers, LLM integration, physical-device acceptance claim, automatic merge, or new testing UI.
+
+## Conflict integration — 2026-09-16
+
+Owner requests resolving this existing PR against merged #184–#186. Preserve
+current cards, no stacking, station receipts, highlight isolation and draft labels.
+Use state v24/bot v5/audit v4; adapt planner guidance and starter/BUILD forecasts.
+Public Largest Cluster display and drafts must use this PR's approved scoring
+algorithm. Legacy shared-hole dedup remains defensive only, not legal stacking.
+Rerun build/lint/Subway suite and independent review. No bend experiment implemented.

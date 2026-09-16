@@ -1,5 +1,5 @@
 import type { RoomState, Room, GameContext } from "../../engine/types";
-import { subwayGame, cardDraftTurnId, starterTurnId, surveyTurnId, destinationById, SUBWAY_STATE_VERSION, type SubwayState, type SubwayAction } from "./config";
+import { subwayGame, cardDraftTurnId, starterTurnId,  destinationById, SUBWAY_STATE_VERSION, type SubwayState, type SubwayAction } from "./config";
 import { newRecord, recordedReducer, type GameRecord } from './recording';
 import { chooseBotAction, validBot, BOT_VERSION } from './bots';
 import { seededRandom } from './playtest';
@@ -45,7 +45,6 @@ export function companionActor(game: SubwayState | null): string | undefined {
   if (game.phase === "PROCUREMENT") return game.procurement.offer?.activeId;
   if (game.phase === "ENGINEERING") {
     if (game.engineeringStep === "CARD_DRAFT") return cardDraftTurnId(game);
-    if (game.engineeringStep === "SURVEY") return surveyTurnId(game);
   }
   if (game.phase === "STARTER_PLACEMENT") return starterTurnId(game);
   if (game.phase === "CONSTRUCTION") return game.resolveQueue[0];
@@ -88,8 +87,11 @@ export function companionView(state: RoomState, device: CompanionDevice): Compan
     }
   }
   const selections=store.destinationHighlights??(store.destinationHighlight?{[store.destinationHighlight.playerId]:[store.destinationHighlight.cardId]}:{});
+  // Selections persist per company; the shared board follows the actual turn,
+  // not a stale tablet acknowledgement. Phones retain their own selections.
+  const highlightOwner=device.role==='phone'?device.playerId:companionActor(original);
   const destinationHighlights:DestinationHighlight[]=state.room.players.flatMap((p,pi)=>
-    device.role==='phone'&&p.id!==device.playerId?[]:(original?.players[p.id]?.destinationHand??[]).flatMap((cardId,ci)=>{
+    p.id!==highlightOwner?[]:(original?.players[p.id]?.destinationHand??[]).flatMap((cardId,ci)=>{
       const card=destinationById(cardId);
       return card&&selections[p.id]?.includes(cardId)?[{playerId:p.id,cardId,label:`C${pi+1}·D${ci+1}`,color:DESTINATION_COLORS[(pi*3+ci)%DESTINATION_COLORS.length],stationIds:card.stationIds,name:`${p.name}: ${card.name}`}]:[];
     }));
@@ -103,8 +105,8 @@ export function companionView(state: RoomState, device: CompanionDevice): Compan
     canUndo:device.role === "tablet" && !!original?.undo && store.seated?.playerId === original.undo.playerId};
 }
 
-const PHONE_ACTIONS = new Set(["PROCURE", "DRAFT_CARD", "BUY_SURVEYS", "BUY_DESTINATION"]);
-const TABLET_ACTIONS = new Set(["HIRE_CREWS", "PLACE_SURVEY", "PLACE_STARTER", "BUILD", "SKIP_ACTION", "UNDO_PLACEMENT", "ADVANCE_SCORING"]);
+const PHONE_ACTIONS = new Set(["PROCURE", "DRAFT_CARD", "BUY_DESTINATION"]);
+const TABLET_ACTIONS = new Set(["HIRE_CREWS", "PLACE_STARTER", "BUILD", "SKIP_ACTION", "UNDO_PLACEMENT", "ADVANCE_SCORING"]);
 
 /** Pure authenticated transaction; caller persists with CAS, including acknowledgement and plans. */
 export function companionAction(state: RoomState, device: CompanionDevice, input: {

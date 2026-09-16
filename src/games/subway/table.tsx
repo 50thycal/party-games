@@ -31,7 +31,6 @@ import {
   schedulingById,
   segmentsBuilt,
   stationById,
-  surveyFulfilled,
   type CardDeckId,
   type LineContract,
   type PlayerLine,
@@ -319,7 +318,6 @@ export function OpponentEdge({
   const permits = Object.entries(game.priorityOverrides)
     .filter(([, id]) => id === opponent.id)
     .map(([period]) => period);
-  const pins = game.surveyPins.filter((pin) => pin.playerId === opponent.id);
 
   return (
     <Printed tone="mat" style={{width:1050,maxWidth:"100%"}}>
@@ -361,11 +359,6 @@ export function OpponentEdge({
             <span className="mr-[20px]">
               Played <b>{schedulingById(opponent.schedulingCardPlayed)?.name}</b>
               {permits.length > 0 && ` (period ${permits.join(", ")})`}
-            </span>
-          )}
-          {pins.length > 0 && (
-            <span className="mr-[20px]">
-              {pins.length} Survey Pin{pins.length === 1 ? "" : "s"} on the board
             </span>
           )}
           {opponent.tollsPaid > 0 && <span>Paid {money(opponent.tollsPaid)} in contact tolls</span>}
@@ -991,53 +984,6 @@ export function LineContractBoard({
 }
 
 // ---------------------------------------------------------------------------
-// Survey pin supply — physical tokens on the player's edge.
-// ---------------------------------------------------------------------------
-
-function PinSupply({ game, me }: { game: SubwayState; me: SubwayPlayer }) {
-  const placed = game.surveyPins.filter((p) => p.playerId === me.id);
-  const left = Math.max(0, me.surveysPurchased - placed.length);
-  return (
-    <div className="flex items-center gap-[14px]">
-      <div className="flex items-center gap-[6px]">
-        {Array.from({ length: Math.max(me.surveysPurchased, 1) }, (_, i) => {
-          const used = i < placed.length;
-          const pin = placed[i];
-          const done = used && pin ? surveyFulfilled(me, pin) : false;
-          return (
-            <span
-              key={i}
-              className="inline-flex h-[34px] w-[34px] rotate-45 items-center justify-center rounded-[6px] border-[3px] text-[15px] font-black"
-              style={{
-                borderColor: me.color,
-                background: me.surveysPurchased === 0 ? "transparent" : done ? me.color : used ? "#ffffff" : "#fde68a",
-                color: done ? "#fff" : me.color,
-                opacity: me.surveysPurchased === 0 ? 0.3 : 1,
-              }}
-              title={
-                me.surveysPurchased === 0
-                  ? "No Survey Pins bought"
-                  : used
-                    ? `Placed at ${pin.x + 1},${pin.y + 1}${done ? " — fulfilled" : ""}`
-                    : "In supply"
-              }
-            >
-              <span className="-rotate-45">{done ? "✓" : used ? "·" : ""}</span>
-            </span>
-          );
-        })}
-      </div>
-      <div className="leading-tight">
-        <p className="text-[20px] font-black text-stone-800">
-          {left} <span className="text-[16px] font-bold text-stone-500">to place</span>
-        </p>
-        <p className="text-[16px] uppercase tracking-wide text-stone-500">Survey pins</p>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // The player's own edge of the table.
 // ---------------------------------------------------------------------------
 
@@ -1096,7 +1042,6 @@ export function PlayerTabletop({
           {me.lines.length} lines
           {me.tollsPaid > 0 && <> · paid {money(me.tollsPaid)} in contacts</>}
         </span>
-        {!veiled && <PinSupply game={game} me={me} />}
         {me.money < 0 && (
           <p className="w-full rounded-[12px] bg-red-100 px-[16px] py-[10px] text-[19px] font-bold text-red-900">
             In debt {money(-me.money)} from crews or contacts. Finishing here costs{" "}

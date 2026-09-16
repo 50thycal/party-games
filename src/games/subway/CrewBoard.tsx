@@ -42,8 +42,8 @@ export function CrewBoard({game,viewerId,busy,veiled,act,boardOnly=false}:{game:
     </>}
     </div>
     <div className="border-l-2 border-stone-300 pl-8">
-    <p className="mb-3 text-lg">Longest continuous company network: +5 VP, or +3 each if tied. Measure built segments in peg spaces; no segment counts twice. Different company lines transfer at overlapping or horizontally/vertically adjacent nodes, adding no length. Sharing a neighborhood alone does not connect lines.</p>
-    <p className="mb-3 text-lg">Largest Cluster: group occupied route-node holes side-to-side across all companies. No diagonals, string-only links or Survey Pins. Count each company once per hole. Across all equally largest clusters, the company with the most nodes earns 6 VP; two leaders get 3 each, three get 2 each, four get none. Award once.</p>
+    <p className="mb-3 text-lg">Longest continuous company network: +5 VP, or +3 each if tied. Measure built segments in peg spaces; no segment counts twice. Different company lines transfer at horizontally/vertically adjacent nodes, adding no length. Sharing a neighborhood alone does not connect lines.</p>
+    <p className="mb-3 text-lg">Largest Cluster: group occupied peg holes side-to-side across all companies, including the same line. No diagonals or string-only links. Across all equally largest clusters, total each company’s pegs. Award once: 6 VP to one leader, 3 each to two, 2 each to three, none to four.</p>
     <div className="flex flex-wrap gap-2" aria-label="Construction rounds">{Array.from({length:SUBWAY_CONFIG.timelinePeriods},(_,i)=><button key={i} aria-label={`View round ${i+1}`} aria-pressed={historyRound===i+1} onClick={()=>setHistoryRound(i+1)} className={`rounded px-3 py-2 text-xl font-bold ${historyRound===i+1?"bg-teal-700 text-white":"bg-stone-200"}`}>{i+1}</button>)}</div>
     <p className="mt-3 text-lg">Round {historyRound} · {historyRound>game.currentPeriod?"Projected construction order":"Construction order"}</p>
     <div className="mt-3 grid grid-cols-2 items-start gap-3">{history.order.map((id,rank)=>{

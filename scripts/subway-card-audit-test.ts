@@ -10,7 +10,7 @@ assert.throws(()=>auditTasks({trials:0,seed:1}));assert.throws(()=>auditTasks({t
 const checks=checkAuditCards();assert.deepEqual(checks.filter(c=>!c.passed),[]);
 assert.equal(checks.length,AUDIT_CARDS.length);
 assert.equal(interval(0,100)[0],0);assert.ok(interval(0,100)[1]>.03);
-const selected=process.env.FULL_CARD_AUDIT==='1'?tasks:tasks.filter(t=>['minimal','dest-market-university'].includes(t.cardId)&&t.count===2);
+const selected=process.env.FULL_CARD_AUDIT==='1'?tasks:tasks.filter(t=>['north-south','dest-market-university'].includes(t.cardId)&&t.count===2);
 assert.ok(selected.length>0);
 const seen=new Set<string>();
 let recordedMs=0,fastMs=0;

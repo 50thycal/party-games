@@ -1758,7 +1758,7 @@ Checkpoints are device-local; detailed economics and bounded replay examples
 are exported separately from the chat-sized Markdown. Alternatives: individual
 manual card testing rejected by the owner; automatic rule retuning excluded.
 
-### DEC-051 — Shared Largest Cluster and bounded algorithmic planning
+### DEC-054 — Shared Largest Cluster and bounded algorithmic planning
 
 Date: 2026-09-15. Status: owner-authorized implementation; independent review pending.
 
@@ -1794,3 +1794,70 @@ order so completion order cannot change trial selection or break resume.
 Stop drains active pairs. No server service or automatic statistical early stop;
 smaller samples explicitly trade precision for time. Benchmark evidence must
 separate recording savings from sample-size reduction and device concurrency.
+
+### DEC-051 — Three Engineering categories, binary cards and no surveys
+
+Date: 2026-09-15. Status: owner-approved implementation.
+
+The owner approved seven cards each in Line, Station and Neighborhood, common
+scope terms, revised VP and placeholders instead of new artwork. This supersedes
+previous Engineering catalog/tier and survey behavior, while preserving route,
+Destination, longest-network and cash rules. Any qualifying endpoint pair may
+complete Across Town/Opposite Corners in one company network. A final peg only
+qualifies when its contract is complete. Opponents participate only in Shared
+Stations and never connect a company network. Stations are whole local clusters;
+merged clusters count once. Cards score once at game end with recomputed live status.
+
+Surveys are removed rather than replaced. State v22 forces restart for the deck
+and state-shape change. Labels must stay within actual neighborhood footprints,
+use larger bounded zoom-adaptive text, and share area identity with scoring.
+Accepted cost: VP are playtest hypotheses, not calibrated values. New artwork and
+remaining JNCG feedback are deferred to the owner's sequential review. Alternatives
+considered: retain old tiered deck/surveys rejected by owner; new artwork excluded.
+
+### DEC-052 — One-time station access, no stacking and public player pads
+
+Date: 2026-09-15. Status: owner-approved implementation.
+
+The owner approved one PR bundling public leader displays, phone cash/line progress,
+unordered Destination clarification, payment previews/animations, 3N+1 route
+drafting and a thirteenth contract. Copper fills the least represented seven-
+segment range with comparable economics. iPad player pads show names, cash and
+line ownership; progress dots belong only on the owner's phone. Existing longest-
+network VP remain; no new station VP introduced in this display scope.
+
+No peg may stack on any other peg. Orthogonally adjacent different-line pegs
+form stations. Joining an opponent station costs $1M once for that line/opponent/
+station; growth or merger never removes paid access. Existing participants do
+not pay the arriving company back. A different line/station may cost again.
+Every new geometric crossing/contact remains payable separately. Starter joins
+pay the same access fee; the base starter placement is free. This closes a
+starter-only access loophole and was explicitly explained during implementation.
+Undo restores both cash and access. State v23 protects old rooms and replays.
+
+Alternatives: repeated station charges rejected by owner; duplicate-color extra
+contract rejected in planning for readability; per-line progress on public iPad
+pads omitted at owner's request. Remaining highlight privacy and bendable segments
+remain parked for sequential review.
+
+### DEC-053 — Current-player highlights and unreviewed rulebook drafts
+
+Date: 2026-09-15. Status: owner-authorized publication and bug fix.
+
+Selected Destination cards persist by company, but the shared tablet projection
+now filters by the current turn actor. Phones keep their own selections off-turn.
+When no actor exists, no tablet highlight is shown. This supersedes persistent
+cross-company shared visibility described in earlier companion guidance; it does
+not reset selections or change gameplay state.
+
+The owner requested publication of the quick-start and full rulebook without a
+thorough review. Both, and the existing rules reference, are explicitly drafts
+needing owner review. Saving them is not approval of rule wording or balance.
+Graphics follow wording approval. The turn question is next; bendable connections
+remain last. No turn, scoring or geometry change is authorized by this decision.
+
+PR #183 integration note (2026-09-16): the unmerged cluster entry is numbered
+DEC-054 to avoid collision with merged card DEC-051. Its occupied-hole scoring
+semantics remain unchanged. Display/draft rules now include this award, superseding
+PR #185's temporary display-only scope. State v24/bot v5/audit v4 combine both rule
+sets. No bending rule is implemented by this conflict resolution.

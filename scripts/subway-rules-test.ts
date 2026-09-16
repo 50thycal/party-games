@@ -41,9 +41,6 @@ import {
   starterTurnId,
   stationById,
   subwayGame,
-  surveyFulfilled,
-  surveyTurnId,
-  surveysPending,
   validateNode,
   type PlayerLine,
   type SubwayAction,
@@ -225,7 +222,7 @@ const DECK_ORDER = ["branch", "medium", "express", "crosstown", "long", "short"]
   assert.equal(validateNode(s, "red", 0, { x: 1, y: 2 }), null, "so is a 1-2 diagonal at 2.24");
   assert.match(validateNode(s, "red", 0, { x: 3, y: 0 }) ?? "", /must span 2/, "a 3 is not a 2");
   assert.match(validateNode(s, "red", 0, { x: 2, y: 2 }) ?? "", /must span 2/, "and neither is 2.83");
-  assert.match(validateNode(s, "red", 0, { x: 0, y: 0 }) ?? "", /must span 2/, "nor is no distance");
+  assert.match(validateNode(s, "red", 0, { x: 0, y: 0 }) ?? "", /occupied/, "cannot stack on the same peg");
 }
 
 // The recipe is ordered: the second segment must be the second length.
@@ -283,8 +280,8 @@ const DECK_ORDER = ["branch", "medium", "express", "crosstown", "long", "short"]
   assert.equal(s.players.red.lines[0].route[1].stationId,"garden");
   assert.equal(s.players.red.lines[0].route[1].stationSlot,undefined);
   const shared=dispatch(s,"blue","BUILD",{lineIndex:0,x:14,y:2});
-  assert.equal(shared.players.blue.lines[0].route.length,2,"another company can share the same peg");
-  assert.equal(shared.players.blue.tollsPaid,1,"ordinary contact toll still applies");
+  assert.equal(shared,s,"another company cannot stack on the same peg");
+  assert.equal(shared.players.blue.tollsPaid,0,"rejected stacking never charges");
   assert.equal(before.players.red.lines[0].route.length,1,"reducer preserves old state");
 }
 
@@ -309,43 +306,7 @@ const DECK_ORDER = ["branch", "medium", "express", "crosstown", "long", "short"]
   assert.equal(periodPriorityId(overridden, 6), "red", "and only its own period");
 }
 
-// ============================================================================
-// PART 4 — Network Link replaces Long Segment
-// ============================================================================
-{
-  assert.equal(engineeringById("long-segment"), undefined, "Long Segment is gone");
-  assert.ok(engineeringById("network"), "Network Link took its place");
-  assert.equal(engineeringById("network")!.vp, 7, "network overhaul is worth +7 VP");
-  assert.ok(
-    SUBWAY_CONFIG.startingHands.engineering.length === 0,
-    "players start without cards"
-  );
-
-  const complete = (route: PlayerLine["route"]) => {
-    const p = base().players.red;
-    p.lines = [owned("short", route)];
-    return p;
-  };
-
-  // A finished Market Shuttle touching three different stations.
-  const three = complete([
-    { x: 1, y: 3 }, { x: 4, y: 3, stationId: "market", stationSlot: 0 }, { x: 5, y: 3, stationId: "grand", stationSlot: 0 },
-    { x: 8, y: 3 }, { x: 10, y: 6, stationId: "museum", stationSlot: 0 },
-  ]);
-  assert.equal(objectiveMet("network", three, []), false, "one completed line does not satisfy the three-line network objective");
-
-  const one = complete([
-    { x: 1, y: 3 }, { x: 4, y: 3 }, { x: 5, y: 3, stationId: "grand", stationSlot: 0 },
-    { x: 8, y: 3 }, { x: 11, y: 3 },
-  ]);
-  assert.equal(objectiveMet("network", one, []), false, "one station is not a network");
-
-  const unfinished = complete([
-    { x: 1, y: 3 }, { x: 4, y: 3 }, { x: 5, y: 3, stationId: "grand", stationSlot: 0 },
-    { x: 10, y: 6, stationId: "museum", stationSlot: 0 },
-  ]);
-  assert.equal(objectiveMet("network", unfinished, []), false, "an incomplete line does not score it");
-}
-
-
-console.log("Subway geometry, neighborhood, recipe and network-goal regressions passed.");
+// Current Engineering catalog is tested in subway-engineering-test.ts.
+assert.equal(engineeringById("network"), undefined, "retired objective is absent");
+assert.equal(engineeringById("transfer-station")!.vp,3);
+console.log("Subway geometry, neighborhood, recipe and retired-card regressions passed.");

@@ -31,7 +31,7 @@ Knowing the public room code does not grant an existing company or tablet role.
 All mutations use existing database compare-and-swap. Stale revisions fail; retries
 with the same request ID do not repeat a payment. The server derives the acting
 company from credentials/acknowledgement, never a client-supplied player ID.
-Phones buy contracts, draft Engineering, buy surveys/destinations. The tablet
+Phones buy contracts, draft Engineering, buy destinations. The tablet
 acknowledges the active company before crew or placement actions, and alone starts
 and scores. Host scoring permits a host without a company seat.
 
@@ -54,22 +54,26 @@ select or construct real pegs. Poll failures disable board interaction until rec
 
 Phones show a persistent next-step instruction with a direct page link, including
 while another company drafts. Card status includes live VP and Completed text.
-A newly observed completed line produces a dismissible +$3M notice on both device
-roles; reconnecting to an already completed line does not replay the reward.
+Public money events drive player-panel debit/credit animations and completion rewards; remounting establishes a watermark without replaying old money events.
 
 An authenticated phone can toggle its owned Destinations on the shared iPad.
 Enabled selections persist across turns and reconnects until their owner disables
-them. Each card has a distinct company/card label and color; the iPad legend names
-its company and mission. Phones receive only their own selections. Clear removes
+them. The tablet projection includes only the current actor's selections, even
+before tablet acknowledgement, and none when no actor exists. Both board markers
+and the legend use that projection. Each card has a distinct company/card label
+and color. Phones receive only their own selections, including off-turn. Clear removes
 only that company's highlights. This opt-in disclosure does not publish unselected
-missions or the full hand. See DEC-047 for the owner-requested persistence change.
+missions or the full hand. See DEC-047 for selection persistence and DEC-053 for
+current-player-only shared visibility. The quick-start, full rulebook and existing
+rules reference are marked DRAFT — NEEDS OWNER REVIEW; graphics follow wording
+approval. Repository publication does not imply owner approval of their rules.
 
 Ghost planning is a device-local Table setting, default off. Off hides saved
 ghosts, planning controls and next-step hints, but retains normal real-placement
 previews and Confirm. Turning it off does not erase saved plans.
 
 The reducer rejects a line crossing or rejoining an earlier segment of its own
-color; different colors retain contact/toll rules. Directional Engineering objectives have live tiers with card-specific awards.
+color; different colors retain contact/toll rules. Engineering goals use binary live progress with category and scope badges.
 The same progress helper supplies phone VP and final score ledger points.
 Neighborhood footprints, explicit node transfers and zero automatic area VP are implemented.
 
@@ -511,8 +515,8 @@ Procurement presents a refillable player-count-sized route row. Three mandatory
 list-price picks per player replace first refusal, passing and discount sales.
 Each company receives two private Destination missions at START_GAME. Engineering's
 CARD_DRAFT offers three picks per player, from two face-up goals or a blind pile,
-with one copy of each of 16 Engineering goals. Destinations have a separate shuffled
-deck of all 45 station pairs and 120 station triples. Pair/triple missions score
+with one copy of each of 21 Engineering goals. Destinations have a separate shuffled
+deck of 15 neighborhood pairs and 15 triples. Pair/triple missions score
 4/7 VP when their stations are connected through the company's own built network;
 unfinished routes can contribute. One extra random mission costs $5M before hiring
 on the owner's construction turn, once per game, with reducer-enforced affordability,
@@ -522,8 +526,7 @@ Construction cards and their special timing/economy effects have been removed.
 
 Cyclic draft helpers keep the same seat order within and between stages. Construction
 rounds keep the same opener so two-player round boundaries do not give double turns. Stale card-pick
-tokens and duplicate goals are rejected. BUY_SURVEYS follows drafting, then optional
-pin placement and all three route starters. There is no commitment or assignment.
+tokens and duplicate goals are rejected. The final Engineering pick proceeds directly to all three route starters. There is no commitment or assignment.
 Legacy schedule/commitment types and dormant helpers remain unreachable in v17.
 
 `network.ts` provides own-node connectivity and longest edge-simple trails. Shared
@@ -534,7 +537,7 @@ undo-restored first-completion player field. Longest network scores logical peg-
 length without segment reuse: 5 VP to one winner or 3 each on a tie. Route specials
 and per-contract Major bonuses are removed, retaining ordinary station scoring.
 
-Contracts keep stable internal IDs, recipes and prices, but display twelve color
+Contracts keep stable internal IDs, recipes and prices, and display thirteen color
 names with unique two-letter codes. Neighborhoods have no dock limits at any player count.
 Placed and planned area nodes retain the neighborhood ID plus the exact integer hole;
 there are no physical dock offsets.
@@ -555,15 +558,15 @@ Undo step reverses one unconfirmed sketch node, preserving the committed prefix 
 
 RouteBuildGuide derives starter instructions, next real segment length and remaining segments from the committed route, never from ghost sketches. The active contract and automatic planner share this guide; manual Plan remains separate. A static FROM marker identifies the growing real route endpoint without intercepting taps. Lines focus prefers the active contract and falls back to the first piece.
 
-Automatic framing also follows completed company handoffs and new construction rounds, but not routine polls. Focus magnification is capped at 110%; manual zoom can go closer. Survey purchase quantity is company/room-local and resets across handoffs.
+Automatic framing also follows completed company handoffs and new construction rounds, but not routine polls. Focus magnification is capped at 110%; manual zoom can go closer. Public player pads stay outside the camera and show cash and line ownership.
 
 All devices use TabletopCanvas: board, illustrated card faces and company pieces share one locally zoomable/pannable world. Phone overlays are limited to camera shortcuts and current placement controls. GameView owns targets, validation, pending peg, sketches and reducer dispatch. Settings contains public logbook entries; results also have a readable screen sheet and report text/download fallback. No state-version migration is required: presentation and previews are client-local.
 
-Active starter/build contexts automatically open a line-locked planner. A fresh tap creates the solid pending real placement; the remaining tail is pale and dashed. Explicit Plan permits choosing another owned line. Save ghost persists a full intended route through plans.ts, keyed by state version, room, player and contract; the in-session cache also retains saves across turns if browser storage fails. preparePlan reconciles stored intent against real construction but never supplies a pending live peg. Diverged plans remain visible and labeled until revised or cleared. Confirm revalidates and dispatches exactly one player-selected placement; saved or unsaved tails never enter a reducer payload. Hotseat veils hide private sketches and saved routes. All 16 Engineering goals and Destination missions have themed illustration panels, while exact rules and diagrams remain code-rendered.
+Active starter/build contexts automatically open a line-locked planner. A fresh tap creates the solid pending real placement; the remaining tail is pale and dashed. Explicit Plan permits choosing another owned line. Save ghost persists a full intended route through plans.ts, keyed by state version, room, player and contract; the in-session cache also retains saves across turns if browser storage fails. preparePlan reconciles stored intent against real construction but never supplies a pending live peg. Diverged plans remain visible and labeled until revised or cleared. Confirm revalidates and dispatches exactly one player-selected placement; saved or unsaved tails never enter a reducer payload. Hotseat veils hide private sketches and saved routes. The 21 Engineering goals use text and placeholder category symbols; Destination illustrations remain. Exact rules are code-rendered.
 
-Subway touch/table continuation: the camera adds reduced-motion-aware momentum after drag, with new-touch cancellation and scoped WebKit selection/callout suppression. Opponent panels begin collapsed and company plaques have bounded widths. Construction schedule presents selected-round order and per-line build/Undo facts through constructionHistory, projecting only public fields from telemetry. Survey placement is reducer-restricted to interior non-station holes; existing border pins in saved games are not deleted.
+Subway touch/table continuation: the camera adds reduced-motion-aware momentum after drag, with new-touch cancellation and scoped WebKit selection/callout suppression. Opponent panels begin collapsed and company plaques have bounded widths. Construction schedule presents selected-round order and per-line build/Undo facts through constructionHistory, projecting only public fields from telemetry. Survey purchases, placements and scoring are removed in state v22.
 
-Ordinary route purchases dispatch directly from a priced button on the offer. Card drafting shows disabled availability on the face; current Engineering goals are readable inline. GameView serializes pending UI dispatches and reports rejected actions in its status strip. Planner context alone initializes automatic planning, including React's mount-effect replay; loading saved plans does not reset it. Hiring and subsequent active routes focus the pegboard. Target navigation respects the measured HUD bands. The camera opens the first hand/line piece, the survey slip, or current construction controls at a consistent working zoom. Construction history follows the current actions in visual and keyboard order. Results wrap for narrow screens and put the score breakdown before report export (DEC-033).
+Ordinary route purchases dispatch directly from a priced button on the offer. Card drafting shows disabled availability on the face; current Engineering goals are readable inline. GameView serializes pending UI dispatches and reports rejected actions in its status strip. Planner context alone initializes automatic planning, including React's mount-effect replay; loading saved plans does not reset it. Hiring and subsequent active routes focus the pegboard. Target navigation respects the measured HUD bands. The camera opens the first hand/line piece, or current construction controls at a consistent working zoom. Construction history follows the current actions in visual and keyboard order. Results wrap for narrow screens and put the score breakdown before report export (DEC-033).
 
 ## Neighborhood board (DEC-043/DEC-044, state v19)
 
@@ -579,16 +582,11 @@ State stores exact `cells`; `stationAt` tests membership. Old station IDs and ma
 minor internal category keys remain for cards, but no capacity field or dock cap remains.
 
 Only placing a node inside serves an area. Different company lines transfer at
-overlapping or orthogonally adjacent nodes, anywhere on the board. Sharing an area
+orthogonally adjacent nodes, anywhere on the board. Sharing an area
 alone, diagonals, string-only crossings and opponents do not supply transfers. Every
 physical contact uses actual hole geometry, including neighborhood pegs. Sharing an
 area alone costs nothing. Longest network counts built segments, not transfer distance.
-Local Service requires one line serving all three small areas, with no completion
-requirement, worth 6 VP. Regional Service needs three large areas on one completed
-line. Citywide Service replaces Terminal: visit all ten areas for 10 VP without
-requiring completion or connectivity. Central Interchange needs all three lines
-in one local transfer group inside one large area at every player count (4 VP).
-Literal border goals and survey rules remain exact-hole based. Surveys stay outside areas.
+Engineering card behavior is defined by DEC-051 below. Literal borders remain exact-hole based.
 
 Board footprints render beneath pegs, routes and target rings. Destination highlights
 trace full area boundaries. Phone cards, tutorial and report use neighborhood rules;
@@ -603,18 +601,73 @@ deals one of each without replacement; remaining cards shuffle together for the
 once-per-game $5M purchase. A mission checks the intersection of component sets
 serving each named area: repeated area visits cannot merge separated networks.
 
-Transfer groups collapse only overlapping/orthogonal nodes from different lines.
+Transfer groups collapse only orthogonal nodes from different lines.
 Company components add built segments; longest trail traverses only those weighted
 segments with a used-edge mask, adding no transfer length and not summing branches.
-Central Interchange checks transfer groups restricted to nodes within the area,
-so outside string connections cannot substitute for the local hub.
+Engineering card scopes and awards are specified in the current RULES.md and
+DEC-051. Live phone progress and the final ledger use the same evaluator; Undo
+recomputes. Area labels show names and sizes, never automatic VP.
 
-Across Town pays 4/8 for exact east–west then all four sides in the same network,
-with distinct nodes assigned to sides. Four Corners pays 5/10 for opposite/all four
-exact corner pegs in the same network. Neither requires completed lines. Perimeter
-Service pays 2/5/8 for 1/2/3 completed lines each touching three distinct sides.
-Live phone progress and final ledger use the same evaluator; Undo recomputes.
-Area labels no longer advertise VP; rules/tutorial define borders and corners.
+### JNCG card and label redesign (DEC-051, state v22)
+
+`engineering.ts` owns 21 definitions, shared rule terms and binary predicates:
+seven Line, seven Station and seven Neighborhood cards. `objectiveProgress`
+exposes the same score to draft/hand/phone copy, final ledger, reports, bots and
+the Card Audit. Single Line, Connected Network and Company-wide are separate
+scopes. Endpoint = starter or completed final peg; Across Town/Opposite Corners
+accept any qualifying pair in one own network, including two starters/two finals.
+Station predicates count whole local clusters of different-line orthogonally adjacent nodes. Only Shared Stations includes opponents; opponents
+never bridge own networks. Cluster merging may remove a distinct-station award.
+All cards score once at game end, no tiers, with provisional live status.
+
+Final Engineering draft moves directly to free starter placement. Survey phases,
+fields, UI and scoring are gone; legacy survey actions are rejected. State v22
+requires restart and separates new saves/plans from the old deck. Bot version 3
+and audit policy version 2 adapt to the new predicates; simulation remains evidence
+about those policies, not human balance or optimal play.
+
+`neighborhoodLabels.ts` chooses a rectangular space wholly inside each actual
+footprint, wraps names and adapts fonts to camera zoom within that space. Board
+labels use the same area objects as hit testing and scoring, with stronger borders
+and size captions. Backings/text are pointer-transparent; peg targets render above.
+Generated layouts and the exact JNCG exported layout are regression fixtures.
+
+### Player status, station access and fair drafting (DEC-052, state v23)
+
+The route pool contains 3N+1 contracts for N companies. Copper is the second
+seven-segment service (3,5,4,6,3,5,4; $11M; complete 9 VP; unfinished -8 VP).
+The reducer ends Procurement after 3N picks, leaving one card. Refilling the
+player-count-sized row gives the final picker two choices at every supported count.
+Destination names use equal-neighborhood lists, with explicit any-order, no-endpoint
+copy shared by faces/reports. Connected unfinished own lines can contribute.
+
+All starter/build holes must be vacant across all companies and lines; plans use
+the same validator. Strings still may cross or contact at empty holes. Own network
+and Engineering transfer clusters retain orthogonal adjacency. State v23 requires
+restart and new plan/replay namespaces. Bot policy v4/audit policy v3 identify new rules.
+
+`stationAccess.ts` prices a newly joined local mixed-owner cluster once per line,
+opponent and station. Receipts anchor to actual holes, preserving access through
+growth/merges. Existing participants do not pay later arrivals back. A different
+line or separate station can incur another access fee. Starter joins pay access
+immediately but have no base placement cost. `routeContacts` adds new station
+fees to unchanged geometric contact charges; every new crossing remains priced.
+BUILD and starter reducers transfer cash, record receipts and create public money
+events. Full-state Undo restores cash/receipts and appends a monotonic reversal.
+
+Public money events include only recipients, amounts and reasons. They are bounded
+to 20, separate from private telemetry, and pass through companion projections.
+`PlayerPads` is outside the remounting iPad table: player name/cash/line codes and
+colors, no progress dots, with paired debit/credit and reduced-motion-compatible
+transfer animation. Initial load sets a watermark; repeated polls do not replay it.
+The measured pad height reserves canvas space. Hotseat uses the measured HUD band.
+Phone status is sticky above its scrolling cards and includes own line peg dots,
+a separate starter diamond and segment progress. Room/device details move to Settings.
+
+`publicStatus.ts` uses the scoring helper for Largest Cluster size, leaders and
+company counts across equally largest groups. Same-line adjacency counts for this
+award, unlike Station-card transfers. The display and score cannot disagree due
+to separate grouping algorithms. Empty boards have no leader.
 
 ## Subway Playtest Lab (WS-005 continuation)
 
@@ -629,7 +682,7 @@ begin at an identical legally recorded acquisition prefix; opening deal/offer
 screening is bounded and explicitly conditional, not a natural acquisition-rate
 estimate. Target utility is audit-only, activates only for an owned card and uses
 public state/own hand. Live bot defaults and game scoring remain unchanged.
-Scoring fixtures check positive, negative and tier cases separately from legal
+Scoring fixtures check positive and near-miss cases separately from legal
 game records. Summary rates exclude failed/exhausted pairs and include matched n;
 detailed statistics include Wilson intervals, tier counts and per-game economics.
 The compact Markdown is one row per card; raw actions are separate replay files.
@@ -722,9 +775,9 @@ with blob download and existing copy/text fallbacks. Both companion phones and
 iPads expose it at results; quick tabletop uses the same save controls.
 Engineering descriptions identical to their requirements render only once.
 
-### Largest Cluster and company-aware bot planning (DEC-051)
+### Largest Cluster and company-aware bot planning (DEC-054)
 
-State v22 adds a separate public Largest Cluster award. The pure cluster helper
+State v24 integrates the separate public Largest Cluster award with the later no-stacking/card/payment rules. The pure cluster helper
 groups route-node holes across companies with orthogonal adjacency, deduplicates
 each company's presence per hole, and ignores strings, diagonals and Survey Pins.
 It aggregates company counts across all equally largest groups, then awards once:
@@ -732,7 +785,7 @@ It aggregates company counts across all equally largest groups, then awards once
 MD export display the result. Existing versions require restart; the deployment
 rules fingerprint includes the new cluster source as well as config/network.
 
-Bot policy v3 assigns whole Destination missions and unvisited Citywide areas to
+Bot policy v5 assigns whole Destination missions and unvisited Citywide areas to
 lines as heuristic jobs. A beam search compares up to eight hypothetical placements
 with hard 480-state experienced / 120-state casual bounds. Forecast utility includes
 owned card points, route completion/penalties, tolls, completion cash, final debt,
@@ -769,5 +822,12 @@ counts per company, current control/profile and recorded bot version. This never
 exposes recording tapes or credentials. Both report controls use that projection;
 without provenance reports say Unknown. Mixed/missing tags never become pure-human
 evidence. Objective diagnostics give missing areas, disconnected networks, exact
-Engineering requirements and partial tiers. ContractCard receives completed
+Engineering requirements and binary status. ContractCard receives completed
 segments consistently for fraction, recipe chips and bar.
+
+PR #183 integration (2026-09-16): state v24, bot v5 and audit v4 prevent reuse of
+older scoring/planning evidence. Forecasts charge starter access, retain paid
+access and credit opponents. Current Engineering guidance replaces obsolete card
+heuristics. Historical policy-v3 benchmarks remain evidence of the older rules,
+not performance claims about this integrated version. Rulebook drafts remain
+unreviewed; their Largest Cluster scoring text now reflects PR #183.

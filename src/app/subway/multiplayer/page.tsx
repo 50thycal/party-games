@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { PhoneStatus, PlayerPads, PublicLeaders } from "@/games/subway/PlayerStatus";
 import { ReportSaveControls } from "@/games/subway/ReportSaveControls";
 import { generateAiPlaytestReport } from "@/games/subway/report";
 import { LabControls } from "@/games/subway/LabControls";
@@ -46,19 +47,15 @@ export default function SubwayMultiplayerPage() {
   const [busy,setBusy] = useState(false);
   const [online,setOnline] = useState(true);
   const [tab,setTab] = useState<Tab>("destinations");
-  const [surveys,setSurveys] = useState(0);
   const [deviceSettings,setDeviceSettings] = useState(false);
-  const [completionNotice,setCompletionNotice] = useState<string|null>(null);
-  const previousCompleted = useRef<Set<string>|null>(null);
+  const hasGame=!!view?.game;
+  const padsRef=useRef<HTMLDivElement>(null);
+  const [padsHeight,setPadsHeight]=useState(120);
   useEffect(()=>{
-    if(!view?.game) return;
-    const now = new Set(Object.values(view.game.players).flatMap(p=>p.lines.filter(lineComplete).map(l=>p.id+":"+l.contractId)));
-    const previous = previousCompleted.current;
-    const fresh = previous ? Array.from(now).filter(key=>!previous.has(key)) : [];
-    previousCompleted.current=now;
-    if(fresh.length) setCompletionNotice(fresh.map(key=>{const [id,contract]=key.split(":");return view.game!.players[id].name+" · "+contractById(contract)?.name+" complete · +$3M";}).join(" / "));
-    else if(previous && Array.from(previous).some(key=>!now.has(key))) setCompletionNotice(null);
-  },[view]);
+    const el=padsRef.current;if(!el)return;
+    const observer=new ResizeObserver(()=>setPadsHeight(el.getBoundingClientRect().height));
+    observer.observe(el);return ()=>observer.disconnect();
+  },[view?.role,hasGame]);
   const [acknowledgedTurn,setAcknowledgedTurn] = useState<string|null>(null);
   const sending = useRef(false);
   const latestRevision = useRef(-1);
@@ -152,7 +149,7 @@ export default function SubwayMultiplayerPage() {
       const a=document.createElement('a');a.href=url;a.download=`subway-${identity.roomCode}-replay.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
     } catch(e) {setError(e instanceof Error?e.message:'Export failed.');}
   }
-  function leave() {previousCompleted.current=null;setCompletionNotice(null);localStorage.removeItem(KEY);setIdentity(null);setView(null);latestRevision.current=-1;setDeviceSettings(false);}
+  function leave() {localStorage.removeItem(KEY);setIdentity(null);setView(null);latestRevision.current=-1;setDeviceSettings(false);}
 
   if(!view) return <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-5 p-6">
     <Link href="/" className="text-sm text-slate-400">← Party Games</Link>
@@ -179,19 +176,18 @@ export default function SubwayMultiplayerPage() {
   const actor=game?.players[view.actorId??""];
   const tablet=view.role==="tablet";
   const controlsDisabled=busy||!online;
-  const onPhone=game?.phase==="PROCUREMENT"||(game?.phase==="ENGINEERING"&&["CARD_DRAFT","BUY_SURVEYS"].includes(game.engineeringStep));
+  const onPhone=game?.phase==="PROCUREMENT"||(game?.phase==="ENGINEERING"&&game.engineeringStep==="CARD_DRAFT");
   const needsHandoff=tablet&&!onPhone&&!!view.actorId&&(view.seatedId!==view.actorId||acknowledgedTurn!==view.turn);
-  const header=<header className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-[#193640] p-3 text-white">
-    <strong>SUBWAY <span className="text-amber-300">·</span> {tablet?`Room ${view.room.roomCode}`:me?.name??view.room.players.find(p=>p.id===view.playerId)?.name}</strong>
-    <span className="text-sm">{me?`$${me.money}M · Round ${game?.currentPeriod}/${SUBWAY_CONFIG.timelinePeriods}`:`${view.room.players.length}/4 companies`}</span>
-    <button className="rounded-lg bg-white/10 px-3 py-2 text-sm" onClick={()=>setDeviceSettings(v=>!v)}>Device</button>
+  const header=<header className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#193640] p-2 text-white">
+    {game?<>{tablet?<PublicLeaders game={game}/>:<span className="text-xs">Round {game.currentPeriod}/{SUBWAY_CONFIG.timelinePeriods}</span>}</>:<strong>SUBWAY · Room {view.room.roomCode}</strong>}
+    <button className="rounded-lg bg-white/10 px-3 py-2 text-xs" onClick={()=>setDeviceSettings(v=>!v)}>Settings</button>
   </header>;
   const settings=deviceSettings&&<section className="space-y-3 rounded-xl bg-slate-800 p-4">
-    <p className="text-sm">Keep this recovery key private. It restores this device on another browser.</p>
+    <p className="font-bold">SUBWAY · Room {view.room.roomCode}</p><p className="text-sm">Keep this recovery key private. It restores this device on another browser.</p>
     <code className="block break-all text-xs select-all">{identity?.token}</code>
     <button className={button} onClick={leave}>Leave this device</button>
   </section>;
-  const notices=<>{game?.phase==='RESULTS'&&<ReportSaveControls report={generateAiPlaytestReport(game,{...view.reportContext,roomCode:view.room.roomCode,mode:view.room.mode})} roomCode={view.room.roomCode}/>}<LabControls view={view} run={run} busy={controlsDisabled} auto={auto} setAuto={toggleAuto} follow={follow} setFollow={setFollow} onExport={()=>void exportRecord()} controllerKey={identity?.controllerKey}/>{game?.phase==='RESULTS'&&!view.lab&&<button className={button} onClick={()=>void exportRecord()}>Download replay JSON</button>}{completionNotice&&<div role="status" className="rounded-2xl border-2 border-amber-300 bg-emerald-900 p-5 text-center text-2xl font-black text-white"><p>{completionNotice}</p><button className="mt-2 text-sm underline" onClick={()=>setCompletionNotice(null)}>Dismiss</button></div>}{!online&&<p role="alert" className="rounded-lg bg-amber-950 p-3">Connection lost. Reconnecting… Board actions are paused.</p>}{error&&<p role="alert" className="rounded-lg bg-rose-950 p-3">{error}</p>}</>;
+  const notices=<>{game?.phase==='RESULTS'&&<ReportSaveControls report={generateAiPlaytestReport(game,{...view.reportContext,roomCode:view.room.roomCode,mode:view.room.mode})} roomCode={view.room.roomCode}/>}<LabControls view={view} run={run} busy={controlsDisabled} auto={auto} setAuto={toggleAuto} follow={follow} setFollow={setFollow} onExport={()=>void exportRecord()} controllerKey={identity?.controllerKey}/>{game?.phase==='RESULTS'&&!view.lab&&<button className={button} onClick={()=>void exportRecord()}>Download replay JSON</button>}{!online&&<p role="alert" className="rounded-lg bg-amber-950 p-3">Connection lost. Reconnecting… Board actions are paused.</p>}{error&&<p role="alert" className="rounded-lg bg-rose-950 p-3">{error}</p>}</>;
   if(!game) return <main className="mx-auto max-w-xl space-y-5 p-4">{header}{settings}{notices}
     <h1 className="text-2xl font-bold">Companies at the table</h1>
     <div className="rounded-xl bg-slate-800 p-4"><p className="text-sm">Join on each phone at</p><p className="break-all font-bold">{typeof window!=="undefined"?window.location.host:""}/subway/multiplayer</p><p className="text-5xl font-black tracking-widest">{view.room.roomCode}</p>{view.lab&&<p className="mt-3">Choose <strong>My testing phone · Playtest Lab</strong> on your phone to control your managed companies. First connection needs only this room code. Friends with reserved seats choose My phone.</p>}</div>
@@ -199,29 +195,30 @@ export default function SubwayMultiplayerPage() {
     {tablet?<button className={button} disabled={controlsDisabled||view.room.players.length<2} onClick={()=>run("START_GAME")}>Start with {view.room.players.length} companies</button>:<p>Keep this phone with you. The iPad starts the game.</p>}
   </main>;
 
-  if(tablet) return <main className="space-y-2 p-2">{header}{settings}{notices}
+  if(tablet) return <main className="space-y-2 p-2" style={{paddingBottom:padsHeight}}>{header}{settings}{notices}
     {view.canUndo&&!view.seatedId&&!needsHandoff&&<button className={button} disabled={controlsDisabled} onClick={()=>run("UNDO_PLACEMENT")}>Undo {game.undo?.label}</button>}
-    {onPhone&&<p className="rounded-xl bg-teal-950 p-3">{actor?`${actor.name}: choose on your phone.`:"Buy Survey Pins on your phones."}</p>}
+    {onPhone&&<p className="rounded-xl bg-teal-950 p-3">{actor?`${actor.name}: choose on your phone.`:"Waiting for the next company."}</p>}
     {needsHandoff?<section className="flex min-h-[65dvh] flex-col items-center justify-center gap-6 rounded-3xl bg-[#193640] p-8 text-center">
       <h1 className="text-3xl font-bold">Pass to {actor?.name}</h1><p>The previous company’s ghosts are hidden.</p>
       <button className={button} disabled={controlsDisabled} onClick={()=>run("ACK_COMPANY",{playerId:view.actorId})}>I am {actor?.name}</button>
       {view.canUndo&&game.undo&&<button className="min-h-12 underline" disabled={controlsDisabled} onClick={()=>run("UNDO_PLACEMENT")}>Undo last placement · {game.players[game.undo.playerId]?.name}</button>}
     </section>:<div className={!online?"pointer-events-none opacity-60":""}>
       {view.destinationHighlights.length>0&&<div aria-label="Destination highlight legend" className="flex flex-wrap gap-2">{view.destinationHighlights.map(h=><span key={h.playerId+h.cardId} className="rounded bg-white px-2 py-1 font-bold" style={{color:h.color}}>{h.label} · {h.name}</span>)}</div>}
-      <SubwayGameView key={`${view.turn}:${view.seatedId??"public"}`} state={game} room={view.room} playerId={view.seatedId??""} isHost boardOnly reportContext={view.reportContext} remotePlans={view.plans} dispatchAction={act} highlightedStations={view.highlightedStations} destinationHighlights={view.destinationHighlights} onSaveGhost={(contractId:string,nodes:RouteNode[])=>act("SAVE_GHOST",{contractId,nodes})}/>
+      <SubwayGameView key={`${view.turn}:${view.seatedId??"public"}`} state={game} room={view.room} playerId={view.seatedId??""} isHost boardOnly externalBottom={padsHeight} reportContext={view.reportContext} remotePlans={view.plans} dispatchAction={act} highlightedStations={view.highlightedStations} destinationHighlights={view.destinationHighlights} onSaveGhost={(contractId:string,nodes:RouteNode[])=>act("SAVE_GHOST",{contractId,nodes})}/>
     </div>}
+    <div ref={padsRef} className="fixed inset-x-0 bottom-0 z-30 bg-[#10252e] px-2 pt-1" style={{paddingBottom:"max(8px, env(safe-area-inset-bottom))"}}><PlayerPads game={game} roomKey={view.room.roomCode}/></div>
   </main>;
 
   if(!me) return <main className="p-4">{header}{notices}<p>Waiting for your company.</p></main>;
   const myTurn=view.actorId===me.id;
   const guidance=phoneGuidance(game,me.id);
   const buyDestination=game.phase==="CONSTRUCTION"&&myTurn&&!me.crewsHired&&!me.destinationPurchased;
-  return <main className="mx-auto min-h-dvh max-w-lg space-y-4 px-3 pb-28 pt-3">{header}{settings}{notices}
+  return <main className="mx-auto min-h-dvh max-w-lg space-y-4 px-3 pb-28 pt-3"><div className="sticky top-0 z-20 bg-[#10252e] pb-2">{header}<PhoneStatus game={game} playerId={me.id}/></div>{settings}{notices}
     <style>{`@media (orientation: landscape) { .phone-portrait-prompt { display: flex !important; } }`}</style>
     <div className="phone-portrait-prompt fixed inset-0 z-50 hidden flex-col items-center justify-center gap-3 bg-[#10252e] p-6 text-center"><span className="text-4xl" aria-hidden>↻</span><p className="text-xl font-bold">Turn your phone upright</p><p>Your cards are arranged for portrait play.</p></div>
-    <section className="sticky top-0 z-20 rounded-xl border border-teal-500 bg-[#193640] p-3 shadow-lg" aria-live="polite"><p className="text-sm">{guidance.text}</p>{tab!==guidance.tab&&<button className={`${button} mt-2 w-full`} onClick={()=>{setTab(guidance.tab);window.scrollTo({top:0});}}>{guidance.label}</button>}</section>
+    <section className="rounded-xl border border-teal-500 bg-[#193640] p-3 shadow-lg" aria-live="polite"><p className="text-sm">{guidance.text}</p>{tab!==guidance.tab&&<button className={`${button} mt-2 w-full`} onClick={()=>{setTab(guidance.tab);window.scrollTo({top:0});}}>{guidance.label}</button>}</section>
     <h1 className="text-xl font-bold">{tabs.find(t=>t.id===tab)?.label}</h1>
-    {tab==="destinations"&&<>{me.destinationHand.map(id=><section key={id} className="space-y-2"><DestinationCardFace card={id} color={me.color} state={destinationMet(me,id)?"met":"idle"}/><p className={destinationMet(me,id)?"font-bold text-emerald-300":"text-sm text-slate-300"}>{destinationMet(me,id)?"✓ Completed":"Not yet connected"}</p><button className={`${button} w-full`} aria-pressed={view.destinationHighlights.some(h=>h.cardId===id)} disabled={controlsDisabled} onClick={()=>run("SHOW_DESTINATION",{cardId:id,enabled:!view.destinationHighlights.some(h=>h.cardId===id)})}>Highlights: {view.destinationHighlights.some(h=>h.cardId===id)?"On":"Off"} · C{view.room.players.findIndex(p=>p.id===me.id)+1}·D{me.destinationHand.indexOf(id)+1}</button></section>)}<p className="text-xs text-slate-300">Enabled destinations stay visible on the shared board until you turn them off, including during other companies’ turns.</p><button className={button} disabled={controlsDisabled} onClick={()=>run("SHOW_DESTINATION",{cardId:null})}>Clear board highlights</button>
+    {tab==="destinations"&&<>{me.destinationHand.map(id=><section key={id} className="space-y-2"><DestinationCardFace card={id} color={me.color} state={destinationMet(me,id)?"met":"idle"}/><p className={destinationMet(me,id)?"font-bold text-emerald-300":"text-sm text-slate-300"}>{destinationMet(me,id)?"✓ Currently met":"Not yet connected"}</p><button className={`${button} w-full`} aria-pressed={view.destinationHighlights.some(h=>h.cardId===id)} disabled={controlsDisabled} onClick={()=>run("SHOW_DESTINATION",{cardId:id,enabled:!view.destinationHighlights.some(h=>h.cardId===id)})}>Highlights: {view.destinationHighlights.some(h=>h.cardId===id)?"On":"Off"} · C{view.room.players.findIndex(p=>p.id===me.id)+1}·D{me.destinationHand.indexOf(id)+1}</button></section>)}<p className="text-xs text-slate-300">Your selections are saved. The shared board shows them only during your turn; your phone keeps your own selections visible.</p><button className={button} disabled={controlsDisabled} onClick={()=>run("SHOW_DESTINATION",{cardId:null})}>Clear my highlights</button>
       {buyDestination&&<button className={`${button} w-full`} disabled={controlsDisabled||me.money<5} onClick={()=>run("BUY_DESTINATION",{period:game.currentPeriod})}>Buy another Destination · $5M</button>}
     </>}
     {tab==="lines"&&<>
@@ -236,10 +233,9 @@ export default function SubwayMultiplayerPage() {
         {game.market.rows.engineering.map(id=><div key={id}><EngineeringCardFace card={id} color={me.color}/><button className={`${button} mt-2 w-full`} disabled={controlsDisabled||!myTurn} onClick={()=>run("DRAFT_CARD",{deck:"engineering",cardId:id,expectedPick:game.market.picks})}>Choose this goal</button></div>)}
         <button className={`${button} w-full`} disabled={controlsDisabled||!myTurn||!view.engineeringRemaining} onClick={()=>run("DRAFT_CARD",{deck:"engineering",expectedPick:game.market.picks})}>Draw blind · {view.engineeringRemaining} left</button>
       </section>}
-      {me.engineeringHand.map(id=>{const progress=objectiveProgress(id,me,Object.values(game.players).filter(p=>p.id!==me.id),game);return <section key={id} className="space-y-2"><EngineeringCardFace card={id} color={me.color} state={progress.met?"met":"idle"}/><p className={progress.met?"font-bold text-emerald-300":"font-bold text-amber-200"}>{progress.met?"✓ Completed":"In progress"} · {progress.points}/{progress.max} VP now</p>{progress.count!==undefined&&progress.tiers&&<p className="text-sm">Tiers: {progress.tiers.join(" / ")} VP. Current tier: {Math.min(progress.tiers.length,progress.count)}/{progress.tiers.length}.</p>}</section>;})}
+      {me.engineeringHand.map(id=>{const progress=objectiveProgress(id,me,Object.values(game.players).filter(p=>p.id!==me.id),game);return <section key={id} className="space-y-2"><EngineeringCardFace card={id} color={me.color} state={progress.met?"met":"idle"}/><p className={progress.met?"font-bold text-emerald-300":"font-bold text-amber-200"}>{progress.met?"✓ Currently met":"In progress"} · {progress.points}/{progress.max} VP now</p>{progress.count!==undefined&&progress.tiers&&<p className="text-sm">Tiers: {progress.tiers.join(" / ")} VP. Current tier: {Math.min(progress.tiers.length,progress.count)}/{progress.tiers.length}.</p>}</section>;})}
     </>}
     {tab==="general"&&<>
-      {game.phase==="ENGINEERING"&&game.engineeringStep==="BUY_SURVEYS"&&!me.engineeringLocked&&<section className="space-y-3 rounded-xl bg-white/10 p-4"><label>Survey Pins · $1M each<select className={input} value={surveys} onChange={e=>setSurveys(Number(e.target.value))}>{[0,1,2,3,4,5].map(n=><option key={n} value={n}>{n} pins</option>)}</select></label><button className={button} disabled={controlsDisabled||me.money<surveys} onClick={()=>run("BUY_SURVEYS",{surveys})}>Confirm {surveys} pins</button></section>}
       {buyDestination&&<button className={button} disabled={controlsDisabled||me.money<5} onClick={()=>run("BUY_DESTINATION",{period:game.currentPeriod})}>Buy Destination · $5M</button>}
       {game.playerOrder.map(id=>{const p=game.players[id];return <section key={id} className="space-y-2 rounded-xl border border-white/20 p-4"><strong>{p.name} · ${p.money}M {p.score!==undefined?`· ${p.score} VP`:""}</strong><p>{p.lines.filter(lineComplete).length}/3 lines complete</p>{p.lines.map(l=><p key={l.contractId}>{contractOf(l)?.name}: {segmentsBuilt(l)}/{contractOf(l)?.recipe.length} segments</p>)}{game.phase==="RESULTS"&&p.scoreBreakdown?.map((s,i)=><p key={i} className="text-sm">{s.label}: {s.points} VP</p>)}</section>;})}
       <p className="text-sm">Crews: $1M / $3M / $6M. Completing each line pays $3M. Final debt costs 4 VP per $1M.</p>

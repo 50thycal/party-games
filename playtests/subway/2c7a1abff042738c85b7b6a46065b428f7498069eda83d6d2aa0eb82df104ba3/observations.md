@@ -1,0 +1,3 @@
+# Owner observations
+
+Calvin–Zoe human multiplayer playtest. Owner feedback: remove survey pins; larger neighborhood labels kept inside their own areas at all zoom levels (Harbor Exchange/Theatre confusion); split Engineering into single-line Shape cards and other Objectives; simplify North–South to north-or-south starter only; review all objectives; show public longest-network and cluster leaders; clarify unordered destinations and $1M opponent contacts; preserve final route-draft choice for every player count; restrict shared-board destination highlights to active player; replace large toasts with player-panel notifications; explore bendable paths separately. All gameplay changes remain planning-only. Owner approved publication of this evidence.
