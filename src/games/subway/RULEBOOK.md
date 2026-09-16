@@ -22,7 +22,7 @@ west. It contains three small neighborhoods of six holes each, one medium of ten
 holes, and six large neighborhoods of sixteen holes each. Locations and shapes
 vary between games.
 
-A **peg**, also called a **node**, marks a stop. A **segment** is the straight
+A **peg**, also called a **node**, marks a stop. A **segment** is the
 connection between successive pegs. A **line** consists of its starter and the
 segments listed on its contract.
 
@@ -76,7 +76,7 @@ lines to activate and pay for their crews.
 | Three | $6 million |
 
 Only unfinished lines with legal next placements can be activated. Each selected
-line receives **one segment placement**. Hiring two crews means extending two
+line receives **one construction activation** (normally one segment placement). Hiring two crews means extending two
 different lines, not extending one line twice.
 
 Hire once per turn. You cannot change your selection after paying. Hiring zero
@@ -99,8 +99,33 @@ placement indicators rather than adding horizontal and vertical steps.
 
 Your line may change direction by **at most 90 degrees** at a peg. Continuing
 straight is allowed; turning back more sharply is not. The first segment has no
-previous direction. Every connection is straight between its two pegs. Bending
-between pegs is not part of these rules.
+previous direction. Straight mode connects pegs directly. In an optional bend
+mode, measure each straight leg and add the lengths.
+
+### Optional bend modes
+
+The host chooses one mode before starting; it cannot change during the game.
+**Straight segments** is the default. **Bend tokens** gives each company three
+tokens. Each bend costs one token; missing tokens cost **$3M each**, automatically
+purchased on Confirm using available cash (no borrowing). Preview several bends
+and finish the whole segment in one activation. Cancel is free; Undo restores
+spent tokens and purchases.
+
+**Delayed construction** has no token cost. Choose “Stop at a bend” and confirm
+to build one leg and end that line’s activation. Other hired lines still act.
+Hire that line again on a later turn to continue its remaining length. Each
+additional stop takes another activation. A worksite does not reserve future
+holes or strings; later construction may block its continuation.
+
+Each leg joins board holes and changes heading by at most **90 degrees**.
+Add the actual leg lengths; apply the existing ±0.5-space tolerance once to the
+whole printed segment. A stop must leave at least one space available to finish.
+Bends and worksites are **not pegs or stations**: they do not serve neighborhoods,
+create transfers, satisfy peg objectives or count as endpoints. Partial strings
+are physical: crossings cost money when built and overlaps remain forbidden.
+Only completed segments contribute network length, using their full bent path.
+No completion reward is paid until all printed segments are finished. The game
+still lasts at most nine rounds; unfinished lines retain their normal penalty.
 
 ### Contacts and overlaps
 

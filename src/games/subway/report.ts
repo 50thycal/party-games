@@ -86,6 +86,8 @@ export function generateAiPlaytestReport(game: SubwayState, context: SubwayRepor
       crewActivationCostMillions: { zero: 0, one: 1, two: 3, three: 6 },
       debtPenaltyVpPerMillion: SUBWAY_CONFIG.contact.debtVpPerMillion,
       pegStackingAllowed: false,
+      bendMode: game.bendMode??'straight',
+      bendRules: 'Tokens: 3 per company, extras $3M cash; delayed: one leg per activation; max 90 degrees; total path length; bends/worksites are not pegs; partial track excludes network length until finished',
       stationAccess: "$1M once per line/opponent/local station; starter joins included; crossings always separate",
       routeDraftPool: game.playerOrder.length * 3 + 1,
       largestStation: "Uses Largest Cluster occupied-hole scoring and tied-largest aggregation",
@@ -136,18 +138,19 @@ export function generateAiPlaytestReport(game: SubwayState, context: SubwayRepor
         const contract = contractOf(line);
         const path = line.route.map((node, index) => {
           const station = node.stationId ? stationById(node.stationId)?.name ?? node.stationId : undefined;
-          return `${index + 1}:${station ? `${station} (${node.x + 1},${node.y + 1})` : `${node.x + 1},${node.y + 1}`}`;
+          return `${index + 1}${node.via?.length?` via ${node.via.map(p=>`${p.x+1},${p.y+1}`).join(" → ")}`:""}:${station ? `${station} (${node.x + 1},${node.y + 1})` : `${node.x + 1},${node.y + 1}`}`;
         }).join(" → ");
         return row([
           contract?.name ?? line.contractId,
           `$${line.paid}M`,
           `${segmentsBuilt(line)}/${contract?.recipe.length ?? 0} segments`,
           lineComplete(line) ? "Complete" : "Incomplete",
-          path || "No starter",
+          (path || "No starter")+(line.work?.length?` · Unfinished work: ${line.work.map(p=>`${p.x+1},${p.y+1}`).join(" → ")}`:""),
         ]);
       }),
       "",
       "### Cards and resources",
+      `- Bend tokens remaining: ${p.bendTokens??0}`,
       "",
       `- Engineering and Destination cards held: ${p.engineeringHand.length + p.destinationHand.length ? [...p.engineeringHand, ...p.destinationHand].map(cardName).join("; ") : "None"}`,
       "",

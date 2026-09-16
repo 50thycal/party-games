@@ -191,7 +191,7 @@ unfinished, buildable routes and hire their crews:
 | 2 | $3M |
 | 3 | $6M |
 
-Each selected route receives one segment placement. Hire once per turn; crew
+Each selected route receives one construction activation. Hire once per turn; crew
 choices cannot be changed after payment. Zero crews ends the turn. You may
 choose different routes next round. Hiring and contact payments can create debt.
 The displayed bill previews remaining cash and the final penalty at that balance.
@@ -201,6 +201,31 @@ Construction ends after round 9, or immediately after a placement leaves no
 legal next segment on any incomplete route. Empty rounds are never played. A
 blocked or skipped placement does not refund its hired crew. Normal placement
 legality remains unchanged.
+
+### Optional bend modes
+
+The host chooses one mode before starting; it cannot change during the game.
+**Straight segments** is the default. **Bend tokens** gives each company three
+tokens. Each bend costs one token; missing tokens cost **$3M each**, automatically
+purchased on Confirm using available cash (no borrowing). Preview several bends
+and finish the whole segment in one activation. Cancel is free; Undo restores
+spent tokens and purchases.
+
+**Delayed construction** has no token cost. Choose “Stop at a bend” and confirm
+to build one leg and end that line’s activation. Other hired lines still act.
+Hire that line again on a later turn to continue its remaining length. Each
+additional stop takes another activation. A worksite does not reserve future
+holes or strings; later construction may block its continuation.
+
+Each leg joins board holes and changes heading by at most **90 degrees**.
+Add the actual leg lengths; apply the existing ±0.5-space tolerance once to the
+whole printed segment. A stop must leave at least one space available to finish.
+Bends and worksites are **not pegs or stations**: they do not serve neighborhoods,
+create transfers, satisfy peg objectives or count as endpoints. Partial strings
+are physical: crossings cost money when built and overlaps remain forbidden.
+Only completed segments contribute network length, using their full bent path.
+No completion reward is paid until all printed segments are finished. The game
+still lasts at most nine rounds; unfinished lines retain their normal penalty.
 
 ## Placement and contact rules
 
@@ -214,8 +239,8 @@ boundaries. 51 interior holes remain outside areas.
 
 Place a peg on any hole inside an area to serve it. String merely passing through
 is not service. There are **no dock limits**. Multiple companies and lines may
-serve the same area. Visits matter for destinations and Engineering objectives. Exact peg positions
-determine all segment lengths, turns and physical contacts.
+serve the same area. Visits matter for destinations and Engineering objectives. Exact peg positions and optional bend vertices
+determine segment lengths, turns and physical contacts.
 
 Different company lines transfer only at horizontally/vertically
 adjacent nodes. Sharing a neighborhood alone does not connect lines. An opponent's route never joins your network. Shared areas alone cost no toll.

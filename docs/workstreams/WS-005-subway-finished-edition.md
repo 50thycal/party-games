@@ -1,13 +1,22 @@
 # WS-005 — Subway finished edition
 
 Build OS: v0.12
-Phase: REVIEW
+Phase: BUILDING
 Status: Active
 Updated: 2026-09-16
-Implementation State: PR #183 conflict integration complete on merge; merged #184–#186 behaviors retained.
+Implementation State: optional bend modes implemented; validation and independent review in progress.
 Related PRs: [#186](https://github.com/50thycal/party-games/pull/186) (draft rules/highlights); [#185](https://github.com/50thycal/party-games/pull/185) (public status/payments/draft); [#184](https://github.com/50thycal/party-games/pull/184) (JNCG cards/surveys/labels); [#177](https://github.com/50thycal/party-games/pull/177) (PRWK feedback); [#176](https://github.com/50thycal/party-games/pull/176) (phone joining; merged); [#175](https://github.com/50thycal/party-games/pull/175) (Playtest Lab); [#174](https://github.com/50thycal/party-games/pull/174) (transfer/objective continuation); [#173](https://github.com/50thycal/party-games/pull/173) (larger neighborhoods/reversed VP; merged); [#172](https://github.com/50thycal/party-games/pull/172) (guided turns, neighborhoods and tiers; merged); [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; merged); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
-## Current continuation — PR #183 conflict integration
+## Current continuation — Optional bends
+
+Goal/non-goals/acceptance: [approved spec](../build-specs/WS-005-bend-modes.md).
+Implementation State: straight/token/delayed setup selection, reducer paths/resources, partial work, board/phone controls, persistence/replays, bots and draft rules implemented.
+Validation: production build and lint passed; focused two/three/four-player mode games replay exactly. Full suite in progress. Browser/device validation unavailable due browser access restriction.
+Review findings: physical bend/worksite contact omission and disappearing draft bend prefix corrected. Bot simulations demonstrate legality/replay, not human balance.
+Review State: pending independent review.
+Next Step: validate and publish one PR; no merge.
+
+## Previous continuation — PR #183 conflict integration
 
 Goal/acceptance: [cluster spec integration](../build-specs/WS-005-cluster-planning.md).
 Preserve merged cards/payment/no-stack/highlight/draft work while restoring the

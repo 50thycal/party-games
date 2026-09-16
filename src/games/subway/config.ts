@@ -1,3 +1,5 @@
+import {lineLegs, pathLegs} from './paths';
+import {isBendMode, validatePath, pathContacts, tokenCost, findBendMove, type BendMode} from './bends';
 import { largestCluster } from './clusters';
 import { stationAccessContacts, type StationAccess } from './stationAccess';
 import { ENGINEERING_CARDS, engineeringMet, type EngineeringCard } from './engineering';
@@ -30,7 +32,7 @@ import type { BaseAction, GameContext, Player } from "@/engine/types";
 // ============================================================================
 
 /** Bumped when the state shape changes; older rooms must restart. */
-export const SUBWAY_STATE_VERSION = 24;
+export const SUBWAY_STATE_VERSION = 25;
 
 // ----------------------------------------------------------------------------
 // Tunable configuration
@@ -334,6 +336,8 @@ export type EngineeringStep = "CARD_DRAFT" | "DESTINATION_DRAFT" | "PLAN";
 export type SchedulingStep = "PLANNING" | "RESOLUTION";
 
 export type RouteNode = Point & {
+  /** Bend vertices on the completed incoming segment; never scoring pegs. */
+  via?: Point[];
   stationId?: string;
   /** Legacy plans only; ignored by current geometry. */
   stationSlot?: number;
@@ -346,6 +350,8 @@ export type PlayerLine = {
   /** What this company paid for it (list price, or a Discount Yard price). */
   paid: number;
   route: RouteNode[];
+  /** Built legs of the unfinished next segment, excluding its last real peg. */
+  work?: Point[];
   /** First period of the contiguous Gantt block; undefined means shelved. */
   start?: number;
   /** Mobilization waived by Early Mobilization, in $M. */
@@ -399,6 +405,7 @@ export type SubwayPlayer = {
   /** $M paid to the opposition for route contacts, for the results breakdown. */
   tollsPaid: number;
   stationAccess?: StationAccess[];
+  bendTokens?: number;
   score?: number;
   scoreBreakdown?: ScoreItem[];
 };
@@ -499,6 +506,7 @@ function recordMoney(s:SubwayState,actorId:string,payments:MoneyEvent['payments'
 }
 
 export interface SubwayState {
+  bendMode?: BendMode;
   moneyEvents?: MoneyEvent[];
   nextMoneySeq?: number;
   version: number;
@@ -566,6 +574,9 @@ export type SubwayActionType =
 export interface SubwayAction extends BaseAction {
   type: SubwayActionType;
   payload?: {
+    bendMode?: BendMode;
+    bends?: Point[];
+    pause?: boolean;
     choice?: "buy" | "pass";
     contractId?: string;
     expectedPick?: number;
@@ -854,9 +865,7 @@ export function countCrossings(state: SubwayState, playerId: string, from: Point
   let crossings = 0;
   for (const { playerId: owner, line } of allLines(state)) {
     if (owner === playerId) continue;
-    for (let i = 1; i < line.route.length; i++) {
-      if (segmentsCross(from, to, line.route[i - 1], line.route[i])) crossings++;
-    }
+    for (const [a,b] of lineLegs(line)) if (segmentsCross(from,to,a,b)) crossings++;
   }
   return crossings;
 }
@@ -865,9 +874,7 @@ export function countCrossings(state: SubwayState, playerId: string, from: Point
 export function countAnyCrossings(state: SubwayState, from: Point, to: Point): number {
   let crossings = 0;
   for (const { line } of allLines(state)) {
-    for (let i = 1; i < line.route.length; i++) {
-      if (segmentsCross(from, to, nodePoint(line.route[i - 1]), nodePoint(line.route[i]))) crossings++;
-    }
+    for (const [a,b] of lineLegs(line)) if (segmentsCross(from,to,a,b)) crossings++;
   }
   return crossings;
 }
@@ -941,9 +948,13 @@ export function routeContacts(
   }
 
   for (const { line, playerId: ownerId } of opposing) {
-    for (let i = 1; i < line.route.length; i++) {
-      const a = line.route[i - 1];
-      const b = line.route[i];
+    for (const [a,b] of lineLegs(line)) {
+      // Physical bend/worksite vertices are not pegs, but touching or passing
+      // through them still costs contact. Coordinate keys prevent double fees.
+      for(const vertex of [a,b])if(!samePoint(vertex,from)&&pointOnSegment(vertex,from,to)) {
+        const key=`${ownerId}:${contactKey(vertex.x,vertex.y)}`;
+        if(!found.has(key))found.set(key,{key,ownerId,kind:'endpoint',x:vertex.x,y:vertex.y});
+      }
       if (segmentsCross(from, to, a, b)) {
         const at = intersectionOf(from, to, a, b);
         const key = `${ownerId}:${contactKey(at.x, at.y)}`;
@@ -1037,44 +1048,7 @@ export function validateNode(
 
   if (starter || !myLine.route.length) return null;
 
-  // ---- Ordered recipe geometry ---------------------------------------------
-  const required = contract.recipe[segmentsBuilt(myLine)];
-  const fromNode = myLine.route[myLine.route.length - 1];
-  const fromPos = nodePoint(fromNode);
-  const toPos = targetPoint(p, slot, station);
-  // Only the immediately preceding segment may meet the new one at its start.
-  // Other colors (including this company's) remain legal contacts.
-  for (let i = 1; i < myLine.route.length - 1; i++) {
-    const a = nodePoint(myLine.route[i - 1]), b = nodePoint(myLine.route[i]);
-    if (segmentsCross(fromPos, toPos, a, b) || pointOnSegment(toPos, a, b) || pointOnSegment(a, fromPos, toPos) || pointOnSegment(b, fromPos, toPos)) {
-      return "A line cannot cross or rejoin its own color.";
-    }
-  }
-  const span = distanceBetween(fromPos, toPos);
-  if (!lengthMatches(span, required)) {
-    return `Segment ${segmentsBuilt(myLine) + 1} must span ${required} pegs (this one spans ${span.toFixed(1)}).`;
-  }
-  if (myLine.route.length >= 2) {
-    const turn = angleChange(nodePoint(myLine.route[myLine.route.length - 2]), fromPos, toPos);
-    if (turn > SUBWAY_CONFIG.geometry.maxTurnDegrees + EPS) {
-      return `A line may turn at most ${SUBWAY_CONFIG.geometry.maxTurnDegrees}° (this turns ${Math.round(turn)}°).`;
-    }
-  }
-
-  // ---- The one route-on-route prohibition that survives ---------------------
-  // Coincident strings have no finite contact count and cannot be told apart on
-  // the board, so an exact collinear overlap stays illegal — for anyone's route,
-  // including this company's own.
-  const from = fromNode;
-  for (const { line } of allLines(state)) {
-    for (let i = 1; i < line.route.length; i++) {
-      if (segmentsOverlap(from, p, line.route[i - 1], line.route[i])) {
-        return "A string cannot lie on top of an existing string.";
-      }
-    }
-  }
-
-  return null;
+  return validatePath(state,playerId,lineIndex,[p]);
 }
 
 /** An exact grid hole a line may legally go next. */
@@ -1100,7 +1074,7 @@ export function legalTargets(
 export function hasLegalMove(state: SubwayState, playerId: string, lineIndex: number): boolean {
   const line = state.players[playerId]?.lines[lineIndex];
   if (!line || lineComplete(line)) return false;
-  return legalTargets(state, playerId, lineIndex, line.route.length === 0).length > 0;
+  return line.route.length===0?legalTargets(state,playerId,lineIndex,true).length>0:!!findBendMove(state,playerId,lineIndex);
 }
 
 /** Lines this company could still legally build on this period. */
@@ -1633,7 +1607,10 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       if (ctx.room.players.length < 2 || ctx.room.players.length > 4) return state;
       // Rebuild seats from the live room so lazily-initialized state can never
       // strand a player outside the game. First four joiners become companies.
+      if(action.payload?.bendMode!==undefined&&!isBendMode(action.payload.bendMode))return state;
       const fresh = initialState(ctx.room.players);
+      fresh.bendMode=action.payload?.bendMode??'straight';
+      for(const p of Object.values(fresh.players))p.bendTokens=fresh.bendMode==='tokens'?3:0;
       fresh.startedAt = ctx.now();
       fresh.phase = "PROCUREMENT";
       fresh.market.rows = {engineering:[], scheduling:[]};
@@ -1761,7 +1738,14 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
 
       const pt = { x: action.payload?.x ?? -1, y: action.payload?.y ?? -1 };
       const slot = action.payload?.slot;
-      if (validateNode(s, me.id, lineIndex, pt, false, slot)) return state;
+      const bends=action.payload?.bends??[];
+      if(!Array.isArray(bends)||bends.length>7||typeof action.payload?.pause!=='undefined'&&typeof action.payload.pause!=='boolean')return state;
+      const pause=action.payload?.pause===true;
+      const points=[...bends,pt];
+      if(validatePath(s,me.id,lineIndex,points,pause))return state;
+      const extraTokens=s.bendMode==='tokens'?tokenCost(s,me.id,bends.length):0;
+      if(s.bendMode==='tokens'){me.money-=extraTokens;me.bendTokens=Math.max(0,(me.bendTokens??0)-bends.length);}
+
 
       const from = line.route[line.route.length - 1];
 
@@ -1769,7 +1753,7 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       // contacts are free; each distinct opposing contact is $1M to its owner,
       // and Construction is the one phase allowed to go into debt (DEC-018).
       const station = stationAt(pt, s.stations);
-      const contacts = routeContacts(s, me.id, from, pt, lineIndex);
+      const contacts = pathContacts(s,me.id,lineIndex,points,pause);
       const toll = contactToll(contacts);
       if (toll > 0) {
         me.money -= toll;
@@ -1779,15 +1763,19 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       for(const contact of contacts.filter(c=>c.kind==='station')) {
         (me.stationAccess??=[]).push({contractId:line.contractId,ownerId:contact.ownerId,anchors:contact.stationAnchors!});
       }
-      me.properCrossings += countAnyCrossings(s, nodePoint(from), targetPoint(pt, slot, station));
-      line.route.push({
-        ...pt,
-        ...(station ? { stationId: station.id } : {}),
-      });
+      const start=line.work?.at(-1)??from;
+      me.properCrossings+=pathLegs([start,...points]).reduce((n,[a,b])=>n+countAnyCrossings(s,a,b),0);
+      if(pause)line.work=[...(line.work??[]),pt];
+      else {
+        const via=[...(line.work??[]),...bends];
+        line.route.push({...pt,...(station?{stationId:station.id}:{}),...(via.length?{via}: {})});
+        line.work=undefined;
+      }
 
       // Legal BUILD rejects completed lines; Undo restores the prior balance.
       if (lineComplete(line)) me.money += SUBWAY_CONFIG.completionReward;
       const payments:MoneyEvent['payments']=contacts.map(c=>({from:me.id,to:c.ownerId,amount:SUBWAY_CONFIG.contact.toll,reason:c.kind==='station'?'Station access':'Line contact'}));
+      if(extraTokens)payments.push({from:me.id,amount:extraTokens,reason:'Bend tokens'});
       if(lineComplete(line))payments.push({from:'bank',to:me.id,amount:SUBWAY_CONFIG.completionReward,reason:'Line completed'});
       if(payments.length)recordMoney(s,me.id,payments);
       if (!s.firstCompletedPlayerId && me.lines.length === 3 && allLinesComplete(me)) s.firstCompletedPlayerId = me.id;
@@ -1808,10 +1796,10 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
         "notice",
         (lineComplete(line)
           ? `${me.name} completed the ${contract.name} at ${where}! +$${SUBWAY_CONFIG.completionReward}M completion reward.`
-          : `${me.name} extended the ${contract.name} to ${where}.`) + tollNote,
+          : pause?`${me.name} paused ${contract.name} at a bend. Hire this line again to finish.`:`${me.name} extended the ${contract.name} to ${where}.`) + tollNote,
         me.id
       );
-      const record = undoRecord(state, me.id, "build", `${contract.name} node`);
+      const record = undoRecord(state, me.id, "build", `${contract.name} ${pause?'worksite':'node'}`);
 
       prunePendingActions(s, me.id);
       if (constructionExhausted(s)) {

@@ -3,7 +3,7 @@ import { destinationById, lineComplete, objectiveProgress, type SubwayPlayer, ty
 import { engineeringPotential, missionPotential } from './objectiveGuidance';
 import { ENGINEERING_CARDS } from './engineering';
 
-export const AUDIT_POLICY_VERSION = '4';
+export const AUDIT_POLICY_VERSION = '5';
 export const completionGoals = new Set(ENGINEERING_CARDS.filter(c=>c.tags.includes('Complete Line')).map(c=>c.id));
 export function auditPotential(s:SubwayState, me:SubwayPlayer, cardId:string):number {
   const owned=me.engineeringHand.includes(cardId)||me.destinationHand.includes(cardId);

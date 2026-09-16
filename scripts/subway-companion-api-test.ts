@@ -18,12 +18,15 @@ async function main() {
   assert.ok(joined.every(r=>r.ok),JSON.stringify(joined));
   const state=await (await GET(new NextRequest(`http://localhost/api/subway-companion?roomCode=${roomCode}`,{headers:{Authorization:`Bearer ${tablet}`}}))).json();
   assert.equal(state.data.room.players.length,2,"concurrent joins survive CAS");
-  const started=await (await post({operation:"action",roomCode,type:"START_GAME",requestId:"start",revision:state.data.revision},tablet)).json();
+  const started=await (await post({operation:"action",roomCode,type:"START_GAME",payload:{bendMode:"tokens"},requestId:"start",revision:state.data.revision},tablet)).json();
   assert.equal(started.ok,true,JSON.stringify(started));
   assert.equal(started.data.view.game.phase,"PROCUREMENT");
+  assert.equal(started.data.view.game.bendMode,"tokens");
   const phone=joined[0].data;
   const privateView=await (await GET(new NextRequest(`http://localhost/api/subway-companion?roomCode=${roomCode}`,{headers:{Authorization:`Bearer ${phone.token}`}}))).json();
   assert.equal(privateView.data.game.players[phone.view.playerId].destinationHand.length,2);
+  assert.equal(privateView.data.game.bendMode,"tokens");
+  assert.equal(privateView.data.game.players[phone.view.playerId].bendTokens,3);
   assert.ok(Object.values(privateView.data.game.players).filter((p:any)=>p.id!==phone.view.playerId).every((p:any)=>p.destinationHand.length===0));
   assert.equal((await GET(new NextRequest(`http://localhost/api/subway-companion?roomCode=${roomCode}`))).status,401);
   assert.equal((await legacyGet(new NextRequest(`http://localhost/api/get-room?roomCode=${roomCode}`))).status,403,"old room API must not leak private state");
@@ -31,6 +34,7 @@ async function main() {
   assert.equal((await post({roomCode,playerId:view.room.hostId,type:"START_GAME"},"",legacyAction)).status,403);
   const rejoined=await (await post({operation:"join",roomCode,role:"phone"},phone.token)).json();
   assert.equal(rejoined.data.view.room.players.length,2);
+  assert.equal(rejoined.data.view.game.bendMode,"tokens");
   assert.equal(rejoined.data.view.playerId,phone.view.playerId,"recovery keeps the same company");
   const pad=await (await post({operation:"join",roomCode,role:"tablet"},tablet)).json();
   assert.equal(pad.data.view.role,"tablet");

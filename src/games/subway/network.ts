@@ -1,3 +1,4 @@
+import {incomingPath,pathLength} from './paths';
 import type { Point, PlayerLine, SubwayPlayer } from "./config";
 
 /** Neighborhood identity never substitutes for physical node proximity. */
@@ -104,7 +105,7 @@ export function longestNetwork(player: SubwayPlayer): number {
   for (const line of player.lines) for (let i = 1; i < line.route.length; i++) {
     const a = line.route[i - 1], b = line.route[i];
     const from = transfers.get(networkNodeKey(a))!, to = transfers.get(networkNodeKey(b))!;
-    const bit = 1 << edge++, length = Math.hypot(b.x - a.x, b.y - a.y);
+    const bit = 1 << edge++, length = pathLength(incomingPath(a,b));
     adjacent.set(from, [...(adjacent.get(from) ?? []), { to, bit, length }]);
     adjacent.set(to, [...(adjacent.get(to) ?? []), { to: from, bit, length }]);
   }

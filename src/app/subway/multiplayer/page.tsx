@@ -1,5 +1,7 @@
 "use client";
 
+import {BendModeSelect} from "@/games/subway/BendModeSelect";
+import {type BendMode} from "@/games/subway/bends";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { PhoneStatus, PlayerPads, PublicLeaders } from "@/games/subway/PlayerStatus";
@@ -26,6 +28,7 @@ const button = "min-h-12 rounded-xl bg-teal-700 px-4 py-3 font-bold text-white d
 const input = "w-full rounded-xl border border-slate-500 bg-slate-900 p-3 text-white";
 
 export default function SubwayMultiplayerPage() {
+  const [bendMode,setBendMode]=useState<BendMode>('straight');
   const [identity,setIdentity] = useState<Identity|null>(null);
   const [auto,setAuto]=useState(true);
   const botRetryAfter=useRef(0);
@@ -192,7 +195,8 @@ export default function SubwayMultiplayerPage() {
     <h1 className="text-2xl font-bold">Companies at the table</h1>
     <div className="rounded-xl bg-slate-800 p-4"><p className="text-sm">Join on each phone at</p><p className="break-all font-bold">{typeof window!=="undefined"?window.location.host:""}/subway/multiplayer</p><p className="text-5xl font-black tracking-widest">{view.room.roomCode}</p>{view.lab&&<p className="mt-3">Choose <strong>My testing phone · Playtest Lab</strong> on your phone to control your managed companies. First connection needs only this room code. Friends with reserved seats choose My phone.</p>}</div>
     {view.room.players.map(p=><p key={p.id} className="rounded-xl bg-white/10 p-4">{p.name} · ready</p>)}
-    {tablet?<button className={button} disabled={controlsDisabled||view.room.players.length<2} onClick={()=>run("START_GAME")}>Start with {view.room.players.length} companies</button>:<p>Keep this phone with you. The iPad starts the game.</p>}
+    {tablet&&<BendModeSelect value={bendMode} onChange={setBendMode} disabled={controlsDisabled}/>}
+    {tablet?<button className={button} disabled={controlsDisabled||view.room.players.length<2} onClick={()=>run("START_GAME",{bendMode})}>Start with {view.room.players.length} companies</button>:<p>Keep this phone with you. The iPad starts the game.</p>}
   </main>;
 
   if(tablet) return <main className="space-y-2 p-2" style={{paddingBottom:padsHeight}}>{header}{settings}{notices}
