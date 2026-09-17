@@ -1,7 +1,7 @@
 "use client";
 import {remainingLength,BEND_LABELS} from './bends';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { contractOf, segmentsBuilt, nextCompanyId, type SubwayState, type MoneyEvent } from './config';
+import { SUBWAY_CONFIG, contractOf, segmentsBuilt, nextCompanyId, type SubwayState, type MoneyEvent } from './config';
 import { moneyChanges, publicStandings } from './publicStatus';
 
 export function PublicLeaders({game,dark=false}:{game:SubwayState;dark?:boolean}) {
@@ -52,7 +52,7 @@ export function PhoneStatus({game,playerId,details=false}:{game:SubwayState;play
   if(!me)return null;
   return <section aria-label="Your company status" className="rounded-xl bg-[#193640] p-3 text-white shadow-lg">
     <style>{`@keyframes subway-hired {50%{box-shadow:0 0 0 2px currentColor;background:#ffffff22}} .subway-hired{animation:subway-hired 1.8s ease-in-out infinite} @media(prefers-reduced-motion:reduce){.subway-hired{animation:none;outline:2px solid currentColor}}`}</style>
-    <div className="flex flex-wrap justify-between gap-1 text-xs"><b>{me.name} · ${me.money}M</b>{details&&<span>Your network {standings.lengths[playerId].toFixed(1)} spaces · Stations in leading transfer stations {standings.stationCounts[playerId]}</span>}</div>
+    <div className="flex flex-wrap items-center justify-between gap-1 text-xs"><b className="flex items-center gap-1.5">{me.name} · ${me.money}M<span aria-label={`Round ${game.currentPeriod} of ${SUBWAY_CONFIG.timelinePeriods}`} title={`Round ${game.currentPeriod} of ${SUBWAY_CONFIG.timelinePeriods}`} className="rounded bg-amber-300 px-1 text-[10px] font-black leading-4 text-slate-900">R{Math.min(game.currentPeriod,SUBWAY_CONFIG.timelinePeriods)}</span></b>{details&&<span>Your network {standings.lengths[playerId].toFixed(1)} spaces · Stations in leading transfer stations {standings.stationCounts[playerId]}</span>}</div>
     {details&&<><p className="mt-1 text-xs">{BEND_LABELS[game.bendMode??'straight']}{game.bendMode==='tokens'?` · ${me.bendTokens??0} bend tokens`:''}</p><div className="my-2"><PublicLeaders game={game}/></div></>}
     <div className="mt-1 space-y-1">{me.lines.map((l,index)=>{const c=contractOf(l)!,built=segmentsBuilt(l),left=c.recipe.length-built;const hired=game.phase==='CONSTRUCTION'&&nextCompanyId(game)===playerId&&me.crewsHired&&me.pendingActions.includes(index);return <div key={c.id} data-hired-line={hired?c.id:undefined} className={`flex flex-wrap items-center gap-x-2 rounded px-1 text-[11px] ${hired?'subway-hired':''}`} aria-label={`${c.name}: ${built} of ${c.recipe.length} segments built; ${c.recipe.length+1-l.route.length} stations and ${left} segments left${hired?'; hired to build':''}`}>
       <b className="w-7 border-b-4" style={{borderColor:c.color}}>{c.code}</b>

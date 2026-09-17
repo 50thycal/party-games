@@ -127,7 +127,10 @@ console.log('GZZF deadlines, completion economics, starter occupancy, segment re
  const pads=renderToStaticMarkup(<PlayerPads game={s} roomKey="fixture"/>);
  assert.match(pads,/Player panels/);assert.doesNotMatch(pads,/segments left|Diamond = starter/);
  const destination=renderToStaticMarkup(<DestinationCardFace card="dest-market-grand" color="#fff"/>);
- assert.match(destination,/any order/);assert.match(destination,/No start or finish here required/);
+ assert.match(destination,/Any order/);assert.match(destination,/Market/);assert.match(destination,/Grand Central/);
+ assert.match(destination,/Pays \$2M the first time/);assert.doesNotMatch(destination,/Connect these neighborhoods through your own network\./,'slim face drops the description paragraph');
+ assert.equal((destination.match(/data-engineering-art="dest-/g)??[]).length,2,'one picture per neighborhood');
+ assert.match(renderToStaticMarkup(<PhoneStatus game={s} playerId={id}/>),/>R4</,'phone header carries the round badge');
 }
 
 // Bent strings follow actual legs; vertices are never rendered as scoring pegs.

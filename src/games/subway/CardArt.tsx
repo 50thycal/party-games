@@ -6,6 +6,7 @@ export { EngineeringArt } from "./EngineeringArt";
 import {
   ENGINEERING_CARDS,
   destinationById,
+  destinationReward,
   engineeringById,
   stationById,
   type DestinationCard,
@@ -28,7 +29,7 @@ function EngineeringIllustration({id}:{id:string}) {
   const illustratedId = ({perimeter:"crosstown-service", "three-fronts":"network", "four-corners":"parallel"} as Record<string,string>)[id] ?? id;
   const index = ENGINEERING_ART_IDS.findIndex(value => value === illustratedId);
   if (index < 0) return null;
-  return <div aria-hidden="true" data-engineering-art={id} className="mt-2 w-full rounded-lg" style={{
+  return <div aria-hidden="true" data-engineering-art={id} className="w-full rounded-lg" style={{
     aspectRatio:"1", backgroundImage:"url(/subway/engineering-cards.png)",
     backgroundSize:"600% 400%", backgroundPosition:`${(index % 6)*20}% ${Math.floor(index/6)*100/3}%`,
   }} />;
@@ -146,36 +147,33 @@ export function DestinationCardFace({
     missed: "border-purple-200 opacity-60",
   };
 
+  // Slim face (DGLE playtest): the family label, the neighborhood pictures and
+  // their names. Everything else lives behind Rules, so the card stays short.
   const body = (
     <>
-      <div className="flex items-start justify-between gap-1">
-        <strong className="text-[13px] leading-tight text-stone-900">{resolved.name}</strong>
+      <div className="flex items-center justify-between gap-1">
+        <p className="text-[10px] font-black uppercase tracking-wider text-purple-700">Destination</p>
         <span className="shrink-0 rounded bg-purple-700 px-1.5 py-0.5 text-[10px] font-black text-white">
-          +{resolved.vp}
+          +{resolved.vp} <span className="text-[8px]">VP</span>
         </span>
       </div>
-      <p className="text-[10px] font-black uppercase tracking-wider text-purple-700">Destination</p>
-      <div className="flex gap-1">{stations.map(station => <EngineeringIllustration key={station.id} id={`dest-${station.id}`}/>)}</div>
-      <div className="mt-2 flex flex-wrap gap-1" aria-label="Required neighborhoods, any order">{stations.map(station=><span key={station.id} className="rounded-full border border-purple-300 bg-purple-50 px-2 py-1 text-xs font-bold text-purple-950">{station.name}</span>)}</div>
-      <p className="mt-2 text-[11px] font-bold text-purple-800">Connect all these neighborhoods · any order.</p>
-      <p className="mt-1 text-[11px] text-stone-700">No start or finish here required. Your connected lines may work together, even unfinished.</p>
-      {!compact && <p className="mt-1.5 text-[11px] leading-snug text-stone-600">{resolved.description}</p>}
-      <p className="mt-1 text-[11px] font-semibold leading-snug text-stone-700">{resolved.requirement}</p>
-      {footer}
+      <div className="mt-1 flex gap-1" aria-label={`Neighborhoods: ${resolved.name}`}>{stations.map(station => <div key={station.id} className="min-w-0 flex-1 text-center">
+        <EngineeringIllustration id={`dest-${station.id}`}/>
+        <p className="mt-1 truncate text-[11px] font-bold text-purple-950">{station.name}</p>
+      </div>)}</div>
     </>
   );
 
   const shell = `w-full rounded-xl border-2 bg-[#fdf7ff] p-2.5 text-left shadow-sm ${chrome[state]}`;
-
-  if (!onClick) return <div className={shell}>{body}</div>;
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`${shell} transition ${disabled ? "opacity-45" : "hover:-translate-y-0.5 hover:border-purple-400"}`}
-    >
-      {body}
-    </button>
-  );
+  // Never nest the Rules disclosure inside a button.
+  return <div className={shell} data-destination-card={resolved.id}>
+    {onClick ? <button type="button" onClick={onClick} disabled={disabled} aria-label={`${resolved.name}, ${resolved.vp} VP`}
+      className={`block w-full rounded text-left transition ${disabled ? "opacity-45" : "hover:bg-purple-50"}`}>{body}</button> : body}
+    {!compact && <details className="mt-1.5 border-t border-purple-200 text-[11px] text-stone-700">
+      <summary className="min-h-8 cursor-pointer py-1.5 font-semibold">Rules</summary>
+      <p className="leading-snug">{resolved.requirement}</p>
+      <p className="mt-1 leading-snug">Pays ${destinationReward(resolved.id)}M the first time your network connects every neighborhood. Scores {resolved.vp} VP at game end if still connected.</p>
+    </details>}
+    {footer}
+  </div>;
 }
