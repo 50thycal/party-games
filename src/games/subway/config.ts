@@ -32,7 +32,7 @@ import type { BaseAction, GameContext, Player } from "@/engine/types";
 // ============================================================================
 
 /** Bumped when the state shape changes; older rooms must restart. */
-export const SUBWAY_STATE_VERSION = 25;
+export const SUBWAY_STATE_VERSION = 26;
 
 // ----------------------------------------------------------------------------
 // Tunable configuration
@@ -45,6 +45,19 @@ export const SUBWAY_CONFIG = {
    */
   startingMoney: 40,
   completionReward: 3,
+  /**
+   * Cash paid the moment a held Destination mission is first connected: pair
+   * and triple missions pay differently. Paid in the authoritative BUILD and
+   * reversed by placement Undo, exactly like the line completion reward.
+   */
+  destinationCompletionReward: { pair: 2, triple: 3 },
+  /**
+   * Playtest lever (DGLE, 2026-09-17). When false, crews must be paid from cash
+   * on hand and only contact tolls can push a company below zero. Set to true to
+   * restore the previous rule where hiring could create same-turn bridging debt
+   * that completion cash repaid before scoring.
+   */
+  crewDebtAllowed: false,
   timelinePeriods: 9,
   minContractsPerPlayer: 3,
   maxContractsPerPlayer: 3,
@@ -380,6 +393,10 @@ export type SubwayPlayer = {
   /** Private missions scored across the connected company network. */
   destinationHand: string[];
   destinationPurchased?: boolean;
+  /** One extra random Engineering goal may be bought per game. */
+  engineeringPurchased?: boolean;
+  /** Destination missions whose completion cash has already been paid. */
+  destinationsPaid?: string[];
   /** Destination cards locked to a line at Engineering plan lock. */
   destinationCommitments: DestinationCommitment[];
   schedulingHand: SchedulingCardId[];
@@ -555,6 +572,7 @@ export type SubwayActionType =
   | "PROCURE"
   | "DRAFT_CARD"
   | "BUY_DESTINATION"
+  | "BUY_ENGINEERING"
   | "BUY_SURVEYS"
   | "HIRE_CREWS"
   | "PICK_DESTINATION"
@@ -1114,6 +1132,11 @@ export function destinationMet(p: SubwayPlayer, mission: string | DestinationCom
 /** Destination cards this company has drafted, assigned or not. */
 export const destinationsHeld = (p: SubwayPlayer): number =>
   p.destinationHand.length + p.destinationCommitments.length;
+export const destinationsHeldIds = (p: SubwayPlayer): string[] =>
+  Array.from(new Set([...p.destinationHand, ...p.destinationCommitments.map(c => c.cardId)]));
+/** Cash paid when a Destination mission is first connected. */
+export const destinationReward = (id: string): number =>
+  (destinationById(id)?.stationIds.length ?? 2) >= 3 ? SUBWAY_CONFIG.destinationCompletionReward.triple : SUBWAY_CONFIG.destinationCompletionReward.pair;
 
 /**
  * Whose Destination pick it is. Derived rather than stored, so an undo or a
@@ -1238,8 +1261,8 @@ export function scoreGame(state: SubwayState, now: number): SubwayState {
 
 
 
-    // Construction debt. Only route contacts can push a company below zero, and
-    // money received from the opposition pays it back down (DEC-018).
+    // Construction debt. With crewDebtAllowed off only route contacts can push a
+    // company below zero; money received from the opposition pays it back down (DEC-018).
     if (p.money < 0) {
       items.push({
         label: `Construction debt ($${-p.money}M owed)`,
@@ -1521,6 +1544,37 @@ export function scheduledLines(p: SubwayPlayer, period: number): number[] {
 export function activationCost(_p: SubwayPlayer, count: number): number {
   return count === 0 ? 0 : count * (count + 1) / 2;
 }
+/** Whether this company can hire that many crews under the current debt rule. */
+export const canAffordCrews = (p: SubwayPlayer, count: number): boolean =>
+  count <= 0 || SUBWAY_CONFIG.crewDebtAllowed || activationCost(p, count) <= p.money;
+/** Largest crew count, up to `count`, that the current debt rule lets this company hire. */
+export function affordableCrews(p: SubwayPlayer, count: number): number {
+  let n = Math.max(0, count);
+  while (n > 0 && !canAffordCrews(p, n)) n--;
+  return n;
+}
+/** Why this company cannot buy an extra card right now; undefined when it can. Shared by reducer and buttons. */
+export function cardPurchaseBlocker(s: SubwayState, playerId: string, deck: "engineering" | "destination"): string | undefined {
+  const me = s.players[playerId];
+  if (!me || s.phase !== "CONSTRUCTION") return "Cards are bought during Construction.";
+  if (s.resolveQueue[0] !== playerId) return "Wait for your construction turn.";
+  if (me.crewsHired) return "Buy before hiring crews.";
+  if (deck === "destination" ? me.destinationPurchased : me.engineeringPurchased) return `One extra ${deck === "destination" ? "Destination" : "Engineering"} card per game.`;
+  if (me.money < SUBWAY_CONFIG.destinationPurchaseCost) return `Needs $${SUBWAY_CONFIG.destinationPurchaseCost}M in cash.`;
+  const available = deck === "destination" ? s.destinationDeck.length > 0 : s.market.decks.engineering.some(id => !me.engineeringHand.includes(id));
+  if (!available) return "No cards left to draw.";
+  return undefined;
+}
+/** Pay every held Destination mission that is connected but not yet paid. Returns the paid ids. */
+function payConnectedDestinations(me: SubwayPlayer, payments: MoneyEvent['payments']): string[] {
+  const newlyMet=destinationsHeldIds(me).filter(id=>!(me.destinationsPaid??[]).includes(id)&&destinationMet(me,id));
+  for(const id of newlyMet){
+    const reward=destinationReward(id);
+    me.money+=reward;(me.destinationsPaid??=[]).push(id);
+    payments.push({from:'bank',to:me.id,amount:reward,reason:'Destination connected'});
+  }
+  return newlyMet;
+}
 function beginConstructionPeriod(s: SubwayState, now: number, opening = false): SubwayState {
   if (constructionExhausted(s)) return toScoring(s, now, "NO_LEGAL_CONSTRUCTION");
   if (s.currentPeriod > SUBWAY_CONFIG.timelinePeriods) return toScoring(s, now, "ROUND_LIMIT");
@@ -1674,12 +1728,29 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       return s;
     }
 
+    case "BUY_ENGINEERING": {
+      if (!me || cardPurchaseBlocker(s, me.id, "engineering") || action.payload?.period !== s.currentPeriod) return state;
+      // The deck is already shuffled: the top goal this company does not hold is the random draw.
+      const index = s.market.decks.engineering.findIndex(id => !me.engineeringHand.includes(id));
+      if (index < 0) return state;
+      me.money -= SUBWAY_CONFIG.destinationPurchaseCost;
+      me.engineeringHand.push(s.market.decks.engineering.splice(index, 1)[0]);
+      me.engineeringPurchased = true;
+      recordMoney(s,me.id,[{from:me.id,amount:SUBWAY_CONFIG.destinationPurchaseCost,reason:'Engineering purchase'}]);
+      pushEvent(s, ctx.now(), "CARD", "notice", `${me.name} bought a random Engineering goal for $${SUBWAY_CONFIG.destinationPurchaseCost}M.`, me.id);
+      return s;
+    }
+
     case "BUY_DESTINATION": {
-      if (s.phase !== "CONSTRUCTION" || !me || s.resolveQueue[0] !== me.id || me.crewsHired || me.destinationPurchased || me.money < SUBWAY_CONFIG.destinationPurchaseCost || !s.destinationDeck.length || action.payload?.period !== s.currentPeriod) return state;
+      if (!me || cardPurchaseBlocker(s, me.id, "destination") || action.payload?.period !== s.currentPeriod) return state;
       me.money -= SUBWAY_CONFIG.destinationPurchaseCost;
       me.destinationHand.push(s.destinationDeck.shift()!);
       me.destinationPurchased = true;
-      pushEvent(s, ctx.now(), "CARD", "notice", `${me.name} bought a private Destination mission for $5M.`, me.id);
+      // A drawn mission the network already connects pays at once, never later.
+      const payments:MoneyEvent['payments']=[{from:me.id,amount:SUBWAY_CONFIG.destinationPurchaseCost,reason:'Destination purchase'}];
+      const paid=payConnectedDestinations(me,payments);
+      recordMoney(s,me.id,payments);
+      pushEvent(s, ctx.now(), "CARD", "notice", `${me.name} bought a private Destination mission for $5M.${paid.length?` It is already connected: +$${paid.reduce((n,id)=>n+destinationReward(id),0)}M.`:''}`, me.id);
       return s;
     }
 
@@ -1721,6 +1792,8 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       const indexes = action.payload?.lineIndexes;
       if (!Array.isArray(indexes) || indexes.length > 3 || new Set(indexes).size !== indexes.length || indexes.some(i => !Number.isInteger(i) || !buildableLines(s,me.id).includes(i))) return state;
       const cost = activationCost(me,indexes.length);
+      // Crews are paid from cash on hand unless the bridging-debt rule is on.
+      if (!canAffordCrews(me, indexes.length)) return state;
       me.money -= cost;
       me.crewPaid = (me.crewPaid ?? 0) + cost;
       me.crewsHired = true;
@@ -1777,6 +1850,8 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       const payments:MoneyEvent['payments']=contacts.map(c=>({from:me.id,to:c.ownerId,amount:SUBWAY_CONFIG.contact.toll,reason:c.kind==='station'?'Transfer access':'Line contact'}));
       if(extraTokens)payments.push({from:me.id,amount:extraTokens,reason:'Bend tokens'});
       if(lineComplete(line))payments.push({from:'bank',to:me.id,amount:SUBWAY_CONFIG.completionReward,reason:'Line completed'});
+      // Destination missions pay once, the first time the network connects them.
+      const newlyMet=payConnectedDestinations(me,payments);
       if(payments.length)recordMoney(s,me.id,payments);
       if (!s.firstCompletedPlayerId && me.lines.length === 3 && allLinesComplete(me)) s.firstCompletedPlayerId = me.id;
       me.pendingActions = removeOne(me.pendingActions, lineIndex);
@@ -1796,7 +1871,8 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
         "notice",
         (lineComplete(line)
           ? `${me.name} completed the ${contract.name} at ${where}! +$${SUBWAY_CONFIG.completionReward}M completion reward.`
-          : pause?`${me.name} paused ${contract.name} at a bend. Hire this line again to finish.`:`${me.name} extended the ${contract.name} to ${where}.`) + tollNote,
+          : pause?`${me.name} paused ${contract.name} at a bend. Hire this line again to finish.`:`${me.name} extended the ${contract.name} to ${where}.`) + tollNote
+          + (newlyMet.length?` Destination${newlyMet.length===1?'':'s'} connected: +$${newlyMet.reduce((n,id)=>n+destinationReward(id),0)}M.`:""),
         me.id
       );
       const record = undoRecord(state, me.id, "build", `${contract.name} ${pause?'worksite':'station'}`);

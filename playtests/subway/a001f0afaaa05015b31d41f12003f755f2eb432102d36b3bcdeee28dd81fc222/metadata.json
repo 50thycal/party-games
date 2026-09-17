@@ -1,0 +1,18 @@
+{
+  "id": "a001f0afaaa05015b31d41f12003f755f2eb432102d36b3bcdeee28dd81fc222",
+  "path": "a001f0afaaa05015b31d41f12003f755f2eb432102d36b3bcdeee28dd81fc222/original.txt",
+  "source": "human",
+  "stateVersion": 25,
+  "rules": null,
+  "build": null,
+  "players": 2,
+  "actions": 68,
+  "cohort": "reference",
+  "replay": "unavailable",
+  "validation": "legacy",
+  "comparisonEligible": false,
+  "archivedAt": "2026-09-17T04:52:49.713Z",
+  "reportedRoom": "DGLE",
+  "exportFormat": "legacy-markdown",
+  "sourceEvidence": "Controller table: 33 and 33 human gameplay actions, zero bot/unknown; host start/scoring actions excluded."
+}

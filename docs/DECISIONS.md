@@ -1887,3 +1887,36 @@ out of this experiment. Straight remains an explicit selectable mode.
 work belongs to the line. Geometry/drawing use physical legs; scoring sees real
 pegs and completed path lengths. State v25 restarts older rooms; bot v6/audit v5
 identify the changed policy/rules. Browser device validation remains unavailable.
+
+### DEC-056 — Crews paid from cash, Destination completion cash and public pad card glyphs
+
+**Date:** 2026-09-17
+**Status:** Accepted by owner for playtest; balance not certified.
+
+**Context:** The DGLE playtest (playtests/subway, room DGLE) showed the debt rule never
+bit: hiring into debt and repaying it with same-turn completion cash cost nothing, while
+both companies were cash-starved from round 3 and one could afford only one crew per round
+late. The owner also asked for card visibility on the shared iPad and an extra-card button.
+
+**Decision:** Crews must be paid from cash on hand; only contact tolls can take a company
+below zero. `SUBWAY_CONFIG.crewDebtAllowed` keeps the previous bridging-debt rule available
+as a one-line revert because the owner found that late-game liquidity strategically
+interesting. Connecting a held Destination mission pays $2M (pair) or $3M (triple) once, in
+the authoritative BUILD, reversed by Undo, exactly like line completion cash. One extra random
+Engineering goal may be bought per game for $5M beside the existing Destination purchase, from
+the iPad or the phone. Every company's held Engineering and Destination card ids are public
+on the shared iPad player pads as category glyphs and neighborhood chips; decks stay hidden.
+
+**Rationale:** Ending-cash debt with same-turn completion income is a free loan; requiring
+cash for crews removes the loan while destination cash replaces roughly the liquidity that
+borrowing supplied. Public card glyphs are an owner product decision that trades card privacy
+for table readability; highlights already exposed missions during a company's turn.
+
+**Alternatives considered:** A rate change to the debt penalty (does not touch same-turn
+bridging); forbidding all debt (a $0 company would lose the access rule DEC-017 exists for);
+private pads with an owner-only card list (rejected by the owner's request).
+
+**Consequences:** State v26 restarts older rooms. Bots clamp hires to affordable counts.
+The companion tablet projection carries card ids, and tests asserting blank tablet hands
+were changed accordingly. Destination card faces are slim everywhere; full rules sit behind
+a disclosure. Human balance acceptance of both cash rules remains necessary.

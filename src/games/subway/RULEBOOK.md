@@ -85,8 +85,9 @@ line receives **one construction activation** (normally one segment placement). 
 different lines, not extending one line twice.
 
 Hire once per turn. You cannot change your selection after paying. Hiring zero
-crews ends your turn. Crew costs and contact payments may take cash below zero.
-Debt is allowed, but expensive at scoring. Skipping or blocking a placement does
+crews ends your turn. Crews are paid from cash on hand, so you can only hire what
+you can afford this turn. Contact payments may still take cash below zero; that
+debt is allowed, but expensive at scoring. Skipping or blocking a placement does
 not refund its crew cost.
 
 ## 5. Building a line
@@ -216,7 +217,9 @@ no penalty. Cards are not assigned to individual lines; one network may fulfill
 several cards.
 
 Once per game, before hiring crews on your turn, you may buy one extra random
-Destination card for **$5 million**. You must pay without entering debt. Cards
+Destination card for **$5 million**, and once per game one extra random Engineering
+goal for **$5 million** (never a goal you already hold). The iPad's **Buy a card**
+button asks which deck to draw from. You must pay without entering debt. Cards
 remain private until results; enabling a highlight shares that selected mission
 on the iPad during your turn.
 

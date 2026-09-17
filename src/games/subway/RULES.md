@@ -9,7 +9,7 @@ A light-strategy line-building game for **2–4 companies**. Most victory points
 
 ## Game flow
 
-1. Start with **$40M and one two-neighborhood and one three-neighborhood private Destination mission**. Completing each line immediately pays **$3M**; Undo reverses that reward along with the placement.
+1. Start with **$40M and one two-neighborhood and one three-neighborhood private Destination mission**. Completing each line immediately pays **$3M**, and connecting a held Destination mission pays **$2M (pair) or $3M (triple)** the first time it is met; Undo reverses those rewards along with the placement.
 2. Draft three line contracts each, at list price, from a replenishing row of
    two/three/four choices for two/three/four players. No passing or discounts.
 3. Draft **three Engineering goals each**, choosing between two face-up cards or a blind draw.
@@ -71,7 +71,9 @@ anywhere on the board. Diagonal stations, sharing an area without nearby station
 string crossings and opponents' lines do not connect your lines.
 
 Before hiring crews on your construction turn, you may pay **$5M for one extra
-random mission, once per game**. Pay immediately; the purchase cannot create debt.
+random mission, once per game**, and separately **$5M for one extra random Engineering
+goal, once per game** (never a goal you already hold). Use the iPad's **Buy a card**
+button or your phone. Pay immediately; purchases cannot create debt.
 Missions stay private until results and score only if fulfilled. No line assignment,
 card lock, or penalty for an unfulfilled mission applies.
 
@@ -192,7 +194,7 @@ unfinished, buildable lines and hire their crews:
 
 Each selected line receives one construction activation. Hire once per turn; crew
 choices cannot be changed after payment. Zero crews ends the turn. You may
-choose different lines next round. Hiring and contact payments can create debt.
+choose different lines next round. Crews are paid from cash on hand: you cannot hire more than you can afford. Only contact payments can create debt (playtest rule; the previous bridging-debt rule is kept behind `crewDebtAllowed`).
 The displayed bill previews remaining cash and the final penalty at that balance.
 
 Every company gets a turn each round, including a company choosing no crews.

@@ -10,16 +10,19 @@ import { generateAiPlaytestReport } from "@/games/subway/report";
 import { LabControls } from "@/games/subway/LabControls";
 import { recoverableBotError } from "@/games/subway/botAutomation";
 import { nextCompanyId } from "@/games/subway/config";
+import { turnSummary, type TurnSummary } from "@/games/subway/turnSummary";
+import { BuyCardButton } from "@/games/subway/BuyCardButton";
+import { DEVICE_SESSION_KEY, DEVICE_SESSION_TOUCH_MS, parseSavedIdentity, resumeDecision, staleRoomDecision, stamped, type SavedDeviceIdentity } from "@/games/subway/deviceSession";
 import type { CompanionView } from "@/games/subway/companion";
 import { SubwayGameView } from "@/games/subway/GameView";
 import { DestinationCardFace, EngineeringCardFace } from "@/games/subway/CardArt";
 import { ContractCard } from "@/games/subway/cards";
 import { phoneGuidance } from "@/games/subway/guidance";
 import { destinationColor } from "@/games/subway/destinationColors";
-import { SUBWAY_CONFIG, contractById, contractOf, destinationMet, objectiveProgress, lineComplete, segmentsBuilt, type RouteNode } from "@/games/subway/config";
+import { SUBWAY_CONFIG, contractById, contractOf, destinationMet, destinationReward, objectiveProgress, lineComplete, segmentsBuilt, type RouteNode } from "@/games/subway/config";
 
-const KEY = "subway-companion-device-v1";
-type Identity = {roomCode:string;token:string;controllerKey?:string};
+const KEY = DEVICE_SESSION_KEY;
+type Identity = SavedDeviceIdentity;
 type Tab = "destinations" | "lines" | "engineering" | "general";
 const tabs: {id:Tab;icon:string;label:string}[] = [
   {id:"destinations",icon:"⚑",label:"Destinations"}, {id:"lines",icon:"〰",label:"Lines"},
@@ -61,6 +64,13 @@ export default function SubwayMultiplayerPage() {
     observer.observe(el);return ()=>observer.disconnect();
   },[view?.role,hasGame]);
   const [acknowledgedTurn,setAcknowledgedTurn] = useState<string|null>(null);
+  // A saved identity idle for more than the window waits here for Resume/Leave.
+  const [stale,setStale] = useState<(Identity&{name?:string})|null>(null);
+  // Flash shown to the company that just took the iPad: what happened meanwhile.
+  const [summary,setSummary] = useState<{turn:string;playerId:string;summary:TurnSummary}|null>(null);
+  useEffect(()=>{ if(!summary) return; const timer=setTimeout(()=>setSummary(null),9000); return ()=>clearTimeout(timer); },[summary]);
+  const lastTouch = useRef(0);
+  const persist = (next:Identity) => { try { localStorage.setItem(KEY,JSON.stringify(stamped(next,Date.now()))); } catch { /* Session still works. */ } };
   const sending = useRef(false);
   const latestRevision = useRef(-1);
   const accept = (next:CompanionView) => {
@@ -70,10 +80,25 @@ export default function SubwayMultiplayerPage() {
   };
   useEffect(()=>{
     setCode(new URLSearchParams(window.location.search).get("roomCode")?.toUpperCase() ?? "");
-    try {
-      const saved = JSON.parse(localStorage.getItem(KEY) ?? "null");
-      if (saved?.roomCode && saved?.token) setIdentity(saved);
-    } catch { /* Join form remains usable. */ }
+    let saved:Identity|null=null;
+    try { saved = parseSavedIdentity(localStorage.getItem(KEY)); } catch { /* Join form remains usable. */ }
+    const decision = resumeDecision(saved, Date.now());
+    if (decision === "resume") setIdentity(saved);
+    else if (decision === "ask" && saved) {
+      // Idle too long: peek once. A finished or missing room is forgotten; a
+      // live one asks before rejoining so a long break never locks anyone out.
+      const idle = saved;
+      (async () => {
+        let ok=false, phase:string|undefined, name:string|undefined;
+        try {
+          const response=await fetch(`/api/subway-companion?roomCode=${idle.roomCode}`,{headers:{Authorization:`Bearer ${idle.token}`},cache:"no-store"});
+          const json=await response.json();
+          ok=!!json.ok; phase=json.data?.game?.phase; name=json.data?.game?.players?.[json.data?.playerId]?.name;
+        } catch { ok=true; /* Offline: keep the identity and ask. */ }
+        if (staleRoomDecision(ok,phase)==="forget") { try { localStorage.removeItem(KEY); } catch { /* Nothing to clear. */ } }
+        else setStale({...idle,name});
+      })();
+    }
   },[]);
   useEffect(()=>{
     if (!identity) return;
@@ -84,7 +109,10 @@ export default function SubwayMultiplayerPage() {
         const response=await fetch(`/api/subway-companion?roomCode=${identity.roomCode}`,{headers:{Authorization:`Bearer ${identity.token}`},cache:"no-store"});
         const json=await response.json();
         if (!json.ok) throw new Error(json.message);
-        if (!cancelled) {accept(json.data);setOnline(true);}
+        if (!cancelled) {
+          accept(json.data);setOnline(true);
+          if (Date.now()-lastTouch.current>DEVICE_SESSION_TOUCH_MS) { lastTouch.current=Date.now(); persist(identity); }
+        }
       } catch { if(!cancelled) setOnline(false); }
       if(!cancelled) timer=setTimeout(poll,1000);
     };
@@ -99,7 +127,7 @@ export default function SubwayMultiplayerPage() {
       const json=await response.json();
       if(!json.ok) throw new Error(json.message);
       const next={roomCode:json.data.view.room.roomCode,token:json.data.token};
-      localStorage.setItem(KEY,JSON.stringify(next));
+      persist(next);lastTouch.current=Date.now();
       latestRevision.current=-1;setIdentity(next);accept(json.data.view);setOnline(true);
     } catch(e) {setError(e instanceof Error?e.message:"Could not join.");}
     finally {setBusy(false);}
@@ -120,7 +148,12 @@ export default function SubwayMultiplayerPage() {
       const json=await response!.json();
       if(!json.ok) throw new Error(json.message);
       accept(json.data.view);setOnline(true);
-      if(type === "ACK_COMPANY") setAcknowledgedTurn(json.data.view.turn);
+      if(type === "ACK_COMPANY") {
+        setAcknowledgedTurn(json.data.view.turn);
+        const id=typeof payload?.playerId==="string"?payload.playerId:undefined;
+        const recap=id&&view.game?turnSummary(view.game,id):null;
+        setSummary(recap&&id?{turn:json.data.view.turn,playerId:id,summary:recap}:null);
+      }
     } catch(e) {const message=e instanceof Error?e.message:"Action failed. Check the table before trying again.";setError(message);throw e;}
     finally {sending.current=false;setBusy(false);}
   }
@@ -153,7 +186,15 @@ export default function SubwayMultiplayerPage() {
       const a=document.createElement('a');a.href=url;a.download=`subway-${identity.roomCode}-replay.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
     } catch(e) {setError(e instanceof Error?e.message:'Export failed.');}
   }
-  function leave() {localStorage.removeItem(KEY);setIdentity(null);setView(null);latestRevision.current=-1;setDeviceSettings(false);}
+  function leave() {try{localStorage.removeItem(KEY);}catch{ /* Nothing to clear. */ }setIdentity(null);setView(null);setStale(null);latestRevision.current=-1;setDeviceSettings(false);}
+
+  if(!view&&stale) return <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-5 p-6" data-resume-prompt>
+    <h1 className="text-3xl font-black">Welcome back</h1>
+    <p>This device was last in room <b className="tracking-widest">{stale.roomCode}</b>{stale.name?<> as <b>{stale.name}</b></>:null} more than 20 minutes ago.</p>
+    <button className={button} onClick={()=>{const next={roomCode:stale.roomCode,token:stale.token,...(stale.controllerKey?{controllerKey:stale.controllerKey}:{})};persist(next);lastTouch.current=Date.now();setStale(null);setIdentity(next);}}>Resume room {stale.roomCode}</button>
+    <button className="min-h-12 rounded-xl border border-slate-500 px-4 py-3 font-bold" onClick={leave}>Leave · start fresh</button>
+    <p className="text-xs text-slate-400">Leaving forgets this device’s key. You can still rejoin with the recovery key from the iPad settings.</p>
+  </main>;
 
   if(!view) return <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-5 p-6">
     <Link href="/" className="text-sm text-slate-400">← Party Games</Link>
@@ -204,7 +245,8 @@ export default function SubwayMultiplayerPage() {
     {tablet?<button className={button} disabled={controlsDisabled||view.room.players.length<2} onClick={()=>run("START_GAME",{bendMode})}>Start with {view.room.players.length} companies</button>:<p>Keep this phone with you. The iPad starts the game.</p>}
   </main>;
 
-  if(tablet) return <main className="space-y-2 p-2" style={{paddingBottom:padsHeight}}>{needsHandoff&&<>{header}{settings}</>}{notices}{reports}
+  const flash=summary&&summary.turn===view.turn&&!needsHandoff?<TurnFlash name={game.players[summary.playerId]?.name??"You"} color={game.players[summary.playerId]?.color??"#0f766e"} summary={summary.summary} onClose={()=>setSummary(null)}/>:null;
+  if(tablet) return <main className="space-y-2 p-2" style={{paddingBottom:padsHeight}}>{needsHandoff&&<>{header}{settings}</>}{notices}{reports}{flash}
     {view.canUndo&&!view.seatedId&&!needsHandoff&&<button className={button} disabled={controlsDisabled} onClick={()=>run("UNDO_PLACEMENT")}>Undo {game.undo?.label}</button>}
     {needsHandoff?<section className="flex min-h-[65dvh] flex-col items-center justify-center gap-6 rounded-3xl bg-[#193640] p-8 text-center">
       <h1 className="text-3xl font-bold">Pass to {actor?.name}</h1><p>The previous company’s ghosts are hidden.</p>
@@ -219,14 +261,13 @@ export default function SubwayMultiplayerPage() {
   if(!me) return <main className="p-4">{header}{notices}<p>Waiting for your company.</p></main>;
   const myTurn=view.actorId===me.id;
   const guidance=phoneGuidance(game,me.id);
-  const buyDestination=game.phase==="CONSTRUCTION"&&myTurn&&!me.crewsHired&&!me.destinationPurchased;
   return <main className="mx-auto min-h-dvh max-w-lg space-y-4 px-3 pb-28 pt-3"><div className="sticky top-0 z-20 bg-[#10252e] pb-2"><PhoneStatus game={game} playerId={me.id}/></div>{notices}
     <style>{`@media (orientation: landscape) { .phone-portrait-prompt { display: flex !important; } }`}</style>
     <div className="phone-portrait-prompt fixed inset-0 z-50 hidden flex-col items-center justify-center gap-3 bg-[#10252e] p-6 text-center"><span className="text-4xl" aria-hidden>↻</span><p className="text-xl font-bold">Turn your phone upright</p><p>Your cards are arranged for portrait play.</p></div>
     <section className="rounded-xl border border-teal-500 bg-[#193640] p-3 shadow-lg" aria-live="polite"><p className="text-sm">{guidance.text}</p>{tab!==guidance.tab&&<button className={`${button} mt-2 w-full`} onClick={()=>{setTab(guidance.tab);window.scrollTo({top:0});}}>{guidance.label}</button>}</section>
     <h1 className="text-xl font-bold">{tabs.find(t=>t.id===tab)?.label}</h1>
-{tab==="destinations"&&<>{me.destinationHand.map(id=><section key={id} className="space-y-2"><DestinationCardFace card={id} color={me.color} state={destinationMet(me,id)?"met":"idle"}/><p className={destinationMet(me,id)?"font-bold text-emerald-300":"text-sm text-slate-300"}>{destinationMet(me,id)?"✓ Currently met":"Not yet connected"}</p><button className={`${button} w-full`} aria-pressed={view.destinationHighlights.some(h=>h.cardId===id)} disabled={controlsDisabled} onClick={()=>run("SHOW_DESTINATION",{cardId:id,enabled:!view.destinationHighlights.some(h=>h.cardId===id)})}><span aria-hidden className="mr-2 inline-block h-3 w-3 rounded-full border border-white" style={{background:destinationColor(view.room.players.findIndex(p=>p.id===me.id),me.destinationHand.indexOf(id))}}/>Highlights: {view.destinationHighlights.some(h=>h.cardId===id)?"On":"Off"}</button></section>)}<p className="text-xs text-slate-300">Your selections are saved. The shared board shows them only during your turn; your phone keeps your own selections visible.</p><button className={button} disabled={controlsDisabled} onClick={()=>run("SHOW_DESTINATION",{cardId:null})}>Clear my highlights</button>
-      {buyDestination&&<button className={`${button} w-full`} disabled={controlsDisabled||me.money<5} onClick={()=>run("BUY_DESTINATION",{period:game.currentPeriod})}>Buy another Destination · $5M</button>}
+{tab==="destinations"&&<>{me.destinationHand.map(id=>{const met=destinationMet(me,id);return <section key={id} className="space-y-2" data-destination-section={id}><DestinationCardFace card={id} color={me.color} state={met?"met":"idle"} footer={<p data-destination-status={met?"met":"open"} className={`mt-1.5 rounded-full px-2 py-1 text-center text-xs font-black ${met?"bg-emerald-600 text-white":"bg-rose-100 text-rose-900"}`}>{met?`✓ Connected · +$${destinationReward(id)}M paid`:"Not yet connected"}</p>}/><button className={`${button} w-full`} aria-pressed={view.destinationHighlights.some(h=>h.cardId===id)} disabled={controlsDisabled} onClick={()=>run("SHOW_DESTINATION",{cardId:id,enabled:!view.destinationHighlights.some(h=>h.cardId===id)})}><span aria-hidden className="mr-2 inline-block h-3 w-3 rounded-full border border-white" style={{background:destinationColor(view.room.players.findIndex(p=>p.id===me.id),me.destinationHand.indexOf(id))}}/>Highlights: {view.destinationHighlights.some(h=>h.cardId===id)?"On":"Off"}</button></section>;})}<p className="text-xs text-slate-300">Your selections are saved. The shared board shows them only during your turn; your phone keeps your own selections visible.</p><button className={button} disabled={controlsDisabled} onClick={()=>run("SHOW_DESTINATION",{cardId:null})}>Clear my highlights</button>
+      <BuyCardButton game={game} playerId={me.id} busy={controlsDisabled} act={run}/>
     </>}
     {tab==="lines"&&<>
       {game.phase==="PROCUREMENT"&&<section className="space-y-4"><p>Choose three lines, one per turn.</p>{game.procurement.row.map(id=>{const c=contractById(id)!;return <ContractCard key={id} contract={c}><button className={`${button} mt-3 w-full`} disabled={controlsDisabled||!myTurn||me.money<c.cost} onClick={()=>run("PROCURE",{choice:"buy",contractId:id})}>Buy {c.name} · ${c.cost}M</button></ContractCard>;})}</section>}
@@ -247,7 +288,7 @@ export default function SubwayMultiplayerPage() {
       <PhoneStatus game={game} playerId={me.id} details/>
       <p className="text-sm">Round {game.currentPeriod}/{SUBWAY_CONFIG.timelinePeriods}</p>
       <Link href="/subway/tutorial" className="underline">How to play</Link>
-      {buyDestination&&<button className={button} disabled={controlsDisabled||me.money<5} onClick={()=>run("BUY_DESTINATION",{period:game.currentPeriod})}>Buy Destination · $5M</button>}
+      <BuyCardButton game={game} playerId={me.id} busy={controlsDisabled} act={run}/>
       {game.playerOrder.map(id=>{const p=game.players[id];return <section key={id} className="space-y-2 rounded-xl border border-white/20 p-4"><strong>{p.name} · ${p.money}M {p.score!==undefined?`· ${p.score} VP`:""}</strong><p>{p.lines.filter(lineComplete).length}/3 lines complete</p>{p.lines.map(l=><p key={l.contractId}>{contractOf(l)?.name}: {segmentsBuilt(l)}/{contractOf(l)?.recipe.length} segments</p>)}{game.phase==="RESULTS"&&p.scoreBreakdown?.map((s,i)=><p key={i} className="text-sm">{s.label}: {s.points} VP</p>)}</section>;})}
       <p className="text-sm">Crews: $1M / $3M / $6M. Completing each line pays $3M. Final debt costs 4 VP per $1M.</p>
       <section className="space-y-3">{game.events.slice().reverse().map(e=><p key={e.seq} className="border-t border-white/10 pt-3 text-sm">{e.text}</p>)}</section>
@@ -256,6 +297,21 @@ export default function SubwayMultiplayerPage() {
       {tabs.map(t=><button key={t.id} aria-current={tab===t.id?"page":undefined} className={`min-h-16 rounded-xl text-[11px] ${tab===t.id?"bg-teal-700 text-white":"text-slate-300"}`} onClick={()=>{setTab(t.id);window.scrollTo({top:0});}}><span aria-hidden className="block text-2xl">{t.icon}</span>{t.label}</button>)}
     </nav>
   </main>;
+}
+
+function TurnFlash({name,color,summary,onClose}:{name:string;color:string;summary:TurnSummary;onClose:()=>void}) {
+  const cash=summary.cashDelta;
+  return <div role="dialog" aria-label="Since your last turn" data-turn-flash className="fixed inset-0 z-40 flex items-start justify-center bg-stone-950/60 p-4 pt-[12vh]" onClick={onClose}>
+    <style>{`@keyframes subway-flash{0%{transform:translateY(-12px);opacity:0}100%{transform:translateY(0);opacity:1}} .subway-flash{animation:subway-flash .35s ease-out both} @media(prefers-reduced-motion:reduce){.subway-flash{animation:none}}`}</style>
+    <section className="subway-flash w-full max-w-md rounded-2xl border-t-8 bg-[#f6edda] p-5 text-stone-900 shadow-2xl" style={{borderColor:color}} onClick={e=>e.stopPropagation()}>
+      <p className="text-xs font-bold uppercase tracking-[.3em] text-amber-800">While the iPad was away</p>
+      <h2 className="mt-1 text-2xl font-black">{name}, since your last turn</h2>
+      <p className={`mt-2 text-3xl font-black tabular-nums ${cash>0?"text-emerald-700":cash<0?"text-red-700":"text-stone-500"}`}>{cash>0?`+$${cash}M`:cash<0?`−$${-cash}M`:"$0M"} <span className="text-sm font-bold text-stone-600">{cash>0?"received from the opposition":cash<0?"net change":"no cash change"}</span></p>
+      {summary.completions.length>0&&<p className="mt-2 text-sm font-bold text-purple-900">Opposition completed: {summary.completions.join(", ")}</p>}
+      {summary.lines.length>0&&<ul className="mt-3 space-y-1 text-sm">{summary.lines.map((line,i)=><li key={i} className="border-t border-stone-300/60 pt-1">{line}</li>)}</ul>}
+      <button className={`${button} mt-4 w-full`} onClick={onClose} autoFocus>Got it · start my turn</button>
+    </section>
+  </div>;
 }
 
 function GhostDiagram({nodes,color,built}:{nodes:RouteNode[];color:string;built:number}) {

@@ -1,4 +1,4 @@
-import { SUBWAY_CONFIG, buildableLines, contractOf, lineActionsRemaining, lineComplete, legalTargets, objectiveProgress, stationAt, routeContacts, contactToll, type SubwayState, type PlacementTarget } from './config';
+import { SUBWAY_CONFIG, affordableCrews, buildableLines, contractOf, lineActionsRemaining, lineComplete, legalTargets, objectiveProgress, stationAt, routeContacts, contactToll, type SubwayState, type PlacementTarget } from './config';
 
 const crewCost = (n: number) => n * (n + 1) / 2;
 
@@ -82,5 +82,6 @@ export function planBotCrews(state: SubwayState, id: string, cautious = false, p
       forecast.players[id].lines[i].route.push({...opportunity.target,...(st?{stationId:st.id}:{})});
     }
   }
-  return now;
+  // Crews must be paid from cash on hand unless bridging debt is allowed.
+  return now.slice(0, affordableCrews(state.players[id], now.length));
 }

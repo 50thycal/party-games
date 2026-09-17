@@ -81,6 +81,8 @@ export function generateAiPlaytestReport(game: SubwayState, context: SubwayRepor
     JSON.stringify({
       startingMoneyMillions: SUBWAY_CONFIG.startingMoney,
       lineCompletionRewardMillions: SUBWAY_CONFIG.completionReward,
+      destinationCompletionRewardMillions: SUBWAY_CONFIG.destinationCompletionReward,
+      crewDebtAllowed: SUBWAY_CONFIG.crewDebtAllowed,
       constructionRounds: SUBWAY_CONFIG.timelinePeriods,
       routesPerPlayer: SUBWAY_CONFIG.maxContractsPerPlayer,
       crewActivationCostMillions: { zero: 0, one: 1, two: 3, three: 6 },
@@ -97,6 +99,8 @@ export function generateAiPlaytestReport(game: SubwayState, context: SubwayRepor
       geometry: SUBWAY_CONFIG.geometry,
       engineeringPicks: SUBWAY_CONFIG.engineeringPicks,
       destinationPurchaseMillions: SUBWAY_CONFIG.destinationPurchaseCost,
+      engineeringPurchaseMillions: SUBWAY_CONFIG.destinationPurchaseCost,
+      extraCardPurchases: "One random Engineering goal and one random Destination mission per company per game, before hiring crews, from the iPad or the phone",
       firstCompletedPlayerId: game.firstCompletedPlayerId,
       longestNetwork: "Actual path length of completed segments in peg spaces, no repeated segments; winner 5 VP, ties 3 VP each",
       largestCluster: "Horizontally/vertically adjacent occupied peg holes across all companies, including the same line; one peg per hole. Total each company’s stations across all equally largest transfer stations. Leader award once: 6 VP alone, 3 each for two leaders, 2 each for three, 0 for four. No diagonals, string links, bends or worksites.",

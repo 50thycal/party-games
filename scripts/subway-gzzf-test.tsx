@@ -6,10 +6,11 @@ import {Board, holePos} from '../src/games/subway/board';
 import {BendModeSelect} from '../src/games/subway/BendModeSelect';
 import { PhoneStatus, PlayerPads } from '../src/games/subway/PlayerStatus';
 import { DestinationCardFace } from '../src/games/subway/CardArt';
+import { GLYPH_COVERAGE, NEIGHBORHOOD_ABBREVIATIONS } from '../src/games/subway/CardGlyphs';
 import assert from 'node:assert/strict';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ContractCard } from '../src/games/subway/cards';
-import { contractById, subwayGame, validateNode, legalTargets, objectiveProgress, type PlayerLine, type SubwayState } from '../src/games/subway/config';
+import { SUBWAY_CONFIG, contractById, subwayGame, validateNode, legalTargets, objectiveProgress, type PlayerLine, type SubwayState } from '../src/games/subway/config';
 import { planBotCrews } from '../src/games/subway/botPlanning';
 import { chooseBotAction, DEFAULT_BOT } from '../src/games/subway/bots';
 import { missionPotential, engineeringPotential, objectiveExplanation } from '../src/games/subway/objectiveGuidance';
@@ -34,7 +35,11 @@ assert.ok((chooseBotAction(s,()=>.5,DEFAULT_BOT)?.payload?.lineIndexes as number
 // the legal $1 crew and $3 completion reward leave positive final money.
 const last=fixture();last.currentPeriod=9;last.players[id].money=0;
 last.players[id].lines=[line('tram',[[3,0],[3,2],[6,2],[10,3]])];
-assert.deepEqual(planBotCrews(last,id),[0]);
+if(SUBWAY_CONFIG.crewDebtAllowed) assert.deepEqual(planBotCrews(last,id),[0]);
+else {
+  assert.deepEqual(planBotCrews(last,id),[],'crews are paid from cash on hand: a $0 company cannot hire');
+  last.players[id].money=1;assert.deepEqual(planBotCrews(last,id),[0],'the affordable last crew is still hired');last.players[id].money=0;
+}
 last.players[id].lines=[line('crosstown',[[3,0]])];
 assert.deepEqual(planBotCrews(last,id),[],'do not pay for a completion that cannot fit');
 
@@ -122,8 +127,20 @@ console.log('GZZF deadlines, completion economics, starter occupancy, segment re
  assert.match(details,/2\/4 segments/);assert.match(details,/Diamond = starter/);assert.match(details,/Public leaders/);
  const pads=renderToStaticMarkup(<PlayerPads game={s} roomKey="fixture"/>);
  assert.match(pads,/Player panels/);assert.doesNotMatch(pads,/segments left|Diamond = starter/);
+ // Public card glyphs: one per held Engineering card with its category, one chip per Destination.
+ assert.ok(GLYPH_COVERAGE,'every Engineering card has a drawn glyph');
+ const carded=structuredClone(s);carded.players[id].engineeringHand=['north-south','shared-stations','citywide-coverage'];carded.players[id].destinationHand=['dest-market-grand','dest-stadium-harbor'];
+ const withCards=renderToStaticMarkup(<PlayerPads game={carded} roomKey="fixture"/>);
+ assert.equal((withCards.match(/data-engineering-glyph=/g)??[]).length,3);
+ for(const category of ['Line','Station','Neighborhood']) assert.match(withCards,new RegExp(`data-glyph-category="${category}"`));
+ assert.match(withCards,/data-destination-chip="dest-market-grand"[^>]*>Mk\+GC</);assert.match(withCards,/>S\+H</);
+ assert.equal(new Set(Object.values(NEIGHBORHOOD_ABBREVIATIONS)).size,10,'abbreviations are unique');
+ assert.doesNotMatch(pads,/data-engineering-glyph/,'no glyph row for empty hands');
  const destination=renderToStaticMarkup(<DestinationCardFace card="dest-market-grand" color="#fff"/>);
- assert.match(destination,/any order/);assert.match(destination,/No start or finish here required/);
+ assert.match(destination,/Any order/);assert.match(destination,/Market/);assert.match(destination,/Grand Central/);
+ assert.match(destination,/Pays \$2M the first time/);assert.doesNotMatch(destination,/Connect these neighborhoods through your own network\./,'slim face drops the description paragraph');
+ assert.equal((destination.match(/data-engineering-art="dest-/g)??[]).length,2,'one picture per neighborhood');
+ assert.match(renderToStaticMarkup(<PhoneStatus game={s} playerId={id}/>),/>R4</,'phone header carries the round badge');
 }
 
 // Bent strings follow actual legs; vertices are never rendered as scoring pegs.

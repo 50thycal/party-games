@@ -81,9 +81,12 @@ export function companionView(state: RoomState, device: CompanionDevice): Compan
         p.scoreBreakdown = undefined;
       }
       // Tablet carries public pieces only, even after company acknowledgement.
+      // Held Engineering and Destination card ids are public there (DEC-056):
+      // the player pads show every company's card glyphs. Decks stay hidden.
       if (device.role === "tablet" && game.phase !== "RESULTS") {
-        p.engineeringHand = []; p.destinationHand = []; p.committedEngineering = [];
-        p.destinationCommitments = []; p.schedulingHand = [];
+        p.engineeringHand = [...(original!.players[p.id]?.engineeringHand ?? [])];
+        p.destinationHand = [...(original!.players[p.id]?.destinationHand ?? [])];
+        p.committedEngineering = []; p.destinationCommitments = []; p.schedulingHand = [];
       }
     }
   }
@@ -106,8 +109,10 @@ export function companionView(state: RoomState, device: CompanionDevice): Compan
     canUndo:device.role === "tablet" && !!original?.undo && store.seated?.playerId === original.undo.playerId};
 }
 
-const PHONE_ACTIONS = new Set(["PROCURE", "DRAFT_CARD", "BUY_DESTINATION"]);
-const TABLET_ACTIONS = new Set(["HIRE_CREWS", "PLACE_STARTER", "BUILD", "SKIP_ACTION", "UNDO_PLACEMENT", "ADVANCE_SCORING"]);
+const PHONE_ACTIONS = new Set(["PROCURE", "DRAFT_CARD", "BUY_DESTINATION", "BUY_ENGINEERING"]);
+// Extra card purchases are allowed from either device: the iPad's Buy a card
+// button acts for the acknowledged company (DGLE playtest follow-up).
+const TABLET_ACTIONS = new Set(["HIRE_CREWS", "PLACE_STARTER", "BUILD", "SKIP_ACTION", "UNDO_PLACEMENT", "ADVANCE_SCORING", "BUY_DESTINATION", "BUY_ENGINEERING"]);
 
 /** Pure authenticated transaction; caller persists with CAS, including acknowledgement and plans. */
 export function companionAction(state: RoomState, device: CompanionDevice, input: {

@@ -504,9 +504,11 @@ every recipient balance.
 Each company starts with $40M and chooses zero to three unfinished routes each turn
 over nine construction rounds. Crew bills are $0/$1/$3/$6M, paid before building one
 segment on each chosen route. No advance timetable or shelving phase exists.
-Final debt costs four VP per $1M. CrewBoard renders crew selection and round
-history while the reducer owns billing, turn order and placement authority.
-Placement Undo refunds placement tolls but retains the already-paid crew bill.
+Final debt costs four VP per $1M. Crews are paid from cash on hand unless
+`crewDebtAllowed` restores the older bridging-debt rule (DEC-056); only contact tolls
+can create debt. CrewBoard renders crew selection and round history while the
+reducer owns billing, turn order and placement authority. Placement Undo refunds
+placement tolls but retains the already-paid crew bill.
 
 Each completed line immediately pays $3M. The valid final BUILD pays it once; the
 placement Undo restores the entire previous balance, including reward and tolls.
@@ -867,3 +869,21 @@ edge per completed segment, weighted by its entire path; partial work earns no
 length. Setup mode and resources survive JSON storage, reconnect and replay and
 appear in exports. Bot v6/audit v5 discover legal mode-aware actions. Saved plans
 retain actual bend vertices but remain private non-binding sketches.
+
+### DGLE playtest follow-up (DEC-056, state v26)
+
+Connecting a held Destination mission pays $2M (pair) or $3M (triple) once, recorded in
+`destinationsPaid` and as a bank money event, inside the same BUILD (or purchase) that
+first connects it; full-state Undo reverses it. `cardPurchaseBlocker` is the single
+source of purchase legality for BUY_DESTINATION and the new BUY_ENGINEERING (random
+unheld goal from the shuffled deck, $5M, once per game); both are allowed from the
+acknowledged company on the iPad and from its phone, and `BuyCardButton` is the one
+chooser used on both. The tablet projection keeps every company's Engineering and
+Destination card ids (never decks); `PlayerPads` renders `CardGlyphs` (category base
+shape plus per-card detail, green when met) and neighborhood abbreviation chips.
+`turnSummary` derives a since-your-last-action recap from public telemetry and events;
+the iPad flashes it after ACK_COMPANY. `deviceSession` stamps the saved companion
+identity while polling; after twenty idle minutes a reopened page peeks once and either
+forgets a finished/missing room or asks Resume/Leave, never deleting the recovery key
+silently. Destination faces are slim (label, pictures, names) with rules behind a
+disclosure; the phone header carries an R round badge.
