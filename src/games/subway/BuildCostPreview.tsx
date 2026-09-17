@@ -19,6 +19,6 @@ export function BuildCostPreview({ player, contacts, game }: {
         ? <>Paid to: {quote.recipients.map(p => `${game.players[p.ownerId]?.name ?? "Line owner"} ${money(p.amount)}`).join(" · ")}</>
         : "No contact toll."}
     </p>
-    {quote.debtPenalty < 0 && <p className="mt-1 font-bold text-red-800">If the game ended here: {quote.debtPenalty} VP from debt.</p>}
+    {quote.cashScoreChange !== 0 && <p className={`mt-1 font-bold ${quote.cashScoreChange < 0 ? "text-red-800" : "text-emerald-800"}`}>If the game ended here: {quote.cashScoreAfter > 0 ? "+" : ""}{quote.cashScoreAfter} VP for your cash position ({quote.cashScoreChange > 0 ? "+" : ""}{quote.cashScoreChange} from now).</p>}
   </div>;
 }

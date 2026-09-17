@@ -17,7 +17,7 @@ A light-strategy line-building game for **2–4 companies**. Most victory points
 5. Play up to **9 construction rounds**, choosing crews anew each turn. End
    immediately if no incomplete line has a legal next segment.
 6. Score all held goals and lines; subtract unfinished-line
-   penalties and **4 VP per $1M of final debt**.
+   penalties and the **ending-cash band** below.
 
 There is no Engineering commitment, Destination assignment, separate Destination
 draft, or advance scheduling phase. Destinations require one connected company network; separated lines do not qualify.
@@ -194,7 +194,7 @@ unfinished, buildable lines and hire their crews:
 
 Each selected line receives one construction activation. Hire once per turn; crew
 choices cannot be changed after payment. Zero crews ends the turn. You may
-choose different lines next round. Crews are paid from cash on hand: you cannot hire more than you can afford. Only contact payments can create debt (playtest rule; the previous bridging-debt rule is kept behind `crewDebtAllowed`).
+choose different lines next round. Hiring and contact payments may both take you below $0: you may borrow on the same turn you build. What borrowing costs is set by the ending-cash band you finish in.
 The displayed bill previews remaining cash and the final penalty at that balance.
 
 Every company gets a turn each round, including a company choosing no crews.
@@ -218,7 +218,7 @@ Hire that line again on a later turn to continue its remaining length. Each
 additional stop takes another activation. A worksite does not reserve future
 holes or strings; later construction may block its continuation.
 
-Each leg joins board holes and changes heading by at most **90 degrees**.
+Each leg joins board holes and curves by at most **90 degrees**.
 Add the actual leg lengths; apply the existing ±0.5-space tolerance once to the
 whole printed segment. A stop must leave at least one space available to finish.
 Bends and worksites are **not pegs or stations**: they do not serve neighborhoods,
@@ -231,7 +231,7 @@ still lasts at most nine rounds; unfinished lines retain their normal penalty.
 ## Placement and contact rules
 
 Follow the line's lengths **in the printed order**, within ±0.5 peg-space distance.
-Turns may be at most **90°**, inclusive. The first segment has no heading constraint.
+A curve may be at most **90°**, inclusive. The first segment has no heading constraint.
 The ten named neighborhoods have **3 small, 6 large and 1 medium** footprints.
 Small areas cover 6 holes, medium 10 and large 16. No area awards automatic VP. Setup varies
 area locations and connected shapes using seeded randomness. Six interior bays
@@ -241,7 +241,7 @@ boundaries. 51 interior holes remain outside areas.
 Place a peg on any hole inside an area to serve it. String merely passing through
 is not service. There are **no dock limits**. Multiple companies and lines may
 serve the same area. Visits matter for destinations and Engineering objectives. Exact peg positions and optional bend vertices
-determine segment lengths, turns and physical contacts.
+determine segment lengths, curves and physical contacts.
 
 Different company lines transfer only at horizontally/vertically
 adjacent stations. Sharing a neighborhood alone does not connect lines. An opponent's line never joins your network. Shared areas alone cost no toll.
@@ -255,8 +255,9 @@ selected next station draws a translucent line-colored segment until Confirm.
 Each distinct contact with another company's network costs **$1M to that
 owner**. Multiple incident strings at one vertex cost once per owner. If several
 companies share a contacted point, pay each. Contacts with your own lines are
-free. Departing a previously contacted point is not charged again. Construction can incur debt; every $1M still owed
-at the end costs **−4 VP**.
+free. Departing a previously contacted point is not charged again. Construction can incur debt: the
+balance you finish on scores on the ending-cash spectrum below, so borrowing is a priced choice
+rather than a flat fine. Money the opposition pays you moves your band before scoring.
 
 Joining an opponent's station costs **$1M once per line, opponent and local
 transfer station**, including when the joining peg is a starter. Multiple neighboring pegs
@@ -273,10 +274,24 @@ Each Confirm consumes one hired action. Undo restores the latest physical placem
 its toll transfers and pending action, until another accepted action occurs.
 It does **not** refund the crew-hiring transaction.
 
+## Ending cash
+
+Your final balance scores once, on this spectrum. The shared iPad shows every company's band
+during Construction.
+
+| Ending cash | VP |
+| --- | ---: |
+| $4M or more | +2 |
+| $2M to $3M | +1 |
+| $0M to $1M | 0 |
+| −$1M | −1 |
+| −$2M to −$3M | −3 |
+| −$4M or worse | −5 |
+
 ## Scoring and the table
 
 Line completion/unfinished penalties, the longest network and Largest Transfer Station awards,
-all held Engineering goals and Destinations, and final debt appear in
+all held Engineering goals and Destinations, and your ending-cash band appear in
 the results breakdown. Neighborhood visits award no automatic VP. Ties break on large-neighborhood connections, then cash, then shared victory.
 
 Construction schedule replaces the timetable. Use Crews, Board, Lines and Cards to move

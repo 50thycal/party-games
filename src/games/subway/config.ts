@@ -22,7 +22,7 @@ import type { BaseAction, GameContext, Player } from "@/engine/types";
 //
 // v0.4 (WS-002) turns freehand routes into engineered ones. Every contract owns
 // an ordered recipe of segment lengths and a permanent line color; construction
-// must hit the next length within half a peg and may not turn more than 90°;
+// must hit the next length within half a peg and may not curve more than 90°;
 // Neighborhoods are served by nodes. Engineering drafts three goals, then
 // starter placement begins. The latest physical placement may be undone.
 //
@@ -32,7 +32,7 @@ import type { BaseAction, GameContext, Player } from "@/engine/types";
 // ============================================================================
 
 /** Bumped when the state shape changes; older rooms must restart. */
-export const SUBWAY_STATE_VERSION = 26;
+export const SUBWAY_STATE_VERSION = 27;
 
 // ----------------------------------------------------------------------------
 // Tunable configuration
@@ -52,12 +52,12 @@ export const SUBWAY_CONFIG = {
    */
   destinationCompletionReward: { pair: 2, triple: 3 },
   /**
-   * Playtest lever (DGLE, 2026-09-17). When false, crews must be paid from cash
-   * on hand and only contact tolls can push a company below zero. Set to true to
-   * restore the previous rule where hiring could create same-turn bridging debt
-   * that completion cash repaid before scoring.
+   * When false, crews must be paid from cash on hand and only contact tolls can
+   * push a company below zero. True restores direct borrowing: hiring may take a
+   * company into debt on the same turn, which the owner found strategically
+   * interesting in the DGLE playtest, and which the cash bands below now price.
    */
-  crewDebtAllowed: false,
+  crewDebtAllowed: true,
   timelinePeriods: 9,
   minContractsPerPlayer: 3,
   maxContractsPerPlayer: 3,
@@ -73,7 +73,7 @@ export const SUBWAY_CONFIG = {
   stationScores: { major: 0, minor: 0, medium: 0 },
   tolerances: {
     straight: 15, // degrees: "approximately straight"
-    gentleCurve: 30, // degrees: max turn for Gentle Curve
+    gentleCurve: 30, // degrees: max curve for Gentle Curve
     bend: 50, // degrees: upper bound for the 45° bend window
     parallelHeading: 15, // degrees: headings that count as parallel
   },
@@ -81,8 +81,8 @@ export const SUBWAY_CONFIG = {
   geometry: {
     /** A segment satisfies length L when |distance − L| is within this. */
     lengthTolerance: 0.5,
-    /** Maximum heading change between consecutive segments, inclusive. */
-    maxTurnDegrees: 90,
+    /** Maximum heading change (a curve) between consecutive segments, inclusive. */
+    maxCurveDegrees: 90,
   },
   /** Destination mission rewards and optional purchase. */
   destinationVp: 4,
@@ -93,9 +93,22 @@ export const SUBWAY_CONFIG = {
   contact: {
     /** $M paid to the opponent per distinct contact with their normal route. */
     toll: 1,
-    /** VP lost per $1M of cash still owed at scoring. */
+    /** Retained for archived reports; live scoring uses the cash bands below. */
     debtVpPerMillion: 4,
   },
+  /**
+   * Ending cash scores on a spectrum rather than a flat debt rate: holding cash
+   * is worth VP and borrowing costs progressively more. Ordered best to worst;
+   * a company scores the first band whose minimum its ending cash reaches.
+   */
+  cashBands: [
+    { min: 4, vp: 2, label: "$4M or more" },
+    { min: 2, vp: 1, label: "$2M to $3M" },
+    { min: 0, vp: 0, label: "$0M to $1M" },
+    { min: -1, vp: -1, label: "\u2212$1M" },
+    { min: -3, vp: -3, label: "\u2212$2M to \u2212$3M" },
+    { min: -Infinity, vp: -5, label: "\u2212$4M or worse" },
+  ],
   /** Destination cards face up at the start of the Engineering draft. */
   destinationRow: 3,
   /** Destination cards each company drafts. */
@@ -1261,15 +1274,14 @@ export function scoreGame(state: SubwayState, now: number): SubwayState {
 
 
 
-    // Construction debt. With crewDebtAllowed off only route contacts can push a
-    // company below zero; money received from the opposition pays it back down (DEC-018).
-    if (p.money < 0) {
-      items.push({
-        label: `Construction debt ($${-p.money}M owed)`,
-        points: p.money * SUBWAY_CONFIG.contact.debtVpPerMillion,
-        met: false,
-      });
-    }
+    // Ending cash scores on the spectrum: holding cash pays, borrowing costs
+    // progressively more, and money received from the opposition moves the band.
+    const band = cashBand(p.money);
+    items.push({
+      label: `Cash position (${p.money < 0 ? `\u2212$${-p.money}M` : `$${p.money}M`} \u00b7 ${band.label})`,
+      points: band.vp,
+      met: band.vp >= 0,
+    });
 
     const length = lengths.find(entry => entry.id === p.id)!.length;
     const longestMet = longest.some(entry => entry.id === p.id);
@@ -1544,6 +1556,13 @@ export function scheduledLines(p: SubwayPlayer, period: number): number[] {
 export function activationCost(_p: SubwayPlayer, count: number): number {
   return count === 0 ? 0 : count * (count + 1) / 2;
 }
+export type CashBand = (typeof SUBWAY_CONFIG.cashBands)[number];
+/** The band this balance falls in. Bands are ordered best first and cover every balance. */
+export const cashBand = (money: number): CashBand =>
+  SUBWAY_CONFIG.cashBands.find((band) => money >= band.min)!;
+/** VP awarded (or lost) for ending the game on this balance. */
+export const cashScore = (money: number): number => cashBand(money).vp;
+
 /** Whether this company can hire that many crews under the current debt rule. */
 export const canAffordCrews = (p: SubwayPlayer, count: number): boolean =>
   count <= 0 || SUBWAY_CONFIG.crewDebtAllowed || activationCost(p, count) <= p.money;

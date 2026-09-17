@@ -242,12 +242,12 @@ const DECK_ORDER = ["branch", "medium", "express", "crosstown", "long", "short"]
   assert.equal(validateNode(s, "red", 0, { x: 7, y: 3 }), null, "exactly 90° is legal");
   assert.match(
     validateNode(s, "red", 0, { x: 4, y: 1 }) ?? "",
-    /turn at most 90/,
+    /curve at most 90/,
     "doubling back past 90° is not"
   );
   const first = base();
   first.players.red.lines = [owned("short", [{ x: 5, y: 5 }])];
-  assert.equal(validateNode(first, "red", 0, { x: 7, y: 5 }), null, "the first segment has no turn to judge");
+  assert.equal(validateNode(first, "red", 0, { x: 7, y: 5 }), null, "the first segment has no curve to judge");
 }
 
 // A finished line takes no further placement, whatever the schedule says.

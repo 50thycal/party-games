@@ -13,7 +13,7 @@ import { turnSummary } from "../src/games/subway/turnSummary";
 import { DEVICE_SESSION_IDLE_MS, parseSavedIdentity, resumeDecision, staleRoomDecision, stamped } from "../src/games/subway/deviceSession";
 import { quoteBuildCost } from "../src/games/subway/buildCost";
 import { routeContacts, stationAt } from "../src/games/subway/config";
-import { activationCost, affordableCrews, destinationReward, destinationById, buildableLines, constructionExhausted, lineActionsRemaining, LINE_CONTRACTS, ENGINEERING_CARDS, DESTINATION_CARDS, STATIONS, SUBWAY_CONFIG, SUBWAY_STATE_VERSION, subwayGame, nextCompanyId, draftPicks, draftTurnId, objectiveMet, scoreGame, legalTargets, lineComplete, contractById, type SubwayState, type SubwayAction } from "../src/games/subway/config";
+import { activationCost, affordableCrews, cashBand, cashScore, destinationReward, destinationById, buildableLines, constructionExhausted, lineActionsRemaining, LINE_CONTRACTS, ENGINEERING_CARDS, DESTINATION_CARDS, STATIONS, SUBWAY_CONFIG, SUBWAY_STATE_VERSION, subwayGame, nextCompanyId, draftPicks, draftTurnId, objectiveMet, scoreGame, legalTargets, lineComplete, contractById, type SubwayState, type SubwayAction } from "../src/games/subway/config";
 import { generateAiPlaytestReport } from "../src/games/subway/report";
 import { startPlaytest, testRoom, runPlaytest, seededRandom, stepPlaytest } from "../src/games/subway/playtest";
 
@@ -21,7 +21,7 @@ const dispatch=(s:SubwayState,id:string,type:SubwayAction["type"],payload?:Subwa
 let checks=0;
 for(const count of [2,3,4]) for(const category of ["engineering"] as const) {
   let {state:s}=startPlaytest(count,42);
-  assert.equal(SUBWAY_STATE_VERSION,26);
+  assert.equal(SUBWAY_STATE_VERSION,27);
   assert.ok(!("construction" in s.market.rows) && !("construction" in s.market.decks));
   assert.ok(!("priorityQueue" in s));
   assert.ok(Object.values(s.players).every(p=>!("constructionHand" in p)));
@@ -112,7 +112,8 @@ for (const cash of [10, 1, -2]) for (const hasContacts of [false, true]) {
   assert.notEqual(built, s);
   assert.equal(quote.cashAfter, built.players["seat-1"].money);
   assert.equal(quote.playerCost, cash - built.players["seat-1"].money);
-  assert.equal(quote.debtPenalty, Math.min(0,built.players["seat-1"].money)*4);
+  assert.equal(quote.cashScoreAfter, cashScore(built.players["seat-1"].money));
+  assert.equal(quote.cashScoreChange, cashScore(built.players["seat-1"].money)-cashScore(cash));
   for (const id of s.playerOrder.slice(1)) assert.equal(quote.recipients.find(p=>p.ownerId===id)?.amount ?? 0, built.players[id].money - s.players[id].money);
   assert.equal(quote.totalToll, hasContacts ? 3 : 0);
 }
@@ -159,7 +160,9 @@ console.log("Build-cost previews: 6 reducer comparisons and recipient aggregatio
     assert.equal(s.players["seat-1"].money,-1,"contact tolls may still create debt");
   }
   const scored=scoreGame(s,1);
-  assert.equal(scored.players["seat-1"].scoreBreakdown!.find(i=>i.label.startsWith("Construction debt"))!.points,-4);
+  const position=scored.players["seat-1"].scoreBreakdown!.find(i=>i.label.startsWith("Cash position"))!;
+  assert.equal(position.points,cashScore(s.players["seat-1"].money));
+  assert.equal(position.points,-1,"a $1M overdraft is the first losing band");
   const p=s.players["seat-1"];p.engineeringHand=["dest-garden"];p.lines.push({contractId:"short",paid:5,route:[{x:14,y:2,stationId:"garden",stationSlot:0}]});
   assert.equal(objectiveMet("dest-garden",p,[]),false,"retired single-station cards cannot score");
   const result=scoreGame(s,2);
@@ -299,4 +302,40 @@ console.log("36 complete 2/3/4-player simulations reached RESULTS.");
   assert.equal(later.cashDelta,s.players["seat-1"].money-(SUBWAY_CONFIG.startingMoney-4));
   assert.deepEqual(later.completions,[]);
   console.log("Hand-off summary: first-turn guard, cash delta and opposition narration passed.");
+}
+
+// Ending cash scores on a spectrum: every balance falls in exactly one band,
+// bands never overlap, and the reducer's ledger agrees with the bar.
+{
+  const expected: [number, number][] = [
+    [40, 2], [5, 2], [4, 2], [3, 1], [2, 1], [1, 0], [0, 0],
+    [-1, -1], [-2, -3], [-3, -3], [-4, -5], [-9, -5],
+  ];
+  for (const [money, vp] of expected) assert.equal(cashScore(money), vp, `$${money}M scores ${vp} VP`);
+  for (let money = -12; money <= 12; money++) {
+    const band = cashBand(money);
+    assert.equal(SUBWAY_CONFIG.cashBands.filter(b => b === band).length, 1, "one band per balance");
+    assert.ok(money >= band.min, "a balance never scores a band it has not reached");
+    assert.equal(band.vp, cashScore(money));
+  }
+  assert.ok(SUBWAY_CONFIG.cashBands.every((b,i,all) => i === 0 || b.vp < all[i-1].vp), "bands worsen as cash falls");
+  // The ledger line reports the same VP the bar shows, on both sides of zero.
+  for (const money of [7, 3, 0, -1, -2, -6]) {
+    let s = construction();
+    s.players["seat-1"].money = money;
+    const item = scoreGame(s,1).players["seat-1"].scoreBreakdown!.find(i => i.label.startsWith("Cash position"))!;
+    assert.equal(item.points, cashScore(money));
+    assert.ok(item.label.includes(cashBand(money).label), "the ledger names the band");
+  }
+  console.log("Ending cash spectrum: band boundaries, coverage, ordering and score ledger passed.");
+}
+
+// Borrowing is available again: hiring may take a company straight into debt.
+{
+  let s=construction();s.players["seat-1"].money=0;
+  const hired=dispatch(s,"seat-1","HIRE_CREWS",{lineIndexes:[0],period:1});
+  assert.notEqual(hired,s,"a company at $0 may still hire");
+  assert.equal(hired.players["seat-1"].money,-1,"crews may borrow past zero");
+  assert.equal(affordableCrews(s.players["seat-1"],3),3,"every crew count stays available while borrowing is allowed");
+  console.log("Direct borrowing: hiring into debt from $0 accepted.");
 }

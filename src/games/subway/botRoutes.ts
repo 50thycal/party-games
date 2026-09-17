@@ -1,5 +1,5 @@
 /** Bounded, deterministic company-aware lookahead. No I/O or hidden information. */
-import { SUBWAY_CONFIG, contractOf, destinationById, lineComplete, lineActionsRemaining, objectiveProgress, stationAt, validateNode, routeContacts, contactToll, type SubwayState, type SubwayPlayer, type PlacementTarget } from './config';
+import { SUBWAY_CONFIG, cashScore, contractOf, destinationById, lineComplete, lineActionsRemaining, objectiveProgress, stationAt, validateNode, routeContacts, contactToll, type SubwayState, type SubwayPlayer, type PlacementTarget } from './config';
 import { companyComponents } from './network';
 import { largestCluster } from './clusters';
 import { stationAccessContacts } from './stationAccess';
@@ -87,7 +87,7 @@ function value(s:SubwayState,id:string,index:number,jobs:LineJob[],settings:BotS
   const missionWeight=settings.personality==='destination'?1.3:settings.personality==='completion'?.8:1;
   let score=me.lines.reduce((n,l)=>n+(lineComplete(l)?contractOf(l)!.completionVp:contractOf(l)!.incompletePenalty),0);
   for(const card of [...me.engineeringHand,...me.destinationHand]) score+=objectiveProgress(card,me,others,s).points*missionWeight*(card===focus?2:1);
-  score-=Math.max(0,-me.money)*SUBWAY_CONFIG.contact.debtVpPerMillion;
+  score+=cashScore(me.money);
   score+=me.money*(settings.personality==='cautious'?.3:.1);
   score+=largestCluster(s.players).points[id]*.7;
   const missing=missingJobStops(me,index,jobs[index]);

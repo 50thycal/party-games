@@ -17,6 +17,8 @@ import {
   contractNodes,
   contractOf,
   crewCost,
+  cashBand,
+  cashScore,
   destinationById,
   destinationMet,
   destinationsHeld,
@@ -1042,10 +1044,11 @@ export function PlayerTabletop({
           {me.lines.length} lines
           {me.tollsPaid > 0 && <> · paid {money(me.tollsPaid)} in contacts</>}
         </span>
-        {me.money < 0 && (
-          <p className="w-full rounded-[12px] bg-red-100 px-[16px] py-[10px] text-[19px] font-bold text-red-900">
-            In debt {money(-me.money)} from crews or contacts. Finishing here costs{" "}
-            {me.money * SUBWAY_CONFIG.contact.debtVpPerMillion} VP; contacts the opposition pays you reduce it.
+        {cashScore(me.money) !== 0 && (
+          <p className={`w-full rounded-[12px] px-[16px] py-[10px] text-[19px] font-bold ${cashScore(me.money) < 0 ? "bg-red-100 text-red-900" : "bg-emerald-100 text-emerald-900"}`}>
+            {me.money < 0 ? `In debt ${money(-me.money)} from crews or contacts. ` : ""}
+            Finishing on this balance ({cashBand(me.money).label}) scores{" "}
+            {cashScore(me.money) > 0 ? "+" : ""}{cashScore(me.money)} VP; contacts the opposition pays you move the band.
           </p>
         )}
       </div>

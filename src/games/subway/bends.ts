@@ -39,7 +39,7 @@ export function validatePath(s:SubwayState,id:string,index:number,points:Point[]
   if(same(a,b))return 'Each leg must have positive length.';
   if(Object.values(s.players).some(p=>p.lines.some(line=>line.route.some(n=>same(n,b)))))return 'One peg per hole. This hole is already occupied.';
   const previous=i?newLegs[i-1]:existing.at(-1);
-  if(previous&&angleChange(previous[0],a,b)>90+1e-8)return 'A line may turn at most 90°.';
+  if(previous&&angleChange(previous[0],a,b)>90+1e-8)return 'A line may curve at most 90°.';
   for(const [c,d] of [...existing,...newLegs.slice(0,i)]) {
    if(segmentsOverlap(a,b,c,d))return 'A string cannot lie on top of an existing string.';
    if(previous&&same(c,previous[0])&&same(d,a))continue;

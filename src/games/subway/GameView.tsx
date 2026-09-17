@@ -38,6 +38,7 @@ import {
   type FocusRef,
   type PlanChip,
 } from "./table";
+import { lookaheadTargets } from "./lookahead";
 import { HandoffVeil, NarrationOverlay, currentActorId, useNarration } from "./tabletop";
 import { loadPlan, savePlan, planStorageKey, preparePlan, reconcilePlan, type PlanStatus, type SavedPlan } from "./plans";
 import type { DestinationHighlight } from "./companion";
@@ -482,28 +483,15 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     return [];
   }, [game, me, mode, activeLineIndex, placingStarter, plannerState, plannerLine, sketch, manualPlanner, preview, bendDraft, bendPick]);
 
-  // The board as it would be if the selected target were confirmed. Yellow is
-  // derived from this by the reducer's own rules (OD-5).
-  const previewState = useMemo(() => {
-    if (!game || !me || !preview || activeLineIndex < 0 || mode !== "place" || bendPick) return undefined;
-    const clone = cloneState(game);
-    const line = clone.players[me.id]?.lines[activeLineIndex];
-    if (!line) return undefined;
-    const station = stationAt(preview, game.stations);
-    line.route.push({
-      x: preview.x,
-      y: preview.y,
-      ...(station ? { stationId: station.id } : {}),
-      ...((line.work?.length||bendDraft.length)?{via:[...(line.work??[]),...bendDraft]}:{}),
-    });
-    line.work=undefined;
-    return clone;
-  }, [game, me, preview, activeLineIndex, mode, bendDraft, bendPick]);
-
+  /**
+   * Where the line could reach next if the selected target were built: a plain
+   * aid, never saved and never a commitment. While a bend is being placed it
+   * instead shows where this segment could finish beyond that bend.
+   */
   const following = useMemo<PlacementTarget[]>(() => {
-    if (!previewState || !me || activeLineIndex < 0) return [];
-    return legalTargets(previewState, me.id, activeLineIndex, false);
-  }, [previewState, me, activeLineIndex]);
+    if (!game || !me || activeLineIndex < 0 || mode !== "place") return [];
+    return lookaheadTargets(game, me.id, activeLineIndex, { preview, bendDraft, bendPick });
+  }, [game, me, mode, activeLineIndex, preview, bendDraft, bendPick]);
 
   const privateVisible = !!me && !veiled;
 
@@ -1347,7 +1335,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
                 highlightedStations={highlightedStations} destinationHighlights={destinationHighlights}
                 game={game}
                 targets={canAct ? targets : []}
-                following={ghostEnabled && mode === "place" ? following : []}
+                following={mode === "place" ? following : []}
                 selected={mode === "place" || (mode === "planner" && !manualPlanner) ? preview ?? undefined : undefined}
                 planningTargets={mode === "planner" && (manualPlanner || !!preview)}
                 canAct={canAct}

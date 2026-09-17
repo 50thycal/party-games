@@ -1920,3 +1920,50 @@ private pads with an owner-only card list (rejected by the owner's request).
 The companion tablet projection carries card ids, and tests asserting blank tablet hands
 were changed accordingly. Destination card faces are slim everywhere; full rules sit behind
 a disclosure. Human balance acceptance of both cash rules remains necessary.
+
+### DEC-057 — Ending cash scores on a spectrum; borrowing returns; curves replace geometric turns
+
+**Date:** 2026-09-17
+**Status:** Accepted by owner for playtest; balance not certified.
+
+**Context**
+DEC-056 stopped crews being hired on credit, which removed the same-turn bridging loan but also
+removed the late-game liquidity the owner found strategically interesting in the DGLE playtest.
+A flat −4 VP per $1M also priced every overdraft the same and gave holding cash no value.
+Separately, the word "turn" named both a company's turn in the round and a line's change of
+heading, and the next-station aid removed in an earlier iteration was missed at the table.
+
+**Decision**
+Companies may borrow directly again: hiring crews may take a company below $0 on the turn it
+builds (`crewDebtAllowed` is true). Ending cash scores once on a spectrum instead of a flat debt
+rate: $4M or more +2 VP, $2M to $3M +1 VP, $0M to $1M 0 VP, −$1M −1 VP, −$2M to −$3M −3 VP,
+−$4M or worse −5 VP. The shared iPad's Construction schedule carries a public spectrum bar with
+every company's token in its current band.
+
+Selecting a build target highlights, in yellow, where that line could reach next; while a bend is
+being placed it highlights where the segment could still finish beyond that bend. This is
+guidance only: nothing is saved, reserved or committed, and it is independent of the opt-in ghost
+plans, which keep their existing behavior.
+
+A line's change of heading is a **curve**, never a "turn". "Turn" now refers only to a company's
+turn in the round, across rules, UI, tutorial and the geometry config key.
+
+**Rationale**
+A spectrum prices borrowing by depth rather than by a single rate, so a $1M overdraft is a real
+but survivable choice while $4M is punishing, and holding cash finally competes with spending it.
+Restoring direct borrowing keeps the liquidity play the owner wanted; the bands, not a hard stop,
+are what make it expensive. Making the bar public keeps the tension visible at the table, where
+cash already is.
+
+**Alternatives considered**
+- Keeping crews-from-cash and adding the bands: rejected by the owner, who wants borrowing back.
+- Leaving the flat −4 VP per $1M rate: it cannot reward solvency and prices every overdraft alike.
+- Renaming only the rulebook: rejected; the confusion the owner reported is at the table, so UI,
+  tutorial and code wording move together.
+
+**Consequences**
+State v27 restarts older rooms, and the rules fingerprint changes, so archived replays predate
+these rules. Bots now value the band rather than a flat debt rate, so their spending changes.
+`contact.debtVpPerMillion` remains only for reading archived reports. Build-cost previews quote
+the band a placement would leave you in. The lookahead is always on during placement, replacing
+the previous ghost-gated behavior, and adds no state to the reducer.

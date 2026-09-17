@@ -22,7 +22,9 @@ stale-session handling. Consolidated comments live in that archive's `observatio
 
 ```text
 BUILD ─► tolls ─► route grows ─► line complete? +$3M ─► destinations newly connected? +$2/3M each
-HIRE_CREWS ─► canAffordCrews (cash on hand unless crewDebtAllowed) ─► pendingActions
+HIRE_CREWS ─► canAffordCrews (borrowing allowed: crewDebtAllowed) ─► pendingActions
+scoring ─► cashBand(ending cash) ─► one VP item; CashSpectrum shows the same bands live
+placement preview ─► lookaheadTargets ─► yellow next-step (or post-bend finish) markers
 BUY_ENGINEERING / BUY_DESTINATION ─► cardPurchaseBlocker (phase, turn, once, $5M, deck) ─► hand
 iPad: ACK_COMPANY ─► turnSummary(telemetry, events) flash ─► pads show CardGlyphs per company
 Companion identity: stamped seenAt ─► idle > 20 min ─► peek room ─► forget (RESULTS/missing) | ask
@@ -31,6 +33,10 @@ Companion identity: stamped seenAt ─► idle > 20 min ─► peek room ─► 
 ## Decisions Made
 
 - Crews from cash on hand; tolls may still create debt; old rule kept behind `crewDebtAllowed` (DEC-056).
+- Superseded by DEC-057: borrowing restored, and ending cash scores on a six-band spectrum
+  (+2 VP at $4M or more through −5 VP at −$4M or worse) shown publicly on the iPad.
+- Next-step lookahead is always on during placement, including beyond a bend; ghost plans unchanged.
+- "Curve" replaces "turn" for a line's change of heading, everywhere.
 - Destination completion cash $2M pair / $3M triple, paid once, Undo-reversible (DEC-056).
 - Held card ids are public on the shared iPad pads (DEC-056, owner request).
 - Extra Engineering purchase mirrors the Destination purchase: $5M, once per game, before crews.
@@ -38,8 +44,9 @@ Companion identity: stamped seenAt ─► idle > 20 min ─► peek room ─► 
 
 ## Open Decisions
 
-- **D1.** Keep the crew-from-cash rule after the next human playtest, or revert to bridging debt
-  (the owner found the late-game liquidity strategy fun)? Flag flip either way.
+- **D1.** Resolved by DEC-057: borrowing is back, priced by the ending-cash bands.
+- **D4.** Are the band boundaries right after a human playtest, especially +2 VP for $4M or more,
+  which may reward hoarding over building?
 - **D2.** Destination payout values ($2M/$3M) and whether the extra-card price should rise now
   that a mission also returns cash.
 - **D3.** Should phones' General page also show other companies' card glyphs now that the iPad does?
@@ -59,7 +66,9 @@ Owner authorized the six items in chat on 2026-09-17 after the DGLE review; no s
 
 ## Implementation State
 
-All six items implemented on `claude/subway-game-review-z87oaj`; state v26.
+DGLE follow-up merged in PR #191 (state v26). Second iteration on the same branch:
+borrowing restored, ending-cash spectrum and public bar, always-on next-step lookahead
+including beyond a bend, and the curve terminology pass; state v27.
 
 ## Validation
 
@@ -72,8 +81,9 @@ face, round badge. Not covered: browser/device acceptance of the phone and iPad 
 
 | PR | Verdict | Reviewed head | Finalization |
 |---|---|---|---|
-| (this PR) | Pending independent review | — | — |
+| [#191](https://github.com/50thycal/party-games/pull/191) | Merged by owner without a recorded independent verdict | 4ade2478e802c9c4923903af204ce3599a8c3446 | merged 2026-09-17 |
+| (spectrum/lookahead PR) | Pending independent review | — | — |
 
 ## Next Step
 
-Owner playtest of the crew-from-cash and Destination cash rules; rule on D1–D3.
+Owner playtest of the ending-cash spectrum and the restored borrowing; rule on D2–D4.
