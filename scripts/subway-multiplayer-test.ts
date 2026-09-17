@@ -9,6 +9,7 @@ import "./subway-companion-test";
 import "./subway-guidance-test";
 import "./subway-neighborhood-test";
 import { constructionHistory } from "../src/games/subway/constructionHistory";
+import { DEVICE_SESSION_IDLE_MS, parseSavedIdentity, resumeDecision, staleRoomDecision, stamped } from "../src/games/subway/deviceSession";
 import { quoteBuildCost } from "../src/games/subway/buildCost";
 import { routeContacts, stationAt } from "../src/games/subway/config";
 import { activationCost, affordableCrews, destinationReward, destinationById, buildableLines, constructionExhausted, lineActionsRemaining, LINE_CONTRACTS, ENGINEERING_CARDS, DESTINATION_CARDS, STATIONS, SUBWAY_CONFIG, SUBWAY_STATE_VERSION, subwayGame, nextCompanyId, draftPicks, draftTurnId, objectiveMet, scoreGame, legalTargets, lineComplete, contractById, type SubwayState, type SubwayAction } from "../src/games/subway/config";
@@ -260,4 +261,22 @@ console.log("36 complete 2/3/4-player simulations reached RESULTS.");
   assert.equal(bought.players["seat-1"].money,SUBWAY_CONFIG.startingMoney-SUBWAY_CONFIG.destinationPurchaseCost+destinationReward(card.id));
   assert.deepEqual(bought.players["seat-1"].destinationsPaid,[card.id]);
   console.log("Destination completion cash: pay once, Undo reversal and connected purchase passed.");
+}
+
+// Saved device identity: fresh rejoins, idle asks, finished/missing rooms are forgotten.
+{
+  const now=1_800_000_000_000;
+  assert.equal(parseSavedIdentity(null),null);assert.equal(parseSavedIdentity("{bad"),null);assert.equal(parseSavedIdentity(JSON.stringify({roomCode:"DGLE"})),null,"token required");
+  const legacy=parseSavedIdentity(JSON.stringify({roomCode:"DGLE",token:"t",controllerKey:"c"}))!;
+  assert.deepEqual(legacy,{roomCode:"DGLE",token:"t",controllerKey:"c"});
+  assert.equal(resumeDecision(null,now),"none");
+  assert.equal(resumeDecision(legacy,now),"resume","pre-stamp identities rejoin once");
+  assert.equal(resumeDecision(stamped(legacy,now-DEVICE_SESSION_IDLE_MS),now),"resume","exactly the window still rejoins");
+  assert.equal(resumeDecision(stamped(legacy,now-DEVICE_SESSION_IDLE_MS-1),now),"ask");
+  assert.equal(resumeDecision(stamped(legacy,now-14*24*3600*1000),now),"ask","two weeks later asks instead of rejoining");
+  assert.deepEqual(parseSavedIdentity(JSON.stringify(stamped(legacy,now))),{...legacy,seenAt:now},"stamps round-trip through storage");
+  assert.equal(staleRoomDecision(false,undefined),"forget","missing room or rejected key");
+  assert.equal(staleRoomDecision(true,"RESULTS"),"forget","finished game");
+  assert.equal(staleRoomDecision(true,"CONSTRUCTION"),"ask");assert.equal(staleRoomDecision(true,null),"ask","lobby still asks");
+  console.log("Device session: parse, idle window, stamp round-trip and stale-room decisions passed.");
 }

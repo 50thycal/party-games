@@ -8,6 +8,7 @@ import { parseRecord, replayRecord, recordMetrics, recordIdentity, RULES_FINGERP
 import { SUBWAY_STATE_VERSION, type SubwayState } from '@/games/subway/config';
 import { SubwayGameView } from '@/games/subway/GameView';
 import { CardAuditPanel } from '@/games/subway/CardAuditPanel';
+import { DEVICE_SESSION_KEY, stamped } from '@/games/subway/deviceSession';
 const button='rounded-xl bg-teal-700 px-4 py-3 font-bold text-white disabled:opacity-50';
 const field='rounded-lg bg-slate-900 p-3 text-white';
 function download(name:string,value:unknown) {const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
@@ -27,7 +28,7 @@ export default function PlaytestLab() {
     try {
       const response=await fetch('/api/subway-companion',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({operation:'create',lab:true,seats:seats.slice(0,count),seed})});
       const json=await response.json();if(!json.ok) throw new Error(json.message);
-      localStorage.setItem('subway-companion-device-v1',JSON.stringify({roomCode:json.data.view.room.roomCode,token:json.data.token,controllerKey:json.data.controllerKey}));
+      localStorage.setItem(DEVICE_SESSION_KEY,JSON.stringify(stamped({roomCode:json.data.view.room.roomCode,token:json.data.token,controllerKey:json.data.controllerKey},Date.now())));
       window.location.assign('/subway/multiplayer');
     } catch(e) {setError(e instanceof Error?e.message:'Could not create test room.');setBusy(false);}
   }

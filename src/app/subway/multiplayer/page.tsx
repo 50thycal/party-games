@@ -10,6 +10,7 @@ import { generateAiPlaytestReport } from "@/games/subway/report";
 import { LabControls } from "@/games/subway/LabControls";
 import { recoverableBotError } from "@/games/subway/botAutomation";
 import { nextCompanyId } from "@/games/subway/config";
+import { DEVICE_SESSION_KEY, DEVICE_SESSION_TOUCH_MS, parseSavedIdentity, resumeDecision, staleRoomDecision, stamped, type SavedDeviceIdentity } from "@/games/subway/deviceSession";
 import type { CompanionView } from "@/games/subway/companion";
 import { SubwayGameView } from "@/games/subway/GameView";
 import { DestinationCardFace, EngineeringCardFace } from "@/games/subway/CardArt";
@@ -18,8 +19,8 @@ import { phoneGuidance } from "@/games/subway/guidance";
 import { destinationColor } from "@/games/subway/destinationColors";
 import { SUBWAY_CONFIG, contractById, contractOf, destinationMet, destinationReward, objectiveProgress, lineComplete, segmentsBuilt, type RouteNode } from "@/games/subway/config";
 
-const KEY = "subway-companion-device-v1";
-type Identity = {roomCode:string;token:string;controllerKey?:string};
+const KEY = DEVICE_SESSION_KEY;
+type Identity = SavedDeviceIdentity;
 type Tab = "destinations" | "lines" | "engineering" | "general";
 const tabs: {id:Tab;icon:string;label:string}[] = [
   {id:"destinations",icon:"⚑",label:"Destinations"}, {id:"lines",icon:"〰",label:"Lines"},
@@ -61,6 +62,10 @@ export default function SubwayMultiplayerPage() {
     observer.observe(el);return ()=>observer.disconnect();
   },[view?.role,hasGame]);
   const [acknowledgedTurn,setAcknowledgedTurn] = useState<string|null>(null);
+  // A saved identity idle for more than the window waits here for Resume/Leave.
+  const [stale,setStale] = useState<(Identity&{name?:string})|null>(null);
+  const lastTouch = useRef(0);
+  const persist = (next:Identity) => { try { localStorage.setItem(KEY,JSON.stringify(stamped(next,Date.now()))); } catch { /* Session still works. */ } };
   const sending = useRef(false);
   const latestRevision = useRef(-1);
   const accept = (next:CompanionView) => {
@@ -70,10 +75,25 @@ export default function SubwayMultiplayerPage() {
   };
   useEffect(()=>{
     setCode(new URLSearchParams(window.location.search).get("roomCode")?.toUpperCase() ?? "");
-    try {
-      const saved = JSON.parse(localStorage.getItem(KEY) ?? "null");
-      if (saved?.roomCode && saved?.token) setIdentity(saved);
-    } catch { /* Join form remains usable. */ }
+    let saved:Identity|null=null;
+    try { saved = parseSavedIdentity(localStorage.getItem(KEY)); } catch { /* Join form remains usable. */ }
+    const decision = resumeDecision(saved, Date.now());
+    if (decision === "resume") setIdentity(saved);
+    else if (decision === "ask" && saved) {
+      // Idle too long: peek once. A finished or missing room is forgotten; a
+      // live one asks before rejoining so a long break never locks anyone out.
+      const idle = saved;
+      (async () => {
+        let ok=false, phase:string|undefined, name:string|undefined;
+        try {
+          const response=await fetch(`/api/subway-companion?roomCode=${idle.roomCode}`,{headers:{Authorization:`Bearer ${idle.token}`},cache:"no-store"});
+          const json=await response.json();
+          ok=!!json.ok; phase=json.data?.game?.phase; name=json.data?.game?.players?.[json.data?.playerId]?.name;
+        } catch { ok=true; /* Offline: keep the identity and ask. */ }
+        if (staleRoomDecision(ok,phase)==="forget") { try { localStorage.removeItem(KEY); } catch { /* Nothing to clear. */ } }
+        else setStale({...idle,name});
+      })();
+    }
   },[]);
   useEffect(()=>{
     if (!identity) return;
@@ -84,7 +104,10 @@ export default function SubwayMultiplayerPage() {
         const response=await fetch(`/api/subway-companion?roomCode=${identity.roomCode}`,{headers:{Authorization:`Bearer ${identity.token}`},cache:"no-store"});
         const json=await response.json();
         if (!json.ok) throw new Error(json.message);
-        if (!cancelled) {accept(json.data);setOnline(true);}
+        if (!cancelled) {
+          accept(json.data);setOnline(true);
+          if (Date.now()-lastTouch.current>DEVICE_SESSION_TOUCH_MS) { lastTouch.current=Date.now(); persist(identity); }
+        }
       } catch { if(!cancelled) setOnline(false); }
       if(!cancelled) timer=setTimeout(poll,1000);
     };
@@ -99,7 +122,7 @@ export default function SubwayMultiplayerPage() {
       const json=await response.json();
       if(!json.ok) throw new Error(json.message);
       const next={roomCode:json.data.view.room.roomCode,token:json.data.token};
-      localStorage.setItem(KEY,JSON.stringify(next));
+      persist(next);lastTouch.current=Date.now();
       latestRevision.current=-1;setIdentity(next);accept(json.data.view);setOnline(true);
     } catch(e) {setError(e instanceof Error?e.message:"Could not join.");}
     finally {setBusy(false);}
@@ -153,7 +176,15 @@ export default function SubwayMultiplayerPage() {
       const a=document.createElement('a');a.href=url;a.download=`subway-${identity.roomCode}-replay.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
     } catch(e) {setError(e instanceof Error?e.message:'Export failed.');}
   }
-  function leave() {localStorage.removeItem(KEY);setIdentity(null);setView(null);latestRevision.current=-1;setDeviceSettings(false);}
+  function leave() {try{localStorage.removeItem(KEY);}catch{ /* Nothing to clear. */ }setIdentity(null);setView(null);setStale(null);latestRevision.current=-1;setDeviceSettings(false);}
+
+  if(!view&&stale) return <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-5 p-6" data-resume-prompt>
+    <h1 className="text-3xl font-black">Welcome back</h1>
+    <p>This device was last in room <b className="tracking-widest">{stale.roomCode}</b>{stale.name?<> as <b>{stale.name}</b></>:null} more than 20 minutes ago.</p>
+    <button className={button} onClick={()=>{const next={roomCode:stale.roomCode,token:stale.token,...(stale.controllerKey?{controllerKey:stale.controllerKey}:{})};persist(next);lastTouch.current=Date.now();setStale(null);setIdentity(next);}}>Resume room {stale.roomCode}</button>
+    <button className="min-h-12 rounded-xl border border-slate-500 px-4 py-3 font-bold" onClick={leave}>Leave · start fresh</button>
+    <p className="text-xs text-slate-400">Leaving forgets this device’s key. You can still rejoin with the recovery key from the iPad settings.</p>
+  </main>;
 
   if(!view) return <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-5 p-6">
     <Link href="/" className="text-sm text-slate-400">← Party Games</Link>
