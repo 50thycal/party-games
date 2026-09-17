@@ -7,6 +7,7 @@
 
 | ID | Workstream | Phase | Status | Current Next Step | Related PR |
 |---|---|---|---|---|---|
+| [WS-007](WS-007-subway-strategy-telemetry.md) | Subway strategy telemetry | REVIEW | Active | Owner review of classifier 1.0.0 readings against real playtests; calibrate thresholds | Strategy telemetry PR open |
 | [WS-006](WS-006-subway-dgle-playtest.md) | Subway DGLE playtest follow-up | REVIEW | Active | Owner playtest of the ending-cash spectrum and restored borrowing; rule on D2–D4 | [#191](https://github.com/50thycal/party-games/pull/191) merged; spectrum/lookahead PR open |
 | [WS-005](WS-005-subway-finished-edition.md) | Subway 2–4 player finished edition | REVIEW | Active | None for Engineering-art mission; device acceptance parked | [#190](https://github.com/50thycal/party-games/pull/190) (complete on merge); #189 merged |
 | [WS-001](WS-001-subway-v0-3-redesign.md) | Subway v0.3 gameplay redesign | REVIEW | Active | Independent design review of merged v0.3 against the reconstructed Build Card; owner to rule on D1–D4 | [#137](https://github.com/50thycal/party-games/pull/137), [#139](https://github.com/50thycal/party-games/pull/139) (both merged) |

@@ -899,3 +899,19 @@ targets of the state that build would produce, and while a bend is being placed 
 holes where the segment could still finish beyond it. It is pure, client-only and
 unrelated to saved ghost plans. A line's change of heading is a curve everywhere in
 rules, UI and config (`geometry.maxCurveDegrees`); "turn" means a company's turn.
+
+### Strategy telemetry (DEC-058, classifier 1.0.0)
+
+`src/games/subway/strategy/` is an analysis layer with no path back into gameplay:
+`features.ts` replays the accepted-action log to rebuild each company's geometry
+action by action (peg counts repair Undo) and derives behavioural features,
+including field-wide means so "distinctive" can be told from "ordinary for this
+game"; `classifiers.ts` turns features into thirteen 0-100 scores with separate
+confidence and supporting metrics; `index.ts` assembles the per-company
+fingerprint, the up-to-three primary reads, cumulative end-of-early and
+end-of-mid snapshots, dataset rows and the occurrence/combination aggregates.
+`STRATEGY_OCCURRENCE_THRESHOLD` and `STRATEGY_EVIDENCE_FLOOR` are defined once.
+The playtest report renders the section and archives the fingerprints, raw
+features and rows as JSON, versioned by classifier, rules fingerprint and state
+version. `deepOptionality` trades the legal-continuation scan for speed in batch
+runs and the affected classifier lowers its own confidence when it is skipped.

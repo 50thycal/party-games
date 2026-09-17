@@ -1967,3 +1967,59 @@ these rules. Bots now value the band rather than a flat debt rate, so their spen
 `contact.debtVpPerMillion` remains only for reading archived reports. Build-cost previews quote
 the band a placement would leave you in. The lookahead is always on during placement, replacing
 the previous ghost-gated behavior, and adds no state to the reducer.
+
+### DEC-058 — Strategy telemetry is a derived analysis layer, never gameplay
+
+**Date:** 2026-09-17
+**Status:** Accepted by owner; classifier scoring is v1 and expected to be recalibrated.
+
+**Context**
+Playtest reports told us what happened but not how anyone played. The research questions the
+owner wants answered (which strategies actually occur, which co-occur, which correlate with
+winning, which are absent, whether play diversifies with experience) need per-company strategy
+readings across many games, not prose impressions of single sessions.
+
+**Decision**
+Strategy is inferred after the fact from the accepted-action log and final state. Nobody, human
+or bot, declares a strategy beforehand, and no classification is fed back into play: the reducer
+and the bots never learn that a company is a "Network Engineer". Thirteen heuristic classifiers
+each produce a 0-100 match score, a separate confidence in the evidence, the metrics behind it
+and a one-line summary. Scores are not probabilities and are deliberately not mutually exclusive.
+
+Every company gets the complete thirteen-strategy fingerprint, not only its top three, because
+the interesting result may be which combinations recur. A company is reported with up to three
+primary strategies and fewer when the evidence is thin, never padded to three. Raw features are
+archived beside every result so a future classifier version can re-run over historical playtests
+instead of re-simulating them. `STRATEGY_OCCURRENCE_THRESHOLD` is defined once and used
+everywhere occurrence is decided.
+
+Where a strategy describes standing out rather than doing a thing at all (rent collected,
+contested placements, completion rate, network density), the score blends an absolute reading
+with how far the company sits above the rest of that game's field.
+
+**Rationale**
+Heuristics, not a model: classification must be reproducible, explainable, testable, cheap and
+comparable across thousands of games, and the deterministic simulation pipeline must not acquire
+a network dependency. Separating raw telemetry, derived classification and aggregate analysis is
+what makes a wrong v1 formula recoverable rather than a lost dataset.
+
+Field-relative blending came out of calibration: against six simulated games the first absolute
+thresholds classified nearly every company as a landlord, denier and completionist, which is a
+statement about the ruleset rather than about any company's strategy.
+
+**Alternatives considered**
+- Asking players or bot personalities to declare a strategy: rejected. It would make bot games
+  circular evidence that the declared strategies exist, and humans rationalise after the fact.
+- An LLM classifier: rejected for the primary pipeline; it is neither reproducible nor cheap, and
+  would put a network dependency inside deterministic simulation.
+- Scoring from the final scoresheet: rejected. Ending in debt does not make a company leveraged;
+  what matters is when it borrowed and what the borrowing bought.
+- Storing only the top three: rejected. Combination analysis needs the whole vector.
+
+**Consequences**
+Reports carry a Strategy analysis section and an archived JSON block with fingerprints, raw
+features and one dataset row per company per strategy. Classifications are versioned by
+classifier, rules fingerprint and state version, so a shift in strategy frequency can be
+attributed to rule changes or to classifier changes rather than guessed at. Scores from
+classifier 1.0.0 are not comparable to a later version's without re-running. Strategy-specific
+bot personalities remain a separate future experiment, deliberately outside the research dataset.
