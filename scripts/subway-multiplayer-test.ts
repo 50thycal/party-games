@@ -9,6 +9,7 @@ import "./subway-companion-test";
 import "./subway-guidance-test";
 import "./subway-neighborhood-test";
 import { constructionHistory } from "../src/games/subway/constructionHistory";
+import { turnSummary } from "../src/games/subway/turnSummary";
 import { DEVICE_SESSION_IDLE_MS, parseSavedIdentity, resumeDecision, staleRoomDecision, stamped } from "../src/games/subway/deviceSession";
 import { quoteBuildCost } from "../src/games/subway/buildCost";
 import { routeContacts, stationAt } from "../src/games/subway/config";
@@ -279,4 +280,23 @@ console.log("36 complete 2/3/4-player simulations reached RESULTS.");
   assert.equal(staleRoomDecision(true,"RESULTS"),"forget","finished game");
   assert.equal(staleRoomDecision(true,"CONSTRUCTION"),"ask");assert.equal(staleRoomDecision(true,null),"ask","lobby still asks");
   console.log("Device session: parse, idle window, stamp round-trip and stale-room decisions passed.");
+}
+
+// Hand-off summary: cash received, opposition completions and narration since
+// the company last acted; nothing before its first action.
+{
+  let s=construction();
+  assert.equal(turnSummary(s,"seat-1"),null,"no own action yet");
+  s=dispatch(s,"seat-1","HIRE_CREWS",{lineIndexes:[0],period:1});
+  s=dispatch(s,"seat-1","BUILD",{lineIndex:0,x:3,y:2});
+  assert.equal(turnSummary(s,"seat-1"),null,"nothing happened since seat-1 acted");
+  assert.equal(turnSummary(s,"seat-2"),null,"seat-2 has never acted, so there is no baseline to summarise");
+  s=dispatch(s,"seat-2","HIRE_CREWS",{lineIndexes:[0],period:1});
+  s=dispatch(s,"seat-2","BUILD",{lineIndex:0,x:1,y:5});
+  const later=turnSummary(s,"seat-1")!;
+  assert.ok(later.lines.some(t=>t.includes("hired 1 crew")),"opposition hire narrated");
+  assert.ok(later.lines.every(t=>!t.startsWith(s.players["seat-1"].name)),"own narration excluded");
+  assert.equal(later.cashDelta,s.players["seat-1"].money-(SUBWAY_CONFIG.startingMoney-4));
+  assert.deepEqual(later.completions,[]);
+  console.log("Hand-off summary: first-turn guard, cash delta and opposition narration passed.");
 }

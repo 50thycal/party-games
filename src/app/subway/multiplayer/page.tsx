@@ -10,6 +10,7 @@ import { generateAiPlaytestReport } from "@/games/subway/report";
 import { LabControls } from "@/games/subway/LabControls";
 import { recoverableBotError } from "@/games/subway/botAutomation";
 import { nextCompanyId } from "@/games/subway/config";
+import { turnSummary, type TurnSummary } from "@/games/subway/turnSummary";
 import { DEVICE_SESSION_KEY, DEVICE_SESSION_TOUCH_MS, parseSavedIdentity, resumeDecision, staleRoomDecision, stamped, type SavedDeviceIdentity } from "@/games/subway/deviceSession";
 import type { CompanionView } from "@/games/subway/companion";
 import { SubwayGameView } from "@/games/subway/GameView";
@@ -64,6 +65,9 @@ export default function SubwayMultiplayerPage() {
   const [acknowledgedTurn,setAcknowledgedTurn] = useState<string|null>(null);
   // A saved identity idle for more than the window waits here for Resume/Leave.
   const [stale,setStale] = useState<(Identity&{name?:string})|null>(null);
+  // Flash shown to the company that just took the iPad: what happened meanwhile.
+  const [summary,setSummary] = useState<{turn:string;playerId:string;summary:TurnSummary}|null>(null);
+  useEffect(()=>{ if(!summary) return; const timer=setTimeout(()=>setSummary(null),9000); return ()=>clearTimeout(timer); },[summary]);
   const lastTouch = useRef(0);
   const persist = (next:Identity) => { try { localStorage.setItem(KEY,JSON.stringify(stamped(next,Date.now()))); } catch { /* Session still works. */ } };
   const sending = useRef(false);
@@ -143,7 +147,12 @@ export default function SubwayMultiplayerPage() {
       const json=await response!.json();
       if(!json.ok) throw new Error(json.message);
       accept(json.data.view);setOnline(true);
-      if(type === "ACK_COMPANY") setAcknowledgedTurn(json.data.view.turn);
+      if(type === "ACK_COMPANY") {
+        setAcknowledgedTurn(json.data.view.turn);
+        const id=typeof payload?.playerId==="string"?payload.playerId:undefined;
+        const recap=id&&view.game?turnSummary(view.game,id):null;
+        setSummary(recap&&id?{turn:json.data.view.turn,playerId:id,summary:recap}:null);
+      }
     } catch(e) {const message=e instanceof Error?e.message:"Action failed. Check the table before trying again.";setError(message);throw e;}
     finally {sending.current=false;setBusy(false);}
   }
@@ -235,7 +244,8 @@ export default function SubwayMultiplayerPage() {
     {tablet?<button className={button} disabled={controlsDisabled||view.room.players.length<2} onClick={()=>run("START_GAME",{bendMode})}>Start with {view.room.players.length} companies</button>:<p>Keep this phone with you. The iPad starts the game.</p>}
   </main>;
 
-  if(tablet) return <main className="space-y-2 p-2" style={{paddingBottom:padsHeight}}>{needsHandoff&&<>{header}{settings}</>}{notices}{reports}
+  const flash=summary&&summary.turn===view.turn&&!needsHandoff?<TurnFlash name={game.players[summary.playerId]?.name??"You"} color={game.players[summary.playerId]?.color??"#0f766e"} summary={summary.summary} onClose={()=>setSummary(null)}/>:null;
+  if(tablet) return <main className="space-y-2 p-2" style={{paddingBottom:padsHeight}}>{needsHandoff&&<>{header}{settings}</>}{notices}{reports}{flash}
     {view.canUndo&&!view.seatedId&&!needsHandoff&&<button className={button} disabled={controlsDisabled} onClick={()=>run("UNDO_PLACEMENT")}>Undo {game.undo?.label}</button>}
     {needsHandoff?<section className="flex min-h-[65dvh] flex-col items-center justify-center gap-6 rounded-3xl bg-[#193640] p-8 text-center">
       <h1 className="text-3xl font-bold">Pass to {actor?.name}</h1><p>The previous company’s ghosts are hidden.</p>
@@ -287,6 +297,21 @@ export default function SubwayMultiplayerPage() {
       {tabs.map(t=><button key={t.id} aria-current={tab===t.id?"page":undefined} className={`min-h-16 rounded-xl text-[11px] ${tab===t.id?"bg-teal-700 text-white":"text-slate-300"}`} onClick={()=>{setTab(t.id);window.scrollTo({top:0});}}><span aria-hidden className="block text-2xl">{t.icon}</span>{t.label}</button>)}
     </nav>
   </main>;
+}
+
+function TurnFlash({name,color,summary,onClose}:{name:string;color:string;summary:TurnSummary;onClose:()=>void}) {
+  const cash=summary.cashDelta;
+  return <div role="dialog" aria-label="Since your last turn" data-turn-flash className="fixed inset-0 z-40 flex items-start justify-center bg-stone-950/60 p-4 pt-[12vh]" onClick={onClose}>
+    <style>{`@keyframes subway-flash{0%{transform:translateY(-12px);opacity:0}100%{transform:translateY(0);opacity:1}} .subway-flash{animation:subway-flash .35s ease-out both} @media(prefers-reduced-motion:reduce){.subway-flash{animation:none}}`}</style>
+    <section className="subway-flash w-full max-w-md rounded-2xl border-t-8 bg-[#f6edda] p-5 text-stone-900 shadow-2xl" style={{borderColor:color}} onClick={e=>e.stopPropagation()}>
+      <p className="text-xs font-bold uppercase tracking-[.3em] text-amber-800">While the iPad was away</p>
+      <h2 className="mt-1 text-2xl font-black">{name}, since your last turn</h2>
+      <p className={`mt-2 text-3xl font-black tabular-nums ${cash>0?"text-emerald-700":cash<0?"text-red-700":"text-stone-500"}`}>{cash>0?`+$${cash}M`:cash<0?`−$${-cash}M`:"$0M"} <span className="text-sm font-bold text-stone-600">{cash>0?"received from the opposition":cash<0?"net change":"no cash change"}</span></p>
+      {summary.completions.length>0&&<p className="mt-2 text-sm font-bold text-purple-900">Opposition completed: {summary.completions.join(", ")}</p>}
+      {summary.lines.length>0&&<ul className="mt-3 space-y-1 text-sm">{summary.lines.map((line,i)=><li key={i} className="border-t border-stone-300/60 pt-1">{line}</li>)}</ul>}
+      <button className={`${button} mt-4 w-full`} onClick={onClose} autoFocus>Got it · start my turn</button>
+    </section>
+  </div>;
 }
 
 function GhostDiagram({nodes,color,built}:{nodes:RouteNode[];color:string;built:number}) {
