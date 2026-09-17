@@ -4,10 +4,29 @@ Build OS: v0.12
 Phase: REVIEW
 Status: Active
 Updated: 2026-09-17
-Implementation State: QNHT playtest UI cleanup complete on merge of PR #189; PR #188 merged.
+Implementation State: Engineering diagrams and compact faces implemented; validation and PR review in progress. PR #189 merged.
 Related PRs: [#188](https://github.com/50thycal/party-games/pull/188) (terminology audit); [#187](https://github.com/50thycal/party-games/pull/187) (optional bend modes); [#186](https://github.com/50thycal/party-games/pull/186) (draft rules/highlights); [#185](https://github.com/50thycal/party-games/pull/185) (public status/payments/draft); [#184](https://github.com/50thycal/party-games/pull/184) (JNCG cards/surveys/labels); [#177](https://github.com/50thycal/party-games/pull/177) (PRWK feedback); [#176](https://github.com/50thycal/party-games/pull/176) (phone joining; merged); [#175](https://github.com/50thycal/party-games/pull/175) (Playtest Lab); [#174](https://github.com/50thycal/party-games/pull/174) (transfer/objective continuation); [#173](https://github.com/50thycal/party-games/pull/173) (larger neighborhoods/reversed VP; merged); [#172](https://github.com/50thycal/party-games/pull/172) (guided turns, neighborhoods and tiers; merged); [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; merged); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
-## Current continuation — QNHT UI cleanup
+## Current continuation — Engineering goal diagrams
+
+Goal/non-goals/acceptance: [approved spec](../build-specs/WS-005-engineering-art.md).
+Owner approved all 21 diagrams with network multi-color, single-line one-color,
+blue/red opponent notation and separated neighborhood labels. Gray support lines
+explain transfers on single-line goals without implying network scope.
+Implementation State: all 21 shared vector diagrams and compact faces implemented;
+full rules remain available on demand. Destination cards/rules/scoring untouched.
+Validation: production build/lint and focused 21-diagram/105-render checks passed.
+Full Subway regression suite passed, including 36 complete games, 2/3/4-player
+API/replays and card-audit/payment regressions. Main agent and independent reviewer
+inspected all three diagram contact sheets. Browser navigation to localhost was
+blocked (ERR_BLOCKED_BY_CLIENT); no live device/interaction acceptance claimed.
+Framework preflight: canonical origin/main v0.12 checked 2026-09-17; matches adoption.
+Related PRs: pending; #189 merged.
+Review State: /root/engineering_art_review found no open Blocking/Should-fix findings
+in working source; published-head verdict pending. Implementation actor: /root.
+Next Step: finish validation and publish one independently reviewed PR.
+
+## Previous continuation — QNHT UI cleanup
 
 Goal/non-goals/acceptance: [owner-authorized spec](../build-specs/WS-005-qnht-ui.md).
 Framework preflight: canonical origin/main v0.12 checked 2026-09-17; matches adoption.

@@ -78,6 +78,13 @@ color; different colors retain contact/toll rules. Engineering goals use binary 
 The same progress helper supplies phone VP and final score ledger points.
 Neighborhood footprints, explicit node transfers and zero automatic area VP are implemented.
 
+Engineering card faces share 21 schematic vector goal diagrams across phone,
+tabletop, focus and results. Presentation summaries do not replace canonical
+requirements or affect scoring/fingerprints. Network diagrams use multiple route
+colors; single-line goals use one qualifying color with neutral transfer support.
+Native Rules & symbols disclosures preserve full requirements and tag definitions
+outside any card-selection button. Destination faces keep their existing atlas.
+
 ## Purpose
 
 Party Games is a Jackbox-style platform for playing short multiplayer games with friends in a
