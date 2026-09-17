@@ -1,4 +1,6 @@
 import {CrewBoard} from "../src/games/subway/CrewBoard";
+import {BuildCostPreview} from "../src/games/subway/BuildCostPreview";
+import {SubwayGameView} from "../src/games/subway/GameView";
 import {phoneGuidance} from "../src/games/subway/guidance";
 import {Board, holePos} from '../src/games/subway/board';
 import {BendModeSelect} from '../src/games/subway/BendModeSelect';
@@ -115,7 +117,9 @@ console.log('GZZF deadlines, completion economics, starter occupancy, segment re
 {
  const s=fixture();s.players[id].lines=[line('short',[[0,0],[2,0],[5,0]])];
  const phone=renderToStaticMarkup(<PhoneStatus game={s} playerId={id}/>);
- assert.match(phone,/2\/4 segments/);assert.match(phone,/2 stations and 2 segments left/);assert.match(phone,/Diamond = starter/);
+ assert.match(phone,/2 stations and 2 segments left/);assert.doesNotMatch(phone,/Diamond = starter|Public leaders|segments ·/);
+ const details=renderToStaticMarkup(<PhoneStatus game={s} playerId={id} details/>);
+ assert.match(details,/2\/4 segments/);assert.match(details,/Diamond = starter/);assert.match(details,/Public leaders/);
  const pads=renderToStaticMarkup(<PlayerPads game={s} roomKey="fixture"/>);
  assert.match(pads,/Player panels/);assert.doesNotMatch(pads,/segments left|Diamond = starter/);
  const destination=renderToStaticMarkup(<DestinationCardFace card="dest-market-grand" color="#fff"/>);
@@ -134,24 +138,56 @@ console.log('GZZF deadlines, completion economics, starter occupancy, segment re
  assert.ok(!html.includes(`x1="${a.x}" y1="${a.y}" x2="${z.x}" y2="${z.y}"`),'no chord between endpoints');
  const work=renderToStaticMarkup(<Board {...props} drawn={[{...props.drawn[0],route:[{x:0,y:0}],work:[{x:1,y:0}]}]}/>);
  assert.equal((work.match(/data-peg-kind="built"/g)??[]).length,1);assert.match(work,/data-worksite="true"/);
- assert.match(renderToStaticMarkup(<PhoneStatus game={b} playerId={id}/>),/2 bend tokens/);
+ assert.match(renderToStaticMarkup(<PhoneStatus game={b} playerId={id} details/>),/2 bend tokens/);
  const options=renderToStaticMarkup(<BendModeSelect value="tokens" onChange={()=>{}}/>);
  assert.equal((options.match(/<option/g)??[]).length,3);assert.match(options,/value="tokens" selected/);
  console.log('Bend UI: setup options, phone resources, physical legs, worksite and real-peg rendering passed.');
 }
 
-// All active crew instructions must explain partial construction in delayed mode.
+// QNHT: outstanding hired lines pulse; spent activations and other companies do not.
+{
+ const q=fixture();q.phase='PROCUREMENT';
+ const board=renderToStaticMarkup(<SubwayGameView state={q} room={room} playerId="" isHost boardOnly dispatchAction={async()=>{}}/>);
+ assert.doesNotMatch(board,/spectating this transit contest|Phase lesson|Fit board|Zoom in|Zoom out/);
+ assert.match(board,/aria-label="Settings"/);assert.match(board,/Focus Pegboard/);assert.match(board,/Focus Construction schedule/);
+}
+{
+ const q=fixture(),p=q.players[id];p.lines=[line('short',[[0,0]]),line('tram',[[4,0]])];
+ p.crewsHired=true;p.pendingActions=[0,1];
+ const status=()=>renderToStaticMarkup(<PhoneStatus game={q} playerId={id}/>);
+ assert.equal((status().match(/data-hired-line=/g)??[]).length,2);
+ p.pendingActions=[1];assert.equal((status().match(/data-hired-line=/g)??[]).length,1);
+ q.resolveQueue=[other];assert.doesNotMatch(status(),/data-hired-line=/);
+ assert.equal(renderToStaticMarkup(<BuildCostPreview game={q} player={p} contacts={[]}/>),'');
+ const pads=renderToStaticMarkup(<PlayerPads game={q} roomKey="qnht"/>);
+ assert.equal((pads.match(/aria-current="step"/g)??[]).length,1);
+ assert.match(pads,/2\.6s ease-in-out/);assert.match(pads,/-72px/);assert.match(pads,/prefers-reduced-motion/);
+ q.phase='RESULTS';assert.doesNotMatch(renderToStaticMarkup(<PlayerPads game={q} roomKey="qnht"/>),/aria-current="step"/);
+}
+// QNHT: overlapping card targets share an evenly split color; no cryptic badges.
+{
+ const q=subwayGame.initialState(room.players),area=q.stations[0];
+ const props={game:q,targets:[{x:0,y:0},{x:1,y:0}],following:[],canAct:true,onTapHole:()=>{},drawn:[]};
+ const highlights=['#ff0000','#0000ff'].map((color,i)=>({playerId:id,cardId:`test-${i}`,name:'Test destination',label:`C1·D${i+1}`,color,stationIds:[area.id]}));
+ const board=renderToStaticMarkup(<Board {...props} selected={{x:0,y:0}} destinationHighlights={highlights} highlightedStations={[area.id]}/>);
+ assert.match(board,/linearGradient/);assert.match(board,/offset="50%"/);assert.doesNotMatch(board,/C1·D/);
+ assert.match(board,/opacity="0.28" data-target="1,0"/);
+}
+// Detailed crew instructions explain modes; phone prompts stay short and accurate.
 {
  const s=fixture();s.players[id].crewsHired=true;
  for(const mode of ['straight','tokens','delayed'] as const){
   s.bendMode=mode;
   const html=renderToStaticMarkup(<CrewBoard game={s} viewerId={id} busy={false} veiled={false} act={()=>{}}/>);
   const phone=phoneGuidance(s,id).text;
-  for(const text of [html,phone]){
+  for(const text of [html]){
    assert.match(text,/construction activation/);
    if(mode==='delayed'){assert.match(text,/stop at a bend/);assert.match(text,/other hired lines can still build/);assert.doesNotMatch(text,/One segment per chosen route/);}
    if(mode==='tokens')assert.match(text,/available cash/);
    if(mode==='straight')assert.match(text,/straight segment/);
   }
+  assert.ok(phone.length<100,'compact phone prompt');
+  assert.match(phone,/iPad/);
+  if(mode==='delayed')assert.match(phone,/bend uses this line’s activation/);
  }
 }
