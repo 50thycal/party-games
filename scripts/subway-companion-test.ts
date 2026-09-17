@@ -28,7 +28,10 @@ for(const count of [2,3,4]) {
   assert.ok(!JSON.stringify(phoneView).includes(JSON.stringify(secret)),"opposing Destination never transmitted");
   assert.equal(phoneView.game!.destinationDeck.length,0);
   assert.ok(!JSON.stringify(phoneView).includes("tablet-secret"));
-  assert.equal(companionView(state,tablet).game!.players[phones[0].playerId].destinationHand.length,0);
+  // The shared iPad shows every company's card glyphs on its pads (DEC-056), never the decks.
+  assert.deepEqual(companionView(state,tablet).game!.players[phones[1].playerId].destinationHand,first.players[phones[1].playerId].destinationHand);
+  assert.equal(companionView(state,tablet).game!.destinationDeck.length,0);
+  assert.equal(companionView(state,tablet).game!.market.decks.engineering.length,0);
   const rawBefore=JSON.stringify(state);
   assert.throws(()=>companionAction(state,phones[0],{type:"BUILD",requestId:"bad-board",revision:state.subwayCompanion!.revision},{now:()=>1,random}));
   assert.equal(JSON.stringify(state),rawBefore);

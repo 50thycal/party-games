@@ -81,9 +81,12 @@ export function companionView(state: RoomState, device: CompanionDevice): Compan
         p.scoreBreakdown = undefined;
       }
       // Tablet carries public pieces only, even after company acknowledgement.
+      // Held Engineering and Destination card ids are public there (DEC-056):
+      // the player pads show every company's card glyphs. Decks stay hidden.
       if (device.role === "tablet" && game.phase !== "RESULTS") {
-        p.engineeringHand = []; p.destinationHand = []; p.committedEngineering = [];
-        p.destinationCommitments = []; p.schedulingHand = [];
+        p.engineeringHand = [...(original!.players[p.id]?.engineeringHand ?? [])];
+        p.destinationHand = [...(original!.players[p.id]?.destinationHand ?? [])];
+        p.committedEngineering = []; p.destinationCommitments = []; p.schedulingHand = [];
       }
     }
   }

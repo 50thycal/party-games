@@ -6,6 +6,7 @@ import {Board, holePos} from '../src/games/subway/board';
 import {BendModeSelect} from '../src/games/subway/BendModeSelect';
 import { PhoneStatus, PlayerPads } from '../src/games/subway/PlayerStatus';
 import { DestinationCardFace } from '../src/games/subway/CardArt';
+import { GLYPH_COVERAGE, NEIGHBORHOOD_ABBREVIATIONS } from '../src/games/subway/CardGlyphs';
 import assert from 'node:assert/strict';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ContractCard } from '../src/games/subway/cards';
@@ -126,6 +127,15 @@ console.log('GZZF deadlines, completion economics, starter occupancy, segment re
  assert.match(details,/2\/4 segments/);assert.match(details,/Diamond = starter/);assert.match(details,/Public leaders/);
  const pads=renderToStaticMarkup(<PlayerPads game={s} roomKey="fixture"/>);
  assert.match(pads,/Player panels/);assert.doesNotMatch(pads,/segments left|Diamond = starter/);
+ // Public card glyphs: one per held Engineering card with its category, one chip per Destination.
+ assert.ok(GLYPH_COVERAGE,'every Engineering card has a drawn glyph');
+ const carded=structuredClone(s);carded.players[id].engineeringHand=['north-south','shared-stations','citywide-coverage'];carded.players[id].destinationHand=['dest-market-grand','dest-stadium-harbor'];
+ const withCards=renderToStaticMarkup(<PlayerPads game={carded} roomKey="fixture"/>);
+ assert.equal((withCards.match(/data-engineering-glyph=/g)??[]).length,3);
+ for(const category of ['Line','Station','Neighborhood']) assert.match(withCards,new RegExp(`data-glyph-category="${category}"`));
+ assert.match(withCards,/data-destination-chip="dest-market-grand"[^>]*>Mk\+GC</);assert.match(withCards,/>S\+H</);
+ assert.equal(new Set(Object.values(NEIGHBORHOOD_ABBREVIATIONS)).size,10,'abbreviations are unique');
+ assert.doesNotMatch(pads,/data-engineering-glyph/,'no glyph row for empty hands');
  const destination=renderToStaticMarkup(<DestinationCardFace card="dest-market-grand" color="#fff"/>);
  assert.match(destination,/Any order/);assert.match(destination,/Market/);assert.match(destination,/Grand Central/);
  assert.match(destination,/Pays \$2M the first time/);assert.doesNotMatch(destination,/Connect these neighborhoods through your own network\./,'slim face drops the description paragraph');
