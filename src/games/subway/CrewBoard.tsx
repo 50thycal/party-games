@@ -2,11 +2,12 @@
 
 import { crewActivationText } from "./terminology";
 import { useState } from "react";
-import { activationCost, buildableLines, canAffordCrews, contractOf, SUBWAY_CONFIG, type SubwayState } from "./config";
+import { activationCost, buildableLines, canAffordCrews, cashScore, contractOf, SUBWAY_CONFIG, type SubwayState } from "./config";
 import { Printed, TableButton } from "./table";
 import { constructionHistory } from "./constructionHistory";
 import { PublicLeaders } from "./PlayerStatus";
 import { BuyCardButton } from "./BuyCardButton";
+import { CashSpectrum } from "./CashSpectrum";
 
 export function CrewBoard({game,viewerId,busy,veiled,act,boardOnly=false}:{game:SubwayState;viewerId:string;busy:boolean;veiled:boolean;act:(type:string,payload?:Record<string,unknown>)=>unknown;boardOnly?:boolean}) {
   const [selected,setSelected]=useState<number[]>([]);
@@ -32,7 +33,7 @@ export function CrewBoard({game,viewerId,busy,veiled,act,boardOnly=false}:{game:
             <p className="text-lg">One extra Engineering goal and one extra Destination per game, before hiring crews.</p>
           </div>
           <div className="grid grid-cols-3 gap-3">{p.lines.map((line,i)=><button key={i} disabled={busy||!available.includes(i)} aria-pressed={indexes.includes(i)} onClick={()=>setSelected(indexes.includes(i)?indexes.filter(n=>n!==i):[...indexes,i])} className={`rounded-xl border-4 px-3 py-4 text-xl font-bold disabled:opacity-40 ${indexes.includes(i)?"border-teal-700 bg-teal-100":"border-stone-300 bg-white"}`}>{contractOf(line)?.name}</button>)}</div>
-          <p className="text-xl">Hire {indexes.length} crew(s): <b>${cost}M</b> · Cash afterward: <b>${p.money-cost}M</b>{!affordable?<strong className="ml-4 text-red-700">Not enough cash: crews are paid from cash on hand.</strong>:p.money-cost<0&&<strong className="ml-4 text-red-700">Final debt penalty at this balance: {(p.money-cost)*4} VP</strong>}</p>
+          <p className="text-xl">Hire {indexes.length} crew(s): <b>${cost}M</b> · Cash afterward: <b>${p.money-cost}M</b>{!affordable?<strong className="ml-4 text-red-700">Not enough cash: crews are paid from cash on hand.</strong>:<strong className={`ml-4 ${cashScore(p.money-cost)<0?"text-red-700":"text-emerald-800"}`}>Cash position at this balance: {cashScore(p.money-cost)>0?"+":""}{cashScore(p.money-cost)} VP</strong>}</p>
           <TableButton disabled={busy||!affordable} onClick={()=>act("HIRE_CREWS",{lineIndexes:indexes,period:game.currentPeriod})}>{indexes.length?`Pay $${cost}M & build` : "No crews · end turn"}</TableButton>
         </div>}
         {actor===viewerId&&p.crewsHired&&p.pendingActions.length>0&&<div className="mt-4">
@@ -41,11 +42,12 @@ export function CrewBoard({game,viewerId,busy,veiled,act,boardOnly=false}:{game:
         {game.undo?.playerId===viewerId&&<div className="mt-4">
           <TableButton disabled={busy} onClick={()=>act("UNDO_PLACEMENT")}>Undo {game.undo.label}</TableButton>
         </div>}
-        <p className="mt-4 text-xl">1 crew $1M · 2 crews $3M · 3 crews $6M{SUBWAY_CONFIG.crewDebtAllowed?"":", paid from cash on hand"}. {crewActivationText(game.bendMode)} Unpaid debt: −4 VP per $1M.</p>
+        <p className="mt-4 text-xl">1 crew $1M · 2 crews $3M · 3 crews $6M{SUBWAY_CONFIG.crewDebtAllowed?", and you may borrow past $0":", paid from cash on hand"}. {crewActivationText(game.bendMode)}</p>
       </>}
     </>}
     </div>
     <div className="border-l-2 border-stone-300 pl-8">
+    <div className="mb-4"><CashSpectrum game={game} viewerId={viewerId}/></div>
     <div className="mb-3"><PublicLeaders game={game} dark/></div>
     <div className="flex flex-wrap gap-2" aria-label="Construction rounds">{Array.from({length:SUBWAY_CONFIG.timelinePeriods},(_,i)=><button key={i} aria-label={`View round ${i+1}`} aria-pressed={historyRound===i+1} onClick={()=>setHistoryRound(i+1)} className={`rounded px-3 py-2 text-xl font-bold ${historyRound===i+1?"bg-teal-700 text-white":"bg-stone-200"}`}>{i+1}</button>)}</div>
     <p className="mt-3 text-lg">Round {historyRound} · {historyRound>game.currentPeriod?"Projected construction order":"Construction order"}</p>

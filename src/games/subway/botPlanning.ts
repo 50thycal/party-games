@@ -1,4 +1,4 @@
-import { SUBWAY_CONFIG, affordableCrews, buildableLines, contractOf, lineActionsRemaining, lineComplete, legalTargets, objectiveProgress, stationAt, routeContacts, contactToll, type SubwayState, type PlacementTarget } from './config';
+import { SUBWAY_CONFIG, affordableCrews, cashScore, buildableLines, contractOf, lineActionsRemaining, lineComplete, legalTargets, objectiveProgress, stationAt, routeContacts, contactToll, type SubwayState, type PlacementTarget } from './config';
 
 const crewCost = (n: number) => n * (n + 1) / 2;
 
@@ -61,7 +61,7 @@ export function planBotCrews(state: SubwayState, id: string, cautious = false, p
     const vp = finishing.reduce((v,l) => v + contractOf(l)!.completionVp - contractOf(l)!.incompletePenalty, 0);
     const all = remaining.every((n,i) => n === 0 || goals[i] > 0);
     const firstBonus = all && !state.firstCompletedPlayerId && me.engineeringHand.includes('crossing') ? 7 : 0;
-    const value = vp + firstBonus + (prioritizeCompletion&&all?30:0) - Math.max(0, -cash) * SUBWAY_CONFIG.contact.debtVpPerMillion - plan.cost * (cautious ? .35 : .15);
+    const value = vp + firstBonus + (prioritizeCompletion&&all?30:0) + cashScore(cash) - plan.cost * (cautious ? .35 : .15);
     if (value > bestValue || (value === bestValue && plan.urgency > chosen.urgency)) {bestValue = value; chosen = plan;}
   }
   const now=[...chosen.now];
@@ -74,8 +74,9 @@ export function planBotCrews(state: SubwayState, id: string, cautious = false, p
     const opportunity=immediateObjectiveBuild(forecast,id,i); if (!opportunity) continue;
     const extra=crewCost(now.length+1)-crewCost(now.length)+opportunity.toll;
     const cash=forecast.players[id].money;
-    const debt=Math.max(0,extra-cash)-Math.max(0,-cash);
-    if (opportunity.gain>extra*(cautious ? .35 : .15)+debt*SUBWAY_CONFIG.contact.debtVpPerMillion) {
+    // What spending this much would cost on the ending-cash spectrum.
+    const bandCost=cashScore(cash)-cashScore(cash-extra);
+    if (opportunity.gain>extra*(cautious ? .35 : .15)+bandCost) {
       now.push(i);
       const st=stationAt(opportunity.target,forecast.stations);
       forecast.players[id].money-=extra;

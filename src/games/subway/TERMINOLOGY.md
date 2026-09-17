@@ -19,6 +19,7 @@ not approve balance or remove the rulebooks’ DRAFT — NEEDS OWNER REVIEW stat
 | Longest Network | Longest continuous trail of completed segments, measured along actual paths, with no segment reused. |
 | Segment / leg | One contract recipe entry between stations / one straight part of that segment. |
 | Bend / worksite | Path vertex / unfinished tip; neither is a station or qualifying line end. |
+| Curve | A line's change of heading at a peg, at most 90°. Never called a "turn": that word is reserved for a company's turn in the round. |
 | Round / turn / construction activation | Cycle of company turns / one company’s opportunity / one hired line’s action. Delayed construction may stop before completing a segment. |
 | Line Ends Only | Starter station or final station of a completed line. A growing unfinished tip does not qualify. |
 | Consecutive Stations | Successive stations on one line, joined by one segment. |

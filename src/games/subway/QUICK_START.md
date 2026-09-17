@@ -42,7 +42,7 @@ There are up to **nine construction rounds**. Everyone takes one turn per round.
 
 Each activated line gets **one construction activation** that turn. Follow the segment lengths
 printed on its contract, in order. In the default mode each segment is straight, and your line may
-turn by no more than 90 degrees at a peg. The game shows legal placements and
+curve by no more than 90 degrees at a peg. The game shows legal placements and
 previews your selection before you confirm.
 
 Finishing a line immediately earns **$3 million**, plus its printed victory
@@ -79,9 +79,10 @@ others allow a connected network or any of your lines.
 
 The game ends after round nine, or earlier when no player has a legal next segment
 left. Add completed-line points, fulfilled Engineering and Destination cards, and
-any longest-network and Largest Transfer Station awards. Subtract unfinished-line penalties and **4 points for
-every $1 million of remaining debt**. Neighborhood visits do not earn points by
-themselves.
+any longest-network and Largest Transfer Station awards. Subtract unfinished-line penalties, then
+score your **ending cash** on its band: +2 VP at $4M or more, +1 VP at $2M to $3M, nothing at $0M to
+$1M, −1 VP at −$1M, −3 VP at −$2M to −$3M and −5 VP at −$4M or worse. Neighborhood visits do not earn
+points by themselves.
 
 **Remember:** One peg per hole. Adjacent pegs connect different lines. Crossings
 cost money. Finish what you start.
@@ -94,7 +95,7 @@ one per bend; extras cost $3M each from available cash on Confirm), or choose
 Other hired lines can still build when a line stops. You can preview multiple
 bends in token mode; each extra stop in delayed mode costs another activation.
 
-Turns stay within 90 degrees, and the combined leg lengths must match the printed
+Curves stay within 90 degrees, and the combined leg lengths must match the printed
 segment. Bend/worksite markers are not scoring pegs. Crossings cost money as each
 leg is built; unfinished segments earn no network length. Future space is not
 reserved. Nine rounds, normal completion rewards and unfinished penalties remain.

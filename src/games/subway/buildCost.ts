@@ -1,4 +1,4 @@
-import { contactToll, SUBWAY_CONFIG, type RouteContact, type SubwayPlayer } from "./config";
+import { cashScore, contactToll, SUBWAY_CONFIG, type RouteContact, type SubwayPlayer } from "./config";
 
 /** Quote one real segment from the same priced contacts used by BUILD. */
 export function quoteBuildCost(player: Pick<SubwayPlayer, "money">, contacts: RouteContact[]) {
@@ -13,7 +13,9 @@ export function quoteBuildCost(player: Pick<SubwayPlayer, "money">, contacts: Ro
     totalToll,
     playerCost,
     cashAfter,
-    debtPenalty: Math.min(0, cashAfter) * SUBWAY_CONFIG.contact.debtVpPerMillion,
+    /** Cash-band VP this balance would score if the game ended here. */
+    cashScoreAfter: cashScore(cashAfter),
+    cashScoreChange: cashScore(cashAfter) - cashScore(player.money),
     recipients: Array.from(payments, ([ownerId, amount]) => ({ ownerId, amount })),
   };
 }

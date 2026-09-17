@@ -7,6 +7,10 @@ import {BendModeSelect} from '../src/games/subway/BendModeSelect';
 import { PhoneStatus, PlayerPads } from '../src/games/subway/PlayerStatus';
 import { DestinationCardFace } from '../src/games/subway/CardArt';
 import { GLYPH_COVERAGE, NEIGHBORHOOD_ABBREVIATIONS } from '../src/games/subway/CardGlyphs';
+import { CashSpectrum } from '../src/games/subway/CashSpectrum';
+import { lookaheadTargets } from '../src/games/subway/lookahead';
+import { cashBand, cashScore } from '../src/games/subway/config';
+import { validatePath } from '../src/games/subway/bends';
 import assert from 'node:assert/strict';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ContractCard } from '../src/games/subway/cards';
@@ -207,4 +211,54 @@ console.log('GZZF deadlines, completion economics, starter occupancy, segment re
   assert.match(phone,/iPad/);
   if(mode==='delayed')assert.match(phone,/bend uses this line’s activation/);
  }
+}
+
+// Next-station lookahead: a plain aid computed from the selected target, shown
+// as the yellow dashed marker, and never written back to the game.
+{
+ const s=fixture();s.bendMode='straight';
+ s.players[id].lines=[line('short',[[5,4]])];
+ const before=JSON.stringify(s);
+ const target={x:7,y:4}; // the Short line's first printed segment spans 2 spaces
+ const next=lookaheadTargets(s,id,0,{preview:target});
+ assert.equal(JSON.stringify(s),before,'lookahead never mutates the game');
+ assert.ok(next.length>0,'a legal target leaves somewhere to continue');
+ assert.ok(next.every(t=>!(t.x===target.x&&t.y===target.y)),'the chosen hole is not offered again');
+ assert.deepEqual(lookaheadTargets(s,id,0,{preview:null}),[],'nothing selected, nothing to show');
+ assert.deepEqual(lookaheadTargets(s,id,9,{preview:target}),[],'unknown line shows nothing');
+ // Each highlighted hole is a placement the reducer would accept next.
+ const hired=structuredClone(s);hired.players[id].crewsHired=true;hired.players[id].pendingActions=[0];
+ const built=subwayGame.reducer(hired,{playerId:id,type:'BUILD',payload:{lineIndex:0,...target}},{room,playerId:id,now:()=>1,random:()=>.5});
+ assert.notEqual(built,hired,'the previewed build is itself legal');
+ assert.equal(built.players[id].lines[0].route.length,2,'the build landed');
+ for(const t of next.slice(0,6)) assert.equal(validateNode(built,id,0,t),null,'every lookahead hole is legal after the build');
+ // During a bend the lookahead shows where the segment can still finish.
+ const bent=fixture();bent.bendMode='tokens';bent.players[id].bendTokens=2;
+ bent.players[id].lines=[line('short',[[5,4]])];
+ const bendVertex={x:6,y:4}; // a bend one space along, leaving one space to finish
+ const finishes=lookaheadTargets(bent,id,0,{preview:bendVertex,bendPick:true});
+ assert.ok(finishes.length>0,'a bend shows where the segment can finish');
+ for(const f of finishes.slice(0,6)) assert.equal(validatePath(bent,id,0,[bendVertex,f],false,true),null,'each finish completes the segment through the bend');
+ assert.deepEqual(lookaheadTargets(bent,id,0,{preview:null,bendPick:true}),[],'no bend vertex chosen yet');
+ const boardHtml=renderToStaticMarkup(<Board game={s} targets={[target]} following={next} selected={target} canAct onTapHole={()=>{}} drawn={[]}/>);
+ assert.equal((boardHtml.match(/data-step="2"/g)??[]).length,next.length,'every lookahead hole renders as the yellow next marker');
+ assert.match(boardHtml,/#facc15/);
+ console.log('Next-station lookahead: purity, legality, bend finishes and yellow markers passed.');
+}
+
+// Ending-cash spectrum: one cell per band, each company in exactly one cell.
+{
+ const s=fixture();
+ const ids=s.playerOrder;
+ s.players[ids[0]].money=7;s.players[ids[1]].money=-2;
+ const html=renderToStaticMarkup(<CashSpectrum game={s} viewerId={ids[0]}/>);
+ assert.equal((html.match(/data-cash-band=/g)??[]).length,SUBWAY_CONFIG.cashBands.length,'one cell per band');
+ assert.equal((html.match(/data-cash-token=/g)??[]).length,ids.length,'one token per company');
+ for(const band of SUBWAY_CONFIG.cashBands) assert.ok(html.includes(band.label),`band ${band.label} is labelled`);
+ const first=html.indexOf(`data-cash-band="${SUBWAY_CONFIG.cashBands.at(-1)!.label}"`);
+ const last=html.indexOf(`data-cash-band="${SUBWAY_CONFIG.cashBands[0].label}"`);
+ assert.ok(first>=0&&last>first,'the bar runs from the worst band to the best');
+ assert.ok(html.indexOf(`data-cash-token="${ids[1]}"`)<html.indexOf(`data-cash-token="${ids[0]}"`),'the company in debt sits left of the one holding cash');
+ assert.equal(cashBand(s.players[ids[0]].money).vp,cashScore(7));
+ console.log('Cash spectrum: band cells, company tokens, labels and ordering passed.');
 }

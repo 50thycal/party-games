@@ -504,9 +504,10 @@ every recipient balance.
 Each company starts with $40M and chooses zero to three unfinished routes each turn
 over nine construction rounds. Crew bills are $0/$1/$3/$6M, paid before building one
 segment on each chosen route. No advance timetable or shelving phase exists.
-Final debt costs four VP per $1M. Crews are paid from cash on hand unless
-`crewDebtAllowed` restores the older bridging-debt rule (DEC-056); only contact tolls
-can create debt. CrewBoard renders crew selection and round history while the
+Ending cash scores on a six-band spectrum (DEC-057): +2 VP at $4M or more through
+−5 VP at −$4M or worse, computed by `cashBand`/`cashScore` and shown publicly on the
+Construction schedule by `CashSpectrum`. Crews may be hired on credit again
+(`crewDebtAllowed` is true), so hiring and contact tolls can both create debt. CrewBoard renders crew selection and round history while the
 reducer owns billing, turn order and placement authority. Placement Undo refunds
 placement tolls but retains the already-paid crew bill.
 
@@ -887,3 +888,14 @@ identity while polling; after twenty idle minutes a reopened page peeks once and
 forgets a finished/missing room or asks Resume/Leave, never deleting the recovery key
 silently. Destination faces are slim (label, pictures, names) with rules behind a
 disclosure; the phone header carries an R round badge.
+
+### Ending-cash spectrum, lookahead and curve wording (DEC-057, state v27)
+
+`SUBWAY_CONFIG.cashBands` is the single ordered source for ending-cash VP; scoring,
+the build-cost preview, the crew bill, the phone summary, the bots and the public bar
+all read it through `cashScore`/`cashBand` rather than a flat rate. `lookahead.ts`
+derives the yellow next-step markers from the selected target: normally the legal
+targets of the state that build would produce, and while a bend is being placed the
+holes where the segment could still finish beyond it. It is pure, client-only and
+unrelated to saved ghost plans. A line's change of heading is a curve everywhere in
+rules, UI and config (`geometry.maxCurveDegrees`); "turn" means a company's turn.

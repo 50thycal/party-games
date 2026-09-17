@@ -13,7 +13,7 @@ fulfilling private Destination missions, meeting Engineering goals, and building
 the Longest Network and Largest Transfer Station public goals.
 
 Money pays for contracts, crews, and access to opponents' infrastructure.
-Unfinished lines and unpaid debt reduce your final score.
+Unfinished lines reduce your final score, and your ending cash scores on a spectrum.
 
 ## 2. The city and its pieces
 
@@ -85,26 +85,26 @@ line receives **one construction activation** (normally one segment placement). 
 different lines, not extending one line twice.
 
 Hire once per turn. You cannot change your selection after paying. Hiring zero
-crews ends your turn. Crews are paid from cash on hand, so you can only hire what
-you can afford this turn. Contact payments may still take cash below zero; that
-debt is allowed, but expensive at scoring. Skipping or blocking a placement does
+crews ends your turn. Crew costs and contact payments may both take cash below
+zero on the turn you build: borrowing is allowed, and what it costs depends on
+the band you finish the game in. Skipping or blocking a placement does
 not refund its crew cost.
 
 ## 5. Building a line
 
 Begin at the starter and follow the contract's lengths in printed order. Extend
-from the current last peg, choose an empty hole, meet the next length and turn
+from the current last peg, choose an empty hole, meet the next length and curve
 rules, review the preview, and confirm.
 
-### Lengths and turns
+### Lengths and curves
 
 Measure straight-line distance in peg spaces. The digital game allows half a peg
 space above or below the printed length: a length-four segment may measure 3.5
 to 4.5 spaces. Diagonals qualify when their measured length fits. Use the legal
 placement indicators rather than adding horizontal and vertical steps.
 
-Your line may change direction by **at most 90 degrees** at a peg. Continuing
-straight is allowed; turning back more sharply is not. The first segment has no
+Your line may curve by **at most 90 degrees** at a peg. Continuing
+straight is allowed; curving back more sharply is not. The first segment has no
 previous direction. Straight mode connects pegs directly. In an optional bend
 mode, measure each straight leg and add the lengths.
 
@@ -123,7 +123,7 @@ Hire that line again on a later turn to continue its remaining length. Each
 additional stop takes another activation. A worksite does not reserve future
 holes or strings; later construction may block its continuation.
 
-Each leg joins board holes and changes heading by at most **90 degrees**.
+Each leg joins board holes and curves by at most **90 degrees**.
 Add the actual leg lengths; apply the existing ±0.5-space tolerance once to the
 whole printed segment. A stop must leave at least one space available to finish.
 Bends and worksites are **not pegs or stations**: they do not serve neighborhoods,
@@ -330,7 +330,8 @@ company can still build.
 3. Add fulfilled Engineering cards.
 4. Add fulfilled Destination cards.
 5. Add any longest-network and Largest Transfer Station awards.
-6. Subtract **4 VP for each $1 million of final debt**.
+6. Score your **ending cash** on the spectrum: $4M or more +2 VP, $2M to $3M +1 VP,
+   $0M to $1M 0 VP, −$1M −1 VP, −$2M to −$3M −3 VP, −$4M or worse −5 VP.
 
 There are no automatic points for neighborhood visits or leftover
 positive cash. Highest total wins. Break ties by number of different large
