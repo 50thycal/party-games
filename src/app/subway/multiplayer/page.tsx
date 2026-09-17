@@ -4,7 +4,7 @@ import {BendModeSelect} from "@/games/subway/BendModeSelect";
 import {type BendMode} from "@/games/subway/bends";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { PhoneStatus, PlayerPads, PublicLeaders } from "@/games/subway/PlayerStatus";
+import { PhoneStatus, PlayerPads } from "@/games/subway/PlayerStatus";
 import { ReportSaveControls } from "@/games/subway/ReportSaveControls";
 import { generateAiPlaytestReport } from "@/games/subway/report";
 import { LabControls } from "@/games/subway/LabControls";
@@ -15,6 +15,7 @@ import { SubwayGameView } from "@/games/subway/GameView";
 import { DestinationCardFace, EngineeringCardFace } from "@/games/subway/CardArt";
 import { ContractCard } from "@/games/subway/cards";
 import { phoneGuidance } from "@/games/subway/guidance";
+import { destinationColor } from "@/games/subway/destinationColors";
 import { SUBWAY_CONFIG, contractById, contractOf, destinationMet, objectiveProgress, lineComplete, segmentsBuilt, type RouteNode } from "@/games/subway/config";
 
 const KEY = "subway-companion-device-v1";
@@ -182,15 +183,19 @@ export default function SubwayMultiplayerPage() {
   const onPhone=game?.phase==="PROCUREMENT"||(game?.phase==="ENGINEERING"&&game.engineeringStep==="CARD_DRAFT");
   const needsHandoff=tablet&&!onPhone&&!!view.actorId&&(view.seatedId!==view.actorId||acknowledgedTurn!==view.turn);
   const header=<header className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#193640] p-2 text-white">
-    {game?<>{tablet?<PublicLeaders game={game}/>:<span className="text-xs">Round {game.currentPeriod}/{SUBWAY_CONFIG.timelinePeriods}</span>}</>:<strong>SUBWAY · Room {view.room.roomCode}</strong>}
-    <button className="rounded-lg bg-white/10 px-3 py-2 text-xs" onClick={()=>setDeviceSettings(v=>!v)}>Settings</button>
+    {!game&&<strong>SUBWAY · Room {view.room.roomCode}</strong>}
+    <button aria-label="Settings" aria-expanded={deviceSettings} className="ml-auto min-h-11 min-w-11 rounded-lg bg-white/10 px-3 py-2" onClick={()=>setDeviceSettings(v=>!v)}>⚙</button>
   </header>;
-  const settings=deviceSettings&&<section className="space-y-3 rounded-xl bg-slate-800 p-4">
+  const labControls=<LabControls view={view} run={run} busy={controlsDisabled} auto={auto} setAuto={toggleAuto} follow={follow} setFollow={setFollow} onExport={()=>void exportRecord()} controllerKey={identity?.controllerKey}/>;
+  const settingsContent=<section className="space-y-3 rounded-xl bg-slate-800 p-4 text-white">
+    {labControls}
     <p className="font-bold">SUBWAY · Room {view.room.roomCode}</p><p className="text-sm">Keep this recovery key private. It restores this device on another browser.</p>
     <code className="block break-all text-xs select-all">{identity?.token}</code>
     <button className={button} onClick={leave}>Leave this device</button>
   </section>;
-  const notices=<>{game?.phase==='RESULTS'&&<ReportSaveControls report={generateAiPlaytestReport(game,{...view.reportContext,roomCode:view.room.roomCode,mode:view.room.mode})} roomCode={view.room.roomCode}/>}<LabControls view={view} run={run} busy={controlsDisabled} auto={auto} setAuto={toggleAuto} follow={follow} setFollow={setFollow} onExport={()=>void exportRecord()} controllerKey={identity?.controllerKey}/>{game?.phase==='RESULTS'&&!view.lab&&<button className={button} onClick={()=>void exportRecord()}>Download replay JSON</button>}{!online&&<p role="alert" className="rounded-lg bg-amber-950 p-3">Connection lost. Reconnecting… Board actions are paused.</p>}{error&&<p role="alert" className="rounded-lg bg-rose-950 p-3">{error}</p>}</>;
+  const settings=deviceSettings&&settingsContent;
+  const reports=game?.phase==='RESULTS'&&<><ReportSaveControls report={generateAiPlaytestReport(game,{...view.reportContext,roomCode:view.room.roomCode,mode:view.room.mode})} roomCode={view.room.roomCode}/>{!view.lab&&<button className={button} onClick={()=>void exportRecord()}>Download replay JSON</button>}</>;
+  const notices=<>{!online&&<p role="alert" className="rounded-lg bg-amber-950 p-3">Connection lost. Reconnecting… Board actions are paused.</p>}{error&&<p role="alert" className="rounded-lg bg-rose-950 p-3">{error}</p>}</>;
   if(!game) return <main className="mx-auto max-w-xl space-y-5 p-4">{header}{settings}{notices}
     <h1 className="text-2xl font-bold">Companies at the table</h1>
     <div className="rounded-xl bg-slate-800 p-4"><p className="text-sm">Join on each phone at</p><p className="break-all font-bold">{typeof window!=="undefined"?window.location.host:""}/subway/multiplayer</p><p className="text-5xl font-black tracking-widest">{view.room.roomCode}</p>{view.lab&&<p className="mt-3">Choose <strong>My testing phone · Playtest Lab</strong> on your phone to control your managed companies. First connection needs only this room code. Friends with reserved seats choose My phone.</p>}</div>
@@ -199,16 +204,14 @@ export default function SubwayMultiplayerPage() {
     {tablet?<button className={button} disabled={controlsDisabled||view.room.players.length<2} onClick={()=>run("START_GAME",{bendMode})}>Start with {view.room.players.length} companies</button>:<p>Keep this phone with you. The iPad starts the game.</p>}
   </main>;
 
-  if(tablet) return <main className="space-y-2 p-2" style={{paddingBottom:padsHeight}}>{header}{settings}{notices}
+  if(tablet) return <main className="space-y-2 p-2" style={{paddingBottom:padsHeight}}>{needsHandoff&&<>{header}{settings}</>}{notices}{reports}
     {view.canUndo&&!view.seatedId&&!needsHandoff&&<button className={button} disabled={controlsDisabled} onClick={()=>run("UNDO_PLACEMENT")}>Undo {game.undo?.label}</button>}
-    {onPhone&&<p className="rounded-xl bg-teal-950 p-3">{actor?`${actor.name}: choose on your phone.`:"Waiting for the next company."}</p>}
     {needsHandoff?<section className="flex min-h-[65dvh] flex-col items-center justify-center gap-6 rounded-3xl bg-[#193640] p-8 text-center">
       <h1 className="text-3xl font-bold">Pass to {actor?.name}</h1><p>The previous company’s ghosts are hidden.</p>
       <button className={button} disabled={controlsDisabled} onClick={()=>run("ACK_COMPANY",{playerId:view.actorId})}>I am {actor?.name}</button>
       {view.canUndo&&game.undo&&<button className="min-h-12 underline" disabled={controlsDisabled} onClick={()=>run("UNDO_PLACEMENT")}>Undo last placement · {game.players[game.undo.playerId]?.name}</button>}
     </section>:<div className={!online?"pointer-events-none opacity-60":""}>
-      {view.destinationHighlights.length>0&&<div aria-label="Destination highlight legend" className="flex flex-wrap gap-2">{view.destinationHighlights.map(h=><span key={h.playerId+h.cardId} className="rounded bg-white px-2 py-1 font-bold" style={{color:h.color}}>{h.label} · {h.name}</span>)}</div>}
-      <SubwayGameView key={`${view.turn}:${view.seatedId??"public"}`} state={game} room={view.room} playerId={view.seatedId??""} isHost boardOnly externalBottom={padsHeight} reportContext={view.reportContext} remotePlans={view.plans} dispatchAction={act} highlightedStations={view.highlightedStations} destinationHighlights={view.destinationHighlights} onSaveGhost={(contractId:string,nodes:RouteNode[])=>act("SAVE_GHOST",{contractId,nodes})}/>
+      <SubwayGameView key={`${view.turn}:${view.seatedId??"public"}`} state={game} room={view.room} playerId={view.seatedId??""} isHost boardOnly settingsContent={settingsContent} externalBottom={padsHeight} reportContext={view.reportContext} remotePlans={view.plans} dispatchAction={act} highlightedStations={view.highlightedStations} destinationHighlights={view.destinationHighlights} onSaveGhost={(contractId:string,nodes:RouteNode[])=>act("SAVE_GHOST",{contractId,nodes})}/>
     </div>}
     <div ref={padsRef} className="fixed inset-x-0 bottom-0 z-30 bg-[#10252e] px-2 pt-1" style={{paddingBottom:"max(8px, env(safe-area-inset-bottom))"}}><PlayerPads game={game} roomKey={view.room.roomCode}/></div>
   </main>;
@@ -217,12 +220,12 @@ export default function SubwayMultiplayerPage() {
   const myTurn=view.actorId===me.id;
   const guidance=phoneGuidance(game,me.id);
   const buyDestination=game.phase==="CONSTRUCTION"&&myTurn&&!me.crewsHired&&!me.destinationPurchased;
-  return <main className="mx-auto min-h-dvh max-w-lg space-y-4 px-3 pb-28 pt-3"><div className="sticky top-0 z-20 bg-[#10252e] pb-2">{header}<PhoneStatus game={game} playerId={me.id}/></div>{settings}{notices}
+  return <main className="mx-auto min-h-dvh max-w-lg space-y-4 px-3 pb-28 pt-3"><div className="sticky top-0 z-20 bg-[#10252e] pb-2"><PhoneStatus game={game} playerId={me.id}/></div>{notices}
     <style>{`@media (orientation: landscape) { .phone-portrait-prompt { display: flex !important; } }`}</style>
     <div className="phone-portrait-prompt fixed inset-0 z-50 hidden flex-col items-center justify-center gap-3 bg-[#10252e] p-6 text-center"><span className="text-4xl" aria-hidden>↻</span><p className="text-xl font-bold">Turn your phone upright</p><p>Your cards are arranged for portrait play.</p></div>
     <section className="rounded-xl border border-teal-500 bg-[#193640] p-3 shadow-lg" aria-live="polite"><p className="text-sm">{guidance.text}</p>{tab!==guidance.tab&&<button className={`${button} mt-2 w-full`} onClick={()=>{setTab(guidance.tab);window.scrollTo({top:0});}}>{guidance.label}</button>}</section>
     <h1 className="text-xl font-bold">{tabs.find(t=>t.id===tab)?.label}</h1>
-    {tab==="destinations"&&<>{me.destinationHand.map(id=><section key={id} className="space-y-2"><DestinationCardFace card={id} color={me.color} state={destinationMet(me,id)?"met":"idle"}/><p className={destinationMet(me,id)?"font-bold text-emerald-300":"text-sm text-slate-300"}>{destinationMet(me,id)?"✓ Currently met":"Not yet connected"}</p><button className={`${button} w-full`} aria-pressed={view.destinationHighlights.some(h=>h.cardId===id)} disabled={controlsDisabled} onClick={()=>run("SHOW_DESTINATION",{cardId:id,enabled:!view.destinationHighlights.some(h=>h.cardId===id)})}>Highlights: {view.destinationHighlights.some(h=>h.cardId===id)?"On":"Off"} · C{view.room.players.findIndex(p=>p.id===me.id)+1}·D{me.destinationHand.indexOf(id)+1}</button></section>)}<p className="text-xs text-slate-300">Your selections are saved. The shared board shows them only during your turn; your phone keeps your own selections visible.</p><button className={button} disabled={controlsDisabled} onClick={()=>run("SHOW_DESTINATION",{cardId:null})}>Clear my highlights</button>
+{tab==="destinations"&&<>{me.destinationHand.map(id=><section key={id} className="space-y-2"><DestinationCardFace card={id} color={me.color} state={destinationMet(me,id)?"met":"idle"}/><p className={destinationMet(me,id)?"font-bold text-emerald-300":"text-sm text-slate-300"}>{destinationMet(me,id)?"✓ Currently met":"Not yet connected"}</p><button className={`${button} w-full`} aria-pressed={view.destinationHighlights.some(h=>h.cardId===id)} disabled={controlsDisabled} onClick={()=>run("SHOW_DESTINATION",{cardId:id,enabled:!view.destinationHighlights.some(h=>h.cardId===id)})}><span aria-hidden className="mr-2 inline-block h-3 w-3 rounded-full border border-white" style={{background:destinationColor(view.room.players.findIndex(p=>p.id===me.id),me.destinationHand.indexOf(id))}}/>Highlights: {view.destinationHighlights.some(h=>h.cardId===id)?"On":"Off"}</button></section>)}<p className="text-xs text-slate-300">Your selections are saved. The shared board shows them only during your turn; your phone keeps your own selections visible.</p><button className={button} disabled={controlsDisabled} onClick={()=>run("SHOW_DESTINATION",{cardId:null})}>Clear my highlights</button>
       {buyDestination&&<button className={`${button} w-full`} disabled={controlsDisabled||me.money<5} onClick={()=>run("BUY_DESTINATION",{period:game.currentPeriod})}>Buy another Destination · $5M</button>}
     </>}
     {tab==="lines"&&<>
@@ -240,6 +243,10 @@ export default function SubwayMultiplayerPage() {
       {me.engineeringHand.map(id=>{const progress=objectiveProgress(id,me,Object.values(game.players).filter(p=>p.id!==me.id),game);return <section key={id} className="space-y-2"><EngineeringCardFace card={id} color={me.color} state={progress.met?"met":"idle"}/><p className={progress.met?"font-bold text-emerald-300":"font-bold text-amber-200"}>{progress.met?"✓ Currently met":"In progress"} · {progress.points}/{progress.max} VP now</p>{progress.count!==undefined&&progress.tiers&&<p className="text-sm">Tiers: {progress.tiers.join(" / ")} VP. Current tier: {Math.min(progress.tiers.length,progress.count)}/{progress.tiers.length}.</p>}</section>;})}
     </>}
     {tab==="general"&&<>
+      {header}{settings}{reports}
+      <PhoneStatus game={game} playerId={me.id} details/>
+      <p className="text-sm">Round {game.currentPeriod}/{SUBWAY_CONFIG.timelinePeriods}</p>
+      <Link href="/subway/tutorial" className="underline">How to play</Link>
       {buyDestination&&<button className={button} disabled={controlsDisabled||me.money<5} onClick={()=>run("BUY_DESTINATION",{period:game.currentPeriod})}>Buy Destination · $5M</button>}
       {game.playerOrder.map(id=>{const p=game.players[id];return <section key={id} className="space-y-2 rounded-xl border border-white/20 p-4"><strong>{p.name} · ${p.money}M {p.score!==undefined?`· ${p.score} VP`:""}</strong><p>{p.lines.filter(lineComplete).length}/3 lines complete</p>{p.lines.map(l=><p key={l.contractId}>{contractOf(l)?.name}: {segmentsBuilt(l)}/{contractOf(l)?.recipe.length} segments</p>)}{game.phase==="RESULTS"&&p.scoreBreakdown?.map((s,i)=><p key={i} className="text-sm">{s.label}: {s.points} VP</p>)}</section>;})}
       <p className="text-sm">Crews: $1M / $3M / $6M. Completing each line pays $3M. Final debt costs 4 VP per $1M.</p>

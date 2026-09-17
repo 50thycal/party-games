@@ -11,13 +11,13 @@ for (const count of [2,3,4]) {
   s.phase="PROCUREMENT";
   for(const id of s.playerOrder) assert.equal(phoneGuidance(s,id).tab,"lines");
   s.phase="ENGINEERING";s.engineeringStep="CARD_DRAFT";
-  for(const id of s.playerOrder) {assert.equal(phoneGuidance(s,id).tab,"engineering");assert.match(phoneGuidance(s,id).text,/Engineering/);}
+  for(const id of s.playerOrder) {assert.equal(phoneGuidance(s,id).tab,"engineering");assert.match(phoneGuidance(s,id).text,/Choose 1 Engineering card or draw blind|Waiting for/);}
   s.phase="STARTER_PLACEMENT";
   assert.equal(phoneGuidance(s,s.playerOrder[0]).tab,"lines");
   s.phase="CONSTRUCTION";s.resolveQueue=[s.playerOrder[0]];
   assert.match(phoneGuidance(s,s.playerOrder[0]).text,/crews/);
   s.players[s.playerOrder[0]].crewsHired=true;
-  assert.match(phoneGuidance(s,s.playerOrder[0]).text,/confirm each/);
+  assert.match(phoneGuidance(s,s.playerOrder[0]).text,/Build each hired line/);
   s.phase="RESULTS";assert.equal(phoneGuidance(s,s.playerOrder[0]).tab,"general");
 }
 {

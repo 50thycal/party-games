@@ -70,5 +70,20 @@
     "reportedRoom": "JNCG",
     "exportFormat": "legacy-markdown",
     "sourceEvidence": "Controller table: 33 and 34 human gameplay actions, zero bot/unknown; two host setup/scoring actions excluded."
+  },
+  {
+    "id": "9f1dd8371497040067c74bd56a8e772a447bc4727696d5ec0928872f44cc9126",
+    "path": "9f1dd8371497040067c74bd56a8e772a447bc4727696d5ec0928872f44cc9126/original.txt",
+    "source": "legacy",
+    "stateVersion": null,
+    "rules": null,
+    "build": null,
+    "players": null,
+    "actions": null,
+    "cohort": "reference",
+    "replay": "unavailable",
+    "validation": "legacy",
+    "comparisonEligible": false,
+    "archivedAt": "2026-09-17T01:03:20.385Z"
   }
 ]

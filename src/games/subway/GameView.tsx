@@ -1,16 +1,17 @@
 "use client";
 
-import {validatePath,pathContacts,tokenCost,remainingLength,BEND_LABELS} from './bends';
+import {validatePath,pathContacts,tokenCost,remainingLength} from './bends';
 import {constructionTip} from './paths';
 import {BendModeSelect} from "./BendModeSelect";
 import {type BendMode} from "./bends";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { PlayerPads, PublicLeaders } from "./PlayerStatus";
 import { quoteBuildCost } from "./buildCost";
 import { stationAccessContacts } from "./stationAccess";
 import { routeContacts } from "./config";
 import { CrewBoard } from "./CrewBoard";
+import { SettingsDialog } from "./SettingsDialog";
 import { objectiveMet, objectiveProgress } from "./config";
 import { lessonForPhase } from "./tutorial";
 import type { GameViewProps } from "@/games/views";
@@ -142,7 +143,7 @@ function statusFor(game: SubwayState, me: SubwayPlayer | undefined, isHost: bool
       return {
         headline: offer.activeId === me.id ? "Choose one line contract." : `${game.players[offer.activeId]?.name} is choosing a line.`,
         tone: offer.activeId === me.id ? "act" : "wait",
-        detail: "Pick at list price. Three draft rounds, with alternating order.",
+        detail: "Three picks each, in seat order.",
       };
     }
     case "ENGINEERING": return {headline: cardDraftTurnId(game) === me.id ? `Draft your hand: ${draftPicks(me)}/3 cards.` : `${game.players[cardDraftTurnId(game) ?? ""]?.name} is drafting.`, tone: cardDraftTurnId(game) === me.id ? "act" : "wait", detail:"Choose a Line, Station or Neighborhood Engineering card, or draw blind. All three held cards can score."};
@@ -170,7 +171,7 @@ function statusFor(game: SubwayState, me: SubwayPlayer | undefined, isHost: bool
       }
       const pending = pendingStarters(me);
       return {
-        headline: `Place the free starter peg for your ${lineLabel(me.lines[pending[0]])}.`,
+        headline: `Place your ${lineLabel(me.lines[pending[0]])} starter station.`,
         tone: "act",
         detail: "Starters enter from the edge: only border holes glow.",
       };
@@ -209,7 +210,7 @@ type BoardMode = "none" | "place" | "planner";
 
 const PLAN_PHASES = new Set(["ENGINEERING", "SCHEDULING", "STARTER_PLACEMENT", "CONSTRUCTION"]);
 
-export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, lessonZone, lessonBeat = 0, boardOnly = false, externalBottom = 0, remotePlans, onSaveGhost, highlightedStations = [], destinationHighlights = [], reportContext }: GameViewProps<SubwayState> & {reportContext?: SubwayReportContext; lessonZone?: TableZone; lessonBeat?: number; boardOnly?: boolean; externalBottom?: number; highlightedStations?: string[]; destinationHighlights?: DestinationHighlight[]; remotePlans?: Record<string,SavedPlan>; onSaveGhost?: (contractId:string,nodes:RouteNode[])=>Promise<void>}) {
+export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, lessonZone, lessonBeat = 0, boardOnly = false, externalBottom = 0, remotePlans, onSaveGhost, highlightedStations = [], destinationHighlights = [], reportContext, settingsContent }: GameViewProps<SubwayState> & {settingsContent?:ReactNode;reportContext?: SubwayReportContext; lessonZone?: TableZone; lessonBeat?: number; boardOnly?: boolean; externalBottom?: number; highlightedStations?: string[]; destinationHighlights?: DestinationHighlight[]; remotePlans?: Record<string,SavedPlan>; onSaveGhost?: (contractId:string,nodes:RouteNode[])=>Promise<void>}) {
   const raw = state as SubwayState | undefined;
   const stale = !!raw && raw.version !== SUBWAY_STATE_VERSION;
   const game = raw && !stale ? raw : undefined;
@@ -1072,8 +1073,8 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   const actionStrip = (
     <div className="pointer-events-auto rounded-2xl border-2 border-[#6b4b2c] bg-[#fffaf0]/95 p-2.5 text-stone-900 shadow-2xl backdrop-blur-sm">
       {tokenBill>0&&<p className="mb-1 text-sm font-bold">Buy extra bend tokens: ${tokenBill}M · paid on Confirm</p>}
-      {price&&preview&&!manualPlanner&&<div aria-label="Placement payment preview" className="mb-2 rounded-lg bg-amber-100 px-2 py-1 text-xs text-amber-950">
-        <b>{price.totalToll?`Pay $${price.totalToll}M before building · cash after payments $${price.cashAfter}M`:'No opponent payment for this placement'}</b>
+      {price&&price.totalToll>0&&preview&&!manualPlanner&&<div aria-label="Placement payment preview" className="mb-2 rounded-lg bg-amber-100 px-2 py-1 text-xs text-amber-950">
+        <b>{`Pay $${price.totalToll}M · cash afterward $${price.cashAfter}M`}</b>
         {price.recipients.map(r=><p key={r.ownerId}>Pay {game.players[r.ownerId].name} ${r.amount}M · {Array.from(new Set(pricedContacts.filter(c=>c.ownerId===r.ownerId).map(c=>c.kind==='station'?'first transfer access':'crosses or touches their line'))).join(' + ')}</p>)}
       </div>}
       {notice && (
@@ -1113,7 +1114,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       )}
 
       {mode === "place" && activeLine && me && (
-        <div className="space-y-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <b>{lineLabel(activeLine)}</b>
             <span className="text-xs text-stone-500">
@@ -1124,14 +1125,14 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
                   } peg spaces`}
             </span>
           </div>
-          {!placingStarter&&game.bendMode&&game.bendMode!=='straight'&&<div className="space-y-2 text-sm">
-            <p>{BEND_LABELS[game.bendMode]} · {game.bendMode==='tokens'?`${me.bendTokens??0} tokens left · ${bendDraft.length} bends in preview`:`${remainingLength(game,me.id,activeLineIndex).toFixed(1)} spaces left · next hire continues this line`}</p>
-            <div className="flex flex-wrap gap-2"><StripButton aria-pressed={!bendPick} onClick={()=>{setBendPick(false);setPreview(null);}}>Finish segment</StripButton><StripButton aria-pressed={bendPick} onClick={()=>{setBendPick(true);setPreview(null);}}>{game.bendMode==='tokens'?'Choose a bend':'Stop at a bend'}</StripButton>
+          {!placingStarter&&game.bendMode&&game.bendMode!=='straight'&&<div className="contents text-sm">
+            <span className="text-xs">{game.bendMode==='tokens'?`${me.bendTokens??0} tokens`:`${remainingLength(game,me.id,activeLineIndex).toFixed(1)} spaces left`}</span>
+            <div className="contents"><StripButton aria-pressed={!bendPick} onClick={()=>{setBendPick(false);setPreview(null);}}>Finish segment</StripButton><StripButton aria-pressed={bendPick} onClick={()=>{setBendPick(true);setPreview(null);}}>{game.bendMode==='tokens'?'Choose a bend':'Stop at a bend'}</StripButton>
             {game.bendMode==='tokens'&&bendPick&&<StripButton disabled={!preview} onClick={()=>{if(preview){setBendDraft([...bendDraft,preview]);setPreview(null);setBendPick(false);}}}>Add bend to preview</StripButton>}
             {!!bendDraft.length&&<StripButton onClick={()=>{setBendDraft(bendDraft.slice(0,-1));setPreview(null);}}>Undo preview bend</StripButton>}</div>
-            {bendPick&&<p>{game.bendMode==='tokens'?'Tap a highlighted hole, then add it to the preview. Finish at a real peg before confirming.':'Confirm builds this leg and ends this line’s activation. Other hired lines can still build. Worksites are not stations; unbuilt space is not reserved.'}</p>}
+            {bendPick&&<span className="text-xs">{game.bendMode==='tokens'?'Add bend, then choose a station.':'Ends this line’s activation.'}</span>}
           </div>}
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="contents">
             <StripButton disabled={busy || !preview&&!bendDraft.length} onClick={() => {setPreview(null);setBendDraft([]);setBendPick(false);}}>
               Cancel
             </StripButton>
@@ -1157,12 +1158,12 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
         </div>
       )}
 
-      {mode === "none" && (
+      {mode === "none" && (!boardOnly||game.phase==='SCORING'||planAvailable||canUndo) && (
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span
+          {!boardOnly&&<span
             className={`h-2 w-2 rounded-full ${status.tone === "act" ? "animate-pulse bg-emerald-600" : "bg-stone-400"}`}
-          />
-          <span className="text-xs font-bold text-stone-700">{status.headline}</span>
+          />}
+          {!boardOnly&&<span className="text-xs font-bold text-stone-700">{status.headline}</span>}
           {game.phase === "SCORING" && isHost && (
             <StripButton tone="go" disabled={busy} onClick={() => act("ADVANCE_SCORING")}>
               Reveal Engineering &amp; score
@@ -1196,12 +1197,12 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     { zone: "table", label: "Whole table", short: "All" },
   ];
 
-  const settingsButton = <button className="rounded-lg bg-stone-800 px-3 py-2 text-xs text-white" onClick={()=>setSettingsOpen(true)}>Settings</button>;
+  const settingsButton = <button aria-label="Settings" className="min-h-11 min-w-11 rounded-lg bg-stone-800 px-3 py-2 text-lg text-white" onClick={()=>setSettingsOpen(true)}>{boardOnly?'⚙':'Settings'}</button>;
   const hud = (
     <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-2 sm:p-3">
       <div ref={hudTopRef} className="flex flex-wrap items-start justify-between gap-2">
-        <div
-          className={`${mobile ? "hidden" : ""} pointer-events-auto max-w-[52%] rounded-xl border-l-4 bg-[#fffaf0]/95 px-2.5 py-1.5 shadow-lg sm:max-w-[42%] sm:px-3 sm:py-2 ${
+        {!boardOnly&&<div
+          className={`${mobile || boardOnly ? "hidden" : ""} pointer-events-auto max-w-[52%] rounded-xl border-l-4 bg-[#fffaf0]/95 px-2.5 py-1.5 shadow-lg sm:max-w-[42%] sm:px-3 sm:py-2 ${
             status.tone === "act" ? "border-emerald-600" : status.tone === "wait" ? "border-stone-400" : "border-amber-500"
           }`}
         >
@@ -1215,10 +1216,11 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
             {status.headline}
           </p>
           {status.detail && <p className="hidden text-xs text-stone-600 sm:block">{status.detail}</p>}
-        </div>
+        </div>}
 
-        <div className="pointer-events-auto flex flex-wrap items-center justify-end gap-1 rounded-xl bg-stone-900/85 p-1.5 text-amber-50 shadow-lg">
+        <div className={`pointer-events-auto ml-auto flex flex-wrap items-center justify-end gap-1 rounded-xl text-amber-50 ${boardOnly?'':'bg-stone-900/85 p-1.5 shadow-lg'}`}>
           {settingsButton}
+          {!boardOnly&&<>
           {!lessonZone && !mobile && <Link href={`/subway/tutorial?lesson=${lessonForPhase(game.phase,game.engineeringStep)}`} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-white/15 px-2 py-1 text-xs">Phase lesson ↗</Link>}
           <button
             onClick={() => cam.current?.zoomBy(1 / 1.3)}
@@ -1242,10 +1244,11 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
           >
             Fit board
           </button>
+          </>}
         </div>
       </div>
 
-      <NarrationOverlay event={mobile || narration.overlay?.kind === "PLACEMENT" || narration.overlay?.kind === "ROUTE" ? null : narration.overlay} onDismiss={narration.dismiss} />
+      <NarrationOverlay event={boardOnly || mobile || narration.overlay?.kind === "PLACEMENT" || narration.overlay?.kind === "ROUTE" ? null : narration.overlay} onDismiss={narration.dismiss} />
 
       <div
         ref={hudBottomRef}
@@ -1266,14 +1269,14 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
             </button>
           ))}
         </div>
-        <div className="w-full max-w-3xl">{actionStrip}</div>
+        {(mode!=='none'||!boardOnly||game.phase==='SCORING'||planAvailable||canUndo||notice)&&<div className="w-full max-w-6xl">{actionStrip}</div>}
         {!boardOnly&&<><PublicLeaders game={game}/><PlayerPads game={game} roomKey={room.roomCode}/></>}
       </div>
     </div>
   );
 
 
-  const settingsPanel = settingsOpen && <div role="dialog" aria-modal="true" aria-label="Table settings" className="fixed inset-0 z-50 overflow-auto bg-stone-950/80 p-3"><div className="mx-auto max-w-xl rounded-xl bg-[#fff7e5] p-4 text-stone-900"><button autoFocus className="float-right rounded border px-3 py-2" onClick={()=>setSettingsOpen(false)}>Close settings</button><h2 className="text-xl font-bold">Table settings</h2><label className="my-4 flex items-center gap-3"><input type="checkbox" checked={ghostEnabled} onChange={e=>toggleGhost(e.target.checked)}/> Ghost planning (optional)</label><p className="my-4"><Link href="/subway/tutorial">How to play</Link></p><button className="rounded border px-3 py-2" onClick={()=>setShowLog(v=>!v)}>Action log</button>{showLog && <ol className="mt-3 space-y-2 text-sm">{game.events.map(e=><li key={e.seq}>{e.text}</li>)}</ol>}</div></div>;
+  const settingsPanel = settingsOpen && <SettingsDialog onClose={()=>setSettingsOpen(false)}><label className="my-4 flex items-center gap-3"><input type="checkbox" checked={ghostEnabled} onChange={e=>toggleGhost(e.target.checked)}/> Ghost planning (optional)</label><p className="my-4"><Link href="/subway/tutorial">How to play</Link></p>{settingsContent}<button className="rounded border px-3 py-2" onClick={()=>setShowLog(v=>!v)}>Action log</button>{showLog && <ol className="mt-3 space-y-2 text-sm">{game.events.map(e=><li key={e.seq}>{e.text}</li>)}</ol>}</SettingsDialog>;
   const resultsPanel = game.phase === "RESULTS" && showResults && <div role="dialog" aria-modal="true" aria-label="Final results" className="fixed inset-0 z-40 overflow-auto bg-[#fff7e5] p-3 text-stone-900"><button autoFocus className="mb-3 rounded border px-4 py-2" onClick={()=>setShowResults(false)}>Back to board</button><ResultsSheet game={game} roomCode={room.roomCode} mode={room.mode} reportContext={reportContext}/></div>;
 
   return (

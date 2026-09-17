@@ -7,9 +7,10 @@ import type { LabStore } from './lab';
 import { nextCompanyId } from './config';
 import { type SavedPlan, validPlanNodes, cleanNode } from "./plans";
 import { recordedReportContext, type SubwayReportContext } from './report';
+import { destinationColor } from './destinationColors';
+export { DESTINATION_COLORS } from './destinationColors';
 
 export type DestinationHighlight = {playerId:string;cardId:string;label:string;color:string;stationIds:string[];name:string};
-export const DESTINATION_COLORS=['#0369a1','#b45309','#7e22ce','#be123c','#047857','#4338ca','#a16207','#0e7490','#a21caf','#4d7c0f','#c2410c','#6d28d9'];
 export type CompanionDevice = { tokenHash: string; role: "tablet" | "phone"; playerId: string; requests: string[]; managedIds?: string[] };
 export type CompanionStore = {
   version: 1;
@@ -93,7 +94,7 @@ export function companionView(state: RoomState, device: CompanionDevice): Compan
   const destinationHighlights:DestinationHighlight[]=state.room.players.flatMap((p,pi)=>
     p.id!==highlightOwner?[]:(original?.players[p.id]?.destinationHand??[]).flatMap((cardId,ci)=>{
       const card=destinationById(cardId);
-      return card&&selections[p.id]?.includes(cardId)?[{playerId:p.id,cardId,label:`C${pi+1}·D${ci+1}`,color:DESTINATION_COLORS[(pi*3+ci)%DESTINATION_COLORS.length],stationIds:card.stationIds,name:`${p.name}: ${card.name}`}]:[];
+      return card&&selections[p.id]?.includes(cardId)?[{playerId:p.id,cardId,label:`C${pi+1}·D${ci+1}`,color:destinationColor(pi,ci),stationIds:card.stationIds,name:`${p.name}: ${card.name}`}]:[];
     }));
   return {lab:store.lab ? {seats:store.lab.seats,managedIds:device.managedIds??[],seed:device.role==='tablet'?store.lab.seed:undefined,notes:device.role==='tablet'||device.managedIds?store.lab.notes:[]}:undefined,room:state.room,game,revision:store.revision,role:device.role,playerId:device.playerId,
     actorId:companionActor(original),seatedId,turn,

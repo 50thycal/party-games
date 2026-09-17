@@ -1,0 +1,6794 @@
+# Subway AI Playtest Report
+
+## Session
+
+| Field | Value |
+| --- | --- |
+| Game | Subway |
+| State version | 25 |
+| Bot policy version | 6 |
+| Room | QNHT |
+| Mode | multiplayer |
+| Players | 2 |
+| Started | 1789605567258 (2026-09-17T00:39:27.258Z) |
+| Construction ended | 1789606760094 (2026-09-17T00:59:20.094Z) |
+| End reason | ROUND_LIMIT |
+| Final phase | RESULTS |
+| Accepted actions | 64 |
+| Rejected / invalid actions | Not tracked; rejected reducer actions do not mutate game state |
+
+## Controllers
+
+Counts are recorded gameplay actions, excluding setup and scoring advance. Current control/profile describes the final setting, not necessarily the whole game. Missing provenance is never inferred from names or timing.
+
+| Company | Played by | Human actions | Bot actions | Unknown actions | Current control | Current bot profile |
+| --- | --- | ---: | ---: | ---: | --- | --- |
+| Company 1 | Human | 32 | 0 | 0 | human | balanced / experienced |
+| Company 2 | Bot | 0 | 30 | 0 | bot | balanced / experienced |
+
+## Rules and settings
+
+```json
+{
+  "startingMoneyMillions": 40,
+  "lineCompletionRewardMillions": 3,
+  "constructionRounds": 9,
+  "routesPerPlayer": 3,
+  "crewActivationCostMillions": {
+    "zero": 0,
+    "one": 1,
+    "two": 3,
+    "three": 6
+  },
+  "debtPenaltyVpPerMillion": 4,
+  "pegStackingAllowed": false,
+  "bendMode": "delayed",
+  "bendRules": "Tokens: 3 per company, extras $3M cash; delayed: one leg per activation; max 90 degrees; total path length; bends/worksites are not pegs; partial track excludes network length until finished",
+  "stationAccess": "$1M once per line/opponent/local transfer station; starter joins included; crossings always separate",
+  "routeDraftPool": 7,
+  "largestStation": "Uses Largest Transfer Station occupied-hole scoring and tied-largest aggregation",
+  "contactTollMillions": 1,
+  "stationScores": {
+    "major": 0,
+    "minor": 0,
+    "medium": 0
+  },
+  "board": {
+    "columns": 27,
+    "rows": 9
+  },
+  "geometry": {
+    "lengthTolerance": 0.5,
+    "maxTurnDegrees": 90
+  },
+  "engineeringPicks": 3,
+  "destinationPurchaseMillions": 5,
+  "firstCompletedPlayerId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+  "longestNetwork": "Actual path length of completed segments in peg spaces, no repeated segments; winner 5 VP, ties 3 VP each",
+  "largestCluster": "Horizontally/vertically adjacent occupied peg holes across all companies, including the same line; one peg per hole. Total each company’s stations across all equally largest transfer stations. Leader award once: 6 VP alone, 3 each for two leaders, 2 each for three, 0 for four. No diagonals, string links, bends or worksites.",
+  "starterOccupancy": "New starter pegs require an empty non-neighborhood outer-border hole"
+}
+```
+
+## Neighborhood layout
+
+| Neighborhood | Size | Holes | Connections |
+| --- | --- | --- | ---: |
+| Market | small | 9,3; 8,3; 10,3; 9,4; 9,2; 7,3 | Unlimited |
+| Grand Central | large | 19,8; 19,7; 19,6; 19,5; 20,8; 20,7; 20,6; 20,5; 21,8; 21,7; 21,6; 21,5; 22,8; 22,7; 22,6; 22,5 | Unlimited |
+| Museum | large | 15,8; 15,7; 15,6; 15,5; 15,4; 16,8; 16,7; 16,6; 16,5; 17,8; 17,7; 17,6; 18,8; 18,7; 18,6; 18,5 | Unlimited |
+| Garden | small | 2,7; 2,6; 2,8; 3,7; 3,6; 3,8 | Unlimited |
+| Stadium | large | 2,2; 2,3; 2,4; 2,5; 3,2; 3,3; 3,4; 3,5; 4,2; 4,3; 4,4; 4,5; 5,2; 5,3; 5,4; 5,5 | Unlimited |
+| University | large | 7,8; 7,7; 7,6; 7,5; 8,8; 8,7; 8,6; 8,5; 8,4; 9,8; 9,7; 9,6; 9,5; 10,8; 10,7; 10,6 | Unlimited |
+| Library | small | 23,2; 23,3; 24,2; 23,4; 24,3; 25,2 | Unlimited |
+| Theatre | medium | 17,4; 18,4; 16,4; 17,5; 17,3; 18,3; 16,3; 17,2; 18,2; 15,3 | Unlimited |
+| Airport | large | 11,8; 11,7; 11,6; 12,8; 12,7; 12,6; 12,5; 13,8; 13,7; 13,6; 13,5; 13,4; 14,8; 14,7; 14,6; 14,5 | Unlimited |
+| Harbor Exchange | large | 23,8; 23,7; 23,6; 23,5; 24,8; 24,7; 24,6; 24,5; 25,8; 25,7; 25,6; 25,5; 26,8; 26,7; 26,6; 26,5 | Unlimited |
+
+## Final ranking and economy
+
+| Rank | Company | Score | Cash | Crew spend | Tolls paid | Lines complete |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: |
+| 1 | Company 2 (winner) | 12 VP | $17M | $15M | $2M | 3/3 |
+| 2 | Company 1 | 3 VP | $0M | $20M | $1M | 1/3 |
+
+## Company 2
+
+### Lines
+
+| Line | Paid | Progress | Status | Station path |
+| --- | ---: | --- | --- | --- |
+| Pink Line | $5M | 4/4 segments | Complete | 1:1,7 → 2:1,5 → 3:1,2 → 4:5,1 → 5:7,2 |
+| Yellow Line | $6M | 4/4 segments | Complete | 1:3,1 → 2:6,1 → 3:8,1 → 4:12,1 → 5:15,1 |
+| Red Line | $5M | 4/4 segments | Complete | 1:23,9 → 2:Grand Central (22,7) → 3:21,4 → 4:20,2 → 5:17,1 |
+
+### Cards and resources
+- Bend tokens remaining: 0
+
+- Engineering and Destination cards held: Turning the Corner; Shared Transfer Stations; Citywide Coverage; Stadium + Harbor Exchange; Market + Theatre + Airport
+
+### Score sources
+
+| Source | Met | Points |
+| --- | --- | ---: |
+| Pink Line completed | Yes | 4 |
+| Yellow Line completed | Yes | 4 |
+| Red Line completed | Yes | 4 |
+| Turning the Corner | No | 0 |
+| Shared Transfer Stations | No | 0 |
+| Citywide Coverage | No | 0 |
+| Stadium + Harbor Exchange | No | 0 |
+| Market + Theatre + Airport | No | 0 |
+| Longest network (18.1 peg spaces) | No | 0 |
+| Largest Transfer Station (2 stations; 3 company stations across 4 tied-largest transfer station(s)) | No | 0 |
+
+### Objective explanations
+
+| Objective | Points / maximum | Explanation |
+| --- | --- | --- |
+| Turning the Corner | 0 / 3 | Start one line on an east/west border and finish on a north/south border, or vice versa. Not yet met: 0/3 VP. Scored once at game end; live progress can change. |
+| Shared Transfer Stations | 0 / 4 | Participate in two separate transfer stations containing your stations and opponent stations. The same opponent may join both. No neighborhood restriction. Not yet met: 0/4 VP. Scored once at game end; live progress can change. |
+| Citywide Coverage | 0 / 7 | Serve eight different neighborhoods in one connected company network. Not yet met: 0/7 VP. Scored once at game end; live progress can change. |
+| Stadium + Harbor Exchange | 0 / 4 | Missing neighborhoods: Stadium, Harbor Exchange. All required neighborhoods must share one company network. |
+| Market + Theatre + Airport | 0 / 7 | Missing neighborhoods: Market, Theatre, Airport. All required neighborhoods must share one company network. |
+
+## Company 1
+
+### Lines
+
+| Line | Paid | Progress | Status | Station path |
+| --- | ---: | --- | --- | --- |
+| Brown Line | $6M | 5/5 segments | Complete | 1:11,1 → 2 via 12,2:12,3 → 3:Museum (15,4) → 4:Museum (16,6) → 5:18,9 → 6:21,9 |
+| Purple Line | $10M | 5/6 segments | Incomplete | 1:27,6 → 2 via 26,6:Grand Central (22,5) → 3:Grand Central (20,7) → 4:17,9 → 5:15,9 → 6:14,4 |
+| Green Line | $8M | 1/6 segments | Incomplete | 1:9,9 → 2:Airport (12,8) · Unfinished work: 12,7 |
+
+### Cards and resources
+- Bend tokens remaining: 0
+
+- Engineering and Destination cards held: Transfer Station; Four-Side Service; Large Neighborhood Presence; Garden + Airport; Museum + Garden + University
+
+### Score sources
+
+| Source | Met | Points |
+| --- | --- | ---: |
+| Brown Line completed | Yes | 5 |
+| Purple Line incomplete (6/7) | No | -7 |
+| Green Line incomplete (2/7) | No | -6 |
+| Transfer Station | No | 0 |
+| Four-Side Service | No | 0 |
+| Large Neighborhood Presence | No | 0 |
+| Garden + Airport | No | 0 |
+| Museum + Garden + University | No | 0 |
+| Longest network (27.5 peg spaces) | Yes | 5 |
+| Largest Transfer Station (2 stations; 5 company stations across 4 tied-largest transfer station(s)) | Yes | 6 |
+
+### Objective explanations
+
+| Objective | Points / maximum | Explanation |
+| --- | --- | --- |
+| Transfer Station | 0 / 3 | Form a transfer station between two of your lines inside one neighborhood. Not yet met: 0/3 VP. Scored once at game end; live progress can change. |
+| Four-Side Service | 0 / 4 | Have a starter or completed final station on each of the four borders. Different sides need different stations; lines need not connect. Not yet met: 0/4 VP. Scored once at game end; live progress can change. |
+| Large Neighborhood Presence | 0 / 2 | Place your stations on three distinct holes in one large neighborhood. Any of your lines may contribute, connected or not. Not yet met: 0/2 VP. Scored once at game end; live progress can change. |
+| Garden + Airport | 0 / 4 | Missing neighborhoods: Garden. All required neighborhoods must share one company network. |
+| Museum + Garden + University | 0 / 7 | Missing neighborhoods: Garden, University. All required neighborhoods must share one company network. |
+
+## Structured accepted-action log
+
+This is the chronological source for draft order, cards played, crew choices, placements, Undo actions, round progression, and every recorded before/after budget or resource change. Invalid/rejected attempts are not recorded.
+
+```json
+[
+  {
+    "actionNumber": 1,
+    "acceptedAt": 1789605567259,
+    "actorId": "68b54550-5d16-4a44-b983-69e3642b2049",
+    "action": "START_GAME",
+    "payload": {
+      "bendMode": "delayed"
+    },
+    "phaseBefore": "SETUP",
+    "phaseAfter": "PROCUREMENT",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 40,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [],
+        "destinationPurchased": false,
+        "lineNodeCounts": [],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 40,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [],
+        "destinationPurchased": false,
+        "lineNodeCounts": [],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 40,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 40,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 2,
+    "acceptedAt": 1789605892379,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "PROCURE",
+    "payload": {
+      "choice": "buy",
+      "contractId": "local"
+    },
+    "phaseBefore": "PROCUREMENT",
+    "phaseAfter": "PROCUREMENT",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 40,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 40,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 34,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 40,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 3,
+    "acceptedAt": 1789605893716,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "PROCURE",
+    "payload": {
+      "choice": "buy",
+      "contractId": "tram"
+    },
+    "phaseBefore": "PROCUREMENT",
+    "phaseAfter": "PROCUREMENT",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 34,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 40,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 34,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 35,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 4,
+    "acceptedAt": 1789605930143,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "PROCURE",
+    "payload": {
+      "choice": "buy",
+      "contractId": "crosstown"
+    },
+    "phaseBefore": "PROCUREMENT",
+    "phaseAfter": "PROCUREMENT",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 34,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 35,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 35,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 5,
+    "acceptedAt": 1789605930924,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "PROCURE",
+    "payload": {
+      "choice": "buy",
+      "contractId": "university"
+    },
+    "phaseBefore": "PROCUREMENT",
+    "phaseAfter": "PROCUREMENT",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 35,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 29,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 6,
+    "acceptedAt": 1789605959544,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "PROCURE",
+    "payload": {
+      "choice": "buy",
+      "contractId": "medium"
+    },
+    "phaseBefore": "PROCUREMENT",
+    "phaseAfter": "PROCUREMENT",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 29,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 16,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 29,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 7,
+    "acceptedAt": 1789605961387,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "PROCURE",
+    "payload": {
+      "choice": "buy",
+      "contractId": "short"
+    },
+    "phaseBefore": "PROCUREMENT",
+    "phaseAfter": "ENGINEERING",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 16,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 29,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 16,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 8,
+    "acceptedAt": 1789606146465,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "DRAFT_CARD",
+    "payload": {
+      "deck": "engineering",
+      "cardId": "transfer-station",
+      "expectedPick": 0
+    },
+    "phaseBefore": "ENGINEERING",
+    "phaseAfter": "ENGINEERING",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 16,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 16,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 9,
+    "acceptedAt": 1789606147955,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "DRAFT_CARD",
+    "payload": {
+      "deck": "engineering",
+      "cardId": "turning-corner",
+      "expectedPick": 1
+    },
+    "phaseBefore": "ENGINEERING",
+    "phaseAfter": "ENGINEERING",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 16,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 16,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 10,
+    "acceptedAt": 1789606154643,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "DRAFT_CARD",
+    "payload": {
+      "deck": "engineering",
+      "cardId": "four-sides",
+      "expectedPick": 2
+    },
+    "phaseBefore": "ENGINEERING",
+    "phaseAfter": "ENGINEERING",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 16,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 16,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 11,
+    "acceptedAt": 1789606156339,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "DRAFT_CARD",
+    "payload": {
+      "deck": "engineering",
+      "cardId": "shared-stations",
+      "expectedPick": 3
+    },
+    "phaseBefore": "ENGINEERING",
+    "phaseAfter": "ENGINEERING",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 16,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 16,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 12,
+    "acceptedAt": 1789606161737,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "DRAFT_CARD",
+    "payload": {
+      "deck": "engineering",
+      "cardId": "large-presence",
+      "expectedPick": 4
+    },
+    "phaseBefore": "ENGINEERING",
+    "phaseAfter": "ENGINEERING",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 16,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 16,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 13,
+    "acceptedAt": 1789606163176,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "DRAFT_CARD",
+    "payload": {
+      "deck": "engineering",
+      "cardId": "citywide-coverage",
+      "expectedPick": 5
+    },
+    "phaseBefore": "ENGINEERING",
+    "phaseAfter": "STARTER_PLACEMENT",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 16,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 16,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 14,
+    "acceptedAt": 1789606238130,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "PLACE_STARTER",
+    "payload": {
+      "lineIndex": 0,
+      "x": 10,
+      "y": 0,
+      "bends": [],
+      "pause": false
+    },
+    "phaseBefore": "STARTER_PLACEMENT",
+    "phaseAfter": "STARTER_PLACEMENT",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 16,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 16,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 15,
+    "acceptedAt": 1789606239130,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "PLACE_STARTER",
+    "payload": {
+      "lineIndex": 0,
+      "x": 0,
+      "y": 6
+    },
+    "phaseBefore": "STARTER_PLACEMENT",
+    "phaseAfter": "STARTER_PLACEMENT",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 16,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          0,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 16,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 16,
+    "acceptedAt": 1789606277146,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "PLACE_STARTER",
+    "payload": {
+      "lineIndex": 1,
+      "x": 26,
+      "y": 5,
+      "bends": [],
+      "pause": false
+    },
+    "phaseBefore": "STARTER_PLACEMENT",
+    "phaseAfter": "STARTER_PLACEMENT",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 16,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          0,
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 16,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 17,
+    "acceptedAt": 1789606277904,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "PLACE_STARTER",
+    "payload": {
+      "lineIndex": 1,
+      "x": 2,
+      "y": 0
+    },
+    "phaseBefore": "STARTER_PLACEMENT",
+    "phaseAfter": "STARTER_PLACEMENT",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 16,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          0,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 16,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 18,
+    "acceptedAt": 1789606283157,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "PLACE_STARTER",
+    "payload": {
+      "lineIndex": 2,
+      "x": 8,
+      "y": 8,
+      "bends": [],
+      "pause": false
+    },
+    "phaseBefore": "STARTER_PLACEMENT",
+    "phaseAfter": "STARTER_PLACEMENT",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 16,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          0
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 16,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          0
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 19,
+    "acceptedAt": 1789606284230,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "PLACE_STARTER",
+    "payload": {
+      "lineIndex": 2,
+      "x": 22,
+      "y": 8
+    },
+    "phaseBefore": "STARTER_PLACEMENT",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 16,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          0
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 16,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 20,
+    "acceptedAt": 1789606290569,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        0,
+        1,
+        2
+      ],
+      "period": 1
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 16,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 10,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 21,
+    "acceptedAt": 1789606390386,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 0,
+      "x": 11,
+      "y": 1,
+      "bends": [],
+      "pause": true
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 10,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 10,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 22,
+    "acceptedAt": 1789606402218,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 1,
+      "x": 25,
+      "y": 5,
+      "bends": [],
+      "pause": true
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 10,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 10,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 23,
+    "acceptedAt": 1789606406286,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 2,
+      "x": 11,
+      "y": 7,
+      "bends": [],
+      "pause": false
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 10,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 10,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 24,
+    "acceptedAt": 1789606406940,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        0,
+        1
+      ],
+      "period": 1
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 10,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 24,
+        "crewPaid": 0,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 10,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 21,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 25,
+    "acceptedAt": 1789606407634,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 0,
+      "x": 0,
+      "y": 4,
+      "bends": [],
+      "pause": false
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 1,
+    "periodAfter": 1,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 10,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 21,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          1
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 10,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 21,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          1,
+          1
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 26,
+    "acceptedAt": 1789606408659,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 1,
+      "x": 5,
+      "y": 0,
+      "bends": [],
+      "pause": false
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 1,
+    "periodAfter": 2,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 10,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 21,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          1,
+          1
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 10,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 21,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          2,
+          1
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 27,
+    "acceptedAt": 1789606414911,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        0
+      ],
+      "period": 2
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 2,
+    "periodAfter": 2,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 10,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 21,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          2,
+          1
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 9,
+        "crewPaid": 7,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 21,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          2,
+          1
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 28,
+    "acceptedAt": 1789606508562,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 0,
+      "x": 11,
+      "y": 2,
+      "bends": [],
+      "pause": false
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 2,
+    "periodAfter": 2,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 9,
+        "crewPaid": 7,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          1,
+          1,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 21,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          2,
+          1
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 9,
+        "crewPaid": 7,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          1,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 21,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          2,
+          1
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 29,
+    "acceptedAt": 1789606509257,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        0,
+        2
+      ],
+      "period": 2
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 2,
+    "periodAfter": 2,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 9,
+        "crewPaid": 7,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          1,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 21,
+        "crewPaid": 3,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          2,
+          1
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 9,
+        "crewPaid": 7,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          1,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 18,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          2,
+          1
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 30,
+    "acceptedAt": 1789606509929,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 0,
+      "x": 0,
+      "y": 1,
+      "bends": [],
+      "pause": false
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 2,
+    "periodAfter": 2,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 9,
+        "crewPaid": 7,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          1,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 18,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          2,
+          1
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 9,
+        "crewPaid": 7,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          1,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 18,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          2,
+          1
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 31,
+    "acceptedAt": 1789606510882,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 2,
+      "x": 21,
+      "y": 6,
+      "bends": [],
+      "pause": false
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 2,
+    "periodAfter": 3,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 9,
+        "crewPaid": 7,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          1,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 18,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          2,
+          1
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 9,
+        "crewPaid": 7,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          1,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 18,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          2,
+          2
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 32,
+    "acceptedAt": 1789606515383,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        0,
+        1
+      ],
+      "period": 3
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 3,
+    "periodAfter": 3,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 9,
+        "crewPaid": 7,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          1,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 18,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          2,
+          2
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 6,
+        "crewPaid": 10,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          1,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 18,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          2,
+          2
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 33,
+    "acceptedAt": 1789606522648,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 0,
+      "x": 14,
+      "y": 3,
+      "bends": [],
+      "pause": false
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 3,
+    "periodAfter": 3,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 6,
+        "crewPaid": 10,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          2,
+          1,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 18,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          2,
+          2
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 6,
+        "crewPaid": 10,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          1,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 18,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          2,
+          2
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 34,
+    "acceptedAt": 1789606529974,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 1,
+      "x": 21,
+      "y": 4,
+      "bends": [],
+      "pause": false
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 3,
+    "periodAfter": 3,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 6,
+        "crewPaid": 10,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          1,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 18,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          2,
+          2
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 6,
+        "crewPaid": 10,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          2,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 18,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          2,
+          2
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 35,
+    "acceptedAt": 1789606530643,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        1,
+        2
+      ],
+      "period": 3
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 3,
+    "periodAfter": 3,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 6,
+        "crewPaid": 10,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          2,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 18,
+        "crewPaid": 6,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          2,
+          2
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 6,
+        "crewPaid": 10,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          2,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 15,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          2,
+          2
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 36,
+    "acceptedAt": 1789606531314,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 1,
+      "x": 7,
+      "y": 0,
+      "bends": [],
+      "pause": false
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 3,
+    "periodAfter": 3,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 6,
+        "crewPaid": 10,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          2,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 15,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          2,
+          2
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 6,
+        "crewPaid": 10,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          2,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 15,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          3,
+          2
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 37,
+    "acceptedAt": 1789606532399,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 2,
+      "x": 20,
+      "y": 3,
+      "bends": [],
+      "pause": false
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 3,
+    "periodAfter": 4,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 6,
+        "crewPaid": 10,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          2,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 15,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          3,
+          2
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 6,
+        "crewPaid": 10,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          2,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 15,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          3,
+          3
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 38,
+    "acceptedAt": 1789606538422,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        0,
+        1
+      ],
+      "period": 4
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 4,
+    "periodAfter": 4,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 6,
+        "crewPaid": 10,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          2,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 15,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          3,
+          3
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 3,
+        "crewPaid": 13,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          2,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 15,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          3,
+          3
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 39,
+    "acceptedAt": 1789606547605,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 0,
+      "x": 15,
+      "y": 5,
+      "bends": [],
+      "pause": false
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 4,
+    "periodAfter": 4,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 3,
+        "crewPaid": 13,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          2,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 15,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          3,
+          3
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 3,
+        "crewPaid": 13,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          2,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 15,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          3,
+          3
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 40,
+    "acceptedAt": 1789606554558,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 1,
+      "x": 19,
+      "y": 6,
+      "bends": [],
+      "pause": false
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 4,
+    "periodAfter": 4,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 3,
+        "crewPaid": 13,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          2,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 15,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          3,
+          3
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 2,
+        "crewPaid": 13,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          3,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 16,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          3,
+          3
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 41,
+    "acceptedAt": 1789606555246,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        0
+      ],
+      "period": 4
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 4,
+    "periodAfter": 4,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 2,
+        "crewPaid": 13,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          3,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 16,
+        "crewPaid": 9,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          3,
+          3
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 2,
+        "crewPaid": 13,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          3,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 15,
+        "crewPaid": 10,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          3,
+          3
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 42,
+    "acceptedAt": 1789606556006,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 0,
+      "x": 4,
+      "y": 0,
+      "bends": [],
+      "pause": false
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 4,
+    "periodAfter": 5,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 2,
+        "crewPaid": 13,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          3,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 15,
+        "crewPaid": 10,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          3,
+          3,
+          3
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 2,
+        "crewPaid": 13,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          3,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 15,
+        "crewPaid": 10,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          3,
+          3
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 43,
+    "acceptedAt": 1789606562593,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        0
+      ],
+      "period": 5
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 5,
+    "periodAfter": 5,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 2,
+        "crewPaid": 13,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          3,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 15,
+        "crewPaid": 10,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          3,
+          3
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 1,
+        "crewPaid": 14,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          3,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 15,
+        "crewPaid": 10,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          3,
+          3
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 44,
+    "acceptedAt": 1789606575847,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 0,
+      "x": 17,
+      "y": 8,
+      "bends": [],
+      "pause": false
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 5,
+    "periodAfter": 5,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 1,
+        "crewPaid": 14,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          3,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 15,
+        "crewPaid": 10,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          3,
+          3
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 1,
+        "crewPaid": 14,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          3,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 15,
+        "crewPaid": 10,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          3,
+          3
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 45,
+    "acceptedAt": 1789606576546,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        0
+      ],
+      "period": 5
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 5,
+    "periodAfter": 5,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 1,
+        "crewPaid": 14,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          3,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 15,
+        "crewPaid": 10,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          3,
+          3
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 1,
+        "crewPaid": 14,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          3,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 14,
+        "crewPaid": 11,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          3,
+          3
+        ],
+        "completedLines": []
+      }
+    }
+  },
+  {
+    "actionNumber": 46,
+    "acceptedAt": 1789606577289,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 0,
+      "x": 6,
+      "y": 1,
+      "bends": [],
+      "pause": false
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 5,
+    "periodAfter": 6,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 1,
+        "crewPaid": 14,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          3,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 14,
+        "crewPaid": 11,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          4,
+          3,
+          3
+        ],
+        "completedLines": []
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 1,
+        "crewPaid": 14,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          3,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 17,
+        "crewPaid": 11,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          3,
+          3
+        ],
+        "completedLines": [
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 47,
+    "acceptedAt": 1789606587530,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        0
+      ],
+      "period": 6
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 6,
+    "periodAfter": 6,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 1,
+        "crewPaid": 14,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          3,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 17,
+        "crewPaid": 11,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          3,
+          3
+        ],
+        "completedLines": [
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 0,
+        "crewPaid": 15,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          3,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 17,
+        "crewPaid": 11,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          3,
+          3
+        ],
+        "completedLines": [
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 48,
+    "acceptedAt": 1789606596041,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 0,
+      "x": 20,
+      "y": 8,
+      "bends": [],
+      "pause": false
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 6,
+    "periodAfter": 6,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 0,
+        "crewPaid": 15,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          3,
+          2
+        ],
+        "completedLines": []
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 17,
+        "crewPaid": 11,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          3,
+          3
+        ],
+        "completedLines": [
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 3,
+        "crewPaid": 15,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          3,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 17,
+        "crewPaid": 11,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          3,
+          3
+        ],
+        "completedLines": [
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 49,
+    "acceptedAt": 1789606596766,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        1
+      ],
+      "period": 6
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 6,
+    "periodAfter": 6,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 3,
+        "crewPaid": 15,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          3,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 17,
+        "crewPaid": 11,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          3,
+          3
+        ],
+        "completedLines": [
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 3,
+        "crewPaid": 15,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          3,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 16,
+        "crewPaid": 12,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          3,
+          3
+        ],
+        "completedLines": [
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 50,
+    "acceptedAt": 1789606597580,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 1,
+      "x": 11,
+      "y": 0,
+      "bends": [],
+      "pause": false
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 6,
+    "periodAfter": 7,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 3,
+        "crewPaid": 15,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          3,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 16,
+        "crewPaid": 12,
+        "tollsPaid": 0,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          3,
+          3
+        ],
+        "completedLines": [
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 5,
+        "crewPaid": 15,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          3,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 14,
+        "crewPaid": 12,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          4,
+          3
+        ],
+        "completedLines": [
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 51,
+    "acceptedAt": 1789606631482,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        1,
+        2
+      ],
+      "period": 7
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 7,
+    "periodAfter": 7,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 5,
+        "crewPaid": 15,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          3,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 14,
+        "crewPaid": 12,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          4,
+          3
+        ],
+        "completedLines": [
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 2,
+        "crewPaid": 18,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          3,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 14,
+        "crewPaid": 12,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          4,
+          3
+        ],
+        "completedLines": [
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 52,
+    "acceptedAt": 1789606639435,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 1,
+      "x": 16,
+      "y": 8,
+      "bends": [],
+      "pause": false
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 7,
+    "periodAfter": 7,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 2,
+        "crewPaid": 18,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          3,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 14,
+        "crewPaid": 12,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          4,
+          3
+        ],
+        "completedLines": [
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 2,
+        "crewPaid": 18,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          4,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 14,
+        "crewPaid": 12,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          4,
+          3
+        ],
+        "completedLines": [
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 53,
+    "acceptedAt": 1789606651704,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 2,
+      "x": 11,
+      "y": 6,
+      "bends": [],
+      "pause": true
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 7,
+    "periodAfter": 7,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 2,
+        "crewPaid": 18,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          4,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 14,
+        "crewPaid": 12,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          4,
+          3
+        ],
+        "completedLines": [
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 2,
+        "crewPaid": 18,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          4,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 14,
+        "crewPaid": 12,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          4,
+          3
+        ],
+        "completedLines": [
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 54,
+    "acceptedAt": 1789606652421,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        1
+      ],
+      "period": 7
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 7,
+    "periodAfter": 7,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 2,
+        "crewPaid": 18,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          4,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 14,
+        "crewPaid": 12,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          4,
+          3
+        ],
+        "completedLines": [
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 2,
+        "crewPaid": 18,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          4,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 13,
+        "crewPaid": 13,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          4,
+          3
+        ],
+        "completedLines": [
+          "tram"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 55,
+    "acceptedAt": 1789606653432,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 1,
+      "x": 14,
+      "y": 0,
+      "bends": [],
+      "pause": false
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 7,
+    "periodAfter": 8,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 2,
+        "crewPaid": 18,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          4,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 13,
+        "crewPaid": 13,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          4,
+          3
+        ],
+        "completedLines": [
+          "tram"
+        ]
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 2,
+        "crewPaid": 18,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          4,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 16,
+        "crewPaid": 13,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          5,
+          3
+        ],
+        "completedLines": [
+          "tram",
+          "university"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 56,
+    "acceptedAt": 1789606670198,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        1
+      ],
+      "period": 8
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 8,
+    "periodAfter": 8,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 2,
+        "crewPaid": 18,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          4,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 16,
+        "crewPaid": 13,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          5,
+          3
+        ],
+        "completedLines": [
+          "tram",
+          "university"
+        ]
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 1,
+        "crewPaid": 19,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          4,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 16,
+        "crewPaid": 13,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          5,
+          3
+        ],
+        "completedLines": [
+          "tram",
+          "university"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 57,
+    "acceptedAt": 1789606677259,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 1,
+      "x": 14,
+      "y": 8,
+      "bends": [],
+      "pause": false
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 8,
+    "periodAfter": 8,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 1,
+        "crewPaid": 19,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          4,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 16,
+        "crewPaid": 13,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          5,
+          3
+        ],
+        "completedLines": [
+          "tram",
+          "university"
+        ]
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 1,
+        "crewPaid": 19,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          5,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 16,
+        "crewPaid": 13,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          5,
+          3
+        ],
+        "completedLines": [
+          "tram",
+          "university"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 58,
+    "acceptedAt": 1789606678356,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        2
+      ],
+      "period": 8
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 8,
+    "periodAfter": 8,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 1,
+        "crewPaid": 19,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          5,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 16,
+        "crewPaid": 13,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          5,
+          3
+        ],
+        "completedLines": [
+          "tram",
+          "university"
+        ]
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 1,
+        "crewPaid": 19,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          5,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 15,
+        "crewPaid": 14,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          5,
+          3
+        ],
+        "completedLines": [
+          "tram",
+          "university"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 59,
+    "acceptedAt": 1789606679485,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 2,
+      "x": 19,
+      "y": 1,
+      "bends": [],
+      "pause": false
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 8,
+    "periodAfter": 9,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 1,
+        "crewPaid": 19,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          5,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 15,
+        "crewPaid": 14,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          5,
+          3
+        ],
+        "completedLines": [
+          "tram",
+          "university"
+        ]
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 1,
+        "crewPaid": 19,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          5,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 15,
+        "crewPaid": 14,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          5,
+          4
+        ],
+        "completedLines": [
+          "tram",
+          "university"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 60,
+    "acceptedAt": 1789606688354,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        1
+      ],
+      "period": 9
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 9,
+    "periodAfter": 9,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 1,
+        "crewPaid": 19,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          5,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 15,
+        "crewPaid": 14,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          5,
+          4
+        ],
+        "completedLines": [
+          "tram",
+          "university"
+        ]
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 0,
+        "crewPaid": 20,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          5,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 15,
+        "crewPaid": 14,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          5,
+          4
+        ],
+        "completedLines": [
+          "tram",
+          "university"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 61,
+    "acceptedAt": 1789606758065,
+    "actorId": "2c355b31-297c-4e73-813e-27970a84a778",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 1,
+      "x": 13,
+      "y": 3,
+      "bends": [],
+      "pause": false
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 9,
+    "periodAfter": 9,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 0,
+        "crewPaid": 20,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          5,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 15,
+        "crewPaid": 14,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          5,
+          4
+        ],
+        "completedLines": [
+          "tram",
+          "university"
+        ]
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 0,
+        "crewPaid": 20,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          6,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 15,
+        "crewPaid": 14,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          5,
+          4
+        ],
+        "completedLines": [
+          "tram",
+          "university"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 62,
+    "acceptedAt": 1789606758974,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "HIRE_CREWS",
+    "payload": {
+      "lineIndexes": [
+        2
+      ],
+      "period": 9
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "CONSTRUCTION",
+    "periodBefore": 9,
+    "periodAfter": 9,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 0,
+        "crewPaid": 20,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          6,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 15,
+        "crewPaid": 14,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          5,
+          4
+        ],
+        "completedLines": [
+          "tram",
+          "university"
+        ]
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 0,
+        "crewPaid": 20,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          6,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 14,
+        "crewPaid": 15,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          5,
+          4
+        ],
+        "completedLines": [
+          "tram",
+          "university"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 63,
+    "acceptedAt": 1789606760094,
+    "actorId": "63ef476f-6ffa-4190-8e8f-f5140ecd4440",
+    "action": "BUILD",
+    "payload": {
+      "lineIndex": 2,
+      "x": 16,
+      "y": 0,
+      "bends": [],
+      "pause": false
+    },
+    "phaseBefore": "CONSTRUCTION",
+    "phaseAfter": "SCORING",
+    "periodBefore": 9,
+    "periodAfter": 9,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 0,
+        "crewPaid": 20,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          6,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 14,
+        "crewPaid": 15,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          5,
+          4
+        ],
+        "completedLines": [
+          "tram",
+          "university"
+        ]
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 0,
+        "crewPaid": 20,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          6,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 17,
+        "crewPaid": 15,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          5,
+          5
+        ],
+        "completedLines": [
+          "tram",
+          "university",
+          "short"
+        ]
+      }
+    }
+  },
+  {
+    "actionNumber": 64,
+    "acceptedAt": 1789606761259,
+    "actorId": "68b54550-5d16-4a44-b983-69e3642b2049",
+    "action": "ADVANCE_SCORING",
+    "payload": {},
+    "phaseBefore": "SCORING",
+    "phaseAfter": "RESULTS",
+    "periodBefore": 9,
+    "periodAfter": 9,
+    "playersBefore": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 0,
+        "crewPaid": 20,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          6,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 17,
+        "crewPaid": 15,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          5,
+          5
+        ],
+        "completedLines": [
+          "tram",
+          "university",
+          "short"
+        ]
+      }
+    },
+    "playersAfter": {
+      "2c355b31-297c-4e73-813e-27970a84a778": {
+        "money": 0,
+        "crewPaid": 20,
+        "tollsPaid": 1,
+        "engineeringCards": [
+          "transfer-station",
+          "four-sides",
+          "large-presence"
+        ],
+        "destinationCards": [
+          "dest-garden-airport",
+          "dest-museum-garden-university"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          6,
+          6,
+          2
+        ],
+        "completedLines": [
+          "local"
+        ]
+      },
+      "63ef476f-6ffa-4190-8e8f-f5140ecd4440": {
+        "money": 17,
+        "crewPaid": 15,
+        "tollsPaid": 2,
+        "engineeringCards": [
+          "turning-corner",
+          "shared-stations",
+          "citywide-coverage"
+        ],
+        "destinationCards": [
+          "dest-stadium-harbor",
+          "dest-market-theatre-airport"
+        ],
+        "destinationPurchased": false,
+        "lineNodeCounts": [
+          5,
+          5,
+          5
+        ],
+        "completedLines": [
+          "tram",
+          "university",
+          "short"
+        ]
+      }
+    }
+  }
+]
+```

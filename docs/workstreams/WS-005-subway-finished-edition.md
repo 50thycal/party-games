@@ -1,13 +1,26 @@
 # WS-005 — Subway finished edition
 
 Build OS: v0.12
-Phase: REVIEW
+Phase: BUILDING
 Status: Active
-Updated: 2026-09-16
-Implementation State: terminology audit and owner-approved vocabulary expansion complete on merge of PR #188.
+Updated: 2026-09-17
+Implementation State: QNHT playtest UI cleanup in progress; PR #188 merged.
 Related PRs: [#188](https://github.com/50thycal/party-games/pull/188) (terminology audit); [#187](https://github.com/50thycal/party-games/pull/187) (optional bend modes); [#186](https://github.com/50thycal/party-games/pull/186) (draft rules/highlights); [#185](https://github.com/50thycal/party-games/pull/185) (public status/payments/draft); [#184](https://github.com/50thycal/party-games/pull/184) (JNCG cards/surveys/labels); [#177](https://github.com/50thycal/party-games/pull/177) (PRWK feedback); [#176](https://github.com/50thycal/party-games/pull/176) (phone joining; merged); [#175](https://github.com/50thycal/party-games/pull/175) (Playtest Lab); [#174](https://github.com/50thycal/party-games/pull/174) (transfer/objective continuation); [#173](https://github.com/50thycal/party-games/pull/173) (larger neighborhoods/reversed VP; merged); [#172](https://github.com/50thycal/party-games/pull/172) (guided turns, neighborhoods and tiers; merged); [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; merged); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
-## Current continuation — Terminology audit
+## Current continuation — QNHT UI cleanup
+
+Goal/non-goals/acceptance: [owner-authorized spec](../build-specs/WS-005-qnht-ui.md).
+Framework preflight: canonical origin/main v0.12 checked 2026-09-17; matches adoption.
+Implementation State: compact tablet HUD/settings and phone General organization,
+brief prompts, conditional payment preview, stable split-color highlights, hired-line
+pulses and slower arcing payments implemented. QNHT archived byte-for-byte with
+separate observations/analysis. Cards/art and ending experiment are parked, not built.
+Validation: build/lint and full Subway suite in progress. Browser localhost access
+returned ERR_BLOCKED_BY_CLIENT; Vercel connector returned no accessible teams.
+Review State: independent /root/bend_review review in progress; implementation /root.
+Next Step: finish regressions, review and publish one implementation PR. Do not merge.
+
+## Previous continuation — Terminology audit
 
 Goal: mode-aware crew guidance and owner-approved consistent station/transfer-station/line vocabulary across active UI, cards, guides and reports.
 Scope/acceptance/non-goals: [audit and glossary](../../src/games/subway/TERMINOLOGY.md).

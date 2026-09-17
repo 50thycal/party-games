@@ -59,9 +59,10 @@ Public money events drive player-panel debit/credit animations and completion re
 An authenticated phone can toggle its owned Destinations on the shared iPad.
 Enabled selections persist across turns and reconnects until their owner disables
 them. The tablet projection includes only the current actor's selections, even
-before tablet acknowledgement, and none when no actor exists. Both board markers
-and the legend use that projection. Each card has a distinct company/card label
-and color. Phones receive only their own selections, including off-turn. Clear removes
+before tablet acknowledgement, and none when no actor exists. Board colors use
+that projection without a separate legend or company/card code. Each card has a
+stable color swatch on the phone; shared targets use equal-width color bands.
+Phones receive only their own selections, including off-turn. Clear removes
 only that company's highlights. This opt-in disclosure does not publish unselected
 missions or the full hand. See DEC-047 for selection persistence and DEC-053 for
 current-player-only shared visibility. The quick-start, full rulebook and existing
@@ -663,6 +664,16 @@ transfer animation. Initial load sets a watermark; repeated polls do not replay 
 The measured pad height reserves canvas space. Hotseat uses the measured HUD band.
 Phone status is sticky above its scrolling cards and includes own line peg dots,
 a separate starter diamond and segment progress. Room/device details move to Settings.
+
+QNHT presentation cleanup: the tablet gear opens a native modal containing table,
+device and Lab settings; redundant phase/spectator banners and zoom toolbar are
+hidden for the shared tablet. Compact live leaders appear above construction order.
+Phone sticky status retains cash and line icons; detailed progress, mode, leaders,
+legend and settings live in General. Outstanding hired lines pulse only on their
+owner's active turn; completed activations stop. Reduced motion uses a static outline.
+Active player pads highlight only during interactive phases, never results.
+Payment previews render only for an opponent charge; payment markers arc upward
+over 2.6 seconds while preserving existing queue/Undo/remount behavior.
 
 `publicStatus.ts` uses the scoring helper for Largest Cluster size, leaders and
 company counts across equally largest groups. Same-line adjacency counts for this

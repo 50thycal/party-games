@@ -166,10 +166,8 @@ export function Board({
         const markers=destinationHighlights.filter(h=>h.stationIds.includes(area.id));
         const highlighted = highlightedStations.includes(area.id);
         const left=Math.min(...footprint.map(p=>p.x)), right=Math.max(...footprint.map(p=>p.x));
-        const top=Math.min(...footprint.map(p=>p.y));
-        const badgeColumns=Math.max(1,Math.floor(((right-left+1)*STEP)/58));
-        const badgeX=Math.min(PAD+left*STEP-20,VB_W-Math.min(markers.length,badgeColumns)*58-8);
-        const badgeY=Math.min(PAD+top*STEP+8,VB_H-Math.ceil(markers.length/badgeColumns)*22-8);
+        const highlightId=`destination-${area.id}`;
+        const highlightPaint=markers.length>1?`url(#${highlightId})`:markers[0]?.color;
         const edges=footprint.flatMap(p=>{
           const {x,y}=holePos(p), h=STEP/2;
           return [
@@ -180,10 +178,10 @@ export function Board({
           ];
         }).join(" ");
         return <g key={area.id} aria-label={`${area.name}: ${neighborhoodSize(area)} neighborhood${highlighted ? ", destination target" : ""}`} pointerEvents="none">
+          {markers.length>1&&<defs><linearGradient id={highlightId} gradientUnits="userSpaceOnUse" x1={PAD+(left-.5)*STEP} x2={PAD+(right+.5)*STEP} y1="0" y2="0">{markers.flatMap((h,i)=>[<stop key={`${i}-start`} offset={`${i/markers.length*100}%`} stopColor={h.color}/>,<stop key={`${i}-end`} offset={`${(i+1)/markers.length*100}%`} stopColor={h.color}/>])}</linearGradient></defs>}
           <title>{`${area.name} · ${neighborhoodSize(area)} · Place a peg anywhere inside · No dock limit`}</title>
-          {footprint.map(p=>{const pos=holePos(p);return <rect key={`${p.x},${p.y}`} x={pos.x-STEP/2} y={pos.y-STEP/2} width={STEP} height={STEP} fill={markers[0]?.color ?? (highlighted ? "#facc15" : color)} fillOpacity={highlighted ? 0.38 : 0.18}/>;})}
-          <path d={edges} fill="none" stroke={markers[0]?.color ?? (highlighted ? "#eab308" : color)} strokeWidth={highlighted ? 8 : 5} strokeLinejoin="round"/>
-          {markers.map((h,i)=><g key={h.playerId+h.cardId}><rect x={badgeX+(i%badgeColumns)*58} y={badgeY+Math.floor(i/badgeColumns)*22} width="56" height="20" rx="4" fill={h.color}/><text x={badgeX+28+(i%badgeColumns)*58} y={badgeY+14+Math.floor(i/badgeColumns)*22} textAnchor="middle" fontSize="11" fontWeight="800" fill="white">{h.label}</text></g>)}
+          {footprint.map(p=>{const pos=holePos(p);return <rect key={`${p.x},${p.y}`} x={pos.x-STEP/2} y={pos.y-STEP/2} width={STEP} height={STEP} fill={highlightPaint ?? (highlighted ? "#facc15" : color)} fillOpacity={highlighted ? 0.38 : 0.18}/>;})}
+          <path d={edges} fill="none" stroke={highlightPaint ?? (highlighted ? "#eab308" : color)} strokeWidth={highlighted ? 8 : 5} strokeLinejoin="round"/>
           <g data-neighborhood-label={area.id} data-label-box={`${label.x},${label.y},${label.width},${label.height}`}>
             <rect x={labelX-label.width*STEP/2+3} y={PAD+label.lineYs[0]*STEP-label.font*.65} width={label.width*STEP-6} height={(label.sizeY-label.lineYs[0])*STEP+label.font*.8} rx="8" fill="#fffdf5" fillOpacity=".94" />
             {label.lines.map((word,i)=><text key={i} x={labelX} y={PAD+label.lineYs[i]*STEP} textAnchor="middle" dominantBaseline="middle" fontSize={label.font} fontWeight="900" fill={color}>{word}</text>)}
@@ -203,7 +201,7 @@ export function Board({
       })}
 
       {/* Normal-hole markers, in explicit precedence order (R 5.4):
-          1. unselected current targets — dimmed once anything is selected,
+          1. unselected current targets — retain brightness after selection,
              and fully ceded where a following marker shares the hole;
           2. following `2 / NEXT` markers, dashed;
           3. the selected `1 / NOW` marker, drawn last further below.
@@ -219,13 +217,13 @@ export function Board({
             if (isSelected) return null;
             const p = holePos(c);
             return (
-              <g key={`t-${c.x}-${c.y}`} opacity={hasSelection && !planningTargets ? 0.35 : 1}>
+              <g key={`t-${c.x}-${c.y}`} opacity={1}>
                 <circle
                   cx={p.x}
                   cy={p.y}
                   r="13"
                   fill={planningTargets ? "#facc15" : "#4ade80"}
-                  opacity={planningTargets ? 0.65 : hasSelection ? 0.15 : 0.28}
+                  opacity={planningTargets ? 0.65 : 0.28}
                   data-target={`${c.x},${c.y}`}
                   data-step={planningTargets ? "plan" : "1"}
                 />
