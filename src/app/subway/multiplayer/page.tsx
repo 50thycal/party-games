@@ -11,6 +11,7 @@ import { LabControls } from "@/games/subway/LabControls";
 import { recoverableBotError } from "@/games/subway/botAutomation";
 import { nextCompanyId } from "@/games/subway/config";
 import { turnSummary, type TurnSummary } from "@/games/subway/turnSummary";
+import { BuyCardButton } from "@/games/subway/BuyCardButton";
 import { DEVICE_SESSION_KEY, DEVICE_SESSION_TOUCH_MS, parseSavedIdentity, resumeDecision, staleRoomDecision, stamped, type SavedDeviceIdentity } from "@/games/subway/deviceSession";
 import type { CompanionView } from "@/games/subway/companion";
 import { SubwayGameView } from "@/games/subway/GameView";
@@ -260,14 +261,13 @@ export default function SubwayMultiplayerPage() {
   if(!me) return <main className="p-4">{header}{notices}<p>Waiting for your company.</p></main>;
   const myTurn=view.actorId===me.id;
   const guidance=phoneGuidance(game,me.id);
-  const buyDestination=game.phase==="CONSTRUCTION"&&myTurn&&!me.crewsHired&&!me.destinationPurchased;
   return <main className="mx-auto min-h-dvh max-w-lg space-y-4 px-3 pb-28 pt-3"><div className="sticky top-0 z-20 bg-[#10252e] pb-2"><PhoneStatus game={game} playerId={me.id}/></div>{notices}
     <style>{`@media (orientation: landscape) { .phone-portrait-prompt { display: flex !important; } }`}</style>
     <div className="phone-portrait-prompt fixed inset-0 z-50 hidden flex-col items-center justify-center gap-3 bg-[#10252e] p-6 text-center"><span className="text-4xl" aria-hidden>↻</span><p className="text-xl font-bold">Turn your phone upright</p><p>Your cards are arranged for portrait play.</p></div>
     <section className="rounded-xl border border-teal-500 bg-[#193640] p-3 shadow-lg" aria-live="polite"><p className="text-sm">{guidance.text}</p>{tab!==guidance.tab&&<button className={`${button} mt-2 w-full`} onClick={()=>{setTab(guidance.tab);window.scrollTo({top:0});}}>{guidance.label}</button>}</section>
     <h1 className="text-xl font-bold">{tabs.find(t=>t.id===tab)?.label}</h1>
 {tab==="destinations"&&<>{me.destinationHand.map(id=>{const met=destinationMet(me,id);return <section key={id} className="space-y-2" data-destination-section={id}><DestinationCardFace card={id} color={me.color} state={met?"met":"idle"} footer={<p data-destination-status={met?"met":"open"} className={`mt-1.5 rounded-full px-2 py-1 text-center text-xs font-black ${met?"bg-emerald-600 text-white":"bg-rose-100 text-rose-900"}`}>{met?`✓ Connected · +$${destinationReward(id)}M paid`:"Not yet connected"}</p>}/><button className={`${button} w-full`} aria-pressed={view.destinationHighlights.some(h=>h.cardId===id)} disabled={controlsDisabled} onClick={()=>run("SHOW_DESTINATION",{cardId:id,enabled:!view.destinationHighlights.some(h=>h.cardId===id)})}><span aria-hidden className="mr-2 inline-block h-3 w-3 rounded-full border border-white" style={{background:destinationColor(view.room.players.findIndex(p=>p.id===me.id),me.destinationHand.indexOf(id))}}/>Highlights: {view.destinationHighlights.some(h=>h.cardId===id)?"On":"Off"}</button></section>;})}<p className="text-xs text-slate-300">Your selections are saved. The shared board shows them only during your turn; your phone keeps your own selections visible.</p><button className={button} disabled={controlsDisabled} onClick={()=>run("SHOW_DESTINATION",{cardId:null})}>Clear my highlights</button>
-      {buyDestination&&<button className={`${button} w-full`} disabled={controlsDisabled||me.money<5} onClick={()=>run("BUY_DESTINATION",{period:game.currentPeriod})}>Buy another Destination · $5M</button>}
+      <BuyCardButton game={game} playerId={me.id} busy={controlsDisabled} act={run}/>
     </>}
     {tab==="lines"&&<>
       {game.phase==="PROCUREMENT"&&<section className="space-y-4"><p>Choose three lines, one per turn.</p>{game.procurement.row.map(id=>{const c=contractById(id)!;return <ContractCard key={id} contract={c}><button className={`${button} mt-3 w-full`} disabled={controlsDisabled||!myTurn||me.money<c.cost} onClick={()=>run("PROCURE",{choice:"buy",contractId:id})}>Buy {c.name} · ${c.cost}M</button></ContractCard>;})}</section>}
@@ -288,7 +288,7 @@ export default function SubwayMultiplayerPage() {
       <PhoneStatus game={game} playerId={me.id} details/>
       <p className="text-sm">Round {game.currentPeriod}/{SUBWAY_CONFIG.timelinePeriods}</p>
       <Link href="/subway/tutorial" className="underline">How to play</Link>
-      {buyDestination&&<button className={button} disabled={controlsDisabled||me.money<5} onClick={()=>run("BUY_DESTINATION",{period:game.currentPeriod})}>Buy Destination · $5M</button>}
+      <BuyCardButton game={game} playerId={me.id} busy={controlsDisabled} act={run}/>
       {game.playerOrder.map(id=>{const p=game.players[id];return <section key={id} className="space-y-2 rounded-xl border border-white/20 p-4"><strong>{p.name} · ${p.money}M {p.score!==undefined?`· ${p.score} VP`:""}</strong><p>{p.lines.filter(lineComplete).length}/3 lines complete</p>{p.lines.map(l=><p key={l.contractId}>{contractOf(l)?.name}: {segmentsBuilt(l)}/{contractOf(l)?.recipe.length} segments</p>)}{game.phase==="RESULTS"&&p.scoreBreakdown?.map((s,i)=><p key={i} className="text-sm">{s.label}: {s.points} VP</p>)}</section>;})}
       <p className="text-sm">Crews: $1M / $3M / $6M. Completing each line pays $3M. Final debt costs 4 VP per $1M.</p>
       <section className="space-y-3">{game.events.slice().reverse().map(e=><p key={e.seq} className="border-t border-white/10 pt-3 text-sm">{e.text}</p>)}</section>

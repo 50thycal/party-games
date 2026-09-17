@@ -71,7 +71,9 @@ anywhere on the board. Diagonal stations, sharing an area without nearby station
 string crossings and opponents' lines do not connect your lines.
 
 Before hiring crews on your construction turn, you may pay **$5M for one extra
-random mission, once per game**. Pay immediately; the purchase cannot create debt.
+random mission, once per game**, and separately **$5M for one extra random Engineering
+goal, once per game** (never a goal you already hold). Use the iPad's **Buy a card**
+button or your phone. Pay immediately; purchases cannot create debt.
 Missions stay private until results and score only if fulfilled. No line assignment,
 card lock, or penalty for an unfulfilled mission applies.
 

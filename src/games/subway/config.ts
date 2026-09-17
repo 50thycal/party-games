@@ -393,6 +393,8 @@ export type SubwayPlayer = {
   /** Private missions scored across the connected company network. */
   destinationHand: string[];
   destinationPurchased?: boolean;
+  /** One extra random Engineering goal may be bought per game. */
+  engineeringPurchased?: boolean;
   /** Destination missions whose completion cash has already been paid. */
   destinationsPaid?: string[];
   /** Destination cards locked to a line at Engineering plan lock. */
@@ -570,6 +572,7 @@ export type SubwayActionType =
   | "PROCURE"
   | "DRAFT_CARD"
   | "BUY_DESTINATION"
+  | "BUY_ENGINEERING"
   | "BUY_SURVEYS"
   | "HIRE_CREWS"
   | "PICK_DESTINATION"
@@ -1550,6 +1553,18 @@ export function affordableCrews(p: SubwayPlayer, count: number): number {
   while (n > 0 && !canAffordCrews(p, n)) n--;
   return n;
 }
+/** Why this company cannot buy an extra card right now; undefined when it can. Shared by reducer and buttons. */
+export function cardPurchaseBlocker(s: SubwayState, playerId: string, deck: "engineering" | "destination"): string | undefined {
+  const me = s.players[playerId];
+  if (!me || s.phase !== "CONSTRUCTION") return "Cards are bought during Construction.";
+  if (s.resolveQueue[0] !== playerId) return "Wait for your construction turn.";
+  if (me.crewsHired) return "Buy before hiring crews.";
+  if (deck === "destination" ? me.destinationPurchased : me.engineeringPurchased) return `One extra ${deck === "destination" ? "Destination" : "Engineering"} card per game.`;
+  if (me.money < SUBWAY_CONFIG.destinationPurchaseCost) return `Needs $${SUBWAY_CONFIG.destinationPurchaseCost}M in cash.`;
+  const available = deck === "destination" ? s.destinationDeck.length > 0 : s.market.decks.engineering.some(id => !me.engineeringHand.includes(id));
+  if (!available) return "No cards left to draw.";
+  return undefined;
+}
 /** Pay every held Destination mission that is connected but not yet paid. Returns the paid ids. */
 function payConnectedDestinations(me: SubwayPlayer, payments: MoneyEvent['payments']): string[] {
   const newlyMet=destinationsHeldIds(me).filter(id=>!(me.destinationsPaid??[]).includes(id)&&destinationMet(me,id));
@@ -1713,8 +1728,21 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       return s;
     }
 
+    case "BUY_ENGINEERING": {
+      if (!me || cardPurchaseBlocker(s, me.id, "engineering") || action.payload?.period !== s.currentPeriod) return state;
+      // The deck is already shuffled: the top goal this company does not hold is the random draw.
+      const index = s.market.decks.engineering.findIndex(id => !me.engineeringHand.includes(id));
+      if (index < 0) return state;
+      me.money -= SUBWAY_CONFIG.destinationPurchaseCost;
+      me.engineeringHand.push(s.market.decks.engineering.splice(index, 1)[0]);
+      me.engineeringPurchased = true;
+      recordMoney(s,me.id,[{from:me.id,amount:SUBWAY_CONFIG.destinationPurchaseCost,reason:'Engineering purchase'}]);
+      pushEvent(s, ctx.now(), "CARD", "notice", `${me.name} bought a random Engineering goal for $${SUBWAY_CONFIG.destinationPurchaseCost}M.`, me.id);
+      return s;
+    }
+
     case "BUY_DESTINATION": {
-      if (s.phase !== "CONSTRUCTION" || !me || s.resolveQueue[0] !== me.id || me.crewsHired || me.destinationPurchased || me.money < SUBWAY_CONFIG.destinationPurchaseCost || !s.destinationDeck.length || action.payload?.period !== s.currentPeriod) return state;
+      if (!me || cardPurchaseBlocker(s, me.id, "destination") || action.payload?.period !== s.currentPeriod) return state;
       me.money -= SUBWAY_CONFIG.destinationPurchaseCost;
       me.destinationHand.push(s.destinationDeck.shift()!);
       me.destinationPurchased = true;

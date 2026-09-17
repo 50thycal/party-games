@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { borderSides, distinctSides, longestNetwork } from "../src/games/subway/network";
-import { DESTINATION_CARDS, ENGINEERING_CARDS, LINE_CONTRACTS, SUBWAY_CONFIG, contractNodes, contractById, destinationMet, nodePoint, objectiveMet, scoreGame, subwayGame, type PlayerLine, type RouteNode, type SubwayState, type SubwayAction } from "../src/games/subway/config";
+import { DESTINATION_CARDS, ENGINEERING_CARDS, LINE_CONTRACTS, SUBWAY_CONFIG, cardPurchaseBlocker, contractNodes, contractById, destinationMet, nodePoint, objectiveMet, scoreGame, subwayGame, type PlayerLine, type RouteNode, type SubwayState, type SubwayAction } from "../src/games/subway/config";
 import { runPlaytest, startPlaytest, testRoom } from "../src/games/subway/playtest";
 
 const dispatch = (s:SubwayState, id:string, type:SubwayAction["type"], payload?:SubwayAction["payload"]) => subwayGame.reducer(s,{playerId:id,type,payload},{room:testRoom(s.playerOrder.length),playerId:id,now:()=>1234,random:()=>.2});
@@ -84,6 +84,26 @@ for(const count of [2,3,4]) {
   assert.equal(s.players[id].destinationHand.length,held+1);
   assert.equal(dispatch(s,id,"BUY_DESTINATION",{period:s.currentPeriod}),s);
   assert.ok(!s.events.at(-1)!.text.includes(s.players[id].destinationHand.at(-1)!));
+  // Extra Engineering goal: same price and timing, never a goal already held, once per game.
+  assert.equal(cardPurchaseBlocker(s,id,"destination"),"One extra Destination card per game.");
+  assert.equal(cardPurchaseBlocker(s,id,"engineering"),undefined);
+  assert.equal(dispatch(s,other,"BUY_ENGINEERING",{period:s.currentPeriod}),s);
+  assert.equal(dispatch(s,id,"BUY_ENGINEERING",{period:s.currentPeriod-1}),s);
+  const eng=structuredClone(s);const goals=eng.players[id].engineeringHand;eng.market.decks.engineering=[goals[0],"citywide-coverage",...eng.market.decks.engineering.filter(c=>c!=="citywide-coverage"&&!goals.includes(c))];
+  const cashBefore=eng.players[id].money;
+  const bought=dispatch(eng,id,"BUY_ENGINEERING",{period:s.currentPeriod});
+  assert.equal(bought.players[id].money,cashBefore-5);
+  assert.deepEqual(bought.players[id].engineeringHand,[...goals,"citywide-coverage"],"skips the goal already held");
+  assert.ok(!bought.market.decks.engineering.includes("citywide-coverage"));
+  assert.equal(bought.players[id].engineeringPurchased,true);
+  assert.equal(dispatch(bought,id,"BUY_ENGINEERING",{period:s.currentPeriod}),bought,"once per game");
+  assert.equal(cardPurchaseBlocker(bought,id,"engineering"),"One extra Engineering card per game.");
+  const onlyHeld=structuredClone(s);onlyHeld.market.decks.engineering=[...onlyHeld.players[id].engineeringHand];
+  assert.equal(dispatch(onlyHeld,id,"BUY_ENGINEERING",{period:s.currentPeriod}),onlyHeld,"no drawable goal");
+  assert.equal(cardPurchaseBlocker(onlyHeld,id,"engineering"),"No cards left to draw.");
+  const poorEng=structuredClone(s);poorEng.players[id].money=4;assert.equal(cardPurchaseBlocker(poorEng,id,"engineering"),"Needs $5M in cash.");
+  const hiredEng=structuredClone(s);hiredEng.players[id].crewsHired=true;assert.equal(cardPurchaseBlocker(hiredEng,id,"engineering"),"Buy before hiring crews.");
+  console.log("Extra Engineering purchase: price, timing, held-goal skip and once-per-game passed.");
 }
 {
   let s=base();s.phase="CONSTRUCTION";s.resolveQueue=["seat-1","seat-2"];
