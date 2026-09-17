@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { EngineeringCardFace } from "./CardArt";
 import { VB_W, VB_H } from "./board";
-import { SUBWAY_CONFIG, activationCost, buildableLines, cardDraftBlocker, contractOf, contractById, destinationById, engineeringById, objectiveMet, type SubwayState } from "./config";
+import { SUBWAY_CONFIG, activationCost, buildableLines, canAffordCrews, cardDraftBlocker, contractOf, contractById, destinationById, engineeringById, objectiveMet, type SubwayState } from "./config";
 
 /** Phone-sized pieces stay outside the map's zoom coordinate system. */
 export function MobileTable({game, playerId, busy, veiled, board, actions, settings, act, selectLine, previewLine}: {
@@ -48,7 +48,7 @@ export function MobileTable({game, playerId, busy, veiled, board, actions, setti
     {!veiled && p && <>
       {hiring && <div className="flex shrink-0 flex-wrap items-center gap-1 px-2 text-xs">
         {p.lines.map((l,i)=><button key={l.contractId} className={button} disabled={busy||!available.includes(i)} aria-pressed={indexes.includes(i)} style={{background:indexes.includes(i)?"#a7f3d0":undefined}} onClick={()=>setSelected(indexes.includes(i)?indexes.filter(v=>v!==i):[...indexes,i])}>{contractOf(l)?.name}</button>)}
-        <button className={button} disabled={busy} onClick={()=>act("HIRE_CREWS",{lineIndexes:indexes,period:game.currentPeriod})}>{indexes.length?`Hire ${indexes.length} · $${activationCost(p,indexes.length)}M`:"No crews · end turn"}</button>
+        <button className={button} disabled={busy||!canAffordCrews(p,indexes.length)} onClick={()=>act("HIRE_CREWS",{lineIndexes:indexes,period:game.currentPeriod})}>{indexes.length?`Hire ${indexes.length} · $${activationCost(p,indexes.length)}M${canAffordCrews(p,indexes.length)?"":" · not enough cash"}`:"No crews · end turn"}</button>
       </div>}
       <div className="flex shrink-0 items-center gap-2 px-2 text-xs text-amber-50">
         <button className="rounded bg-white/15 px-3 py-2" aria-expanded={tray||drafting} onClick={()=>setTray(v=>!v)}>{tray?"Put cards away":"Lines & cards"}</button>

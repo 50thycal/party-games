@@ -11,7 +11,7 @@ import "./subway-neighborhood-test";
 import { constructionHistory } from "../src/games/subway/constructionHistory";
 import { quoteBuildCost } from "../src/games/subway/buildCost";
 import { routeContacts, stationAt } from "../src/games/subway/config";
-import { activationCost, buildableLines, constructionExhausted, lineActionsRemaining, LINE_CONTRACTS, ENGINEERING_CARDS, DESTINATION_CARDS, STATIONS, SUBWAY_CONFIG, SUBWAY_STATE_VERSION, subwayGame, nextCompanyId, draftPicks, draftTurnId, objectiveMet, scoreGame, legalTargets, lineComplete, contractById, type SubwayState, type SubwayAction } from "../src/games/subway/config";
+import { activationCost, affordableCrews, destinationReward, destinationById, buildableLines, constructionExhausted, lineActionsRemaining, LINE_CONTRACTS, ENGINEERING_CARDS, DESTINATION_CARDS, STATIONS, SUBWAY_CONFIG, SUBWAY_STATE_VERSION, subwayGame, nextCompanyId, draftPicks, draftTurnId, objectiveMet, scoreGame, legalTargets, lineComplete, contractById, type SubwayState, type SubwayAction } from "../src/games/subway/config";
 import { generateAiPlaytestReport } from "../src/games/subway/report";
 import { startPlaytest, testRoom, runPlaytest, seededRandom, stepPlaytest } from "../src/games/subway/playtest";
 
@@ -19,7 +19,7 @@ const dispatch=(s:SubwayState,id:string,type:SubwayAction["type"],payload?:Subwa
 let checks=0;
 for(const count of [2,3,4]) for(const category of ["engineering"] as const) {
   let {state:s}=startPlaytest(count,42);
-  assert.equal(SUBWAY_STATE_VERSION,25);
+  assert.equal(SUBWAY_STATE_VERSION,26);
   assert.ok(!("construction" in s.market.rows) && !("construction" in s.market.decks));
   assert.ok(!("priorityQueue" in s));
   assert.ok(Object.values(s.players).every(p=>!("constructionHand" in p)));
@@ -143,8 +143,19 @@ console.log("Build-cost previews: 6 reducer comparisons and recipient aggregatio
 }
 {
   let s=construction();s.players["seat-1"].money=0;
+  const broke=s;
   s=dispatch(s,"seat-1","HIRE_CREWS",{lineIndexes:[0],period:1});
-  assert.equal(s.players["seat-1"].money,-1,"crew debt allowed");
+  if(SUBWAY_CONFIG.crewDebtAllowed) assert.equal(s.players["seat-1"].money,-1,"crew debt allowed");
+  else {
+    assert.equal(s,broke,"crews are paid from cash on hand: an unaffordable hire is rejected");
+    assert.equal(affordableCrews(broke.players["seat-1"],3),0);
+    s=structuredClone(broke);s.players["seat-1"].money=3;
+    assert.equal(affordableCrews(s.players["seat-1"],3),2,"two crews cost exactly $3M");
+    assert.equal(dispatch(s,"seat-1","HIRE_CREWS",{lineIndexes:[0],period:1}).players["seat-1"].money,2);
+    s=dispatch(s,"seat-1","HIRE_CREWS",{lineIndexes:[0],period:1});
+    s=dispatch(s,"seat-1","BUILD",{lineIndex:0,x:3,y:2});
+    assert.equal(s.players["seat-1"].money,-1,"contact tolls may still create debt");
+  }
   const scored=scoreGame(s,1);
   assert.equal(scored.players["seat-1"].scoreBreakdown!.find(i=>i.label.startsWith("Construction debt"))!.points,-4);
   const p=s.players["seat-1"];p.engineeringHand=["dest-garden"];p.lines.push({contractId:"short",paid:5,route:[{x:14,y:2,stationId:"garden",stationSlot:0}]});
@@ -210,4 +221,43 @@ console.log("36 complete 2/3/4-player simulations reached RESULTS.");
   assert.notEqual(undone,s);
   assert.equal(constructionHistory(undone,event.periodBefore).builds.filter(b=>!b.undone).length,0);
   assert.equal(constructionHistory(undone,event.periodBefore).builds[0].undone,true);
+}
+
+// Destination completion cash: paid once, the first time the network connects
+// a held mission, reversed by Undo and never paid twice.
+{
+  let s=construction();
+  for(const id of s.playerOrder.slice(1)) s.players[id].lines=[];
+  s.players["seat-1"].lines[0].route=[{x:0,y:7}];
+  s=dispatch(s,"seat-1","HIRE_CREWS",{lineIndexes:[0],period:1});
+  const me=s.players["seat-1"];
+  const target=legalTargets(s,"seat-1",0).find(t=>stationAt(t,s.stations));
+  assert.ok(target,"fixture needs a legal station target");
+  const stationB=stationAt(target!,s.stations)!.id;
+  const card=DESTINATION_CARDS.find(c=>c.stationIds.length===2&&c.stationIds.includes(stationB))!;
+  const stationA=card.stationIds.find(id=>id!==stationB)!;
+  me.lines[0].route[0]={...me.lines[0].route[0],stationId:stationA};
+  me.destinationHand=[card.id];
+  const cash=me.money;
+  assert.equal(destinationReward(card.id),SUBWAY_CONFIG.destinationCompletionReward.pair);
+  assert.equal(destinationReward(DESTINATION_CARDS.find(c=>c.stationIds.length===3)!.id),SUBWAY_CONFIG.destinationCompletionReward.triple);
+  const built=dispatch(s,"seat-1","BUILD",{lineIndex:0,...target!});
+  assert.notEqual(built,s);
+  assert.equal(built.players["seat-1"].money,cash+destinationReward(card.id),"connecting the mission pays cash");
+  assert.deepEqual(built.players["seat-1"].destinationsPaid,[card.id]);
+  assert.ok(built.moneyEvents!.at(-1)!.payments.some(p=>p.from==="bank"&&p.reason==="Destination connected"));
+  assert.ok(built.events.some(e=>/Destination connected/.test(e.text)),"build narration mentions the destination cash");
+  const undone=dispatch(built,"seat-1","UNDO_PLACEMENT");
+  assert.equal(undone.players["seat-1"].money,cash,"Undo reverses the destination cash");
+  assert.deepEqual(undone.players["seat-1"].destinationsPaid??[],[]);
+  assert.equal(undone.moneyEvents!.at(-1)!.reversed,true);
+  const again=dispatch(undone,"seat-1","BUILD",{lineIndex:0,...target!});
+  assert.equal(again.players["seat-1"].money,cash+destinationReward(card.id),"rebuilding pays again after Undo, never twice in one state");
+  // Buying a mission the network already connects pays at once.
+  let b=construction();b.players["seat-1"].destinationHand=[];b.destinationDeck=[card.id];
+  b.players["seat-1"].lines[0].route=[{x:0,y:7,stationId:stationA},{x:3,y:7,stationId:stationB}];
+  const bought=dispatch(b,"seat-1","BUY_DESTINATION",{period:1});
+  assert.equal(bought.players["seat-1"].money,SUBWAY_CONFIG.startingMoney-SUBWAY_CONFIG.destinationPurchaseCost+destinationReward(card.id));
+  assert.deepEqual(bought.players["seat-1"].destinationsPaid,[card.id]);
+  console.log("Destination completion cash: pay once, Undo reversal and connected purchase passed.");
 }

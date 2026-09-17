@@ -9,7 +9,7 @@ import { DestinationCardFace } from '../src/games/subway/CardArt';
 import assert from 'node:assert/strict';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ContractCard } from '../src/games/subway/cards';
-import { contractById, subwayGame, validateNode, legalTargets, objectiveProgress, type PlayerLine, type SubwayState } from '../src/games/subway/config';
+import { SUBWAY_CONFIG, contractById, subwayGame, validateNode, legalTargets, objectiveProgress, type PlayerLine, type SubwayState } from '../src/games/subway/config';
 import { planBotCrews } from '../src/games/subway/botPlanning';
 import { chooseBotAction, DEFAULT_BOT } from '../src/games/subway/bots';
 import { missionPotential, engineeringPotential, objectiveExplanation } from '../src/games/subway/objectiveGuidance';
@@ -34,7 +34,11 @@ assert.ok((chooseBotAction(s,()=>.5,DEFAULT_BOT)?.payload?.lineIndexes as number
 // the legal $1 crew and $3 completion reward leave positive final money.
 const last=fixture();last.currentPeriod=9;last.players[id].money=0;
 last.players[id].lines=[line('tram',[[3,0],[3,2],[6,2],[10,3]])];
-assert.deepEqual(planBotCrews(last,id),[0]);
+if(SUBWAY_CONFIG.crewDebtAllowed) assert.deepEqual(planBotCrews(last,id),[0]);
+else {
+  assert.deepEqual(planBotCrews(last,id),[],'crews are paid from cash on hand: a $0 company cannot hire');
+  last.players[id].money=1;assert.deepEqual(planBotCrews(last,id),[0],'the affordable last crew is still hired');last.players[id].money=0;
+}
 last.players[id].lines=[line('crosstown',[[3,0]])];
 assert.deepEqual(planBotCrews(last,id),[],'do not pay for a completion that cannot fit');
 

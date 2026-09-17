@@ -2,7 +2,7 @@
  * Drives only real reducer actions; it is not an AI opponent shipped in rooms.
  */
 import type { Room } from "@/engine/types";
-import { buildableLines, lineActionsRemaining, STATIONS, SUBWAY_CONFIG, subwayGame, nextCompanyId, pendingStarters, legalTargets, stationAt, lineComplete, contractOf, routeContacts, contactToll, destinationById, type SubwayState, type SubwayAction, type PlacementTarget } from "./config";
+import { affordableCrews, buildableLines, lineActionsRemaining, STATIONS, SUBWAY_CONFIG, subwayGame, nextCompanyId, pendingStarters, legalTargets, stationAt, lineComplete, contractOf, routeContacts, contactToll, destinationById, type SubwayState, type SubwayAction, type PlacementTarget } from "./config";
 
 export function seededRandom(seed: number) {
   let value = seed >>> 0;
@@ -69,7 +69,7 @@ export function playtestAction(s: SubwayState, random: () => number): SubwayActi
       if(!me.crewsHired) {
         const available=buildableLines(s,playerId).sort((a,b)=>lineActionsRemaining(me.lines[b])-lineActionsRemaining(me.lines[a]));
         const total=me.lines.reduce((n,l)=>n+lineActionsRemaining(l),0);
-        const count=Math.min(3,Math.max(1,Math.ceil(total/(SUBWAY_CONFIG.timelinePeriods + 1 - s.currentPeriod))));
+        const count=affordableCrews(me,Math.min(3,Math.max(1,Math.ceil(total/(SUBWAY_CONFIG.timelinePeriods + 1 - s.currentPeriod)))));
         return action("HIRE_CREWS",{lineIndexes:available.slice(0,count),period:s.currentPeriod});
       }
       const lineIndex=me.pendingActions[0];

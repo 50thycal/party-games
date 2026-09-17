@@ -9,7 +9,7 @@ A light-strategy line-building game for **2–4 companies**. Most victory points
 
 ## Game flow
 
-1. Start with **$40M and one two-neighborhood and one three-neighborhood private Destination mission**. Completing each line immediately pays **$3M**; Undo reverses that reward along with the placement.
+1. Start with **$40M and one two-neighborhood and one three-neighborhood private Destination mission**. Completing each line immediately pays **$3M**, and connecting a held Destination mission pays **$2M (pair) or $3M (triple)** the first time it is met; Undo reverses those rewards along with the placement.
 2. Draft three line contracts each, at list price, from a replenishing row of
    two/three/four choices for two/three/four players. No passing or discounts.
 3. Draft **three Engineering goals each**, choosing between two face-up cards or a blind draw.
@@ -192,7 +192,7 @@ unfinished, buildable lines and hire their crews:
 
 Each selected line receives one construction activation. Hire once per turn; crew
 choices cannot be changed after payment. Zero crews ends the turn. You may
-choose different lines next round. Hiring and contact payments can create debt.
+choose different lines next round. Crews are paid from cash on hand: you cannot hire more than you can afford. Only contact payments can create debt (playtest rule; the previous bridging-debt rule is kept behind `crewDebtAllowed`).
 The displayed bill previews remaining cash and the final penalty at that balance.
 
 Every company gets a turn each round, including a company choosing no crews.
