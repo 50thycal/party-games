@@ -11,6 +11,7 @@ import {
   type SubwayState,
 } from "./config";
 import { objectiveExplanation } from './objectiveGuidance';
+import { analyzeStrategies, datasetRows, STRATEGY_EVIDENCE_FLOOR, STRATEGY_OCCURRENCE_THRESHOLD } from './strategy';
 import type { GameRecord } from './recording';
 import type { LabSeat } from './lab';
 
@@ -30,6 +31,15 @@ export function recordedReportContext(record?: GameRecord, seats: LabSeat[] = []
     return {id:p.id,humanActions:actions.filter(e=>e.controller==='human').length,botActions:actions.filter(e=>e.controller==='bot').length,unknownActions:actions.filter(e=>e.controller!=='human'&&e.controller!=='bot').length,currentControl:seat?.control,profile:seat?`${seat.bot.personality} / ${seat.bot.skill}`:undefined};
   })};
 }
+
+/** How a company was played, from recorded provenance only. */
+export const controllerLabel = (c?: SubwayReportContext["controllers"] extends (infer T)[] | undefined ? T : never): string =>
+  !c ? "Unknown"
+  : c.unknownActions ? "Unknown / incomplete provenance"
+  : c.humanActions && c.botActions ? "Mixed human + bot"
+  : c.botActions ? "Bot"
+  : c.humanActions ? "Human"
+  : "No recorded gameplay";
 
 const cell = (value: unknown): string => String(value ?? "—").replaceAll("|", "\\|").replaceAll("\n", " ");
 const row = (values: unknown[]): string => `| ${values.map(cell).join(" | ")} |`;
@@ -71,8 +81,7 @@ export function generateAiPlaytestReport(game: SubwayState, context: SubwayRepor
     row(["---", "---", "---:", "---:", "---:", "---", "---"]),
     ...game.playerOrder.map(id=>{
       const c=context.controllers?.find(c=>c.id===id);
-      const label=!c?'Unknown':c.unknownActions?'Unknown / incomplete provenance':c.humanActions&&c.botActions?'Mixed human + bot':c.botActions?'Bot':c.humanActions?'Human':'No recorded gameplay';
-      return row([game.players[id].name,label,c?.humanActions,c?.botActions,c?.unknownActions,c?.currentControl??'Not recorded',c?.profile??'Not recorded']);
+      return row([game.players[id].name,controllerLabel(c),c?.humanActions,c?.botActions,c?.unknownActions,c?.currentControl??'Not recorded',c?.profile??'Not recorded']);
     }),
     "",
     "## Rules and settings",
@@ -176,6 +185,54 @@ export function generateAiPlaytestReport(game: SubwayState, context: SubwayRepor
       "",
     );
   }
+
+  // Strategy analysis is derived, never gameplay: it reads the log after the
+  // fact and nothing here feeds back into the game or the bots.
+  const strategies = analyzeStrategies(game, {
+    gameId: context.roomCode ?? `${game.startedAt ?? 0}`,
+    playerTypes: Object.fromEntries(game.playerOrder.map(id => [id, controllerLabel(context.controllers?.find(c => c.id === id))])),
+  });
+  lines.push(
+    "## Strategy analysis",
+    "",
+    `Inferred from the accepted-action log by classifier ${strategies.classifierVersion}; nobody declared a strategy before or during play. Scores are 0-100 strategy-match strength, not probabilities, and are deliberately not mutually exclusive: a company can strongly exhibit several at once. A strategy counts as present in aggregate research at ${STRATEGY_OCCURRENCE_THRESHOLD}; below ${STRATEGY_EVIDENCE_FLOOR} it is reported as insufficient evidence rather than ranked.`,
+    "",
+  );
+  for (const player of strategies.players) {
+    lines.push(
+      `### ${player.name}`,
+      "",
+      "Primary strategies",
+      "",
+      ...(player.top.length
+        ? player.top.map((result, index) => `${index + 1}. ${result.label} — ${result.score}% — ${result.confidence} confidence`)
+        : ["No strategy reached the evidence floor for this company."]),
+      "",
+      "Interpretation",
+      "",
+      player.top.length ? player.top.map(result => result.summary).join(" ") : "Recorded play did not match any classifier strongly enough to characterise.",
+      "",
+      "Supporting evidence",
+      "",
+      row(["Strategy", "Score", "Confidence", "Key metrics"]),
+      row(["---", "---:", "---", "---"]),
+      ...player.results.filter(r => r.score >= STRATEGY_EVIDENCE_FLOOR).map(result => row([
+        result.label, result.score, result.confidence,
+        Object.entries(result.evidence).map(([key, value]) => `${key}=${value ?? "n/a"}`).join("; "),
+      ])),
+      "",
+    );
+  }
+  lines.push(
+    "### Strategy fingerprints and dataset",
+    "",
+    "Complete per-company vectors, the raw features behind them and one dataset row per company per strategy, so historical playtests can be re-classified under a future classifier version without replaying them.",
+    "",
+    "```json",
+    JSON.stringify({ analysis: strategies, rows: datasetRows(strategies) }, null, 2),
+    "```",
+    "",
+  );
 
   lines.push(
     "## Structured accepted-action log",
