@@ -7,7 +7,7 @@
 
 | ID | Workstream | Phase | Status | Current Next Step | Related PR |
 |---|---|---|---|---|---|
-| [WS-005](WS-005-subway-finished-edition.md) | Subway 2–4 player finished edition | REVIEW | Active | None for QNHT UI mission; deferred items parked | [#189](https://github.com/50thycal/party-games/pull/189) (complete on merge); #188 merged |
+| [WS-005](WS-005-subway-finished-edition.md) | Subway 2–4 player finished edition | REVIEW | Active | None for Engineering-art mission; device acceptance parked | [#190](https://github.com/50thycal/party-games/pull/190) (complete on merge); #189 merged |
 | [WS-001](WS-001-subway-v0-3-redesign.md) | Subway v0.3 gameplay redesign | REVIEW | Active | Independent design review of merged v0.3 against the reconstructed Build Card; owner to rule on D1–D4 | [#137](https://github.com/50thycal/party-games/pull/137), [#139](https://github.com/50thycal/party-games/pull/139) (both merged) |
 | [WS-002](WS-002-subway-route-engineering.md) | Subway route engineering and playtest UX | REVIEW | Active | Record the merged closeout; playtest follow-ups moved to WS-003 | [#141](https://github.com/50thycal/party-games/pull/141), [#142](https://github.com/50thycal/party-games/pull/142) (merged) |
 | [WS-003](WS-003-subway-construction-access.md) | Subway construction access and route lookahead | REVIEW | Active | Owner's balance playtest of the merged toll/debt/recipe changes; browser debt case and hotseat still unexercised | [#143](https://github.com/50thycal/party-games/pull/143) (merged design-only), [#144](https://github.com/50thycal/party-games/pull/144) (implementation, merged), [#145](https://github.com/50thycal/party-games/pull/145) (Build OS v0.5) |
@@ -23,7 +23,8 @@ None yet. WS-001 is the first workstream on this board.
 
 ## Parking lot
 
-- PARK — QNHT card-face artwork/short-copy redesign awaits planning. Alternate end trigger requires first/last-company clarification; no rule change authorized.
+- PARK — Engineering card live phone/tablet layout and Rules & symbols touch acceptance; browser local access blocked, static diagrams/SSR reviewed.
+- PARK — Alternate end trigger requires first/last-company clarification; no rule change authorized. Engineering card-face work admitted to current mission.
 - PARK — QNHT hands-on tablet/phone layout and payment-animation acceptance; browser access was blocked. Automated UI/API tests passed.
 
 - PARK — Rulebook owner review and graphics await wording approval. Bend modes are admitted to current implementation.

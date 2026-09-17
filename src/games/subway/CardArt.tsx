@@ -1,5 +1,7 @@
 "use client";
 import { ENGINEERING_RULES } from "./engineering";
+import { EngineeringArt, ENGINEERING_DIAGRAMS } from "./EngineeringArt";
+export { EngineeringArt } from "./EngineeringArt";
 
 import {
   ENGINEERING_CARDS,
@@ -11,15 +13,8 @@ import {
 } from "./config";
 
 // ============================================================================
-// Engineering card artwork.
-//
-// Every objective is drawn as a small pegboard sketch so players can read the
-// geometry at a glance instead of parsing the tolerance wording. Diagrams are
-// laid out on a 120x64 grid: pegs at x = 12 + 16i, y = 16 + 16j.
+// Legacy illustration atlas remains unchanged for Destination cards.
 // ============================================================================
-
-const PEG = "#d8c3a0";
-const RULE = "#a1887f";
 
 /** Row-major mapping of the 24-panel vintage transit illustration atlas. */
 export const ENGINEERING_ART_IDS = [
@@ -39,94 +34,6 @@ function EngineeringIllustration({id}:{id:string}) {
   }} />;
 }
 
-const PEG_COLUMNS = 7;
-const PEG_ROWS = 3;
-
-type P = [number, number];
-
-function PegField() {
-  const dots = [];
-  for (let j = 0; j < PEG_ROWS; j++) {
-    for (let i = 0; i < PEG_COLUMNS; i++) {
-      dots.push(<circle key={`${i}-${j}`} cx={12 + i * 16} cy={16 + j * 16} r="2" fill={PEG} />);
-    }
-  }
-  return <g>{dots}</g>;
-}
-
-/** A route: white casing, colored string, then peg heads at each node. */
-function Route({
-  points,
-  color,
-  dashed,
-  nodes = true,
-  width = 5,
-}: {
-  points: P[];
-  color: string;
-  dashed?: boolean;
-  nodes?: boolean;
-  width?: number;
-}) {
-  const d = points.map(([x, y]) => `${x},${y}`).join(" ");
-  return (
-    <g>
-      <polyline points={d} fill="none" stroke="#fdf6e3" strokeWidth={width + 3.5} strokeLinecap="round" strokeLinejoin="round" />
-      <polyline
-        points={d}
-        fill="none"
-        stroke={color}
-        strokeWidth={width}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeDasharray={dashed ? "7 5" : undefined}
-      />
-      {nodes &&
-        points.map(([x, y], i) => (
-          <circle key={i} cx={x} cy={y} r="4" fill={color} stroke="#ffffff" strokeWidth="1.6" />
-        ))}
-    </g>
-  );
-}
-
-function StationTile({ x, y, major = false }: { x: number; y: number; major?: boolean }) {
-  const w = major ? 26 : 22;
-  const h = 17;
-  return (
-    <g>
-      <rect
-        x={x - w / 2}
-        y={y - h / 2}
-        width={w}
-        height={h}
-        rx="4"
-        fill={major ? "#24384c" : "#4f6357"}
-        stroke="#f5d98a"
-        strokeWidth="1.8"
-      />
-      <text x={x} y={y + 3.2} textAnchor="middle" fontSize="8" fontWeight="700" fill="#f5d98a">
-        {major ? "MAJ" : "MIN"}
-      </text>
-    </g>
-  );
-}
-
-/** The diagram body for one Engineering card id. */
-function Diagram({ id, color }: { id: string; color: string }) {
-  return <Route points={[[12,32],[60,32],[108,32]]} color={color}/>;
-
-}
-
-/** Pegboard sketch of what an Engineering card asks you to build. */
-export function EngineeringArt({ id, color }: { id: string; color: string }) {
-  return (
-    <svg viewBox="0 0 120 64" className="h-auto w-full rounded-lg bg-[#f3e6cd]" role="img" aria-hidden>
-      <PegField />
-      <Diagram id={id} color={color} />
-    </svg>
-  );
-}
-
 // ============================================================================
 // Full card face — used everywhere an Engineering card is shown, so players can
 // always read the whole card rather than just its name.
@@ -141,7 +48,7 @@ export function EngineeringCardFace({
   footer,
   onClick,
   disabled,
-  compact,
+  compact = false,
 }: {
   card: EngineeringCard | string;
   color: string;
@@ -153,6 +60,7 @@ export function EngineeringCardFace({
 }) {
   const resolved = typeof card === "string" ? engineeringById(card) : card;
   if (!resolved) return null;
+  const diagram = ENGINEERING_DIAGRAMS[resolved.id];
 
   const chrome: Record<EngineeringCardState, string> = {
     idle: "border-stone-300",
@@ -165,41 +73,40 @@ export function EngineeringCardFace({
   const body = (
     <>
       <div className="flex items-start justify-between gap-1">
-        <strong className="text-[13px] leading-tight text-stone-900">{resolved.name}</strong>
+        <strong className="min-w-0 text-sm leading-tight text-stone-900">{resolved.name}</strong>
         <span
-          className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-black ${
+          className={`shrink-0 rounded px-2 py-1 text-sm font-black ${
             "bg-amber-600 text-white"
           }`}
         >
-          +{resolved.vp}
+          {resolved.vp} <span className="text-[10px]">VP</span>
         </span>
       </div>
-      <p className="mt-2 text-[12px] font-black uppercase tracking-wide" style={{color}}>{resolved.category} Engineering</p>
-      <div className="my-2 flex flex-wrap gap-1" data-engineering-tags={resolved.id}>
-        {resolved.tags.map(tag=><span key={tag} title={ENGINEERING_RULES[tag] ?? tag} className="rounded border border-stone-300 bg-white px-1.5 py-1 text-[10px] font-bold">{tag === 'Single Line' ? '① ' : tag === 'Connected Network' ? '↔ ' : tag === 'Company-wide' ? '③ ' : tag === 'Complete Line' ? '✓ ' : ''}{tag}</span>)}
-      </div>
-      {!compact && resolved.description.trim() !== resolved.requirement.trim() && <p className="mt-1.5 text-[11px] leading-snug text-stone-600">{resolved.description}</p>}
-      <p className="mt-1 text-[11px] font-semibold leading-snug text-stone-700">{resolved.requirement}</p>
-      {resolved.tags.includes('Line Ends Only') && <p className="mt-2 text-[10px] text-stone-600">Line end = starter or completed final station.</p>}
-      {resolved.category === 'Station' && <p className="mt-2 text-[10px] text-stone-600">Station = one placed peg. For transfer cards, group stations through horizontal/vertical adjacency between different lines. Separate qualifying transfer stations count once each.</p>}
-      <p className="mt-2 text-[10px] text-stone-500">Scores once at game end. Live progress may change.</p>
-      {footer}
+      <p className="mb-2 mt-1 text-[10px] font-black uppercase tracking-wider text-stone-600">{resolved.category}</p>
+      <EngineeringArt id={resolved.id}/>
+      <p className="mt-2 text-xs font-semibold leading-snug text-stone-800">{diagram?.summary ?? resolved.requirement}</p>
+      {diagram && <span className="mt-2 inline-flex items-center gap-1 rounded border border-stone-300 px-1.5 py-1 text-[10px] font-bold text-stone-700" data-engineering-scope={diagram.scope}>
+        <span aria-hidden="true">{diagram.scope === "Single Line" ? "①" : diagram.scope === "Connected Network" ? "↔" : diagram.scope === "Company-wide" ? "③" : diagram.scope === "Opponent Contact" ? "⇄" : "◎"}</span>{diagram.scope}
+      </span>}
     </>
   );
 
-  const shell = `w-full rounded-xl border-2 bg-[#fffaf0] p-2.5 text-left shadow-sm ${chrome[state]}`;
-
-  if (!onClick) return <div className={shell}>{body}</div>;
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`${shell} transition ${disabled ? "opacity-45" : "hover:-translate-y-0.5 hover:border-stone-400"}`}
-    >
-      {body}
-    </button>
-  );
+  const shell = `w-full min-w-0 rounded-xl border-2 bg-[#fffaf0] p-2.5 text-left shadow-sm ${chrome[state]}`;
+  // Rules remain usable even when drafting is disabled. Never nest details in a button.
+  return <div className={shell} data-engineering-card={resolved.id} data-compact={compact||undefined}>
+    {onClick ? <button type="button" onClick={onClick} disabled={disabled} aria-label={`${resolved.name}, ${resolved.vp} VP`}
+      className={`block w-full rounded text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-700 ${disabled ? "opacity-45" : "hover:bg-amber-50"}`}>{body}</button> : body}
+    <details className="mt-2 border-t border-stone-200 text-xs text-stone-700">
+      <summary className="min-h-9 cursor-pointer py-2 font-semibold">Rules &amp; symbols</summary>
+      <p className="leading-relaxed">{resolved.requirement}</p>
+      <dl className="mt-2 space-y-1" data-engineering-tags={resolved.id}>{resolved.tags.map(tag=><div key={tag}><dt className="inline font-bold">{tag}: </dt><dd className="inline">{ENGINEERING_RULES[tag] ?? tag}</dd></div>)}</dl>
+      <p className="mt-2">Flag = starter. Square = completed final station. Double ring = either qualifying end, never an unfinished tip.</p>
+      <p className="mt-1">Outlined adjacent stations form a transfer station; stations never stack. Gray lines are your supporting lines, not additional qualifying routes.</p>
+      <p className="mt-1">S / M / L = small / medium / large neighborhood. Colors and shapes are examples, not requirements.</p>
+      <p className="mt-2">Scores once at game end. Live progress may change.</p>
+    </details>
+    {footer}
+  </div>;
 }
 
 export const ALL_ENGINEERING = ENGINEERING_CARDS;
