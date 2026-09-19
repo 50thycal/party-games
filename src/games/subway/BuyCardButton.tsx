@@ -1,22 +1,22 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { SUBWAY_CONFIG, cardPurchaseBlocker, type SubwayState } from "./config";
+import { SUBWAY_CONFIG, engineeringById, cardPurchaseBlocker, type CardDrawCounts, type SubwayState } from "./config";
 
 /**
  * One button, one question. Tapping "Buy a card" opens a small chooser for a
  * random Engineering goal or a random Destination mission; each choice explains
  * why it is unavailable. The reducer enforces every rule again.
  */
-export function BuyCardButton({game, playerId, busy, act, size = "md"}: {
+export function BuyCardButton({game, playerId, busy, act, size = "md", counts, deck, showFaceUp=false}: {
   game: SubwayState; playerId: string; busy: boolean;
-  act: (type: string, payload?: Record<string, unknown>) => unknown; size?: "md" | "lg";
+  act: (type: string, payload?: Record<string, unknown>) => unknown; size?: "md" | "lg"; counts?: CardDrawCounts; showFaceUp?: boolean; deck?: "engineering"|"destination";
 }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const me = game.players[playerId];
   const price = SUBWAY_CONFIG.destinationPurchaseCost;
-  const engineering = cardPurchaseBlocker(game, playerId, "engineering");
-  const destination = cardPurchaseBlocker(game, playerId, "destination");
+  const engineering = cardPurchaseBlocker(game, playerId, "engineering", undefined, counts);
+  const destination = cardPurchaseBlocker(game, playerId, "destination", undefined, counts);
   const show = !!me && game.phase === "CONSTRUCTION" && game.resolveQueue[0] === playerId && !me.crewsHired && !(me.engineeringPurchased && me.destinationPurchased);
   useEffect(() => { if (!show) setOpen(false); }, [show, game.currentPeriod]);
   useEffect(() => {
@@ -25,7 +25,7 @@ export function BuyCardButton({game, playerId, busy, act, size = "md"}: {
     document.addEventListener("pointerdown", away);
     return () => document.removeEventListener("pointerdown", away);
   }, [open]);
-  if (!show) return null;
+  if (!show) return deck?<p className="text-sm" role="status">{deck==="engineering"?engineering:destination}</p>:null;
   const text = size === "lg" ? "text-xl" : "text-sm";
   const choice = (deck: "engineering" | "destination", blocker: string | undefined, label: string, detail: string) =>
     <button type="button" data-buy-choice={deck} disabled={busy || !!blocker} aria-disabled={!!blocker || undefined} title={blocker}
@@ -39,9 +39,10 @@ export function BuyCardButton({game, playerId, busy, act, size = "md"}: {
       Buy a card · ${price}M
     </button>
     {open && <div role="dialog" aria-label="Buy a card" className="absolute bottom-full left-0 z-30 mb-2 w-72 space-y-2 rounded-xl border-2 border-stone-700 bg-[#fffaf0] p-2 shadow-2xl">
-      <p className={`font-bold ${text}`}>Draw one card at random</p>
-      {choice("engineering", engineering, "Engineering goal", "A random goal you do not already hold.")}
-      {choice("destination", destination, "Destination mission", "A random pair or triple of neighborhoods.")}
+      <p className={`font-bold ${text}`}>{showFaceUp?"Choose a goal or draw at random":"Draw one card at random"}</p>
+      {showFaceUp&&game.market.rows.engineering.map(id=>{const why=cardPurchaseBlocker(game,playerId,"engineering",id,counts);return <button key={id} type="button" className="min-h-12 w-full rounded border border-amber-600 p-2 text-left disabled:opacity-40" disabled={busy||!!why} title={why} onClick={()=>{setOpen(false);act("BUY_ENGINEERING",{cardId:id,period:game.currentPeriod});}}>Choose {engineeringById(id)?.name} · ${price}M</button>;})}
+      {deck!=="destination"&&choice("engineering", engineering, "Random Engineering goal", "A random goal you do not already hold.")}
+      {deck!=="engineering"&&choice("destination", destination, "Random Destination mission", "A random pair or triple of neighborhoods.")}
       <button type="button" className={`w-full rounded-lg px-3 py-2 ${text} text-stone-600 underline`} onClick={() => setOpen(false)}>Not now</button>
     </div>}
   </div>;

@@ -2034,3 +2034,34 @@ bot personalities remain a separate future experiment, deliberately outside the 
 **Rationale:** Optional shortening supports intentional placement while preserving the original mode for comparisons. Compact public progress makes turns easier to follow.
 **Alternatives considered:** Making flexible length mandatory or enlarging phone panels; owner chose neither.
 **Consequences:** Rule mode is recorded in reports and replay setup; old rooms require restart. Lower-player-count line changes await simulations.
+
+
+### DEC-060 — YMIF debt, free station joins, one bend and card buying
+
+**Date:** 2026-09-19
+**Status:** Accepted by owner in chat.
+
+**Context:** Four-player YMIF exposed heavy station charges, weak deep-debt penalties
+and card-purchase buttons incorrectly disabled despite adequate supply.
+
+**Decision:** Debt is −2 VP per $1M with no cap. Positive cash gives 0 VP at $0–1M,
+1 at $2–3M, 2 at $4M and 3 at $5M+. Station adjacency joins are free; geometric
+crossing/contact tolls remain. Each segment permits one bend. Delayed is the setup
+default; straight-only is hidden, token mode remains. Each optional card costs $3M;
+one extra Engineering and one extra Destination per player remain the limits.
+Engineering purchases choose either public goal (replenished) or random. Companion
+face-up choices happen on phones, random draws may happen on either device. Public
+pile counts support availability without transmitting private decks. State v29
+requires fresh games rather than changing an in-progress game's rules.
+
+**Rationale:** Linear debt makes the penalty legible and meaningful at every balance.
+Free joins encourage interaction without multiplying adjacency bills. Public
+Engineering choices add agency while the smaller purchase cost encourages use.
+
+**Alternatives considered:** Graduated debt tiers and additional card copies; owner
+chose a multiplier and fixing availability after the audit confirmed supply.
+
+**Consequences:** Phone market stays below held goals; iPad directs phone choices.
+Destination faces show earned versus prospective cash, iPad recaps name payers,
+and a once-per-game dismissible yellow-dot hint explains next-station previews.
+New slide-style introduction and lower-player extra lines remain parked.

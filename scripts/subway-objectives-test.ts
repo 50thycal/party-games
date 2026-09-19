@@ -73,14 +73,14 @@ for(const count of [2,3,4]) {
   const cash=s.players[id].money, held=s.players[id].destinationHand.length;
   assert.equal(dispatch(s,other,"BUY_DESTINATION",{period:s.currentPeriod}),s);
   assert.equal(dispatch(s,id,"BUY_DESTINATION",{period:s.currentPeriod-1}),s);
-  const poor=structuredClone(s);poor.players[id].money=4;
+  const poor=structuredClone(s);poor.players[id].money=2;
   assert.equal(dispatch(poor,id,"BUY_DESTINATION",{period:s.currentPeriod}),poor);
   const hired=structuredClone(s);hired.players[id].crewsHired=true;
   assert.equal(dispatch(hired,id,"BUY_DESTINATION",{period:s.currentPeriod}),hired);
   const empty=structuredClone(s);empty.destinationDeck=[];
   assert.equal(dispatch(empty,id,"BUY_DESTINATION",{period:s.currentPeriod}),empty);
   s=dispatch(s,id,"BUY_DESTINATION",{period:s.currentPeriod});
-  assert.equal(s.players[id].money,cash-5);
+  assert.equal(s.players[id].money,cash-3);
   assert.equal(s.players[id].destinationHand.length,held+1);
   assert.equal(dispatch(s,id,"BUY_DESTINATION",{period:s.currentPeriod}),s);
   assert.ok(!s.events.at(-1)!.text.includes(s.players[id].destinationHand.at(-1)!));
@@ -92,7 +92,7 @@ for(const count of [2,3,4]) {
   const eng=structuredClone(s);const goals=eng.players[id].engineeringHand;eng.market.decks.engineering=[goals[0],"citywide-coverage",...eng.market.decks.engineering.filter(c=>c!=="citywide-coverage"&&!goals.includes(c))];
   const cashBefore=eng.players[id].money;
   const bought=dispatch(eng,id,"BUY_ENGINEERING",{period:s.currentPeriod});
-  assert.equal(bought.players[id].money,cashBefore-5);
+  assert.equal(bought.players[id].money,cashBefore-3);
   assert.deepEqual(bought.players[id].engineeringHand,[...goals,"citywide-coverage"],"skips the goal already held");
   assert.ok(!bought.market.decks.engineering.includes("citywide-coverage"));
   assert.equal(bought.players[id].engineeringPurchased,true);
@@ -101,7 +101,7 @@ for(const count of [2,3,4]) {
   const onlyHeld=structuredClone(s);onlyHeld.market.decks.engineering=[...onlyHeld.players[id].engineeringHand];
   assert.equal(dispatch(onlyHeld,id,"BUY_ENGINEERING",{period:s.currentPeriod}),onlyHeld,"no drawable goal");
   assert.equal(cardPurchaseBlocker(onlyHeld,id,"engineering"),"No cards left to draw.");
-  const poorEng=structuredClone(s);poorEng.players[id].money=4;assert.equal(cardPurchaseBlocker(poorEng,id,"engineering"),"Needs $5M in cash.");
+  const poorEng=structuredClone(s);poorEng.players[id].money=2;assert.equal(cardPurchaseBlocker(poorEng,id,"engineering"),"Needs $3M in cash.");
   const hiredEng=structuredClone(s);hiredEng.players[id].crewsHired=true;assert.equal(cardPurchaseBlocker(hiredEng,id,"engineering"),"Buy before hiring crews.");
   console.log("Extra Engineering purchase: price, timing, held-goal skip and once-per-game passed.");
 }

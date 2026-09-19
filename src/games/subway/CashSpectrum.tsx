@@ -1,5 +1,5 @@
 "use client";
-import { SUBWAY_CONFIG, cashBand, type SubwayState } from "./config";
+import { SUBWAY_CONFIG, cashScore, cashBand, type SubwayState } from "./config";
 
 // ============================================================================
 // Ending-cash spectrum for the shared table.
@@ -38,11 +38,11 @@ export function CashSpectrum({ game, viewerId, compact = false }: { game: Subway
             <div
               key={band.label}
               data-cash-band={band.label}
-              aria-label={`${band.label}: ${band.vp > 0 ? "+" : ""}${band.vp} VP${here.length ? `. ${here.map(p => `${p.name} at ${cash(p.money)}`).join(", ")}` : ""}`}
+              aria-label={`${band.label}: ${band.min===-Infinity?"−2 VP per $1M owed":`${band.vp > 0 ? "+" : ""}${band.vp} VP`}${here.length ? `. ${here.map(p => `${p.name} at ${cash(p.money)}`).join(", ")}` : ""}`}
               className="flex min-h-[74px] flex-col rounded-lg border-2 px-1.5 py-1"
               style={{ background: color.fill, borderColor: color.edge, color: color.ink }}
             >
-              <b className={compact ? "text-sm" : "text-2xl"}>{band.vp > 0 ? `+${band.vp}` : band.vp}<span className={compact ? "ml-0.5 text-[10px]" : "ml-1 text-sm"}>VP</span></b>
+              <b className={compact ? "text-sm" : "text-2xl"}>{band.min===-Infinity?"−2 / $1M":band.vp > 0 ? `+${band.vp}` : band.vp}<span className={compact ? "ml-0.5 text-[10px]" : "ml-1 text-sm"}>VP</span></b>
               <span className="leading-tight">{band.label}</span>
               <div className="mt-auto flex flex-wrap gap-1 pt-1">
                 {here.map(p => (
@@ -54,7 +54,7 @@ export function CashSpectrum({ game, viewerId, compact = false }: { game: Subway
                     style={{ background: p.color, color: "#fff" }}
                   >
                     <span className="max-w-[7ch] truncate">{p.name}</span>
-                    {cash(p.money)}
+                    {cash(p.money)} · {cashScore(p.money)>0?"+":""}{cashScore(p.money)} VP
                   </span>
                 ))}
               </div>

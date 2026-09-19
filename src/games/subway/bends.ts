@@ -23,6 +23,7 @@ export function validatePath(s:SubwayState,id:string,index:number,points:Point[]
  if(mode==='delayed'&&points.length!==1)return 'Build one leg per activation in delayed mode.';
  if(pause&&mode!=='delayed'&&!(previewOnly&&mode==='tokens'))return 'Only delayed construction can stop at a bend.';
  const bends=points.length-1+Number(pause);
+ if((l.work?.length??0)+bends>1)return 'Only one bend is allowed per segment. Finish this segment before bending again.';
  if(mode==='tokens'&&tokenCost(s,id,bends)>Math.max(0,me.money))return 'Extra bend tokens cost $3M each and require available cash.';
  const from=constructionTip(l)!;
  const existing=lineLegs(l),newLegs=pathLegs([from,...points]);

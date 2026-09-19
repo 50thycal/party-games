@@ -2,14 +2,14 @@
 
 import { crewActivationText } from "./terminology";
 import { useState } from "react";
-import { activationCost, buildableLines, canAffordCrews, cashScore, contractOf, SUBWAY_CONFIG, type SubwayState } from "./config";
+import { activationCost, buildableLines, canAffordCrews, cashScore, contractOf, SUBWAY_CONFIG, type CardDrawCounts, type SubwayState } from "./config";
 import { Printed, TableButton } from "./table";
 import { constructionHistory } from "./constructionHistory";
 import { PublicLeaders } from "./PlayerStatus";
 import { BuyCardButton } from "./BuyCardButton";
 import { CashSpectrum } from "./CashSpectrum";
 
-export function CrewBoard({game,viewerId,busy,veiled,act,boardOnly=false}:{game:SubwayState;viewerId:string;busy:boolean;veiled:boolean;act:(type:string,payload?:Record<string,unknown>)=>unknown;boardOnly?:boolean}) {
+export function CrewBoard({game,viewerId,busy,veiled,act,boardOnly=false,drawPileCounts}:{game:SubwayState;viewerId:string;busy:boolean;veiled:boolean;act:(type:string,payload?:Record<string,unknown>)=>unknown;boardOnly?:boolean;drawPileCounts?:CardDrawCounts}) {
   const [selected,setSelected]=useState<number[]>([]);
   const [historyRound,setHistoryRound]=useState(game.currentPeriod);
   const [historyPlayer,setHistoryPlayer]=useState<string|null>(null);
@@ -29,8 +29,8 @@ export function CrewBoard({game,viewerId,busy,veiled,act,boardOnly=false}:{game:
       {p&&!veiled&&<>
         {hiring&&<div className="mt-4 space-y-4">
           <div className="flex flex-wrap items-center gap-4">
-            <BuyCardButton game={game} playerId={viewerId} busy={busy} act={act} size="lg"/>
-            <p className="text-lg">One extra Engineering goal and one extra Destination per game, before hiring crews.</p>
+            <BuyCardButton game={game} playerId={viewerId} busy={busy} act={act} size="lg" counts={drawPileCounts} showFaceUp={!boardOnly}/>
+            <p className="text-lg">{boardOnly?"Choose a face-up Engineering goal on your phone, or draw a random card here.":"Choose a face-up Engineering goal or draw a random card."} One extra of each type per game, before hiring crews.</p>
           </div>
           <div className="grid grid-cols-3 gap-3">{p.lines.map((line,i)=><button key={i} disabled={busy||!available.includes(i)} aria-pressed={indexes.includes(i)} onClick={()=>setSelected(indexes.includes(i)?indexes.filter(n=>n!==i):[...indexes,i])} className={`rounded-xl border-4 px-3 py-4 text-xl font-bold disabled:opacity-40 ${indexes.includes(i)?"border-teal-700 bg-teal-100":"border-stone-300 bg-white"}`}>{contractOf(line)?.name}</button>)}</div>
           <p className="text-xl">Hire {indexes.length} crew(s): <b>${cost}M</b> · Cash afterward: <b>${p.money-cost}M</b>{!affordable?<strong className="ml-4 text-red-700">Not enough cash: crews are paid from cash on hand.</strong>:<strong className={`ml-4 ${cashScore(p.money-cost)<0?"text-red-700":"text-emerald-800"}`}>Cash position at this balance: {cashScore(p.money-cost)>0?"+":""}{cashScore(p.money-cost)} VP</strong>}</p>

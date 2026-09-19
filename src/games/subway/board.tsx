@@ -65,6 +65,8 @@ export function Board({
   zoom = 1,
   targets,
   following,
+  hintLabel,
+  onDismissHint,
   selected,
   planningTargets = false,
   highlightedStations = [],
@@ -78,6 +80,8 @@ export function Board({
   targets: PlacementTarget[];
   /** Where the line could go *after* the selected target. Informational only. */
   following: PlacementTarget[];
+  hintLabel?: string;
+  onDismissHint?: () => void;
   selected?: PlacementTarget;
   /** These clickable targets extend a sketch, not the next real placement. */
   planningTargets?: boolean;
@@ -423,6 +427,16 @@ export function Board({
           );
         })
       )}
+      {canAct&&hintLabel&&following.length>0&&onDismissHint&&(()=>{
+        const p=holePos(following[0]),scale=1/Math.max(.35,zoom),width=174*scale,height=30*scale;
+        const x=Math.max(4,Math.min(VB_W-width-4,p.x+width+20>VB_W?p.x-width-18:p.x+18));
+        const y=Math.max(4,Math.min(VB_H-height-4,p.y-height/2));
+        return <g data-placement-hint role="button" aria-label={`${hintLabel}. Dismiss hint for this game`} tabIndex={0} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();onDismissHint();}} onKeyDown={e=>{if(['Enter',' ','Escape'].includes(e.key)){e.preventDefault();e.stopPropagation();onDismissHint();}}} style={{cursor:'pointer'}}>
+          <rect x={x} y={y} width={width} height={height} rx={6*scale} fill="#fef3c7" stroke="#a16207" strokeWidth={scale}/>
+          <text x={x+8*scale} y={y+19*scale} fill="#713f12" fontSize={12*scale} fontWeight="700">{hintLabel}</text>
+          <text x={x+width-18*scale} y={y+20*scale} fill="#713f12" fontSize={18*scale}>×</text>
+        </g>;
+      })()}
     </svg>
   );
 }

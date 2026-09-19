@@ -43,7 +43,7 @@ for(const mode of ['straight','tokens','delayed'] as const){
 {
  const s=base();s.players[id].lines[0].contractId='medium';
  const b=act(s,'BUILD',{lineIndex:0,x:2,y:1,bends:[{x:1,y:0},{x:1,y:1}]});
- assert.notEqual(b,s);assert.equal(b.players[id].bendTokens,1);assert.equal(longestNetwork(b.players[id]),3);
+ assert.equal(b,s,'two token bends on one segment are rejected');
 }
 {
  const s=base('delayed');s.players[id].money=10;
@@ -63,8 +63,8 @@ for(const mode of ['straight','tokens','delayed'] as const){
 {
  const s=base('delayed');s.players[id].lines[0].contractId='medium';
  let b=act(s,'BUILD',{lineIndex:0,x:1,y:0,pause:true});b.players[id].pendingActions=[0];
- b=act(b,'BUILD',{lineIndex:0,x:1,y:1,pause:true});assert.equal(b.players[id].lines[0].work?.length,2);b.players[id].pendingActions=[0];b.resolveQueue=[id,other];
- b=act(b,'BUILD',{lineIndex:0,x:2,y:1});assert.equal(segmentsBuilt(b.players[id].lines[0]),1);assert.equal(longestNetwork(b.players[id]),3);
+ assert.equal(act(b,'BUILD',{lineIndex:0,x:1,y:1,pause:true}),b,'a second delayed bend is rejected');
+ b=act(b,'BUILD',{lineIndex:0,x:1,y:2});assert.equal(segmentsBuilt(b.players[id].lines[0]),1);assert.equal(longestNetwork(b.players[id]),3);
 }
 {
  const s=base();s.players[other].lines[0].route=[{x:1,y:2},{x:3,y:1,via:[{x:1,y:0}]}];

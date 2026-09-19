@@ -141,6 +141,8 @@ console.log('GZZF deadlines, completion economics, starter occupancy, segment re
  assert.equal(new Set(Object.values(NEIGHBORHOOD_ABBREVIATIONS)).size,10,'abbreviations are unique');
  assert.doesNotMatch(pads,/data-engineering-glyph/,'no glyph row for empty hands');
  const destination=renderToStaticMarkup(<DestinationCardFace card="dest-market-grand" color="#fff"/>);
+ assert.match(destination,/Complete to earn \$2M/);
+ assert.match(renderToStaticMarkup(<DestinationCardFace card="dest-market-grand" paid color="#fff"/>),/Earned \$2M/);
  assert.match(destination,/Any order/);assert.match(destination,/Market/);assert.match(destination,/Grand Central/);
  assert.match(destination,/Pays \$2M the first time/);assert.doesNotMatch(destination,/Connect these neighborhoods through your own network\./,'slim face drops the description paragraph');
  assert.equal((destination.match(/data-engineering-art="dest-/g)??[]).length,2,'one picture per neighborhood');
@@ -161,7 +163,7 @@ console.log('GZZF deadlines, completion economics, starter occupancy, segment re
  assert.equal((work.match(/data-peg-kind="built"/g)??[]).length,1);assert.match(work,/data-worksite="true"/);
  assert.match(renderToStaticMarkup(<PhoneStatus game={b} playerId={id} details/>),/2 bend tokens/);
  const options=renderToStaticMarkup(<BendModeSelect value="tokens" onChange={()=>{}}/>);
- assert.equal((options.match(/<option/g)??[]).length,3);assert.match(options,/value="tokens" selected/);
+ assert.equal((options.match(/<option/g)??[]).length,2);assert.match(options,/value="tokens" selected/);assert.doesNotMatch(options,/value="straight"/);
  console.log('Bend UI: setup options, phone resources, physical legs, worksite and real-peg rendering passed.');
 }
 
@@ -239,10 +241,17 @@ console.log('GZZF deadlines, completion economics, starter occupancy, segment re
  const finishes=lookaheadTargets(bent,id,0,{preview:bendVertex,bendPick:true});
  assert.ok(finishes.length>0,'a bend shows where the segment can finish');
  for(const f of finishes.slice(0,6)) assert.equal(validatePath(bent,id,0,[bendVertex,f],false,true),null,'each finish completes the segment through the bend');
+ const delayed=structuredClone(bent);delayed.bendMode='delayed';
+ const delayedFinishes=lookaheadTargets(delayed,id,0,{preview:bendVertex,bendPick:true});
+ assert.ok(delayedFinishes.length>0,'default delayed bend has yellow endpoint hints');
+ const pending=structuredClone(delayed);pending.players[id].lines[0].work=[bendVertex];
+ for(const f of delayedFinishes)assert.equal(validatePath(pending,id,0,[f]),null);
+ assert.deepEqual(delayed.players[id].lines[0].work,undefined,'lookahead is pure');
  assert.deepEqual(lookaheadTargets(bent,id,0,{preview:null,bendPick:true}),[],'no bend vertex chosen yet');
- const boardHtml=renderToStaticMarkup(<Board game={s} targets={[target]} following={next} selected={target} canAct onTapHole={()=>{}} drawn={[]}/>);
+ const boardHtml=renderToStaticMarkup(<Board game={s} targets={[target]} following={next} hintLabel="Next segment station" onDismissHint={()=>{}} selected={target} canAct onTapHole={()=>{}} drawn={[]}/>);
  assert.equal((boardHtml.match(/data-step="2"/g)??[]).length,next.length,'every lookahead hole renders as the yellow next marker');
  assert.match(boardHtml,/#facc15/);
+ assert.equal((boardHtml.match(/data-placement-hint=/g)??[]).length,1,'one badge, not one per yellow dot');
  console.log('Next-station lookahead: purity, legality, bend finishes and yellow markers passed.');
 }
 

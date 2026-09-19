@@ -126,6 +126,7 @@ export function DestinationCardFace({
   onClick,
   disabled,
   compact,
+  paid = false,
 }: {
   card: DestinationCard | string;
   color: string;
@@ -134,6 +135,7 @@ export function DestinationCardFace({
   onClick?: () => void;
   disabled?: boolean;
   compact?: boolean;
+  paid?: boolean;
 }) {
   const resolved = typeof card === "string" ? destinationById(card) : card;
   if (!resolved) return null;
@@ -161,6 +163,7 @@ export function DestinationCardFace({
         <EngineeringIllustration id={`dest-${station.id}`}/>
         <p className="mt-1 truncate text-[11px] font-bold text-purple-950">{station.name}</p>
       </div>)}</div>
+      <p data-destination-reward className="mt-2 text-sm font-bold text-emerald-800">{paid?"Earned":"Complete to earn"} ${destinationReward(resolved.id)}M</p>
     </>
   );
 

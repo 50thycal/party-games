@@ -34,6 +34,7 @@ export type CompanionView = {
   turn: string;
   plans: Record<string, SavedPlan>;
   engineeringRemaining: number;
+  drawPileCounts: {engineering:number;destination:number};
   canUndo: boolean;
   highlightedStations: string[];
   destinationHighlights: DestinationHighlight[];
@@ -106,13 +107,14 @@ export function companionView(state: RoomState, device: CompanionDevice): Compan
     highlightedStations:device.role==='tablet'?Array.from(new Set(destinationHighlights.flatMap(h=>h.stationIds))):[],
     plans:structuredClone(owner ? store.plans[owner] ?? {} : {}),
     engineeringRemaining:original?.market.decks.engineering.length ?? 0,
+    drawPileCounts:{engineering:original?.market.decks.engineering.length??0,destination:original?.destinationDeck.length??0},
     canUndo:device.role === "tablet" && !!original?.undo && store.seated?.playerId === original.undo.playerId};
 }
 
 const PHONE_ACTIONS = new Set(["PROCURE", "DRAFT_CARD", "BUY_DESTINATION", "BUY_ENGINEERING"]);
 // Extra card purchases are allowed from either device: the iPad's Buy a card
 // button acts for the acknowledged company (DGLE playtest follow-up).
-const TABLET_ACTIONS = new Set(["HIRE_CREWS", "PLACE_STARTER", "BUILD", "SKIP_ACTION", "UNDO_PLACEMENT", "ADVANCE_SCORING", "BUY_DESTINATION", "BUY_ENGINEERING"]);
+const TABLET_ACTIONS = new Set(["DRAFT_CARD","HIRE_CREWS", "PLACE_STARTER", "BUILD", "SKIP_ACTION", "UNDO_PLACEMENT", "ADVANCE_SCORING", "BUY_DESTINATION", "BUY_ENGINEERING"]);
 
 /** Pure authenticated transaction; caller persists with CAS, including acknowledgement and plans. */
 export function companionAction(state: RoomState, device: CompanionDevice, input: {
@@ -196,7 +198,9 @@ export function companionAction(state: RoomState, device: CompanionDevice, input
       if (!PHONE_ACTIONS.has(input.type)) throw new Error("Use the iPad for board actions.");
     } else {
       if (!TABLET_ACTIONS.has(input.type)) throw new Error("Use your phone for cards and purchases.");
-      if (input.type === "ADVANCE_SCORING") playerId = state.room.hostId;
+      if(["DRAFT_CARD","BUY_ENGINEERING"].includes(input.type)&&payload.cardId!==undefined)throw new Error("Choose face-up Engineering cards on your phone.");
+      if(input.type==="DRAFT_CARD"&&game?.phase==="ENGINEERING"&&game.engineeringStep==="CARD_DRAFT"&&actor) playerId=actor;
+      else if (input.type === "ADVANCE_SCORING") playerId = state.room.hostId;
       else if (input.type === "UNDO_PLACEMENT" && game?.undo?.playerId && store.seated?.playerId === game.undo.playerId) playerId = game.undo.playerId;
       else {
         if (!seated || seated !== actor) throw new Error("Confirm the active company first.");
