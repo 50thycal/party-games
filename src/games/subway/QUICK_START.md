@@ -27,7 +27,7 @@ face-up cards or taking a blind draw. These are additional scoring goals.
 Place one starter peg for each line on an empty hole along the outer border.
 **One hole holds one peg.** You cannot stack on your own or another player's pegs.
 Starter placement has no base cost. If your starter joins an opponent's station,
-you pay the transfer-access fee.
+joining is free.
 
 ## 3. Build on your turn
 
@@ -60,10 +60,8 @@ cannot connect your network for you.
 
 ## 5. Watch your payments
 
-Joining an opponent's station costs **$1 million once per line, per opponent,
-at that transfer station**. Adding more pegs there with the same line does not repeat it.
-Crossing or touching an opponent's string costs separately. Paying for transfer
-access does not make later crossings free. Check the payment preview before
+Joining an opponent’s station is free. Crossing or touching an opponent’s string
+costs $1 million per distinct contact per owner. Check the payment preview before
 confirming. Player panels show who pays and who receives the money.
 
 ## 6. Complete your cards
@@ -80,8 +78,8 @@ others allow a connected network or any of your lines.
 The game ends after round nine, or earlier when no player has a legal next segment
 left. Add completed-line points, fulfilled Engineering and Destination cards, and
 any longest-network and Largest Transfer Station awards. Subtract unfinished-line penalties, then
-score your **ending cash** on its band: +2 VP at $4M or more, +1 VP at $2M to $3M, nothing at $0M to
-$1M, −1 VP at −$1M, −3 VP at −$2M to −$3M and −5 VP at −$4M or worse. Neighborhood visits do not earn
+score your **ending cash**: +3 VP at $5M or more, +2 VP at $4M, +1 VP at $2M to $3M,
+and zero at $0M to $1M. Debt costs 2 VP per $1M owed, without a cap. Neighborhood visits do not earn
 points by themselves.
 
 **Remember:** One peg per hole. Adjacent pegs connect different lines. Crossings
@@ -89,11 +87,10 @@ cost money. Finish what you start.
 
 ## Optional bends — choose before starting
 
-The host can keep **Straight segments**, choose **Bend tokens** (three per company;
-one per bend; extras cost $3M each from available cash on Confirm), or choose
-**Delayed construction** (stop at a bend now, hire that line again later to finish).
-Other hired lines can still build when a line stops. You can preview multiple
-bends in token mode; each extra stop in delayed mode costs another activation.
+**Delayed construction** is the default: stop at a bend now, hire that line again
+later to finish. Other hired lines can still build. Only one bend per segment.
+Alternatively, choose **Bend tokens**: three per company, one per bend; extra
+tokens cost $3M from available cash. Finish the bent segment in one activation.
 
 Curves stay within 90 degrees, and the combined leg lengths must match the printed
 segment. Bend/worksite markers are not scoring pegs. Crossings cost money as each

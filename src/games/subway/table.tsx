@@ -944,6 +944,7 @@ export function LineContractBoard({
                 >
                   <DestinationCardFace
                     card={commitment.cardId}
+                    paid={owner.destinationsPaid?.includes(commitment.cardId)}
                     color={owner.color}
                     compact
                     state={met ? "met" : "committed"}
@@ -1106,7 +1107,7 @@ export function PlayerTabletop({
                   key={`c-${cardId}-${i}`}
                   className="w-[360px] shrink-0 rounded-[20px] shadow-lg [&_strong]:text-[24px] [&_p]:text-[20px] [&_span]:text-[20px]"
                 >
-                  {destinationById(cardId) ? <DestinationCardFace card={cardId} color={me.color} state={met?"met":"idle"}/> : <EngineeringCardFace card={cardId} color={me.color} state={met?"met":"idle"}/>}
+                  {destinationById(cardId) ? <DestinationCardFace paid={me.destinationsPaid?.includes(cardId)} card={cardId} color={me.color} state={met?"met":"idle"}/> : <EngineeringCardFace card={cardId} color={me.color} state={met?"met":"idle"}/>}
                   <p className="text-lg">{met?"✓ Achieved":"In progress"}</p>
                 </div>
               ))}
@@ -1121,7 +1122,7 @@ export function PlayerTabletop({
               {unassignedDestinations.map(id => {
                 const met = destinationMet(me, id);
                 return <div key={id} className="w-[360px] shrink-0 [&_strong]:text-[24px] [&_p]:text-[20px] [&_span]:text-[20px]">
-                  <DestinationCardFace card={id} color={me.color} state={met ? "met" : "idle"}/>
+                  <DestinationCardFace paid={me.destinationsPaid?.includes(id)} card={id} color={me.color} state={met ? "met" : "idle"}/>
                   <p className="text-lg">{met ? "✓ Connected" : "Connection incomplete"}</p>
                 </div>;
               })}

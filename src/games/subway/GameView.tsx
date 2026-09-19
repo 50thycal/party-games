@@ -212,14 +212,19 @@ type BoardMode = "none" | "place" | "planner";
 
 const PLAN_PHASES = new Set(["ENGINEERING", "SCHEDULING", "STARTER_PLACEMENT", "CONSTRUCTION"]);
 
-export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, lessonZone, lessonBeat = 0, boardOnly = false, externalBottom = 0, remotePlans, onSaveGhost, highlightedStations = [], destinationHighlights = [], reportContext, settingsContent }: GameViewProps<SubwayState> & {settingsContent?:ReactNode;reportContext?: SubwayReportContext; lessonZone?: TableZone; lessonBeat?: number; boardOnly?: boolean; externalBottom?: number; highlightedStations?: string[]; destinationHighlights?: DestinationHighlight[]; remotePlans?: Record<string,SavedPlan>; onSaveGhost?: (contractId:string,nodes:RouteNode[])=>Promise<void>}) {
+export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, lessonZone, lessonBeat = 0, boardOnly = false, externalBottom = 0, remotePlans, onSaveGhost, highlightedStations = [], destinationHighlights = [], reportContext, settingsContent, drawPileCounts }: GameViewProps<SubwayState> & {drawPileCounts?:import("./config").CardDrawCounts;settingsContent?:ReactNode;reportContext?: SubwayReportContext; lessonZone?: TableZone; lessonBeat?: number; boardOnly?: boolean; externalBottom?: number; highlightedStations?: string[]; destinationHighlights?: DestinationHighlight[]; remotePlans?: Record<string,SavedPlan>; onSaveGhost?: (contractId:string,nodes:RouteNode[])=>Promise<void>}) {
   const raw = state as SubwayState | undefined;
   const stale = !!raw && raw.version !== SUBWAY_STATE_VERSION;
   const game = raw && !stale ? raw : undefined;
   const me = game?.players[playerId];
   const isHotseat = room.mode === "hotseat";
 
-  const [bendMode,setBendMode]=useState<BendMode>('straight');
+  const [bendMode,setBendMode]=useState<BendMode>('delayed');
+  const hintKey=`subway-yellow-hint:${room.roomCode}:${game?.startedAt??'setup'}`;
+  const [dismissedHintKey,setDismissedHintKey]=useState<string|null>(null);
+  useEffect(()=>{try{setDismissedHintKey(localStorage.getItem(hintKey)==='dismissed'?hintKey:null);}catch{setDismissedHintKey(null);}},[hintKey]);
+  const dismissPlacementHint=()=>{setDismissedHintKey(hintKey);try{localStorage.setItem(hintKey,'dismissed');}catch{/* Still dismissed for this mounted game. */}};
+
   const [segmentLengthMode,setSegmentLengthMode]=useState<SegmentLengthMode>('exact');
   const [bendDraft,setBendDraft]=useState<Point[]>([]);
   const [bendPick,setBendPick]=useState(false);
@@ -955,7 +960,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
       if (!card) return null;
       const met = objectiveMet(focus.id,me,opponents,game);
       return <CardFocus title={card.name} onClose={close}
-        face={destinationById(focus.id)?<DestinationCardFace card={focus.id} color={me.color}/>:<EngineeringCardFace card={focus.id} color={me.color} state={met?"met":"idle"}/>}
+        face={destinationById(focus.id)?<DestinationCardFace paid={me.destinationsPaid?.includes(focus.id)} card={focus.id} color={me.color}/>:<EngineeringCardFace card={focus.id} color={me.color} state={met?"met":"idle"}/>}
         note={`${met ? "✓ Completed" : "In progress"} · ${objectiveProgress(focus.id,me,opponents,game).points}/${card.vp} VP now. Rechecked at scoring.`} actions={[]}/>;
     }
 
@@ -1120,7 +1125,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
           </div>
           {!placingStarter&&game.bendMode&&game.bendMode!=='straight'&&<div className="contents text-sm">
             <span className="text-xs">{game.bendMode==='tokens'?`${me.bendTokens??0} tokens`:`${remainingLength(game,me.id,activeLineIndex).toFixed(1)} spaces left`}</span>
-            <div className="contents"><StripButton aria-pressed={!bendPick} onClick={()=>{setBendPick(false);setPreview(null);}}>Finish segment</StripButton><StripButton aria-pressed={bendPick} onClick={()=>{setBendPick(true);setPreview(null);}}>{game.bendMode==='tokens'?'Choose a bend':'Stop at a bend'}</StripButton>
+            <div className="contents"><StripButton aria-pressed={!bendPick} onClick={()=>{setBendPick(false);setPreview(null);}}>Finish segment</StripButton><StripButton disabled={!!activeLine?.work?.length||bendDraft.length>=1} title="One bend per segment" aria-pressed={bendPick} onClick={()=>{setBendPick(true);setPreview(null);}}>{game.bendMode==='tokens'?'Choose a bend':'Stop at a bend'}</StripButton>
             {game.bendMode==='tokens'&&bendPick&&<StripButton disabled={!preview} onClick={()=>{if(preview){setBendDraft([...bendDraft,preview]);setPreview(null);setBendPick(false);}}}>Add bend to preview</StripButton>}
             {!!bendDraft.length&&<StripButton onClick={()=>{setBendDraft(bendDraft.slice(0,-1));setPreview(null);}}>Undo preview bend</StripButton>}</div>
             {bendPick&&<span className="text-xs">{game.bendMode==='tokens'?'Add bend, then choose a station.':'Ends this line’s activation.'}</span>}
@@ -1300,7 +1305,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
           </div>}
 
           <div className="flex justify-center" style={{width:BOARD_FRAME_W, marginLeft:officeOpen ? TABLE.side + TABLE.gap : 0}}>
-            <CrewBoard key={`${game.currentPeriod}:${playerId}`} game={game} viewerId={playerId} busy={busy} veiled={veiled} act={act} boardOnly={boardOnly}/>
+            <CrewBoard key={`${game.currentPeriod}:${playerId}`} game={game} viewerId={playerId} busy={busy} veiled={veiled} act={act} boardOnly={boardOnly} drawPileCounts={drawPileCounts}/>
           </div>
 
           <div className="flex items-start" style={{ gap: TABLE.gap }}>
@@ -1341,6 +1346,8 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
                 game={game}
                 targets={canAct ? targets : []}
                 following={mode === "place" ? following : []}
+                hintLabel={dismissedHintKey===hintKey?undefined:bendPick?"Segment endpoint":"Next segment station"}
+                onDismissHint={dismissPlacementHint}
                 selected={mode === "place" || (mode === "planner" && !manualPlanner) ? preview ?? undefined : undefined}
                 planningTargets={mode === "planner" && (manualPlanner || !!preview)}
                 canAct={canAct}
@@ -1493,7 +1500,7 @@ function ResultsSheet({ game, roomCode, mode, reportContext }: { game: SubwaySta
                   const card=engineeringById(cardId)??destinationById(cardId);
                   const scored=p.scoreBreakdown?.find(item=>item.label===card?.name);
                   return <div key={i} className="w-full min-w-0 sm:w-[360px]">
-                    {destinationById(cardId)?<DestinationCardFace card={cardId} color={p.color} compact state={scored?.met?"met":"missed"}/>:<EngineeringCardFace card={cardId} color={p.color} compact state={scored?.met?"met":"missed"}/>}
+                    {destinationById(cardId)?<DestinationCardFace paid={p.destinationsPaid?.includes(cardId)} card={cardId} color={p.color} compact state={scored?.met?"met":"missed"}/>:<EngineeringCardFace card={cardId} color={p.color} compact state={scored?.met?"met":"missed"}/>}
                     <p className="text-lg">{scored?.met?`Scored +${scored.points}`:"Not achieved"}</p>
                   </div>;
                 })}

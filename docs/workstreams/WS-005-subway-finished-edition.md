@@ -4,10 +4,45 @@ Build OS: v0.12
 Phase: REVIEW
 Status: Active
 Updated: 2026-09-19
-Implementation State: YMIF approved bundle implemented; build, lint and full Subway suite pass; PR #194 open; independent code approval recorded; new-code browser acceptance blocked by Vercel login.
+Implementation State: PR #194 merged. Second approved YMIF bundle implemented; production build, lint and full Subway suite pass; independent current-head review underway.
 Related PRs: [#194](https://github.com/50thycal/party-games/pull/194) (YMIF bundle); [#188](https://github.com/50thycal/party-games/pull/188) (terminology audit); [#187](https://github.com/50thycal/party-games/pull/187) (optional bend modes); [#186](https://github.com/50thycal/party-games/pull/186) (draft rules/highlights); [#185](https://github.com/50thycal/party-games/pull/185) (public status/payments/draft); [#184](https://github.com/50thycal/party-games/pull/184) (JNCG cards/surveys/labels); [#177](https://github.com/50thycal/party-games/pull/177) (PRWK feedback); [#176](https://github.com/50thycal/party-games/pull/176) (phone joining; merged); [#175](https://github.com/50thycal/party-games/pull/175) (Playtest Lab); [#174](https://github.com/50thycal/party-games/pull/174) (transfer/objective continuation); [#173](https://github.com/50thycal/party-games/pull/173) (larger neighborhoods/reversed VP; merged); [#172](https://github.com/50thycal/party-games/pull/172) (guided turns, neighborhoods and tiers; merged); [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; merged); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
-## Current continuation — YMIF four-human playtest bundle
+## Current continuation — YMIF economy and card purchases
+
+Owner authorized this second bundle in chat on 2026-09-19. Significant continuation
+of WS-005, no new mission. Canonical Build OS v0.12 already checked this session.
+
+Goal: implement the approved economy, one-bend and card-buying decisions and remove
+the false empty-deck purchase blocker for companion devices.
+Non-goals: more cards, higher per-player purchase caps, new slide-style intro,
+lower-player extra lines, early-third-line completion/endgame rules and KC strategy changes.
+
+Acceptance checks:
+- Debt −2 VP per $1M without cap; positive $4M=2VP and $5M+=3VP.
+- Free station joins, including starters/multiple opponents; crossing tolls and Undo retained.
+- iPad recap lists payers and total receipts, including first construction turn; phone banner unchanged.
+- Destination faces show completion cash and actual Earned status separately from VP.
+- One yellow-dot badge, dismissible for the rest of the game across reload/handoff.
+- One bend per segment in reducer/previews; delayed default, straight option hidden.
+- $3M optional card purchases with correct projected availability, face-up refill,
+  phone face-up choice/iPad direction, random draws on either device, permanent
+  phone market below held cards; existing one-extra-each limit retained.
+- Build/lint/full Subway regressions and independent review; disclose browser gate.
+
+Audit: 21 Engineering cards minus 12 held and 2 displayed leaves 7 random cards
+in four-player play. 30 Destinations minus 8 held leaves 22. Enough for all four
+players to buy one more of each. Root cause was UI checking intentionally hidden
+deck arrays; public counts now resolve availability while server revalidates real decks.
+
+Review State: Pending independent current-head review by /root/bundle_review.
+Initial review fixes: delayed-mode lookahead, first-turn payer baseline, restored
+Engineering progress details, companion-only phone direction. No extra product scope.
+Validation: Production build, lint and full ./scripts/test-subway.sh passed. New checks cover projected purchase availability, phone/tablet draft and purchase permissions, $3 charges, face-up replenishment, four-player supply, linear debt, free joins/Undo, delayed one-bend endpoint hints and visible cash rewards. Complete 2/3/4-player simulations and replays pass.
+Browser: local navigation blocked and Vercel preview requires login; no new-code
+phone/iPad interactive acceptance claimed.
+Next Step: publish the implementation branch/PR and obtain independent current-head approval.
+
+## Previous continuation — YMIF four-human playtest bundle
 
 Owner authorized implementation in chat on 2026-09-19 after approving each item.
 Significant continuation of WS-005; no new workstream. Framework v0.12 checked

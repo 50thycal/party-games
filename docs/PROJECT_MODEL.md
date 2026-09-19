@@ -504,8 +504,8 @@ every recipient balance.
 Each company starts with $40M and chooses zero to three unfinished routes each turn
 over nine construction rounds. Crew bills are $0/$1/$3/$6M, paid before building one
 segment on each chosen route. No advance timetable or shelving phase exists.
-Ending cash scores on a six-band spectrum (DEC-057): +2 VP at $4M or more through
-−5 VP at −$4M or worse, computed by `cashBand`/`cashScore` and shown publicly on the
+Ending cash uses positive bands ($5M+ → 3 VP, $4M → 2, $2–3M → 1, $0–1M → 0)
+and uncapped debt at −2 VP per $1M (DEC-060), computed by `cashScore` and shown on the
 Construction schedule by `CashSpectrum`. Crews may be hired on credit again
 (`crewDebtAllowed` is true), so hiring and contact tolls can both create debt. CrewBoard renders crew selection and round history while the
 reducer owns billing, turn order and placement authority. Placement Undo refunds
@@ -529,7 +529,7 @@ CARD_DRAFT offers three picks per player, from two face-up goals or a blind pile
 with one copy of each of 21 Engineering goals. Destinations have a separate shuffled
 deck of 15 neighborhood pairs and 15 triples. Pair/triple missions score
 4/7 VP when their stations are connected through the company's own built network;
-unfinished routes can contribute. One extra random mission costs $5M before hiring
+unfinished routes can contribute. One extra random mission costs $3M before hiring
 on the owner's construction turn, once per game, with reducer-enforced affordability,
 phase/actor/period guards. Public events disclose the purchase but not the mission.
 The post-game telemetry export includes destination identities and purchase flags.
@@ -609,7 +609,7 @@ neighborhood membership. State version 20 and local-save key require restart for
 The deck contains 30 unique missions: 15 pairs (4 VP) and 15 triples (7 VP).
 Pair appearances are three per neighborhood, triple appearances four/five. Start
 deals one of each without replacement; remaining cards shuffle together for the
-once-per-game $5M purchase. A mission checks the intersection of component sets
+once-per-game $3M purchase. A mission checks the intersection of component sets
 serving each named area: repeated area visits cannot merge separated networks.
 
 Transfer groups collapse only orthogonal nodes from different lines.
@@ -657,14 +657,11 @@ the same validator. Strings still may cross or contact at empty holes. Own netwo
 and Engineering transfer clusters retain orthogonal adjacency. State v23 requires
 restart and new plan/replay namespaces. Bot policy v4/audit policy v3 identify new rules.
 
-`stationAccess.ts` prices a newly joined local mixed-owner cluster once per line,
-opponent and station. Receipts anchor to actual holes, preserving access through
-growth/merges. Existing participants do not pay later arrivals back. A different
-line or separate station can incur another access fee. Starter joins pay access
-immediately but have no base placement cost. `routeContacts` adds new station
-fees to unchanged geometric contact charges; every new crossing remains priced.
-BUILD and starter reducers transfer cash, record receipts and create public money
-events. Full-state Undo restores cash/receipts and appends a monotonic reversal.
+`stationAccess.ts` returns no fees under DEC-060. Starter/build adjacency joins are
+free even with multiple opponents. Historical receipt shapes remain readable.
+`routeContacts` still charges distinct geometric contacts with opposing strings;
+BUILD transfers those payments and records public money events. Full-state Undo
+restores balances and appends a monotonic reversal.
 
 Public money events include only recipients, amounts and reasons. They are bounded
 to 20, separate from private telemetry, and pass through companion projections.
@@ -877,7 +874,7 @@ Connecting a held Destination mission pays $2M (pair) or $3M (triple) once, reco
 `destinationsPaid` and as a bank money event, inside the same BUILD (or purchase) that
 first connects it; full-state Undo reverses it. `cardPurchaseBlocker` is the single
 source of purchase legality for BUY_DESTINATION and the new BUY_ENGINEERING (random
-unheld goal from the shuffled deck, $5M, once per game); both are allowed from the
+unheld goal from the shuffled deck or face-up row, $3M, once per game; DEC-060); both are allowed from the
 acknowledged company on the iPad and from its phone, and `BuyCardButton` is the one
 chooser used on both. The tablet projection keeps every company's Engineering and
 Destination card ids (never decks); `PlayerPads` renders `CardGlyphs` (category base
@@ -891,9 +888,9 @@ disclosure; the phone header carries an R round badge.
 
 ### Ending-cash spectrum, lookahead and curve wording (DEC-057, state v27)
 
-`SUBWAY_CONFIG.cashBands` is the single ordered source for ending-cash VP; scoring,
+`SUBWAY_CONFIG.cashBands` supplies positive VP bands and the debt display bucket; scoring,
 the build-cost preview, the crew bill, the phone summary, the bots and the public bar
-all read it through `cashScore`/`cashBand` rather than a flat rate. `lookahead.ts`
+all use `cashScore` for amounts and `cashBand` for display grouping; DEC-060 makes debt linear. `lookahead.ts`
 derives the yellow next-step markers from the selected target: normally the legal
 targets of the state that build would produce, and while a bend is being placed the
 holes where the segment could still finish beyond it. It is pure, client-only and
@@ -926,3 +923,28 @@ Reports record the mode. Existing games require restart via the version guard.
 Phone goals/destinations sit beside its route list; a transient banner marks turn
 entry. Shared iPad panels carry one current-company route-progress strip and
 per-company award strips. Awards derive from existing public standings.
+
+
+### YMIF economy and card-draw continuation (DEC-060, state v29)
+
+New setup defaults to delayed construction; straight-only is hidden but retained
+internally for legacy fixtures/replays. Authoritative `validatePath` limits both
+modes to one bend per segment, counting existing delayed work. The next hired
+activation must finish the remaining budget. Delayed lookahead simulates the
+pending worksite and validates each finishing hole with the same validator.
+One dismissible badge sits beside one yellow dot; room/start-specific local
+storage keeps it dismissed through tablet remounts and refreshes for that game.
+
+Companion projections expose only `drawPileCounts`, never shuffled deck identities.
+The shared purchase blocker uses those counts on clients and real decks in the
+reducer. Both extra card types cost $3M, one extra each before hiring. Engineering
+can be either face-up goal or random; face-up draws refill the row to two if supply
+remains. Companion face-up drafting/purchasing is phone-only; tablet random draft
+uses the current drafting actor, and random purchases require acknowledged company.
+Phones show held Engineering cards before the always-visible public market and
+Destination pages offer a matching draw area with availability reasons.
+
+The iPad recap groups between-turn telemetry cash deltas by paying opponent,
+including before a company's first construction turn, and shows the player total
+separately from bank cash. Phone turn banners are unchanged. Destination faces
+show their $2M/$3M completion reward and use `destinationsPaid` for Earned status.

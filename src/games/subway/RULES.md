@@ -13,7 +13,7 @@ A light-strategy line-building game for **2–4 companies**. Most victory points
 2. Draft three line contracts each, at list price, from a replenishing row of
    two/three/four choices for two/three/four players. No passing or discounts.
 3. Draft **three Engineering goals each**, choosing between two face-up cards or a blind draw.
-4. Place one free starter for each line on an **empty**, non-neighborhood outer-border hole. A starter cannot overlap any company's existing peg including your own. Adjacent empty holes are allowed. No placement may stack pegs. Joining an opponent station with a starter pays its access fee; otherwise starters are free.
+4. Place one free starter for each line on an **empty**, non-neighborhood outer-border hole. A starter cannot overlap any company's existing peg including your own. Adjacent empty holes are allowed. No placement may stack pegs. Joining an opponent station is also free.
 5. Play up to **9 construction rounds**, choosing crews anew each turn. End
    immediately if no incomplete line has a legal next segment.
 6. Score all held goals and lines; subtract unfinished-line
@@ -70,10 +70,12 @@ transfer at immediately adjacent stations horizontally/vertically,
 anywhere on the board. Diagonal stations, sharing an area without nearby stations,
 string crossings and opponents' lines do not connect your lines.
 
-Before hiring crews on your construction turn, you may pay **$5M for one extra
-random mission, once per game**, and separately **$5M for one extra random Engineering
-goal, once per game** (never a goal you already hold). Use the iPad's **Buy a card**
-button or your phone. Pay immediately; purchases cannot create debt.
+Before hiring crews on your construction turn, you may pay **$3M for one extra
+random Destination, once per game**, and separately **$3M for one extra Engineering
+goal, once per game**. Choose either face-up Engineering goal on your phone or draw
+randomly on your phone or iPad. Refill the face-up space after a choice. The iPad
+points players to their phones for face-up selections. Pay immediately; purchases
+cannot create debt. Phone card pages keep the draw area below your held cards.
 Missions stay private until results and score only if fulfilled. No line assignment,
 card lock, or penalty for an unfulfilled mission applies.
 
@@ -206,16 +208,17 @@ legality remains unchanged.
 ### Optional bend modes
 
 The host chooses one mode before starting; it cannot change during the game.
-**Straight segments** is the default. **Bend tokens** gives each company three
+**Delayed construction** is the default. The old straight-only option is hidden.
+**Bend tokens** gives each company three
 tokens. Each bend costs one token; missing tokens cost **$3M each**, automatically
-purchased on Confirm using available cash (no borrowing). Preview several bends
+purchased on Confirm using available cash (no borrowing). Preview one bend
 and finish the whole segment in one activation. Cancel is free; Undo restores
 spent tokens and purchases.
 
 **Delayed construction** has no token cost. Choose “Stop at a bend” and confirm
 to build one leg and end that line’s activation. Other hired lines still act.
-Hire that line again on a later turn to continue its remaining length. Each
-additional stop takes another activation. A worksite does not reserve future
+Hire that line again on a later turn to finish its remaining length.
+Only one bend is allowed per segment; a second stop is not allowed. A worksite does not reserve future
 holes or strings; later construction may block its continuation.
 
 Each leg joins board holes and curves by at most **90 degrees**.
@@ -259,16 +262,9 @@ free. Departing a previously contacted point is not charged again. Construction 
 balance you finish on scores on the ending-cash spectrum below, so borrowing is a priced choice
 rather than a flat fine. Money the opposition pays you moves your band before scoring.
 
-Joining an opponent's station costs **$1M once per line, opponent and local
-transfer station**, including when the joining peg is a starter. Multiple neighboring pegs
-in that transfer station do not multiply the access fee. Later additions on that same line
-are free at that transfer station. A different line or separate transfer station may require another
-payment. Existing transfer-station participants do not pay the newcomer back when they
-later expand. Growth and merged transfer stations preserve previously obtained access.
-Each participating opponent receives their respective access payment. Crossing
-or otherwise touching opposing strings is always priced separately—even after
-transfer access has been paid. Preview shows recipients/reasons before Confirm;
-Undo restores money and the access record.
+Joining stations is free, including starters and stations with several opponents.
+Crossing or touching opponents' strings still costs $1M per distinct contact per
+owner. Preview shows recipients/reasons before Confirm; Undo restores transfers.
 
 Each Confirm consumes one hired action. Undo restores the latest physical placement,
 its toll transfers and pending action, until another accepted action occurs.
@@ -281,12 +277,11 @@ during Construction.
 
 | Ending cash | VP |
 | --- | ---: |
-| $4M or more | +2 |
+| $5M or more | +3 |
+| $4M | +2 |
 | $2M to $3M | +1 |
 | $0M to $1M | 0 |
-| −$1M | −1 |
-| −$2M to −$3M | −3 |
-| −$4M or worse | −5 |
+| Debt | −2 per $1M owed, no cap |
 
 ## Scoring and the table
 
@@ -308,7 +303,7 @@ complete accepted-action ledger: setup, cards, lines, placements, crew and toll
 economy, Undo actions, scoring, timing, and the construction end reason. Rejected
 actions are not tracked because they never change reducer state.
 
-State version **25** requires a fresh game for the optional bend modes;
+State version **29** requires a fresh game for the optional bend modes;
 old saves are not migrated. Neighborhood names and size labels fit wholly inside
 their actual footprints, with wrapped text and camera-adaptive font sizes.
 Automated games test termination and rule behavior, not human enjoyment or

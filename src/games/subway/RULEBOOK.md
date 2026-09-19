@@ -64,8 +64,7 @@ cards: seven Line, seven Station and seven Neighborhood cards.
 
 Place one starter for each line on an empty outer-border hole. Neighborhoods do
 not occupy the border. Starters may be beside another peg, but never on top.
-Placement has no base cost. A starter joining an opponent's station pays the
-applicable transfer-access fee immediately.
+Starter placement and joining an opponent’s station are free.
 
 ## 4. Construction rounds
 
@@ -111,16 +110,17 @@ mode, measure each straight leg and add the lengths.
 ### Optional bend modes
 
 The host chooses one mode before starting; it cannot change during the game.
-**Straight segments** is the default. **Bend tokens** gives each company three
+**Delayed construction** is the default. The old straight-only option is hidden.
+**Bend tokens** gives each company three
 tokens. Each bend costs one token; missing tokens cost **$3M each**, automatically
-purchased on Confirm using available cash (no borrowing). Preview several bends
+purchased on Confirm using available cash (no borrowing). Preview one bend
 and finish the whole segment in one activation. Cancel is free; Undo restores
 spent tokens and purchases.
 
 **Delayed construction** has no token cost. Choose “Stop at a bend” and confirm
 to build one leg and end that line’s activation. Other hired lines still act.
-Hire that line again on a later turn to continue its remaining length. Each
-additional stop takes another activation. A worksite does not reserve future
+Hire that line again on a later turn to finish its remaining length.
+Only one bend is allowed per segment; a second stop is not allowed. A worksite does not reserve future
 holes or strings; later construction may block its continuation.
 
 Each leg joins board holes and curves by at most **90 degrees**.
@@ -174,25 +174,10 @@ Disconnected sections cannot be combined.
 
 ## 7. Paying other companies
 
-### Transfer access
+### Joining stations
 
-When your line joins a local transfer station containing an opponent's pegs, pay that
-opponent **$1 million**. Pay once for that combination of your line, that opponent,
-and that local transfer station.
-
-Further pegs at the same transfer station on the same line do not repeat the fee. Several
-neighboring pegs belonging to one opponent do not multiply it. A different line
-joining may owe its own fee; joining a separate transfer station may also cost again.
-When multiple opponents participate, pay each whose access fee is due.
-
-Paid access survives transfer-station growth and mergers. Existing participants do not pay
-a newcomer back merely because they later expand the transfer station.
-
-**Example:** Zoe has a station. Calvin places a Red Line station beside it
-and pays Zoe $1 million. Another Red Line station at that transfer station does not charge
-again. His Blue Line joining separately may owe its own access fee.
-
-This rule also applies when the joining peg is a starter.
+Joining a transfer station is free, including starters and stations shared by
+multiple opponents. Crossing and touching strings is still priced separately.
 
 ### Crossing and touching strings
 
@@ -203,8 +188,7 @@ point cost $1 million at that point. Pay each owner when several opponents share
 a contacted point.
 
 Extending away from an already contacted starting point does not charge for that
-same departure again. **Transfer access never grants free crossings.** One
-placement can owe both access and separate string-contact fees. The preview
+same departure again. **Joining stations never grants free crossings.** The preview
 identifies recipients, amounts and reasons before confirmation.
 
 ## 8. Destination cards
@@ -216,10 +200,11 @@ three-neighborhood missions award **7 VP**. Unfulfilled missions score zero with
 no penalty. Cards are not assigned to individual lines; one network may fulfill
 several cards.
 
-Once per game, before hiring crews on your turn, you may buy one extra random
-Destination card for **$5 million**, and once per game one extra random Engineering
-goal for **$5 million** (never a goal you already hold). The iPad's **Buy a card**
-button asks which deck to draw from. You must pay without entering debt. Cards
+Before hiring crews on your turn, you may buy one extra random Destination for
+**$3 million**, once per game, and one extra Engineering goal for **$3 million**,
+once per game. Choose one of the two face-up Engineering goals on your phone,
+then refill that space; or draw randomly on your phone or iPad. The iPad directs
+face-up choices to the phone. Purchases require available cash. Cards
 remain private until results; enabling a highlight shares that selected mission
 on the iPad during your turn.
 
@@ -330,8 +315,8 @@ company can still build.
 3. Add fulfilled Engineering cards.
 4. Add fulfilled Destination cards.
 5. Add any longest-network and Largest Transfer Station awards.
-6. Score your **ending cash** on the spectrum: $4M or more +2 VP, $2M to $3M +1 VP,
-   $0M to $1M 0 VP, −$1M −1 VP, −$2M to −$3M −3 VP, −$4M or worse −5 VP.
+6. Score your **ending cash** on the spectrum: $5M or more +3 VP, $4M +2 VP, $2M to $3M +1 VP,
+   $0M to $1M 0 VP. Debt costs **2 VP per $1M owed**, with no cap.
 
 There are no automatic points for neighborhood visits or leftover
 positive cash. Highest total wins. Break ties by number of different large

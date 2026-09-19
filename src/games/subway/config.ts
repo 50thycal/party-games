@@ -32,7 +32,7 @@ import type { BaseAction, GameContext, Player } from "@/engine/types";
 // ============================================================================
 
 /** Bumped when the state shape changes; older rooms must restart. */
-export const SUBWAY_STATE_VERSION = 28;
+export const SUBWAY_STATE_VERSION = 29;
 
 // ----------------------------------------------------------------------------
 // Tunable configuration
@@ -87,27 +87,25 @@ export const SUBWAY_CONFIG = {
   /** Destination mission rewards and optional purchase. */
   destinationVp: 4,
   threeStationDestinationVp: 7,
-  destinationPurchaseCost: 5,
+  destinationPurchaseCost: 3,
   engineeringPicks: 3,
   /** Construction interaction with the opposing network (WS-003, DEC-018). */
   contact: {
     /** $M paid to the opponent per distinct contact with their normal route. */
     toll: 1,
-    /** Retained for archived reports; live scoring uses the cash bands below. */
-    debtVpPerMillion: 4,
+    /** Uncapped VP penalty per $1M of ending debt. */
+    debtVpPerMillion: 2,
   },
   /**
-   * Ending cash scores on a spectrum rather than a flat debt rate: holding cash
-   * is worth VP and borrowing costs progressively more. Ordered best to worst;
-   * a company scores the first band whose minimum its ending cash reaches.
+   * Positive cash scores by band; debt uses the rate above. Ordered best to worst.
+   * The final display band carries the debt rate, not a fixed total penalty.
    */
   cashBands: [
-    { min: 4, vp: 2, label: "$4M or more" },
+    { min: 5, vp: 3, label: "$5M or more" },
+    { min: 4, vp: 2, label: "$4M" },
     { min: 2, vp: 1, label: "$2M to $3M" },
     { min: 0, vp: 0, label: "$0M to $1M" },
-    { min: -1, vp: -1, label: "\u2212$1M" },
-    { min: -3, vp: -3, label: "\u2212$2M to \u2212$3M" },
-    { min: -Infinity, vp: -5, label: "\u2212$4M or worse" },
+    { min: -Infinity, vp: -2, label: "Debt: −2 VP per $1M" },
   ],
   /** Destination cards face up at the start of the Engineering draft. */
   destinationRow: 3,
@@ -1281,8 +1279,8 @@ export function scoreGame(state: SubwayState, now: number): SubwayState {
     const band = cashBand(p.money);
     items.push({
       label: `Cash position (${p.money < 0 ? `\u2212$${-p.money}M` : `$${p.money}M`} \u00b7 ${band.label})`,
-      points: band.vp,
-      met: band.vp >= 0,
+      points: cashScore(p.money),
+      met: p.money >= 0,
     });
 
     const length = lengths.find(entry => entry.id === p.id)!.length;
@@ -1514,7 +1512,7 @@ export function autoSchedule(p: SubwayPlayer): void {
 function toScheduling(s: SubwayState, now: number): SubwayState {
   s.phase = "STARTER_PLACEMENT";
   for (const p of seats(s)) for (const line of p.lines) line.start = 1;
-  pushEvent(s, now, "PHASE", "banner", "Place each starter station on an empty border hole. Transfer access fees may apply.");
+  pushEvent(s, now, "PHASE", "banner", "Place each starter station on an empty border hole. Joining transfer stations is free.");
   return s;
 }
 
@@ -1563,7 +1561,7 @@ export type CashBand = (typeof SUBWAY_CONFIG.cashBands)[number];
 export const cashBand = (money: number): CashBand =>
   SUBWAY_CONFIG.cashBands.find((band) => money >= band.min)!;
 /** VP awarded (or lost) for ending the game on this balance. */
-export const cashScore = (money: number): number => cashBand(money).vp;
+export const cashScore = (money: number): number => money < 0 ? money * SUBWAY_CONFIG.contact.debtVpPerMillion : cashBand(money).vp;
 
 /** Whether this company can hire that many crews under the current debt rule. */
 export const canAffordCrews = (p: SubwayPlayer, count: number): boolean =>
@@ -1575,14 +1573,16 @@ export function affordableCrews(p: SubwayPlayer, count: number): number {
   return n;
 }
 /** Why this company cannot buy an extra card right now; undefined when it can. Shared by reducer and buttons. */
-export function cardPurchaseBlocker(s: SubwayState, playerId: string, deck: "engineering" | "destination"): string | undefined {
+export type CardDrawCounts = { engineering: number; destination: number };
+export function cardPurchaseBlocker(s: SubwayState, playerId: string, deck: "engineering" | "destination", cardId?: string, counts?: CardDrawCounts): string | undefined {
   const me = s.players[playerId];
   if (!me || s.phase !== "CONSTRUCTION") return "Cards are bought during Construction.";
   if (s.resolveQueue[0] !== playerId) return "Wait for your construction turn.";
   if (me.crewsHired) return "Buy before hiring crews.";
   if (deck === "destination" ? me.destinationPurchased : me.engineeringPurchased) return `One extra ${deck === "destination" ? "Destination" : "Engineering"} card per game.`;
   if (me.money < SUBWAY_CONFIG.destinationPurchaseCost) return `Needs $${SUBWAY_CONFIG.destinationPurchaseCost}M in cash.`;
-  const available = deck === "destination" ? s.destinationDeck.length > 0 : s.market.decks.engineering.some(id => !me.engineeringHand.includes(id));
+  if(cardId && (deck!=="engineering" || !s.market.rows.engineering.includes(cardId) || me.engineeringHand.includes(cardId))) return "That face-up goal is no longer available.";
+  const available = cardId ? true : counts ? counts[deck]>0 : deck === "destination" ? s.destinationDeck.length > 0 : s.market.decks.engineering.some(id => !me.engineeringHand.includes(id));
   if (!available) return "No cards left to draw.";
   return undefined;
 }
@@ -1686,7 +1686,7 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       const fresh = initialState(ctx.room.players);
       if(action.payload?.segmentLengthMode!==undefined&&!['exact','flexible'].includes(action.payload.segmentLengthMode))return state;
       fresh.segmentLengthMode=action.payload?.segmentLengthMode??'exact';
-      fresh.bendMode=action.payload?.bendMode??'straight';
+      fresh.bendMode=action.payload?.bendMode??'delayed';
       for(const p of Object.values(fresh.players))p.bendTokens=fresh.bendMode==='tokens'?3:0;
       fresh.startedAt = ctx.now();
       fresh.phase = "PROCUREMENT";
@@ -1752,15 +1752,17 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
     }
 
     case "BUY_ENGINEERING": {
-      if (!me || cardPurchaseBlocker(s, me.id, "engineering") || action.payload?.period !== s.currentPeriod) return state;
-      // The deck is already shuffled: the top goal this company does not hold is the random draw.
-      const index = s.market.decks.engineering.findIndex(id => !me.engineeringHand.includes(id));
-      if (index < 0) return state;
+      const cardId=action.payload?.cardId;
+      if (!me || cardPurchaseBlocker(s, me.id, "engineering", cardId) || action.payload?.period !== s.currentPeriod) return state;
+      const source=cardId?s.market.rows.engineering:s.market.decks.engineering;
+      const index=cardId?source.indexOf(cardId):source.findIndex(id=>!me.engineeringHand.includes(id));
+      if(index<0)return state;
       me.money -= SUBWAY_CONFIG.destinationPurchaseCost;
-      me.engineeringHand.push(s.market.decks.engineering.splice(index, 1)[0]);
+      me.engineeringHand.push(source.splice(index,1)[0]);
+      while(s.market.rows.engineering.length<2&&s.market.decks.engineering.length)s.market.rows.engineering.push(s.market.decks.engineering.shift()!);
       me.engineeringPurchased = true;
       recordMoney(s,me.id,[{from:me.id,amount:SUBWAY_CONFIG.destinationPurchaseCost,reason:'Engineering purchase'}]);
-      pushEvent(s, ctx.now(), "CARD", "notice", `${me.name} bought a random Engineering goal for $${SUBWAY_CONFIG.destinationPurchaseCost}M.`, me.id);
+      pushEvent(s, ctx.now(), "CARD", "notice", `${me.name} bought ${cardId?'a face-up':'a random'} Engineering goal for $${SUBWAY_CONFIG.destinationPurchaseCost}M.`, me.id);
       return s;
     }
 
@@ -1773,7 +1775,7 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       const payments:MoneyEvent['payments']=[{from:me.id,amount:SUBWAY_CONFIG.destinationPurchaseCost,reason:'Destination purchase'}];
       const paid=payConnectedDestinations(me,payments);
       recordMoney(s,me.id,payments);
-      pushEvent(s, ctx.now(), "CARD", "notice", `${me.name} bought a private Destination mission for $5M.${paid.length?` It is already connected: +$${paid.reduce((n,id)=>n+destinationReward(id),0)}M.`:''}`, me.id);
+      pushEvent(s, ctx.now(), "CARD", "notice", `${me.name} bought a private Destination mission for $${SUBWAY_CONFIG.destinationPurchaseCost}M.${paid.length?` It is already connected: +$${paid.reduce((n,id)=>n+destinationReward(id),0)}M.`:''}`, me.id);
       return s;
     }
 
