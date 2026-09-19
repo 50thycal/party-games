@@ -103,5 +103,20 @@
     "reportedRoom": "DGLE",
     "exportFormat": "legacy-markdown",
     "sourceEvidence": "Controller table: 33 and 33 human gameplay actions, zero bot/unknown; host start/scoring actions excluded."
+  },
+  {
+    "id": "87c0970fd9a912a3ac755a4af6b2e18c88d44a16f284e5267f87be2d79fbc31f",
+    "path": "87c0970fd9a912a3ac755a4af6b2e18c88d44a16f284e5267f87be2d79fbc31f/original.txt",
+    "source": "legacy",
+    "stateVersion": null,
+    "rules": null,
+    "build": null,
+    "players": null,
+    "actions": null,
+    "cohort": "reference",
+    "replay": "unavailable",
+    "validation": "legacy",
+    "comparisonEligible": false,
+    "archivedAt": "2026-09-19T20:12:20.653Z"
   }
 ]

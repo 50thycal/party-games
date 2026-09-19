@@ -46,7 +46,7 @@ export function missingJobStops(me:SubwayPlayer,index:number,job:LineJob):string
   return Array.from(new Set([...job.destination.filter(id=>!own.has(id)),...job.citywide.filter(id=>!all.has(id))]));
 }
 
-const offsetCache=new Map<number,PlacementTarget[]>();
+const offsetCache=new Map<string,PlacementTarget[]>();
 function options(s:SubwayState,id:string,index:number,starter:boolean):PlacementTarget[] {
   const l=s.players[id].lines[index];
   let targets:PlacementTarget[]=[];
@@ -56,13 +56,14 @@ function options(s:SubwayState,id:string,index:number,starter:boolean):Placement
   } else {
     const length=contractOf(l)?.recipe[l.route.length-1],end=l.route.at(-1);
     if(!length||!end) return [];
-    if(!offsetCache.has(length)) {
+    const cacheKey=`${length}:${s.segmentLengthMode??'exact'}`;
+    if(!offsetCache.has(cacheKey)) {
       const offsets:PlacementTarget[]=[];
       for(let y=-length-1;y<=length+1;y++) for(let x=-length-1;x<=length+1;x++)
-        if(Math.abs(Math.hypot(x,y)-length)<=SUBWAY_CONFIG.geometry.lengthTolerance) offsets.push({x,y});
-      offsetCache.set(length,offsets);
+        if(s.segmentLengthMode==='flexible'?Math.hypot(x,y)>=1&&Math.hypot(x,y)<=length+SUBWAY_CONFIG.geometry.lengthTolerance:Math.abs(Math.hypot(x,y)-length)<=SUBWAY_CONFIG.geometry.lengthTolerance) offsets.push({x,y});
+      offsetCache.set(cacheKey,offsets);
     }
-    targets=offsetCache.get(length)!.map(p=>({x:end.x+p.x,y:end.y+p.y}));
+    targets=offsetCache.get(cacheKey)!.map(p=>({x:end.x+p.x,y:end.y+p.y}));
   }
   return targets.filter(p=>!validateNode(s,id,index,p,starter));
 }

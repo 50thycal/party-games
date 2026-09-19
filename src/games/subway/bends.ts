@@ -33,7 +33,7 @@ export function validatePath(s:SubwayState,id:string,index:number,points:Point[]
  }
  const length=pathLength([l.route.at(-1)!,...(l.work??[]),...points]);
  const required=contractOf(l)!.recipe[segmentsBuilt(l)],tol=SUBWAY_CONFIG.geometry.lengthTolerance;
- if(pause?length>required+tol-1+1e-8:Math.abs(length-required)>tol+1e-8)return pause?'Leave at least one peg space to finish this segment.':`Segment must span ${required} spaces in total (path ${length.toFixed(1)}).`;
+ if(pause?length>required+tol-1+1e-8:s.segmentLengthMode==='flexible'?(length<1-1e-8||length>required+tol+1e-8):Math.abs(length-required)>tol+1e-8)return pause?'Leave at least one peg space to finish this segment.':`Segment must span ${s.segmentLengthMode==='flexible'?'1–':''}${required} spaces in total (path ${length.toFixed(1)}).`;
  for(let i=0;i<newLegs.length;i++) {
   const [a,b]=newLegs[i];
   if(same(a,b))return 'Each leg must have positive length.';

@@ -2,6 +2,7 @@
 
 import {validatePath,pathContacts,tokenCost,remainingLength} from './bends';
 import {constructionTip} from './paths';
+import {SegmentLengthSelect,type SegmentLengthMode} from "./SegmentLengthSelect";
 import {BendModeSelect} from "./BendModeSelect";
 import {type BendMode} from "./bends";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -219,6 +220,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   const isHotseat = room.mode === "hotseat";
 
   const [bendMode,setBendMode]=useState<BendMode>('straight');
+  const [segmentLengthMode,setSegmentLengthMode]=useState<SegmentLengthMode>('exact');
   const [bendDraft,setBendDraft]=useState<Point[]>([]);
   const [bendPick,setBendPick]=useState(false);
   const [chosen, setChosen] = useState<string[]>([]);
@@ -510,6 +512,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
           work: line.work,
           contract,
           ownerColor: p.color,
+          own: id === (playerId || currentActorId(game)) && ["STARTER_PLACEMENT","CONSTRUCTION"].includes(game.phase),
           active: id === playerId && li === activeLineIndex,
           growing: !lineComplete(line),
         });
@@ -542,6 +545,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
           active: true,
           growing: true,
           pending: true,
+          own: true,
           anchored: !!anchor,
           numberOffset: Math.max(0, line.route.length - 1),
         });
@@ -756,11 +760,12 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
           Companies: {room.players.slice(0, 4).map((p) => p.name).join(" vs ") || "waiting…"}
           {room.players.length > 4 && ` · ${room.players.length - 4} spectating`}
         </p>
+        {isHost&&<SegmentLengthSelect value={segmentLengthMode} onChange={setSegmentLengthMode}/>}
         {isHost&&<BendModeSelect value={bendMode} onChange={setBendMode}/>}
       {isHost ? (
           <button
             disabled={busy || !enough}
-            onClick={() => act("START_GAME",{bendMode})}
+            onClick={() => act("START_GAME",{bendMode,segmentLengthMode})}
             className="rounded-xl bg-emerald-700 px-6 py-3 font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-40"
           >
             {busy ? "Starting…" : enough ? "Start Subway" : "Waiting for a second player"}

@@ -124,3 +124,27 @@ for(const mode of ['tokens','delayed'] as const)for(const count of [2,3,4]){
  console.log(`Bend mode ${mode}: ${count} players completed and replayed`);
 }
 console.log('Bend modes: setup, paths, tokens, delayed work, contacts, scoring and Undo passed.');
+
+// YMIF optional shortening: authoritative validation, bends and delayed work use total path length.
+for(const mode of ['straight','tokens','delayed'] as const) {
+ const s=base(mode);s.segmentLengthMode='flexible';
+ assert.equal(validatePath(s,id,0,[{x:1,y:0}]),null);
+ assert.notEqual(act(s,'BUILD',{lineIndex:0,x:1,y:0}),s);
+ assert.match(validatePath(s,id,0,[{x:3,y:0}])!,/total/);
+ const exact=base(mode);assert.match(validatePath(exact,id,0,[{x:1,y:0}])!,/total/);
+}
+{
+ const s=base('tokens');s.segmentLengthMode='flexible';
+ assert.equal(validatePath(s,id,0,[{x:1,y:0},{x:1,y:1}]),null);
+ assert.match(validatePath(s,id,0,[{x:2,y:0},{x:2,y:1}])!,/total/);
+ const delayed=base('delayed');delayed.segmentLengthMode='flexible';
+ const work=act(delayed,'BUILD',{lineIndex:0,x:1,y:0,pause:true});
+ work.players[id].pendingActions=[0];
+ assert.match(validatePath(work,id,0,[{x:1,y:2}])!,/total/);
+ assert.equal(validatePath(work,id,0,[{x:1,y:1}]),null);
+ const initial=subwayGame.initialState(room.players),ctx={room,playerId:room.hostId,now:()=>1,random:()=>.4};
+ const start=subwayGame.reducer(initial,{type:'START_GAME',playerId:room.hostId,payload:{segmentLengthMode:'flexible'}},ctx);
+ assert.equal(JSON.parse(JSON.stringify(start)).segmentLengthMode,'flexible');
+ assert.equal(subwayGame.reducer(initial,{type:'START_GAME',playerId:room.hostId,payload:{segmentLengthMode:'invalid'} as never},ctx),initial);
+}
+console.log('YMIF exact/flexible length and shared bend budget checks passed.');

@@ -155,7 +155,7 @@ export function EngineeringArt({ id }: { id: string; color?: string }) {
     {diagram.transfers?.map((t,i)=><rect key={i} x={t.x} y={t.y} width={t.w} height={t.h} rx="9" fill="#fffaf0" stroke="#6b6254" strokeWidth="1.5" data-transfer-outline="true"/>)}
     {diagram.lines.map((route,i)=><g key={i} data-route-color={route.color} data-support-line={route.support||undefined}>
       <polyline points={route.points.map(p=>p.join(",")).join(" ")} fill="none" stroke={route.color} strokeWidth={route.support?3:4} strokeLinecap="round" strokeLinejoin="round"/>
-      {route.points.map(([x,y],j)=><circle key={j} cx={x} cy={y} r="4.5" fill={route.color} stroke="#fffaf0" strokeWidth="1.5"/>)}
+      {route.points.map(([x,y],j)=><circle key={j} data-station={j===0?"starter":"station"} cx={x} cy={y} r="4.5" fill={route.color} stroke="#000000" strokeWidth="1.5"/>)}
     </g>)}
     {diagram.ends?.map(({at:[x,y],kind},i)=><g key={i} data-end-marker={kind} stroke="#342e26" strokeWidth="1.5">
       {kind==="start" ? <><path d={`M ${x} ${y-5} v -13`} fill="none"/><path d={`M ${x} ${y-18} l 10 4 -10 4 z`} fill="#fffaf0"/></> : kind==="finish" ? <rect x={x-7} y={y-7} width="14" height="14" rx="1" fill="none"/> : <circle cx={x} cy={y} r="8" fill="none"/>}

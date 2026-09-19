@@ -4,7 +4,7 @@
 
 - Canonical framework: [50thycal/build-os](https://github.com/50thycal/build-os)
 - Adopted version: v0.12
-- Last compatibility check: v0.12 on 2026-09-15
+- Last compatibility check: v0.12 on 2026-09-19
 - Operating mode: reviewed
 
 Before substantial design or architectural work, compare the adopted version against
@@ -139,3 +139,9 @@ record plus index as part of the current work. Explicit Capture Only/no-write
 instructions still take precedence. Store owner observations separately from
 analysis, label rules/build and human/mixed/bot source, and never fabricate absent
 actions. Preserve older reports as legacy references. See the archive README.
+
+## Owner authorization (2026-09-19)
+
+Calvin explicitly authorizes pushing implementation branches and opening PRs to this
+repository without asking again. He will review and approve. This does not authorize
+merging or bypass independent review requirements.

@@ -98,6 +98,7 @@ export function generateAiPlaytestReport(game: SubwayState, context: SubwayRepor
       endingCashBands: SUBWAY_CONFIG.cashBands.map(b => ({ band: b.label, vp: b.vp })),
       pegStackingAllowed: false,
       bendMode: game.bendMode??'straight',
+      segmentLengthMode: game.segmentLengthMode??'exact',
       bendRules: 'Tokens: 3 per company, extras $3M cash; delayed: one leg per activation; max 90-degree curve; total path length; bends/worksites are not pegs; partial track excludes network length until finished',
       stationAccess: "$1M once per line/opponent/local transfer station; starter joins included; crossings always separate",
       routeDraftPool: game.playerOrder.length * 3 + 1,

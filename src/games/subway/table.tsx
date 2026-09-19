@@ -868,11 +868,12 @@ export function LineContractBoard({
 
       {/* The recipe, big enough to read as the line's shape. */}
       <div className="mt-[18px]">
-        <p className="text-[17px] font-black uppercase tracking-[.14em] text-stone-500">Ordered recipe (peg spaces per segment)</p>
+        <p className="text-[17px] font-black uppercase tracking-[.14em] text-stone-500">Total length: {contract.recipe.reduce((sum, length) => sum + length, 0)} · peg spaces</p>
         <div className="mt-[10px] flex flex-wrap items-center gap-[10px]">
+          <span aria-label="Starter station" title="Starter station" className="h-6 w-6 rounded-full border-2 border-black" style={{background:contract.color}}/>
           {contract.recipe.map((length, i) => {
             const done = i < built;
-            const current = i === built && !complete;
+            const current = game.phase === "CONSTRUCTION" && i === built && !complete;
             return (
               <span key={i} className="flex items-center gap-[10px]">
                 {i > 0 && <span className="text-[26px] font-black text-stone-400">—</span>}

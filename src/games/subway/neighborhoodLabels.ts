@@ -21,7 +21,7 @@ export function neighborhoodLabel(area:Station,zoom:number) {
       const font=Math.min(20/Math.max(.1,zoom),rows===1?22:38,width*82/(Math.max(...lines.map(w=>w.length))*.67+1));
       const first=rows===1?a.y-.25:a.y+.5;
       const lineYs=lines.map((_,i)=>first+i-(rows===1?0:font*.18/82));
-      const sizeY=rows===1?a.y+.32:first+lines.length-1+font*.7/82;
+      const sizeY=rows===1?a.y+.32:first+lines.length-1+font*1.05/82;
       const score=font-(b.y-a.y)*.01;
       if(score>bestScore){bestScore=score;best={x:a.x-.43,y:a.y-.43,width,height,font,lines,lineYs,sizeY};}
     }

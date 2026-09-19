@@ -32,7 +32,7 @@ import type { BaseAction, GameContext, Player } from "@/engine/types";
 // ============================================================================
 
 /** Bumped when the state shape changes; older rooms must restart. */
-export const SUBWAY_STATE_VERSION = 27;
+export const SUBWAY_STATE_VERSION = 28;
 
 // ----------------------------------------------------------------------------
 // Tunable configuration
@@ -537,6 +537,7 @@ function recordMoney(s:SubwayState,actorId:string,payments:MoneyEvent['payments'
 
 export interface SubwayState {
   bendMode?: BendMode;
+  segmentLengthMode?: "exact" | "flexible";
   moneyEvents?: MoneyEvent[];
   nextMoneySeq?: number;
   version: number;
@@ -606,6 +607,7 @@ export interface SubwayAction extends BaseAction {
   type: SubwayActionType;
   payload?: {
     bendMode?: BendMode;
+    segmentLengthMode?: "exact" | "flexible";
     bends?: Point[];
     pause?: boolean;
     choice?: "buy" | "pass";
@@ -1682,6 +1684,8 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       // strand a player outside the game. First four joiners become companies.
       if(action.payload?.bendMode!==undefined&&!isBendMode(action.payload.bendMode))return state;
       const fresh = initialState(ctx.room.players);
+      if(action.payload?.segmentLengthMode!==undefined&&!['exact','flexible'].includes(action.payload.segmentLengthMode))return state;
+      fresh.segmentLengthMode=action.payload?.segmentLengthMode??'exact';
       fresh.bendMode=action.payload?.bendMode??'straight';
       for(const p of Object.values(fresh.players))p.bendTokens=fresh.bendMode==='tokens'?3:0;
       fresh.startedAt = ctx.now();

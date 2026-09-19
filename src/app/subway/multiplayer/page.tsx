@@ -1,10 +1,11 @@
 "use client";
 
+import {SegmentLengthSelect,type SegmentLengthMode} from "@/games/subway/SegmentLengthSelect";
 import {BendModeSelect} from "@/games/subway/BendModeSelect";
 import {type BendMode} from "@/games/subway/bends";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { PhoneStatus, PlayerPads } from "@/games/subway/PlayerStatus";
+import { PhoneStatus, PlayerPads, YourTurnBanner } from "@/games/subway/PlayerStatus";
 import { ReportSaveControls } from "@/games/subway/ReportSaveControls";
 import { generateAiPlaytestReport } from "@/games/subway/report";
 import { LabControls } from "@/games/subway/LabControls";
@@ -33,6 +34,7 @@ const input = "w-full rounded-xl border border-slate-500 bg-slate-900 p-3 text-w
 
 export default function SubwayMultiplayerPage() {
   const [bendMode,setBendMode]=useState<BendMode>('straight');
+  const [segmentLengthMode,setSegmentLengthMode]=useState<SegmentLengthMode>('exact');
   const [identity,setIdentity] = useState<Identity|null>(null);
   const [auto,setAuto]=useState(true);
   const botRetryAfter=useRef(0);
@@ -241,8 +243,9 @@ export default function SubwayMultiplayerPage() {
     <h1 className="text-2xl font-bold">Companies at the table</h1>
     <div className="rounded-xl bg-slate-800 p-4"><p className="text-sm">Join on each phone at</p><p className="break-all font-bold">{typeof window!=="undefined"?window.location.host:""}/subway/multiplayer</p><p className="text-5xl font-black tracking-widest">{view.room.roomCode}</p>{view.lab&&<p className="mt-3">Choose <strong>My testing phone · Playtest Lab</strong> on your phone to control your managed companies. First connection needs only this room code. Friends with reserved seats choose My phone.</p>}</div>
     {view.room.players.map(p=><p key={p.id} className="rounded-xl bg-white/10 p-4">{p.name} · ready</p>)}
+    {tablet&&<SegmentLengthSelect value={segmentLengthMode} onChange={setSegmentLengthMode} disabled={controlsDisabled}/>}
     {tablet&&<BendModeSelect value={bendMode} onChange={setBendMode} disabled={controlsDisabled}/>}
-    {tablet?<button className={button} disabled={controlsDisabled||view.room.players.length<2} onClick={()=>run("START_GAME",{bendMode})}>Start with {view.room.players.length} companies</button>:<p>Keep this phone with you. The iPad starts the game.</p>}
+    {tablet?<button className={button} disabled={controlsDisabled||view.room.players.length<2} onClick={()=>run("START_GAME",{bendMode,segmentLengthMode})}>Start with {view.room.players.length} companies</button>:<p>Keep this phone with you. The iPad starts the game.</p>}
   </main>;
 
   const flash=summary&&summary.turn===view.turn&&!needsHandoff?<TurnFlash name={game.players[summary.playerId]?.name??"You"} color={game.players[summary.playerId]?.color??"#0f766e"} summary={summary.summary} onClose={()=>setSummary(null)}/>:null;
@@ -261,7 +264,7 @@ export default function SubwayMultiplayerPage() {
   if(!me) return <main className="p-4">{header}{notices}<p>Waiting for your company.</p></main>;
   const myTurn=view.actorId===me.id;
   const guidance=phoneGuidance(game,me.id);
-  return <main className="mx-auto min-h-dvh max-w-lg space-y-4 px-3 pb-28 pt-3"><div className="sticky top-0 z-20 bg-[#10252e] pb-2"><PhoneStatus game={game} playerId={me.id}/></div>{notices}
+  return <main className="mx-auto min-h-dvh max-w-lg space-y-4 px-3 pb-28 pt-3"><div className="sticky top-0 z-20 bg-[#10252e] pb-2"><PhoneStatus game={game} playerId={me.id}/><YourTurnBanner active={myTurn} storageKey={`subway-turn-banner:${view.room.roomCode}:${me.id}`} turnKey={`${view.turn}:${game.phase==="PROCUREMENT"?game.procurement.offerIndex:game.phase==="ENGINEERING"?game.market.picks:game.phase==="STARTER_PLACEMENT"?Object.values(game.players).reduce((n,p)=>n+p.lines.filter(l=>l.route.length>0).length,0):0}`}/></div>{notices}
     <style>{`@media (orientation: landscape) { .phone-portrait-prompt { display: flex !important; } }`}</style>
     <div className="phone-portrait-prompt fixed inset-0 z-50 hidden flex-col items-center justify-center gap-3 bg-[#10252e] p-6 text-center"><span className="text-4xl" aria-hidden>↻</span><p className="text-xl font-bold">Turn your phone upright</p><p>Your cards are arranged for portrait play.</p></div>
     <section className="rounded-xl border border-teal-500 bg-[#193640] p-3 shadow-lg" aria-live="polite"><p className="text-sm">{guidance.text}</p>{tab!==guidance.tab&&<button className={`${button} mt-2 w-full`} onClick={()=>{setTab(guidance.tab);window.scrollTo({top:0});}}>{guidance.label}</button>}</section>
@@ -271,7 +274,7 @@ export default function SubwayMultiplayerPage() {
     </>}
     {tab==="lines"&&<>
       {game.phase==="PROCUREMENT"&&<section className="space-y-4"><p>Choose three lines, one per turn.</p>{game.procurement.row.map(id=>{const c=contractById(id)!;return <ContractCard key={id} contract={c}><button className={`${button} mt-3 w-full`} disabled={controlsDisabled||!myTurn||me.money<c.cost} onClick={()=>run("PROCURE",{choice:"buy",contractId:id})}>Buy {c.name} · ${c.cost}M</button></ContractCard>;})}</section>}
-      {me.lines.map(line=>{const c=contractOf(line)!;const plan=view.plans[line.contractId];return <ContractCard key={line.contractId} contract={c} progress={{built:segmentsBuilt(line),total:c.recipe.length}}>
+      {me.lines.map(line=>{const c=contractOf(line)!;const plan=view.plans[line.contractId];return <ContractCard key={line.contractId} contract={c} progress={game.phase==="PROCUREMENT"||game.phase==="ENGINEERING"?undefined:{built:segmentsBuilt(line),total:c.recipe.length}}>
         <p className="mt-3 text-sm">{lineComplete(line)?"Complete · $3M reward paid":"Complete this line to receive $3M."}</p>
         {plan&&<GhostDiagram nodes={plan.nodes} color={c.color} built={line.route.length}/>}
       </ContractCard>;})}
