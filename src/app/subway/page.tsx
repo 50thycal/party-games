@@ -2,6 +2,7 @@
 
 import { crewActivationText } from "@/games/subway/terminology";
 
+import {SegmentLengthSelect,type SegmentLengthMode} from "@/games/subway/SegmentLengthSelect";
 import {BendModeSelect} from "@/games/subway/BendModeSelect";
 import {type BendMode} from "@/games/subway/bends";
 import Link from "next/link";
@@ -17,6 +18,7 @@ export default function SubwayHotseat() {
   const [session, setSession] = useState<Session | null>(null);
   const latest = useRef<Session | null>(null);
   const [bendMode,setBendMode]=useState<BendMode>('straight');
+  const [segmentLengthMode,setSegmentLengthMode]=useState<SegmentLengthMode>('exact');
   const [count, setCount] = useState(2);
   const [names, setNames] = useState(["", "", "", ""]);
   const [ready, setReady] = useState(false);
@@ -50,7 +52,7 @@ export default function SubwayHotseat() {
     const localId = typeof crypto.randomUUID === "function" ? crypto.randomUUID()
       : Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0")).join("");
     const room: Room = { roomCode: `LOCAL-${localId}`, gameId: "subway", hostId: players[0].id, players, createdAt: Date.now(), mode: "hotseat" };
-    const game = subwayGame.reducer(subwayGame.initialState(players), {type:"START_GAME", playerId:room.hostId,payload:{bendMode}}, {room, playerId:room.hostId, now:Date.now, random:Math.random});
+    const game = subwayGame.reducer(subwayGame.initialState(players), {type:"START_GAME", playerId:room.hostId,payload:{bendMode,segmentLengthMode}}, {room, playerId:room.hostId, now:Date.now, random:Math.random});
     commit({room, game, seat:room.hostId});
     setNewGame(false);
   };
@@ -76,6 +78,7 @@ export default function SubwayHotseat() {
         <div className="mt-3 grid grid-cols-3 gap-3">{[2,3,4].map((n) => <button key={n} aria-pressed={count===n} onClick={()=>setCount(n)} className={`rounded-xl border-2 p-4 text-lg font-bold ${count===n ? "border-teal-300 bg-teal-800" : "border-white/20 bg-white/5"}`}>{n} players</button>)}</div>
         <div className="mt-5 grid gap-3 sm:grid-cols-2">{names.slice(0,count).map((name,i)=><label key={i} className="text-sm text-slate-300">Company {i+1}<input maxLength={24} value={name} placeholder={`Company ${i+1}`} onChange={(e)=>setNames(names.map((v,j)=>j===i?e.target.value:v))} className="mt-1 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-3 text-white" /></label>)}</div>
         <p className="mt-5 text-sm leading-relaxed text-slate-300">Draft lines and goals, then choose construction crews each round. Build from the city edge to fulfill your goals. Neighborhood visits award no automatic VP. Finished lines and goals earn points; unfinished work and debt lose points.</p>
+        <SegmentLengthSelect value={segmentLengthMode} onChange={setSegmentLengthMode}/>
         <BendModeSelect value={bendMode} onChange={setBendMode}/>
         {session && <p className="mt-4 rounded-lg bg-amber-200 p-3 text-sm font-semibold text-amber-950">Starting replaces the game saved on this device.</p>}
         <button onClick={start} className="mt-6 w-full rounded-xl bg-[#ebac51] py-4 font-black text-[#10232d] hover:bg-amber-300">{session ? "Replace game & open the city" : "Open the city"} →</button>

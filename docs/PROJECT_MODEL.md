@@ -915,3 +915,14 @@ The playtest report renders the section and archives the fingerprints, raw
 features and rows as JSON, versioned by classifier, rules fingerprint and state
 version. `deepOptionality` trades the legal-continuation scan for speed in batch
 runs and the affected classifier lowers its own confidence when it is skipped.
+
+### YMIF optional lengths and compact status (DEC-059, state v28)
+
+Local and companion setup select exact (default) or flexible segment length.
+`validatePath` remains authoritative for previews and reducer placement: flexible
+segments may finish at 1 through printed length with existing tolerance; bends and
+unfinished work share the same budget. Bot candidate offsets distinguish modes.
+Reports record the mode. Existing games require restart via the version guard.
+Phone goals/destinations sit beside its route list; a transient banner marks turn
+entry. Shared iPad panels carry one current-company route-progress strip and
+per-company award strips. Awards derive from existing public standings.

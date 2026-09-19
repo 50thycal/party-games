@@ -47,6 +47,7 @@ export type DrawnLine = {
   contract: LineContract;
   ownerColor: string;
   active: boolean;
+  own?: boolean;
   growing: boolean;
   ghost?: boolean;
   /** Solid but uncommitted next placement; never occupies a real station dock. */
@@ -185,7 +186,7 @@ export function Board({
           <g data-neighborhood-label={area.id} data-label-box={`${label.x},${label.y},${label.width},${label.height}`}>
             <rect x={labelX-label.width*STEP/2+3} y={PAD+label.lineYs[0]*STEP-label.font*.65} width={label.width*STEP-6} height={(label.sizeY-label.lineYs[0])*STEP+label.font*.8} rx="8" fill="#fffdf5" fillOpacity=".94" />
             {label.lines.map((word,i)=><text key={i} x={labelX} y={PAD+label.lineYs[i]*STEP} textAnchor="middle" dominantBaseline="middle" fontSize={label.font} fontWeight="900" fill={color}>{word}</text>)}
-            <text x={labelX} y={PAD+label.sizeY*STEP} textAnchor="middle" fontSize={label.font*.55} fontWeight="800" fill={color}>{area.kind === 'minor' ? 'S · SMALL' : area.kind === 'major' ? 'L · LARGE' : 'M · MEDIUM'}</text>
+            <text x={labelX} y={PAD+label.sizeY*STEP} textAnchor="middle" fontSize={Math.min(label.font*.8,(label.width*STEP-8)/(10*.67))} fontWeight="800" fill={color}>{area.kind === 'minor' ? 'S · SMALL' : area.kind === 'major' ? 'L · LARGE' : 'M · MEDIUM'}</text>
           </g>
         </g>;
       })}
@@ -376,7 +377,7 @@ export function Board({
           if (d.anchored && i === 0) return null; // a real peg already sits there
           const p = nodePx(n);
           const isEndpoint = i === d.route.length - 1;
-          const r = 11;
+          const r = d.own && !d.ghost ? 16 : 11;
           return (
             <g key={`n-${d.key}-${i}`} data-peg-kind={d.ghost ? "plan" : d.pending ? "pending" : "built"} opacity={d.ghost ? (d.stale ? 0.35 : 0.55) : 1}>
               {isEndpoint && d.growing && !d.ghost && (
@@ -398,7 +399,7 @@ export function Board({
                 cx={p.x}
                 cy={p.y}
                 r={r}
-                fill={d.ghost ? "#fdf6e3" : d.contract.color}
+                fill={d.ghost || d.own ? "#fdf6e3" : d.contract.color}
                 stroke={d.ghost ? d.contract.color : d.ownerColor}
                 strokeWidth={d.ghost ? 3 : 3.5}
                 strokeDasharray={d.ghost ? "4 3" : undefined}
@@ -406,11 +407,14 @@ export function Board({
               {(
                 <text
                   x={p.x}
-                  y={p.y + 4}
+                  y={p.y + (d.own&&!d.ghost ? 6 : 4)}
                   textAnchor="middle"
-                  fontSize={d.ghost ? 11 : 8}
+                  fontSize={d.ghost ? 11 : d.own ? 17 : 8}
                   fontWeight="800"
-                  fill={d.ghost ? d.contract.color : d.contract.code === "WH" ? "#17232d" : "#ffffff"}
+                  stroke={d.own&&!d.ghost ? (d.contract.code === "WH" ? "#17232d" : "#fffaf0") : undefined}
+                  strokeWidth={d.own&&!d.ghost ? .7 : undefined}
+                  paintOrder="stroke"
+                  fill={d.ghost || d.own ? d.contract.color : d.contract.code === "WH" ? "#17232d" : "#ffffff"}
                 >
                   {d.ghost ? (d.numberOffset ?? 0) + i : d.contract.code}
                 </text>

@@ -31,3 +31,40 @@ act(()=>view.unmount());
 console.log('Player panels: payment/reversal text, repeated polls, remount and room isolation passed.');
 
 globalThis.setTimeout=originalSetTimeout;globalThis.clearTimeout=originalClearTimeout;
+
+// YMIF turn banners do not replay on polling/builds, and reappear next turn.
+const {YourTurnBanner,PhoneStatus}=require('/tmp/subway-test/src/games/subway/PlayerStatus.js');
+globalThis.setTimeout=(fn,ms,...args)=>{if(ms!==2800)return originalSetTimeout(fn,ms,...args);const id=++timerId;timers.set(id,fn);return id;};
+globalThis.clearTimeout=id=>{if(timers.has(id))timers.delete(id);else originalClearTimeout(id);};
+timers.clear();
+act(()=>{view=create(React.createElement(YourTurnBanner,{active:true,turnKey:'room:construction:1'}));});
+assert.equal(view.root.findByProps({role:'status'}).children.join(''),'Your turn');
+act(()=>{timers.values().next().value();});
+assert.equal(view.toJSON(),null);
+act(()=>view.update(React.createElement(YourTurnBanner,{active:true,turnKey:'room:construction:1'})));
+assert.equal(view.toJSON(),null,'poll/build must not replay banner');
+act(()=>view.update(React.createElement(YourTurnBanner,{active:false,turnKey:'room:construction:1'})));
+act(()=>view.update(React.createElement(YourTurnBanner,{active:true,turnKey:'room:construction:1'})));
+assert.ok(view.toJSON(),'next draft/placement turn may share round key');
+act(()=>view.unmount());
+globalThis.setTimeout=originalSetTimeout;globalThis.clearTimeout=originalClearTimeout;
+const progress=structuredClone(game);progress.phase='CONSTRUCTION';progress.resolveQueue=[a,b];
+progress.players[a].lines=[{contractId:'short',paid:5,route:[{x:0,y:0},{x:2,y:0}]}];
+progress.players[b].lines=[{contractId:'branch',paid:6,route:[{x:10,y:0}]}];
+act(()=>{view=create(React.createElement(PlayerPads,{game:progress,roomKey:'ymif'}));});
+assert.equal(view.root.findAllByProps({'data-route-progress-owner':a}).length,1);
+assert.equal(view.root.findAllByProps({'data-route-progress-owner':b}).length,0);
+act(()=>view.update(React.createElement(PlayerPads,{game:{...progress,resolveQueue:[b,a]},roomKey:'ymif'})));
+assert.equal(view.root.findAllByProps({'data-route-progress-owner':a}).length,0);
+assert.equal(view.root.findAllByProps({'data-route-progress-owner':b}).length,1);
+act(()=>view.unmount());
+console.log('YMIF banner timing/polling and current-company progress switching passed.');
+
+const stored=new Map();globalThis.sessionStorage={getItem:key=>stored.get(key)??null,setItem:(key,value)=>stored.set(key,value)};
+act(()=>{view=create(React.createElement(YourTurnBanner,{active:true,turnKey:'turn-one',storageKey:'test-room-player'}));});
+assert.ok(view.toJSON());act(()=>view.unmount());
+act(()=>{view=create(React.createElement(YourTurnBanner,{active:true,turnKey:'turn-one',storageKey:'test-room-player'}));});
+assert.equal(view.toJSON(),null,'refresh/remount must not repeat same turn');
+act(()=>view.update(React.createElement(YourTurnBanner,{active:true,turnKey:'turn-two',storageKey:'test-room-player'})));
+assert.ok(view.toJSON());act(()=>view.unmount());delete globalThis.sessionStorage;
+console.log('YMIF banner refresh deduplication passed.');

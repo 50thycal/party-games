@@ -3,11 +3,50 @@
 Build OS: v0.12
 Phase: REVIEW
 Status: Active
-Updated: 2026-09-17
-Implementation State: Engineering diagrams and compact faces complete on merge of PR #190; PR #189 merged.
-Related PRs: [#188](https://github.com/50thycal/party-games/pull/188) (terminology audit); [#187](https://github.com/50thycal/party-games/pull/187) (optional bend modes); [#186](https://github.com/50thycal/party-games/pull/186) (draft rules/highlights); [#185](https://github.com/50thycal/party-games/pull/185) (public status/payments/draft); [#184](https://github.com/50thycal/party-games/pull/184) (JNCG cards/surveys/labels); [#177](https://github.com/50thycal/party-games/pull/177) (PRWK feedback); [#176](https://github.com/50thycal/party-games/pull/176) (phone joining; merged); [#175](https://github.com/50thycal/party-games/pull/175) (Playtest Lab); [#174](https://github.com/50thycal/party-games/pull/174) (transfer/objective continuation); [#173](https://github.com/50thycal/party-games/pull/173) (larger neighborhoods/reversed VP; merged); [#172](https://github.com/50thycal/party-games/pull/172) (guided turns, neighborhoods and tiers; merged); [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; merged); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
+Updated: 2026-09-19
+Implementation State: YMIF approved bundle implemented; build, lint and full Subway suite pass; PR #194 open; independent code approval recorded; new-code browser acceptance blocked by Vercel login.
+Related PRs: [#194](https://github.com/50thycal/party-games/pull/194) (YMIF bundle); [#188](https://github.com/50thycal/party-games/pull/188) (terminology audit); [#187](https://github.com/50thycal/party-games/pull/187) (optional bend modes); [#186](https://github.com/50thycal/party-games/pull/186) (draft rules/highlights); [#185](https://github.com/50thycal/party-games/pull/185) (public status/payments/draft); [#184](https://github.com/50thycal/party-games/pull/184) (JNCG cards/surveys/labels); [#177](https://github.com/50thycal/party-games/pull/177) (PRWK feedback); [#176](https://github.com/50thycal/party-games/pull/176) (phone joining; merged); [#175](https://github.com/50thycal/party-games/pull/175) (Playtest Lab); [#174](https://github.com/50thycal/party-games/pull/174) (transfer/objective continuation); [#173](https://github.com/50thycal/party-games/pull/173) (larger neighborhoods/reversed VP; merged); [#172](https://github.com/50thycal/party-games/pull/172) (guided turns, neighborhoods and tiers; merged); [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; merged); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
-## Current continuation — Engineering goal diagrams
+## Current continuation — YMIF four-human playtest bundle
+
+Owner authorized implementation in chat on 2026-09-19 after approving each item.
+Significant continuation of WS-005; no new workstream. Framework v0.12 checked
+against canonical VERSION.md on 2026-09-19; compatible, no migration.
+
+Goal: remove arithmetic and visibility friction in the four-player experience and
+add an optional setup rule allowing shorter segments.
+Non-goals: debt tiers, station/crossing fees, card supply, post-completion actions,
+intro slides, destination reward text and lookahead hints remain undecided.
+
+### Acceptance Checks
+- Line cards show the sum of printed segment lengths; draft cards have no active recipe chip.
+- Exact length remains default; flexible mode allows 1 through printed length using existing geometry tolerance. Every bend/work leg shares the total budget. Reducer, preview, bot candidates and reports agree.
+- Engineering station circles have black outlines; starter stations are included, with explicit starter marker on recipe strips.
+- Phone shows a brief Your turn banner once per turn; no sound or vibration.
+- Phone goal icons/destination chips sit beside routes without increasing compact header height.
+- iPad shows only current actor's station-progress routes in one horizontal strip above player panels.
+- Live Longest Network/Largest Transfer Station badges appear by phone routes and in thin card-width iPad strips, including ties and both awards.
+- Board abbreviations for the current player's lines are larger and line-colored before/during construction; opponents retain size. Neighborhood size labels are enlarged within footprints.
+- Build, lint, Subway suite, meaningful browser verification; report any browser limitations.
+
+### Observations and interpretation
+Original YMIF bytes archived under `playtests/subway/87c0970fd9a912a3ac755a4af6b2e18c88d44a16f284e5267f87be2d79fbc31f/`.
+The MD report identifies four humans and state v27; it is a legacy reference, not a verified replay/calibration artifact.
+Owner identifies KC as Wilkatdiwin. KC received $33M, paid $5M and finished second.
+Do not call the strategy overpowered from one game. Preserve current gameplay.
+
+### Parked
+- PARK — Simulate extra lines at lower player counts before choosing any rule; no line-count change in this bundle.
+- PARK — Monitor KC-style early three-line income: receipts/payments, station versus crossing income, finishing place; reassess after future economic changes.
+- PARK — Remaining YMIF notes require further one-by-one design discussion; no implementation authorized yet.
+
+Validation: npm run build, npm run lint, full ./scripts/test-subway.sh passed. Added flexible total-path and invalid-mode checks; banner polling/remount and active-company strip tests passed. Production /subway four-player setup opens; local browser navigation blocked (ERR_BLOCKED_BY_CLIENT). New-code preview verification pending.
+Independent reviewer /root/ymif_review closed both initial Should-fix findings (pending peg lettering and same-turn banner remount). Published code head approved independently.
+Review State: Approved with follow-ups (code only), by /root/ymif_review for published head ce0c0b2da3b22107f9276e32e74f0e4577135eac; verdict posted on PR #194. Implementation actor: /root. No open Blocking or Should-fix code findings. Reviewer verified published executable/test content matches the locally validated implementation. Browser acceptance remains outstanding. Finalization: pushed (documentation only); final-head verification requested. Related PR: #194.
+Next Step: Owner review of PR #194; phone/iPad preview acceptance requires authorized Vercel access. No merge performed.
+Resolved blocker: automatic approval review initially rejected the push. Owner explicitly approved this push and future branch/PR publishing in chat on 2026-09-19; merge approval remains with owner. Local implementation commit: 78728aecbc33b188ddbb94f3fbadea8402776dd7. Live phone/iPad layout validation of new code remains unperformed; production browser check covered the existing version only.
+
+## Previous continuation — Engineering goal diagrams
 
 Goal/non-goals/acceptance: [approved spec](../build-specs/WS-005-engineering-art.md).
 Owner approved all 21 diagrams with network multi-color, single-line one-color,

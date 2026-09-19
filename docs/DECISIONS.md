@@ -2023,3 +2023,14 @@ classifier, rules fingerprint and state version, so a shift in strategy frequenc
 attributed to rule changes or to classifier changes rather than guessed at. Scores from
 classifier 1.0.0 are not comparable to a later version's without re-running. Strategy-specific
 bot personalities remain a separate future experiment, deliberately outside the research dataset.
+
+### DEC-059 — Optional flexible segment lengths and compact YMIF status
+
+**Date:** 2026-09-19
+**Status:** Accepted by owner in chat.
+
+**Context:** Four humans needed line totals and clearer progress without larger phone panels.
+**Decision:** Exact segment length stays the default; setup can choose flexible 1-to-printed-length segments, retaining geometric tolerance and one shared budget across bends and delayed work. State v28 protects existing games. Totals always sum the printed recipe. Phone cards sit beside routes; iPad progress shows only the current company in one row. Leader badges use existing network and transfer standings. No economic changes.
+**Rationale:** Optional shortening supports intentional placement while preserving the original mode for comparisons. Compact public progress makes turns easier to follow.
+**Alternatives considered:** Making flexible length mandatory or enlarging phone panels; owner chose neither.
+**Consequences:** Rule mode is recorded in reports and replay setup; old rooms require restart. Lower-player-count line changes await simulations.

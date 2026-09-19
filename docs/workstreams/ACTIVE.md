@@ -3,13 +3,13 @@
 <!-- The project's active-work control board. What are we working on and where is each
      effort? One line per workstream; anything needing a paragraph belongs in its file. -->
 
-**Updated:** 2026-09-17 · **Build OS v0.12**
+**Updated:** 2026-09-19 · **Build OS v0.12**
 
 | ID | Workstream | Phase | Status | Current Next Step | Related PR |
 |---|---|---|---|---|---|
 | [WS-007](WS-007-subway-strategy-telemetry.md) | Subway strategy telemetry | REVIEW | Active | Owner review of classifier 1.0.0 readings against real playtests; calibrate thresholds | Strategy telemetry PR open |
 | [WS-006](WS-006-subway-dgle-playtest.md) | Subway DGLE playtest follow-up | REVIEW | Active | Owner playtest of the ending-cash spectrum and restored borrowing; rule on D2–D4 | [#191](https://github.com/50thycal/party-games/pull/191) merged; spectrum/lookahead PR open |
-| [WS-005](WS-005-subway-finished-edition.md) | Subway 2–4 player finished edition | REVIEW | Active | None for Engineering-art mission; device acceptance parked | [#190](https://github.com/50thycal/party-games/pull/190) (complete on merge); #189 merged |
+| [WS-005](WS-005-subway-finished-edition.md) | Subway 2–4 player finished edition | REVIEW | Active | Owner review of #194; browser acceptance requires Vercel access | [#194](https://github.com/50thycal/party-games/pull/194) open; #190/#189 merged |
 | [WS-001](WS-001-subway-v0-3-redesign.md) | Subway v0.3 gameplay redesign | REVIEW | Active | Independent design review of merged v0.3 against the reconstructed Build Card; owner to rule on D1–D4 | [#137](https://github.com/50thycal/party-games/pull/137), [#139](https://github.com/50thycal/party-games/pull/139) (both merged) |
 | [WS-002](WS-002-subway-route-engineering.md) | Subway route engineering and playtest UX | REVIEW | Active | Record the merged closeout; playtest follow-ups moved to WS-003 | [#141](https://github.com/50thycal/party-games/pull/141), [#142](https://github.com/50thycal/party-games/pull/142) (merged) |
 | [WS-003](WS-003-subway-construction-access.md) | Subway construction access and route lookahead | REVIEW | Active | Owner's balance playtest of the merged toll/debt/recipe changes; browser debt case and hotseat still unexercised | [#143](https://github.com/50thycal/party-games/pull/143) (merged design-only), [#144](https://github.com/50thycal/party-games/pull/144) (implementation, merged), [#145](https://github.com/50thycal/party-games/pull/145) (Build OS v0.5) |
@@ -42,3 +42,9 @@ run under Build OS; every workstream after it starts at `IDEA`/`EXPLORE` in the 
 Efforts completed before that date — the engine, and the six games other than Subway — were
 not retrofitted as workstreams: they are finished, and `PROJECT_MODEL.md` plus `DECISIONS.md`
 already carry what is worth keeping about them.
+
+## YMIF parked observations
+
+- PARK — Simulate extra lines at lower player counts first; no rules changed.
+- PARK — Monitor KC early three-line income, split station/crossing receipts and final placement.
+- PARK — Remaining YMIF notes await one-by-one design decisions.

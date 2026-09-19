@@ -47,6 +47,7 @@ export function RecipeStrip({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-1">
+      <span title="Starter station" aria-label="Starter station" className="inline-block h-3 w-3 rounded-full border-2 border-black" style={{background:contract.color}}/>
       {contract.recipe.map((length, i) => {
         const done = i < built;
         const current = highlightCurrent && i === built;
@@ -134,7 +135,7 @@ export function ContractCard({
           highlightCurrent={!!progress}
         />
         <p className="mt-0.5 text-[10px] uppercase tracking-wide text-stone-400">
-          ordered segment lengths (peg spaces)
+          Total length: {contract.recipe.reduce((sum, length) => sum + length, 0)} · peg spaces
         </p>
       </div>
       <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] text-stone-600">
