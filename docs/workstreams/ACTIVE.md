@@ -9,7 +9,7 @@
 |---|---|---|---|---|---|
 | [WS-007](WS-007-subway-strategy-telemetry.md) | Subway strategy telemetry | REVIEW | Active | Owner review of classifier 1.0.0 readings against real playtests; calibrate thresholds | Strategy telemetry PR open |
 | [WS-006](WS-006-subway-dgle-playtest.md) | Subway DGLE playtest follow-up | REVIEW | Active | Owner playtest of the ending-cash spectrum and restored borrowing; rule on D2–D4 | [#191](https://github.com/50thycal/party-games/pull/191) merged; spectrum/lookahead PR open |
-| [WS-005](WS-005-subway-finished-edition.md) | Subway 2–4 player finished edition | REVIEW | Active | Review and finalize paid extensions in #197; intro separate | [#197](https://github.com/50thycal/party-games/pull/197) draft; #194/#195/#196 merged |
+| [WS-005](WS-005-subway-finished-edition.md) | Subway 2–4 player finished edition | REVIEW | Active | None for paid-extension mission; intro separate | [#197](https://github.com/50thycal/party-games/pull/197) paid extensions; #194/#195/#196 merged |
 | [WS-001](WS-001-subway-v0-3-redesign.md) | Subway v0.3 gameplay redesign | REVIEW | Active | Independent design review of merged v0.3 against the reconstructed Build Card; owner to rule on D1–D4 | [#137](https://github.com/50thycal/party-games/pull/137), [#139](https://github.com/50thycal/party-games/pull/139) (both merged) |
 | [WS-002](WS-002-subway-route-engineering.md) | Subway route engineering and playtest UX | REVIEW | Active | Record the merged closeout; playtest follow-ups moved to WS-003 | [#141](https://github.com/50thycal/party-games/pull/141), [#142](https://github.com/50thycal/party-games/pull/142) (merged) |
 | [WS-003](WS-003-subway-construction-access.md) | Subway construction access and route lookahead | REVIEW | Active | Owner's balance playtest of the merged toll/debt/recipe changes; browser debt case and hotseat still unexercised | [#143](https://github.com/50thycal/party-games/pull/143) (merged design-only), [#144](https://github.com/50thycal/party-games/pull/144) (implementation, merged), [#145](https://github.com/50thycal/party-games/pull/145) (Build OS v0.5) |
@@ -51,5 +51,6 @@ already carry what is worth keeping about them.
 
 - PARK — Polished in-game slide-style introduction reserved for another session; handoff in docs/handoffs/subway-polished-intro.md.
 
-- Paid extensions after all owned lines finish are admitted to the current bundle; no new endgame trigger.
+- Paid extensions delivered by #197; no new endgame trigger.
+- PARK — Interactive v30 extension acceptance requires preview sign-in; automated rules, companion, replay and UI checks pass.
 - PARK — Physical iPhone/iPad Safari and multitouch acceptance remains hardware-only; public-browser verification is recorded in docs/testing/YMIF-playtest-verification.md.
