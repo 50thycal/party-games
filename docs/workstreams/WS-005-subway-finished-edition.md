@@ -33,9 +33,16 @@ Verification: [extension report](../testing/subway-extensions-verification.md).
 Limitation: local browser preview rejected with ERR_BLOCKED_BY_CLIENT; deployed
 branch preview redirects to Vercel login. No interactive v30 or physical-device
 acceptance claim. Automated rules/companion/replay/UI checks pass.
-Next Step: Validate and independently review #197 after integrating merged #198.
-Conflict resolution preserves both feature sets and historical verdicts; extension
-decision is DEC-062 because main's intro decision already occupies DEC-061.
+Integration Review State: PR #197 — Approved with follow-ups by /root/bundle_review
+for 1d0bedfe7ca18273d6f8697a2ae0df3c58e71c79; implementation actor /root.
+Verdict: https://github.com/50thycal/party-games/pull/197#issuecomment-5747222379.
+Main's intro #198 is preserved; its teaching now includes paid extensions and the
+extension-aware end condition. Extension decision is DEC-062; intro retains DEC-061.
+Build, lint and complete combined Subway suite pass after integration. No Blocking
+or Should-fix findings remain. Finalization verification is recorded separately
+on PR #197. Browser acceptance limitation remains unchanged.
+Next Step: None for the paid-extension and intro integration mission. Configurable
+line count and human balance checks remain parked.
 
 ## Previous continuation — polished introduction
 
