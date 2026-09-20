@@ -1,9 +1,9 @@
 import { cashScore, contactToll, SUBWAY_CONFIG, type RouteContact, type SubwayPlayer } from "./config";
 
 /** Quote one real segment from the same priced contacts used by BUILD. */
-export function quoteBuildCost(player: Pick<SubwayPlayer, "money">, contacts: RouteContact[]) {
+export function quoteBuildCost(player: Pick<SubwayPlayer, "money" | "extending">, contacts: RouteContact[]) {
   const totalToll = contactToll(contacts);
-  const playerCost = totalToll;
+  const playerCost = totalToll + (player.extending ? 1 : 0);
   const cashAfter = player.money - playerCost;
   const payments = new Map<string, number>();
   for (const contact of contacts) {

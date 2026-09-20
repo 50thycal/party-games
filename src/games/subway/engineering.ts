@@ -1,4 +1,4 @@
-import { lineComplete, STATIONS, stationAt, type SubwayPlayer, type SubwayState, type RouteNode, type PlayerLine } from './config';
+import { lineComplete, recipeEndpoint, contractOf, STATIONS, stationAt, type SubwayPlayer, type SubwayState, type RouteNode, type PlayerLine } from './config';
 import { borderSides, companyNetwork, networkNodeKey, nodesTransfer, distinctSides } from './network';
 
 export type EngineeringCategory = 'Line' | 'Station' | 'Neighborhood';
@@ -31,7 +31,7 @@ export const ENGINEERING_RULES:Record<string,string> = {
   'Single Line':'One line satisfies the whole card. Its connections to other lines are allowed, but their stations cannot help.',
   'Connected Network':'Your physically connected lines may contribute. Opponent tracks never connect your network.',
   'Company-wide':'Any of your lines may contribute, even if disconnected.',
-  'Line Ends Only':'A starter station or the final station of a completed line. An unfinished growing end does not count.',
+  'Line Ends Only':'A starter station or the original recipe’s final station. Extensions do not move that qualifying endpoint; an unfinished end does not count.',
   'Complete Line':'Every segment on the qualifying contract must be built.',
   'Consecutive Stations':'Successive stations on one line, joined by one segment.',
   'Distinct Transfer Stations':'Separate whole local transfer stations. One transfer station cannot count twice; merged transfer stations count once.',
@@ -40,7 +40,7 @@ export const ENGINEERING_RULES:Record<string,string> = {
   'One Transfer Station':'One local transfer station of horizontally/vertically adjacent different-line stations.',
   'One Neighborhood':'The individual stations forming the qualifying transfer are inside the same neighborhood.',
 };
-export const qualifyingEndpoints = (lines:PlayerLine[]):RouteNode[] => lines.flatMap(l => l.route.length ? [l.route[0],...(lineComplete(l)?[l.route.at(-1)!]:[])] : []);
+export const qualifyingEndpoints = (lines:PlayerLine[]):RouteNode[] => lines.flatMap(l => l.route.length ? [l.route[0],...(lineComplete(l)?[recipeEndpoint(l)!]:[])] : []);
 type Member = {node:RouteNode;owner:string;line:number;index:number};
 /** Whole local clusters, not line segments or pairwise transfer counts. */
 export function stationClusters(players:SubwayPlayer[]):Member[][] {
@@ -62,7 +62,7 @@ export function engineeringMet(id:string,me:SubwayPlayer,opponents:SubwayPlayer[
   const served=(nodes:RouteNode[])=>new Set(nodes.map(areaId).filter((id):id is string=>!!id));
   const sizeCount=(nodes:RouteNode[],kind:string)=>Array.from(served(nodes)).filter(id=>areas.find(a=>a.id===id)?.kind===kind).length;
   const complete=me.lines.filter(lineComplete);
-  const endPairs=(fn:(a:RouteNode,b:RouteNode)=>boolean)=>complete.some(l=>fn(l.route[0],l.route.at(-1)!));
+  const endPairs=(fn:(a:RouteNode,b:RouteNode)=>boolean)=>complete.some(l=>fn(l.route[0],recipeEndpoint(l)!));
   const graph=()=>companyNetwork(me);
   const components=()=>{
     const g=graph(),out=new Map<number,RouteNode[]>();
@@ -79,7 +79,7 @@ export function engineeringMet(id:string,me:SubwayPlayer,opponents:SubwayPlayer[
     const groups=own();
     return me.lines.some((l,li)=>{
       if(!consecutive&&!lineComplete(l))return false;
-      const pairs=consecutive?l.route.slice(1).map((_,i)=>[i,i+1]):[[0,l.route.length-1]];
+      const pairs=consecutive?l.route.slice(1).map((_,i)=>[i,i+1]):[[0,contractOf(l)!.recipe.length]];
       return pairs.some(([a,b])=>{const x=stationIndex(groups,li,a),y=stationIndex(groups,li,b);return x>=0&&y>=0&&x!==y;});
     });
   };

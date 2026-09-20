@@ -2,7 +2,7 @@
 
 import { crewActivationText } from "./terminology";
 import { useState } from "react";
-import { activationCost, buildableLines, canAffordCrews, cashScore, contractOf, SUBWAY_CONFIG, type CardDrawCounts, type SubwayState } from "./config";
+import { extensionEligible, activationCost, buildableLines, canAffordCrews, cashScore, contractOf, SUBWAY_CONFIG, type CardDrawCounts, type SubwayState } from "./config";
 import { Printed, TableButton } from "./table";
 import { constructionHistory } from "./constructionHistory";
 import { PublicLeaders } from "./PlayerStatus";
@@ -17,6 +17,7 @@ export function CrewBoard({game,viewerId,busy,veiled,act,boardOnly=false,drawPil
   const p=game.players[viewerId];
   const actor=game.resolveQueue[0];
   const hiring=game.phase==="CONSTRUCTION"&&actor===viewerId&&!p?.crewsHired;
+  const extending = !!p && extensionEligible(p);
   const available=p?buildableLines(game,viewerId):[];
   const indexes=selected.filter(i=>available.includes(i));
   const cost=p?activationCost(p,indexes.length):0;
@@ -25,16 +26,16 @@ export function CrewBoard({game,viewerId,busy,veiled,act,boardOnly=false,drawPil
     <div className="grid grid-cols-[640px_1fr] items-start gap-8">
     <div data-turn-controls={game.phase === "CONSTRUCTION" ? "true" : undefined}>
     {game.phase!=="CONSTRUCTION"?<p className="mt-3 text-xl">Choose lines afresh each construction round. There is no advance timetable.</p>:<>
-      <p className="mt-3 text-2xl font-bold">{game.players[actor]?.name}: {hiring?"choose your crews":"construction turn"}</p>
+      <p className="mt-3 text-2xl font-bold">{game.players[actor]?.name}: {hiring?extending?"choose a line to extend":"choose your crews":"construction turn"}</p>
       {p&&!veiled&&<>
         {hiring&&<div className="mt-4 space-y-4">
           <div className="flex flex-wrap items-center gap-4">
             <BuyCardButton game={game} playerId={viewerId} busy={busy} act={act} size="lg" counts={drawPileCounts} showFaceUp={!boardOnly}/>
-            <p className="text-lg">{boardOnly?"Choose a face-up Engineering goal on your phone, or draw a random card here.":"Choose a face-up Engineering goal or draw a random card."} One extra of each type per game, before hiring crews.</p>
+            <p className="text-lg">{boardOnly?"Choose a face-up Engineering goal on your phone, or draw a random card here.":"Choose a face-up Engineering goal or draw a random card."} One extra of each type per game, before choosing your build.</p>
           </div>
-          <div className="grid grid-cols-3 gap-3">{p.lines.map((line,i)=><button key={i} disabled={busy||!available.includes(i)} aria-pressed={indexes.includes(i)} onClick={()=>setSelected(indexes.includes(i)?indexes.filter(n=>n!==i):[...indexes,i])} className={`rounded-xl border-4 px-3 py-4 text-xl font-bold disabled:opacity-40 ${indexes.includes(i)?"border-teal-700 bg-teal-100":"border-stone-300 bg-white"}`}>{contractOf(line)?.name}</button>)}</div>
-          <p className="text-xl">Hire {indexes.length} crew(s): <b>${cost}M</b> · Cash afterward: <b>${p.money-cost}M</b>{!affordable?<strong className="ml-4 text-red-700">Not enough cash: crews are paid from cash on hand.</strong>:<strong className={`ml-4 ${cashScore(p.money-cost)<0?"text-red-700":"text-emerald-800"}`}>Cash position at this balance: {cashScore(p.money-cost)>0?"+":""}{cashScore(p.money-cost)} VP</strong>}</p>
-          <TableButton disabled={busy||!affordable} onClick={()=>act("HIRE_CREWS",{lineIndexes:indexes,period:game.currentPeriod})}>{indexes.length?`Pay $${cost}M & build` : "No crews · end turn"}</TableButton>
+          <div className="grid grid-cols-3 gap-3">{p.lines.map((line,i)=><button key={i} disabled={busy||!available.includes(i)} aria-pressed={indexes.includes(i)} onClick={()=>setSelected(indexes.includes(i)?indexes.filter(n=>n!==i):extending?[i]:[...indexes,i])} className={`rounded-xl border-4 px-3 py-4 text-xl font-bold disabled:opacity-40 ${indexes.includes(i)?"border-teal-700 bg-teal-100":"border-stone-300 bg-white"}`}>{contractOf(line)?.name}</button>)}</div>
+          {extending?<p className="text-xl">All three lines complete. Choose one line, then place 1–2 peg spaces for $1M plus crossing tolls. Pay when you confirm; borrowing is allowed.</p>:<p className="text-xl">Hire {indexes.length} crew(s): <b>${cost}M</b> · Cash afterward: <b>${p.money-cost}M</b>{!affordable?<strong className="ml-4 text-red-700">Not enough cash: crews are paid from cash on hand.</strong>:<strong className={`ml-4 ${cashScore(p.money-cost)<0?"text-red-700":"text-emerald-800"}`}>Cash position at this balance: {cashScore(p.money-cost)>0?"+":""}{cashScore(p.money-cost)} VP</strong>}</p>}
+          <TableButton disabled={busy||!affordable} onClick={()=>act("HIRE_CREWS",{lineIndexes:indexes,period:game.currentPeriod})}>{extending?(indexes.length?"Choose extension location":"Skip extension · end turn"):indexes.length?`Pay $${cost}M & build` : "No crews · end turn"}</TableButton>
         </div>}
         {actor===viewerId&&p.crewsHired&&p.pendingActions.length>0&&<div className="mt-4">
           <TableButton disabled={busy} onClick={()=>act("SKIP_ACTION")}>Give up remaining builds</TableButton>
@@ -42,7 +43,7 @@ export function CrewBoard({game,viewerId,busy,veiled,act,boardOnly=false,drawPil
         {game.undo?.playerId===viewerId&&<div className="mt-4">
           <TableButton disabled={busy} onClick={()=>act("UNDO_PLACEMENT")}>Undo {game.undo.label}</TableButton>
         </div>}
-        <p className="mt-4 text-xl">1 crew $1M · 2 crews $3M · 3 crews $6M{SUBWAY_CONFIG.crewDebtAllowed?", and you may borrow past $0":", paid from cash on hand"}. {crewActivationText(game.bendMode)}</p>
+        {!extending&&<p className="mt-4 text-xl">1 crew $1M · 2 crews $3M · 3 crews $6M{SUBWAY_CONFIG.crewDebtAllowed?", and you may borrow past $0":", paid from cash on hand"}. {crewActivationText(game.bendMode)}</p>}
       </>}
     </>}
     </div>

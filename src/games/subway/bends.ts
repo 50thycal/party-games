@@ -1,4 +1,4 @@
-import {SUBWAY_CONFIG, angleChange, allLines, contractOf, lineComplete, segmentsBuilt, segmentsCross, segmentsOverlap, routeContacts, type Point, type SubwayState, type RouteContact} from './config';
+import {SUBWAY_CONFIG, angleChange, extensionEligible, allLines, contractOf, lineComplete, segmentsBuilt, segmentsCross, segmentsOverlap, routeContacts, type Point, type SubwayState, type RouteContact} from './config';
 import {pathLength, pathLegs, lineLegs, constructionTip} from './paths';
 
 export type BendMode='straight'|'tokens'|'delayed';
@@ -10,14 +10,16 @@ const on=(p:Point,a:Point,b:Point)=>Math.abs((b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-
 const valid=(p:Point)=>p&&Number.isInteger(p.x)&&Number.isInteger(p.y)&&p.x>=0&&p.y>=0&&p.x<27&&p.y<9;
 export const tokenCost=(s:SubwayState,id:string,count:number)=>Math.max(0,count-(s.players[id].bendTokens??0))*3;
 export function remainingLength(s:SubwayState,id:string,index:number) {
- const l=s.players[id].lines[index],required=contractOf(l)?.recipe[segmentsBuilt(l)]??0;
+ const l=s.players[id].lines[index],required=lineComplete(l)?2:contractOf(l)?.recipe[segmentsBuilt(l)]??0;
  return required-(l.work?.length?pathLength([l.route.at(-1)!,...l.work]):0);
 }
 
 /** Preview and reducer share validation. points omit the existing construction tip. */
 export function validatePath(s:SubwayState,id:string,index:number,points:Point[],pause=false,previewOnly=false):string|null {
  const me=s.players[id],l=me?.lines[index],mode=s.bendMode??'straight';
- if(!l||!l.route.length||lineComplete(l))return 'Choose an unfinished line with a starter.';
+ if(!l||!l.route.length||lineComplete(l)&&!extensionEligible(me))return 'Finish all three lines before extending.';
+ const extension=lineComplete(l);
+ if(extension&&(pause||points.length!==1))return 'An extension is one straight placement of 1–2 peg spaces.';
  if(!Array.isArray(points)||!points.length||points.length>8||points.some(p=>!valid(p)))return 'Choose valid board holes.';
  if(mode==='straight'&&(points.length!==1||pause||l.work?.length))return 'This game uses straight segments.';
  if(mode==='delayed'&&points.length!==1)return 'Build one leg per activation in delayed mode.';
@@ -33,8 +35,8 @@ export function validatePath(s:SubwayState,id:string,index:number,points:Point[]
   for(const [c,d] of prior.slice(0,-1))if(segmentsCross(a,b,c,d)||on(b,c,d)||on(c,a,b)||on(d,a,b))return 'A line cannot cross or rejoin its own color.';
  }
  const length=pathLength([l.route.at(-1)!,...(l.work??[]),...points]);
- const required=contractOf(l)!.recipe[segmentsBuilt(l)],tol=SUBWAY_CONFIG.geometry.lengthTolerance;
- if(pause?length>required+tol-1+1e-8:s.segmentLengthMode==='flexible'?(length<1-1e-8||length>required+tol+1e-8):Math.abs(length-required)>tol+1e-8)return pause?'Leave at least one peg space to finish this segment.':`Segment must span ${s.segmentLengthMode==='flexible'?'1–':''}${required} spaces in total (path ${length.toFixed(1)}).`;
+ const required=extension?2:contractOf(l)!.recipe[segmentsBuilt(l)],tol=extension?0:SUBWAY_CONFIG.geometry.lengthTolerance;
+ if(pause?length>required+tol-1+1e-8:(extension||s.segmentLengthMode==='flexible')?(length<1-1e-8||length>required+tol+1e-8):Math.abs(length-required)>tol+1e-8)return pause?'Leave at least one peg space to finish this segment.':`Segment must span ${(extension||s.segmentLengthMode==='flexible')?'1–':''}${required} spaces in total (path ${length.toFixed(1)}).`;
  for(let i=0;i<newLegs.length;i++) {
   const [a,b]=newLegs[i];
   if(same(a,b))return 'Each leg must have positive length.';
@@ -62,7 +64,7 @@ export function pathContacts(s:SubwayState,id:string,index:number,points:Point[]
 export type BendMove={points:Point[];pause:boolean};
 /** Find a real legal action, not a chord approximation, for crew/end checks and bots. */
 export function findBendMove(s:SubwayState,id:string,index:number):BendMove|undefined {
- const l=s.players[id]?.lines[index];if(!l?.route.length||lineComplete(l))return;
+ const l=s.players[id]?.lines[index];if(!l?.route.length||lineComplete(l)&&!extensionEligible(s.players[id]))return;
  const mode=s.bendMode??'straight';
  const search=(prefix:Point[]):BendMove|undefined=>{
   const tip=prefix.at(-1)??constructionTip(l)!;

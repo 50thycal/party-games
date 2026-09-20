@@ -75,7 +75,7 @@ export function playtestAction(s: SubwayState, random: () => number): SubwayActi
       const lineIndex=me.pendingActions[0];
       const target=bestTarget(s,playerId,lineIndex,false,random);
       if(!target) return action("SKIP_ACTION",{lineIndex});
-      return action("BUILD",{lineIndex,...target});
+      return action("BUILD",{lineIndex,...target,period:s.currentPeriod,expectedNodes:me.lines[lineIndex].route.length});
     }
     case "SCORING": return action("ADVANCE_SCORING");
     default: throw new Error(`Unsupported phase ${s.phase}`);

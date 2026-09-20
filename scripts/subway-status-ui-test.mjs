@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url),React=require('react'),{act,create}=require('react-test-renderer');
-const {PlayerPads}=require('/tmp/subway-test/src/games/subway/PlayerStatus.js');
-const {subwayGame}=require('/tmp/subway-test/src/games/subway/config.js');
-const {testRoom}=require('/tmp/subway-test/src/games/subway/playtest.js');
+const {PlayerPads}=require(`${process.argv[2]??'/tmp/subway-test'}/src/games/subway/PlayerStatus.js`);
+const {subwayGame}=require(`${process.argv[2]??'/tmp/subway-test'}/src/games/subway/config.js`);
+const {testRoom}=require(`${process.argv[2]??'/tmp/subway-test'}/src/games/subway/playtest.js`);
 const game=subwayGame.initialState(testRoom(2).players);
 const a=game.playerOrder[0],b=game.playerOrder[1];
 const event={seq:1,actorId:a,reversed:false,payments:[{from:a,to:b,amount:1,reason:'Station access'},{from:'bank',to:a,amount:3,reason:'Line completed'}]};
@@ -33,7 +33,7 @@ console.log('Player panels: payment/reversal text, repeated polls, remount and r
 globalThis.setTimeout=originalSetTimeout;globalThis.clearTimeout=originalClearTimeout;
 
 // YMIF turn banners do not replay on polling/builds, and reappear next turn.
-const {YourTurnBanner,PhoneStatus}=require('/tmp/subway-test/src/games/subway/PlayerStatus.js');
+const {YourTurnBanner,PhoneStatus}=require(`${process.argv[2]??'/tmp/subway-test'}/src/games/subway/PlayerStatus.js`);
 globalThis.setTimeout=(fn,ms,...args)=>{if(ms!==2800)return originalSetTimeout(fn,ms,...args);const id=++timerId;timers.set(id,fn);return id;};
 globalThis.clearTimeout=id=>{if(timers.has(id))timers.delete(id);else originalClearTimeout(id);};
 timers.clear();

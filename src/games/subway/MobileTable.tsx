@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { EngineeringCardFace } from "./CardArt";
 import { VB_W, VB_H } from "./board";
-import { SUBWAY_CONFIG, activationCost, buildableLines, canAffordCrews, cardDraftBlocker, contractOf, contractById, destinationById, engineeringById, objectiveMet, type SubwayState } from "./config";
+import { SUBWAY_CONFIG, extensionEligible, segmentsBuilt, extensionCount, activationCost, buildableLines, canAffordCrews, cardDraftBlocker, contractOf, contractById, destinationById, engineeringById, objectiveMet, type SubwayState } from "./config";
 
 /** Phone-sized pieces stay outside the map's zoom coordinate system. */
 export function MobileTable({game, playerId, busy, veiled, board, actions, settings, act, selectLine, previewLine}: {
@@ -20,6 +20,7 @@ export function MobileTable({game, playerId, busy, veiled, board, actions, setti
   const [mapWidth, setMapWidth] = useState(0);
   const p = game.players[playerId];
   const drafting = game.phase === "PROCUREMENT" || (game.phase === "ENGINEERING" && game.engineeringStep === "CARD_DRAFT");
+  const extending = !!p && extensionEligible(p);
   const available = p ? buildableLines(game, playerId) : [];
   const hiring = game.phase === "CONSTRUCTION" && game.resolveQueue[0] === playerId && !p?.crewsHired;
   const indexes = selected.filter(i => available.includes(i));
@@ -47,12 +48,12 @@ export function MobileTable({game, playerId, busy, veiled, board, actions, setti
     </div>
     {!veiled && p && <>
       {hiring && <div className="flex shrink-0 flex-wrap items-center gap-1 px-2 text-xs">
-        {p.lines.map((l,i)=><button key={l.contractId} className={button} disabled={busy||!available.includes(i)} aria-pressed={indexes.includes(i)} style={{background:indexes.includes(i)?"#a7f3d0":undefined}} onClick={()=>setSelected(indexes.includes(i)?indexes.filter(v=>v!==i):[...indexes,i])}>{contractOf(l)?.name}</button>)}
-        <button className={button} disabled={busy||!canAffordCrews(p,indexes.length)} onClick={()=>act("HIRE_CREWS",{lineIndexes:indexes,period:game.currentPeriod})}>{indexes.length?`Hire ${indexes.length} · $${activationCost(p,indexes.length)}M${canAffordCrews(p,indexes.length)?"":" · not enough cash"}`:"No crews · end turn"}</button>
+        {p.lines.map((l,i)=><button key={l.contractId} className={button} disabled={busy||!available.includes(i)} aria-pressed={indexes.includes(i)} style={{background:indexes.includes(i)?"#a7f3d0":undefined}} onClick={()=>setSelected(indexes.includes(i)?indexes.filter(v=>v!==i):extending?[i]:[...indexes,i])}>{contractOf(l)?.name}</button>)}
+        <button className={button} disabled={busy||!canAffordCrews(p,indexes.length)} onClick={()=>act("HIRE_CREWS",{lineIndexes:indexes,period:game.currentPeriod})}>{extending?(indexes.length?"Choose extension · $1M on confirm":"Skip extension · end turn"):indexes.length?`Hire ${indexes.length} · $${activationCost(p,indexes.length)}M${canAffordCrews(p,indexes.length)?"":" · not enough cash"}`:"No crews · end turn"}</button>
       </div>}
       <div className="flex shrink-0 items-center gap-2 px-2 text-xs text-amber-50">
         <button className="rounded bg-white/15 px-3 py-2" aria-expanded={tray||drafting} onClick={()=>setTray(v=>!v)}>{tray?"Put cards away":"Lines & cards"}</button>
-        {p.lines.map((l,i)=><button key={l.contractId} className="rounded border px-2 py-2" style={{borderColor:contractOf(l)?.color}} onClick={()=>selectLine(i)}>{contractOf(l)?.code ?? contractOf(l)?.name} {Math.max(0,l.route.length-1)}/{contractOf(l)?.recipe.length}</button>)}
+        {p.lines.map((l,i)=><button key={l.contractId} className="rounded border px-2 py-2" style={{borderColor:contractOf(l)?.color}} onClick={()=>selectLine(i)}>{contractOf(l)?.code ?? contractOf(l)?.name} {segmentsBuilt(l)}/{contractOf(l)?.recipe.length}{extensionCount(l)>0?` +${extensionCount(l)} ext`:""}</button>)}
       </div>
       {(tray||drafting) && <div className="flex max-h-[38dvh] shrink-0 gap-2 overflow-auto px-2 pb-1 text-sm" aria-label="Cards on the table">
         {game.phase === "PROCUREMENT" ? game.procurement.row.map(id=>{const c=contractById(id)!;return <article className={card} key={id} style={{borderColor:c.color}}><b>{c.name}</b><p>{c.recipe.join(" · ")} peg spaces</p><p>Finish +{c.completionVp} VP</p><button className={button} disabled={busy||game.procurement.offer?.activeId!==playerId||p.money<c.cost} onClick={()=>act("PROCURE",{choice:"buy",contractId:id})}>Sign · ${c.cost}M</button></article>;}) : game.engineeringStep === "CARD_DRAFT" && game.phase === "ENGINEERING" ? <div className="flex gap-2">{game.market.rows.engineering.map(id=>{const c=engineeringById(id)??destinationById(id);return <article className={card} key={id}><small>engineering</small><p className="font-bold">{c?.name}</p><p>{c?.description}</p><button className={button} disabled={busy||!!cardDraftBlocker(game,playerId,"engineering",id)} onClick={()=>act("DRAFT_CARD",{deck:"engineering",cardId:id,expectedPick:game.market.picks})}>Draft</button></article>;})}<button className={card} disabled={busy||!!cardDraftBlocker(game,playerId,"engineering")||!game.market.decks.engineering.length} onClick={()=>act("DRAFT_CARD",{deck:"engineering",expectedPick:game.market.picks})}>Blind draw<br/>engineering</button></div> : <>

@@ -183,7 +183,7 @@ function statusFor(game: SubwayState, me: SubwayPlayer | undefined, isHost: bool
       const actorId = game.resolveQueue[0];
       if (actorId === me.id) {
         return {
-          headline: !me.crewsHired ? "Choose crews at Construction schedule." : `Round ${game.currentPeriod} — your build.`,
+          headline: me.extending ? "Choose your extension · $1M." : !me.crewsHired ? "Choose crews at Construction schedule." : `Round ${game.currentPeriod} — your build.`,
           tone: "act",
           detail:
             me.pendingActions.length > 1
@@ -435,7 +435,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     if (openedContext.current === automaticContext) return;
     openedContext.current = automaticContext;
     setPlanMode(false); setManualPlanner(false); setPlannerLine(null); setSketch([]); setSketchBase([]); setPreview(null); setBendDraft([]); setBendPick(false);
-    if (!planAvailable || !game || !me || activeLineIndex < 0 || game.bendMode&&game.bendMode!=='straight') return;
+    if (!planAvailable || !game || !me || me.extending || activeLineIndex < 0 || game.bendMode&&game.bendMode!=='straight') return;
     const line = me.lines[activeLineIndex];
     const saved = remotePlans ? remotePlans[line.contractId] : sessionPlans.current[planStorageKey(room.roomCode, playerId, line.contractId)] ?? loadPlan(room.roomCode, playerId, line.contractId);
     const initial = preparePlan(game, playerId, activeLineIndex, saved);
@@ -520,7 +520,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
           ownerColor: p.color,
           own: id === (playerId || currentActorId(game)) && ["STARTER_PLACEMENT","CONSTRUCTION"].includes(game.phase),
           active: id === playerId && li === activeLineIndex,
-          growing: !lineComplete(line),
+          growing: !lineComplete(line) || !!(me?.extending && id === playerId && li === activeLineIndex),
         });
       });
     }
@@ -707,6 +707,8 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
     setPreview(null);
     act(placingStarter ? "PLACE_STARTER" : "BUILD", {
       lineIndex: activeLineIndex,
+      period: game.currentPeriod,
+      expectedNodes: me.lines[activeLineIndex].route.length,
       x: target.x,
       y: target.y,
       ...(target.slot !== undefined ? { slot: target.slot } : {}),
@@ -1072,8 +1074,9 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   const actionStrip = (
     <div className="pointer-events-auto rounded-2xl border-2 border-[#6b4b2c] bg-[#fffaf0]/95 p-2.5 text-stone-900 shadow-2xl backdrop-blur-sm">
       {tokenBill>0&&<p className="mb-1 text-sm font-bold">Buy extra bend tokens: ${tokenBill}M · paid on Confirm</p>}
-      {price&&price.totalToll>0&&preview&&!manualPlanner&&<div aria-label="Placement payment preview" className="mb-2 rounded-lg bg-amber-100 px-2 py-1 text-xs text-amber-950">
-        <b>{`Pay $${price.totalToll}M · cash afterward $${price.cashAfter}M`}</b>
+      {price&&price.playerCost>0&&preview&&!manualPlanner&&<div aria-label="Placement payment preview" className="mb-2 rounded-lg bg-amber-100 px-2 py-1 text-xs text-amber-950">
+        <b>{`Pay $${price.playerCost}M · cash afterward $${price.cashAfter}M`}</b>
+        {me?.extending&&<p>Extension fee $1M</p>}
         {price.recipients.map(r=><p key={r.ownerId}>Pay {game.players[r.ownerId].name} ${r.amount}M · {Array.from(new Set(pricedContacts.filter(c=>c.ownerId===r.ownerId).map(c=>c.kind==='station'?'first transfer access':'crosses or touches their line'))).join(' + ')}</p>)}
       </div>}
       {notice && (
@@ -1119,12 +1122,12 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
             <span className="text-xs text-stone-500">
               {placingStarter
                 ? "starter peg · border holes only"
-                : `segment ${segmentsBuilt(activeLine) + 1}/${contractOf(activeLine)?.recipe.length} · ${
+                : me.extending ? "Extension · 1–2 peg spaces · $1M + crossing tolls" : `segment ${segmentsBuilt(activeLine) + 1}/${contractOf(activeLine)?.recipe.length} · ${
                     nextSegmentLength(activeLine) ?? "—"
                   } peg spaces`}
             </span>
           </div>
-          {!placingStarter&&game.bendMode&&game.bendMode!=='straight'&&<div className="contents text-sm">
+          {!placingStarter&&!me.extending&&game.bendMode&&game.bendMode!=='straight'&&<div className="contents text-sm">
             <span className="text-xs">{game.bendMode==='tokens'?`${me.bendTokens??0} tokens`:`${remainingLength(game,me.id,activeLineIndex).toFixed(1)} spaces left`}</span>
             <div className="contents"><StripButton aria-pressed={!bendPick} onClick={()=>{setBendPick(false);setPreview(null);}}>Finish segment</StripButton><StripButton disabled={!!activeLine?.work?.length||bendDraft.length>=1} title="One bend per segment" aria-pressed={bendPick} onClick={()=>{setBendPick(true);setPreview(null);}}>{game.bendMode==='tokens'?'Choose a bend':'Stop at a bend'}</StripButton>
             {game.bendMode==='tokens'&&bendPick&&<StripButton disabled={!preview} onClick={()=>{if(preview){setBendDraft([...bendDraft,preview]);setPreview(null);setBendPick(false);}}}>Add bend to preview</StripButton>}
@@ -1136,9 +1139,9 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
               Cancel
             </StripButton>
             <StripButton tone="go" disabled={busy || !preview || game.bendMode==='tokens'&&bendPick} onClick={confirmPlacement} data-confirm-placement>
-              {bendPick?'Confirm worksite':'Confirm placement'}
+              {me.extending?'Extend · $1M':bendPick?'Confirm worksite':'Confirm placement'}
             </StripButton>
-            {planAvailable && (
+            {planAvailable && !me.extending && (
               <StripButton tone="plan" onClick={() => openPlanner(activeLineIndex >= 0 ? activeLineIndex : 0)}>
                 Plan
               </StripButton>

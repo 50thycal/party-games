@@ -2088,3 +2088,30 @@ running reducer actions during the presentation; none meets the read-only host n
 **Consequences:** Update the intro alongside future rule changes. Teach current
 three-line play only; PR #197 extensions remain unimplemented and configurable
 line counts remain parked. No state-version change or gameplay rebalance.
+
+### DEC-062 — Paid extensions after the third completed line
+
+**Date:** 2026-09-20
+**Status:** Accepted by owner in chat.
+
+**Context:** Early finishers in the four-player test ran out of meaningful actions.
+
+**Decision:** Starting on their next company turn after completing all three
+contracts, players may extend any one of their lines by a single straight placement
+of 1–2 peg spaces for $1M plus ordinary crossing tolls. The extension may turn up to
+90° from the preceding segment. Select one line, preview, then pay on confirmation;
+no extra crew bill, completion payout or passive skip income. Existing construction
+borrowing applies. Card purchases remain available before selecting the action.
+Original recipe endpoints retain their completion/border qualification; all new
+track/stations contribute to network and neighborhood/transfer goals. The nine-round
+cap remains. Configurable line counts are parked; exactly three remain required.
+
+**Rationale:** Short paid board actions keep early finishers involved while preserving
+completed contracts and the game's finite turn budget.
+
+**Alternatives considered:** Passive operating income and variable draft sizes; the
+owner chose extensions and withdrew the draft-size control pending supply/budget design.
+
+**Consequences:** State v30 requires a fresh room. Extension BUILD submissions carry
+period and expected node count; companion revision guards continue to apply. Undo
+restores the extension fee, tolls, rewards, route and turn. Intro work is separate.

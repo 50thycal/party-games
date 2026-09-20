@@ -79,7 +79,7 @@ lines to activate and pay for their crews.
 | Two | $3 million |
 | Three | $6 million |
 
-Only unfinished lines with legal next placements can be activated. Each selected
+For ordinary crew hiring, only unfinished lines with legal next placements can be activated. Each selected
 line receives **one construction activation** (normally one segment placement). Hiring two crews means extending two
 different lines, not extending one line twice.
 
@@ -304,11 +304,17 @@ per player. Only the current player's selected destinations appear on the shared
 board; your phone keeps your own choices visible even off-turn. With no active
 player, the shared board shows no destination highlights.
 
+After all three lines finish, starting on your next turn you may instead extend
+any one line with a single straight placement of 1–2 peg spaces for $1 million
+plus crossing tolls, or skip for free. Normal heading and placement rules apply.
+Pay on confirmation; borrowing and Undo apply, with no extra crew bill or repeated
+completion reward. Buy optional cards before selecting the extension. Original
+recipe endpoints remain qualified; new track and stations count toward goals.
+
 ## 12. Ending and scoring
 
-End after round nine, or earlier when no unfinished line belonging to any player
-has a legal next segment. One blocked company does not end play while another
-company can still build.
+End after round nine, or earlier when no company has a legal next segment or
+paid extension. One blocked company does not end play while another can still build.
 
 1. Add completed-line points.
 2. Apply unfinished-line penalties.

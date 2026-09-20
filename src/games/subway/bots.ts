@@ -7,7 +7,7 @@ import { auditPotential, completionGoals } from './auditPolicy';
 import { plannedBotRoute } from './botRoutes';
 import { stationAccessContacts } from './stationAccess';
 
-export const BOT_VERSION = '6';
+export const BOT_VERSION = '7';
 export const PERSONALITIES = ['balanced', 'destination', 'completion', 'cautious'] as const;
 export const SKILLS = ['casual', 'experienced'] as const;
 export type BotSettings = { personality: typeof PERSONALITIES[number]; skill: typeof SKILLS[number] };
@@ -96,9 +96,9 @@ export function chooseBotAction(state:SubwayState,random:()=>number,settings:Bot
         return action('HIRE_CREWS',{lineIndexes:planBotCrews(s,id,settings.personality==='cautious',!!focus&&completionGoals.has(focus)),period:s.currentPeriod});
       }
       const lineIndex=me.pendingActions[0];
-      if(s.bendMode&&s.bendMode!=='straight') {
+      if(me.extending || s.bendMode&&s.bendMode!=='straight') {
         const move=findBendMove(s,id,lineIndex),pt=move?.points.at(-1);
-        return move&&pt?action('BUILD',{lineIndex,...pt,bends:move.points.slice(0,-1),pause:move.pause}):action('SKIP_ACTION',{lineIndex});
+        return move&&pt?action('BUILD',{lineIndex,...pt,period:s.currentPeriod,expectedNodes:me.lines[lineIndex].route.length,bends:move.points.slice(0,-1),pause:move.pause}):action('SKIP_ACTION',{lineIndex});
       }
       const opportunity=lineActionsRemaining(me.lines[lineIndex])>SUBWAY_CONFIG.timelinePeriods+1-s.currentPeriod?immediateObjectiveBuild(s,id,lineIndex):undefined;
       const target=(!focus?opportunity?.target:undefined)??(planning?plannedBotRoute(s,id,lineIndex,false,settings,focus).target:undefined)??bestTarget(s,id,lineIndex,false,random,settings,focus);
