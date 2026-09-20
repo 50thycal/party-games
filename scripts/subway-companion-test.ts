@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import { companionAction, companionView, companionActor, type CompanionDevice } from "../src/games/subway/companion";
 import { playtestAction, seededRandom, testRoom } from "../src/games/subway/playtest";
 import { type SubwayState, SUBWAY_CONFIG, cardPurchaseBlocker, LINE_CONTRACTS, destinationById } from "../src/games/subway/config";
+import { turnSummary } from "../src/games/subway/turnSummary";
 import type { RoomState } from "../src/engine/types";
 
 let request=0;
 let actions=0;
+let projectedRecaps=0, paidRecaps=0;
 for(const count of [2,3,4]) {
   const room={...testRoom(count),hostId:"tablet",mode:"multiplayer" as const};
   const tablet:CompanionDevice={role:"tablet",playerId:"tablet",tokenHash:"tablet-secret",requests:[]};
@@ -36,7 +38,8 @@ for(const count of [2,3,4]) {
   const rawBefore=JSON.stringify(state);
   assert.throws(()=>companionAction(state,phones[0],{type:"BUILD",requestId:"bad-board",revision:state.subwayCompanion!.revision},{now:()=>1,random}));
   assert.equal(JSON.stringify(state),rawBefore);
-  let planSaved=false, purchasesChecked=false, tabletDraftChecked=false;
+  let planSaved=false, supplyChecked=false, tabletDraftChecked=false;
+  const buyers=new Set<string>();
   for(let step=0;step<300;step++) {
     const game=state.gameState as SubwayState;
     if(game.phase==="RESULTS") break;
@@ -53,29 +56,39 @@ for(const count of [2,3,4]) {
       assert.equal((state.gameState as SubwayState).players[actor].engineeringHand.length,game.players[actor].engineeringHand.length+1);
       tabletDraftChecked=true;continue;
     }
-    if(!purchasesChecked&&game.phase==='CONSTRUCTION'){
+    if(game.phase==='CONSTRUCTION'&&!buyers.has(companionActor(game)!)){
       // Four-player deck audit plus both projected clients' actual availability.
-      assert.equal(game.market.decks.engineering.length,21-count*3-2);
-      assert.equal(game.destinationDeck.length,30-count*2);
+      if(!supplyChecked){
+        assert.equal(game.market.decks.engineering.length,21-count*3-2);
+        assert.equal(game.destinationDeck.length,30-count*2);
+        supplyChecked=true;
+      }
       const actor=companionActor(game)!,phone=phones.find(p=>p.playerId===actor)!;
-      game.players[actor].money=20;
+      assert.ok(game.players[actor].money>=6,"draft leaves enough cash for both optional cards");
       send(tablet,'ACK_COMPANY',{playerId:actor});
       const projected=companionView(state,phone);
       assert.equal(projected.game!.market.decks.engineering.length,0);
       for(const deck of ['engineering','destination'] as const)assert.equal(cardPurchaseBlocker(projected.game!,actor,deck,undefined,projected.drawPileCounts),undefined,'hidden decks must not disable purchases');
       const row=game.market.rows.engineering[0],cash=(state.gameState as SubwayState).players[actor].money;
       assert.throws(()=>send(tablet,'BUY_ENGINEERING',{cardId:row,period:game.currentPeriod}));
-      if(count===4){
+      const buyerIndex=game.playerOrder.indexOf(actor);
+      if(count===4&&buyerIndex%2===0){
         send(phone,'BUY_ENGINEERING',{cardId:row,period:game.currentPeriod});
         const bought=state.gameState as SubwayState;
         assert.ok(bought.players[actor].engineeringHand.includes(row));
         assert.equal(bought.market.rows.engineering.length,2,'face-up choice replenishes');
         assert.ok(!bought.market.rows.engineering.includes(row));
-      }else send(tablet,'BUY_ENGINEERING',{period:game.currentPeriod});
-      send(count===3?phone:tablet,'BUY_DESTINATION',{period:game.currentPeriod});
+      }else send(buyerIndex%2?phone:tablet,'BUY_ENGINEERING',{period:game.currentPeriod});
+      send(buyerIndex%2?phone:tablet,'BUY_DESTINATION',{period:game.currentPeriod});
       assert.equal((state.gameState as SubwayState).players[actor].money,cash-6,'each card costs $3M');
       assert.throws(()=>send(phone,'BUY_ENGINEERING',{period:game.currentPeriod}),'one extra each remains enforced');
-      purchasesChecked=true;continue;
+      const after=state.gameState as SubwayState;
+      assert.equal(after.players[actor].engineeringHand.length,4);
+      assert.equal(after.players[actor].destinationHand.length,3);
+      assert.equal(after.market.decks.engineering.length,21-count*3-2-buyers.size-1);
+      assert.equal(after.destinationDeck.length,30-count*2-buyers.size-1);
+      assert.throws(()=>send(phone,'BUY_DESTINATION',{period:game.currentPeriod}),'Destination cap is also enforced');
+      buyers.add(actor);continue;
     }
     const action=playtestAction(game,random)!;
     const isPhone=["PROCURE","DRAFT_CARD","BUY_SURVEYS","BUY_DESTINATION"].includes(action.type);
@@ -86,6 +99,12 @@ for(const count of [2,3,4]) {
         assert.deepEqual(before.plans,{},"handoff carries no outgoing ghosts");
         assert.ok(before.destinationHighlights.every(h=>h.playerId===before.actorId),"handoff never carries outgoing highlights");
         assert.throws(()=>send(tablet,action.type,action.payload),"board waits for acknowledgement");
+        if(game.phase==='CONSTRUCTION'){
+          const recap=turnSummary(before.game!,before.actorId!);
+          assert.deepEqual(recap,turnSummary(game,before.actorId!),"iPad projection preserves payer names, totals and bank separation");
+          projectedRecaps++;
+          if(recap&&recap.opponentIncome>0)paidRecaps++;
+        }
         send(tablet,"ACK_COMPANY",{playerId:before.actorId});
       }
       if(!planSaved&&game.phase==="STARTER_PLACEMENT") {
@@ -151,6 +170,7 @@ for(const count of [2,3,4]) {
   }
   assert.equal((state.gameState as SubwayState).phase,"RESULTS");
   assert.ok(planSaved);
+  assert.equal(buyers.size,count,"every company bought both extras and the game still finished");
   assert.deepEqual(companionView(state,tablet).destinationHighlights,[],"results have no actor or shared highlight");
   const legacy=structuredClone(state);
   const legacyGame=legacy.gameState as SubwayState;
@@ -161,6 +181,10 @@ for(const count of [2,3,4]) {
   legacyGame.resolveQueue=[phones[1].playerId];
   assert.deepEqual(companionView(legacy,tablet).destinationHighlights,[],"legacy selection does not leak into another turn");
 }
+
+assert.ok(projectedRecaps>=20,"recaps exercised across complete games");
+assert.ok(paidRecaps>0,"real reducer transfers reached the projected payment recap");
+console.log(`Companion purchases: every company in 2/3/4-player games bought both extras; ${projectedRecaps} projected recaps checked (${paidRecaps} with income).`);
 
 // Compare spending cadence over all 220 portfolios, excluding optional pins/tolls.
 const summaries=[];
