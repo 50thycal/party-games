@@ -1,4 +1,5 @@
 "use client";
+import { HowToPlay } from "@/games/subway/Intro";
 
 import { crewActivationText } from "@/games/subway/terminology";
 
@@ -72,7 +73,8 @@ export default function SubwayHotseat() {
         <p className="mt-12 text-xs font-bold uppercase tracking-[.3em] text-teal-300">Metropolitan Transit Authority</p>
         <h1 className="mt-3 text-6xl font-black tracking-tight">SUBWAY<span className="text-orange-400">.</span></h1>
         <p className="mt-4 text-lg text-slate-300">Three lines. One growing city. Make the connections that count.</p>
-        <Link href="/subway/tutorial" className="mt-5 inline-block rounded-xl border border-teal-300 px-5 py-3 font-bold text-teal-200">Learn by playing · guided tutorial →</Link>
+        <div className="mt-5"><HowToPlay bendMode={bendMode} segmentLengthMode={segmentLengthMode}/></div>
+        <Link href="/subway/tutorial" className="mt-3 inline-block text-sm underline">Practice on a training table →</Link>
         <div className="mt-8 flex gap-2 border-y border-white/15 py-4 text-sm text-teal-100"><span>2–4 companies</span><span>·</span><span>Pass & play</span><span>·</span><span>Saves on this device</span></div>
         <h2 className="mt-7 text-sm font-bold uppercase tracking-widest">How many companies?</h2>
         <div className="mt-3 grid grid-cols-3 gap-3">{[2,3,4].map((n) => <button key={n} aria-pressed={count===n} onClick={()=>setCount(n)} className={`rounded-xl border-2 p-4 text-lg font-bold ${count===n ? "border-teal-300 bg-teal-800" : "border-white/20 bg-white/5"}`}>{n} players</button>)}</div>

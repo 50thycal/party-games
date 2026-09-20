@@ -948,3 +948,14 @@ The iPad recap groups between-turn telemetry cash deltas by paying opponent,
 including before a company's first construction turn, and shows the player total
 separately from bank cash. Phone turn banners are unchanged. Destination faces
 show their $2M/$3M completion reward and use `destinationsPaid` for Earned status.
+
+## Subway host introduction
+
+`HowToPlay` opens a read-only native dialog from local setup, companion entry/lobby,
+phone General and table Settings. Fifteen short slides use deterministic peg-grid
+SVG examples; a before/after join illustrates company connectivity. `introRoutes`
+is shared with regression tests against the authoritative network and Destination
+helpers. Selected bend and segment-length modes are the only input props. The
+component has no game state, reducer dispatch, persistence or network access.
+Closing restores focus and leaves the table mounted. The older `/subway/tutorial`
+practice table remains separately accessible. Compact phone status is unchanged.
