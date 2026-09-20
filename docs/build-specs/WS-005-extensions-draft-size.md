@@ -1,6 +1,6 @@
 # WS-005 — Paid extensions (draft-count option parked)
 
-Status: Implementation in progress in PR #197.
+Status: Implemented and automatically validated in PR #197; independent review pending.
 Date: 2026-09-20. Build OS v0.12; canonical version checked via GitHub this session.
 This is a continuation of WS-005, not a new workstream. Continue this draft PR
 through implementation and review; do not open a second PR for the same bundle.
@@ -76,7 +76,9 @@ future design, not an implementation task or blocker for paid extensions.
   documentation-only finalization. Do not merge without owner direction.
 
 ## Execution status
-Extension implementation is underway. The selected line uses existing HIRE/BUILD
+Extension implementation and automated validation are complete. The selected line uses existing HIRE/BUILD
 turn controls; confirmation charges $1M and Undo restores it. The short extension
 is a single straight placement, 1–2 spaces, with normal heading/contact checks.
-Validation and independent review are required before making PR #197 ready.
+Build, lint and the full Subway suite pass. Browser acceptance is blocked by
+local-preview access and Vercel preview sign-in. Independent review and finalization
+are required before making PR #197 ready.

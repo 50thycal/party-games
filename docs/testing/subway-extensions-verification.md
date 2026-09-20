@@ -36,5 +36,6 @@ a simultaneous intro-session run had overwritten the old shared test compilation
 path, so isolated output is necessary for trustworthy results.
 
 The cloud browser rejected the local preview with `ERR_BLOCKED_BY_CLIENT`.
-Branch-preview acceptance is pending publication; no physical iPhone/iPad or live
-v30 extension interaction is claimed by the automated checks above.
+The published branch preview redirected to “Log in to Vercel”; no physical
+iPhone/iPad or live v30 extension interaction is claimed by the automated checks
+above. Runtime-browser acceptance remains outstanding behind preview sign-in.
