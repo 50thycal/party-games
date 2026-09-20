@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict';
+import {introRoutes,introSlides} from '../src/games/subway/Intro';
+import {companyComponents} from '../src/games/subway/network';
+import {subwayGame,destinationMet,DESTINATION_CARDS} from '../src/games/subway/config';
+import {testRoom} from '../src/games/subway/playtest';
+const player=(kind:string,connected=false)=>{
+  const p=subwayGame.initialState(testRoom(2).players).players['seat-1'];
+  p.lines=introRoutes(kind,connected).map((line,i)=>({contractId:i?'branch':'short',paid:0,start:1,route:line.points.map(([x,y])=>({x,y}))}));
+  return p;
+};
+assert.equal(companyComponents(player('join',false)).length,2);
+assert.equal(companyComponents(player('join',true)).length,1);
+assert.equal(companyComponents(player('area')).length,2);
+assert.equal(companyComponents(player('cross')).length,2);
+const mission=DESTINATION_CARDS[0];
+const connected=player('destination');
+connected.lines[0].route[0].stationId=mission.stationIds[0];
+connected.lines[1].route[1].stationId=mission.stationIds[1];
+assert.equal(destinationMet(connected,mission.id),true);
+connected.lines[1].route[0].y=2;
+assert.equal(destinationMet(connected,mission.id),false);
+const sameArea=player('area');
+for(const line of sameArea.lines) for(const node of line.route) node.stationId=mission.stationIds[0];
+assert.equal(companyComponents(sameArea).length,2);
+assert.match(introSlides({})[10].title,/Two activations/);
+assert.match(introSlides({bendMode:'tokens'})[10].text,/3 bend tokens/);
+assert.match(introSlides({segmentLengthMode:'flexible'})[9].title,/Shortening/);
+console.log('Intro: rendered connection fixtures match network and Destination rules; setup mode copy passed.');

@@ -949,7 +949,18 @@ including before a company's first construction turn, and shows the player total
 separately from bank cash. Phone turn banners are unchanged. Destination faces
 show their $2M/$3M completion reward and use `destinationsPaid` for Earned status.
 
-### Completed-company extensions (DEC-061, state v30)
+## Subway host introduction
+
+`HowToPlay` opens a read-only native dialog from local setup, companion entry/lobby,
+phone General and table Settings. Sixteen short slides use deterministic peg-grid
+SVG examples; a before/after join illustrates company connectivity. `introRoutes`
+is shared with regression tests against the authoritative network and Destination
+helpers. Selected bend and segment-length modes are the only input props. The
+component has no game state, reducer dispatch, persistence or network access.
+Closing restores focus and leaves the table mounted. The older `/subway/tutorial`
+practice table remains separately accessible. Compact phone status is unchanged.
+
+### Completed-company extensions (DEC-062, state v30)
 
 Three completed contracts unlock one short extension on each subsequent company
 turn. `HIRE_CREWS` selects at most one extendable owned line and marks `extending`
@@ -964,3 +975,6 @@ Network/transfer/destination evaluators include appended stations and strings.
 Undo snapshots restore the fee and all route/payment/turn effects. Legal move and
 exhaustion checks include eligible completed companies; the nine-round limit remains.
 Bots, companion projections and recorded replays use the same HIRE/BUILD path.
+
+The merged introduction also explains paid extensions and uses the extension-aware
+end condition; the original connection lesson and setup-mode guidance are retained.

@@ -4,8 +4,8 @@ Build OS: v0.12
 Phase: REVIEW
 Status: Active
 Updated: 2026-09-20
-Implementation State: Paid extensions delivered by PR #197 on merged #196. Build/lint/full Subway suite pass, including 24 extensions in complete 2/3/4-company replay regressions. Independently approved with follow-ups; Vercel deployment succeeded. Interactive v30 browser acceptance remains behind preview sign-in. Three lines per company retained; intro implementation belongs to another session.
-Related PRs: [#197](https://github.com/50thycal/party-games/pull/197) (paid extensions); [#196](https://github.com/50thycal/party-games/pull/196) (merged verification); [#195](https://github.com/50thycal/party-games/pull/195) (second YMIF economy/card bundle); [#194](https://github.com/50thycal/party-games/pull/194) (YMIF bundle); [#188](https://github.com/50thycal/party-games/pull/188) (terminology audit); [#187](https://github.com/50thycal/party-games/pull/187) (optional bend modes); [#186](https://github.com/50thycal/party-games/pull/186) (draft rules/highlights); [#185](https://github.com/50thycal/party-games/pull/185) (public status/payments/draft); [#184](https://github.com/50thycal/party-games/pull/184) (JNCG cards/surveys/labels); [#177](https://github.com/50thycal/party-games/pull/177) (PRWK feedback); [#176](https://github.com/50thycal/party-games/pull/176) (phone joining; merged); [#175](https://github.com/50thycal/party-games/pull/175) (Playtest Lab); [#174](https://github.com/50thycal/party-games/pull/174) (transfer/objective continuation); [#173](https://github.com/50thycal/party-games/pull/173) (larger neighborhoods/reversed VP; merged); [#172](https://github.com/50thycal/party-games/pull/172) (guided turns, neighborhoods and tiers; merged); [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; merged); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
+Implementation State: Paid extensions delivered by PR #197 on merged #196. Build/lint/full Subway suite pass, including 24 extensions in complete 2/3/4-company replay regressions. Independently approved with follow-ups; Vercel deployment succeeded. Interactive v30 browser acceptance remains behind preview sign-in. Three lines per company retained; intro #198 is now merged and preserved.
+Related PRs: [#198](https://github.com/50thycal/party-games/pull/198) (merged intro); [#197](https://github.com/50thycal/party-games/pull/197) (paid extensions); [#196](https://github.com/50thycal/party-games/pull/196) (merged verification); [#195](https://github.com/50thycal/party-games/pull/195) (second YMIF economy/card bundle); [#194](https://github.com/50thycal/party-games/pull/194) (YMIF bundle); [#188](https://github.com/50thycal/party-games/pull/188) (terminology audit); [#187](https://github.com/50thycal/party-games/pull/187) (optional bend modes); [#186](https://github.com/50thycal/party-games/pull/186) (draft rules/highlights); [#185](https://github.com/50thycal/party-games/pull/185) (public status/payments/draft); [#184](https://github.com/50thycal/party-games/pull/184) (JNCG cards/surveys/labels); [#177](https://github.com/50thycal/party-games/pull/177) (PRWK feedback); [#176](https://github.com/50thycal/party-games/pull/176) (phone joining; merged); [#175](https://github.com/50thycal/party-games/pull/175) (Playtest Lab); [#174](https://github.com/50thycal/party-games/pull/174) (transfer/objective continuation); [#173](https://github.com/50thycal/party-games/pull/173) (larger neighborhoods/reversed VP; merged); [#172](https://github.com/50thycal/party-games/pull/172) (guided turns, neighborhoods and tiers; merged); [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; merged); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
 ## Current continuation — paid extensions; configurable draft parked
 
@@ -22,7 +22,7 @@ PARK — Custom draft size needs budget/supply design; no runtime option exists 
 Acceptance: authoritative extension legality, one $1M action per later turn, Undo,
 original completion preserved, normal tolls/destinations, bots/replays/companions,
 fixed three-line drafting, full build/lint/Subway checks and desktop/phone verification.
-Review State: PR #197 — Approved with follow-ups by /root/bundle_review for published
+Review State: PR #197 — Previous source Approved with follow-ups by /root/bundle_review for published
 head 600f08458beb8f9991012c1ed0291b3738e6852f. Implementation actor: /root.
 Verdict: https://github.com/50thycal/party-games/pull/197#issuecomment-5747131029.
 No Blocking or Should-fix findings remain. The reviewer independently compiled and
@@ -33,8 +33,26 @@ Verification: [extension report](../testing/subway-extensions-verification.md).
 Limitation: local browser preview rejected with ERR_BLOCKED_BY_CLIENT; deployed
 branch preview redirects to Vercel login. No interactive v30 or physical-device
 acceptance claim. Automated rules/companion/replay/UI checks pass.
-Next Step: None for the paid-extension mission. Intro implementation remains in the
-owner's separate session; configurable line count and human balance checks remain parked.
+Next Step: Validate and independently review #197 after integrating merged #198.
+Conflict resolution preserves both feature sets and historical verdicts; extension
+decision is DEC-062 because main's intro decision already occupies DEC-061.
+
+## Previous continuation — polished introduction
+
+Owner authorized this separate intro implementation on 2026-09-20. Continue WS-005.
+Goal, non-goals, storyboard, rule sources and acceptance:
+[approved build contract](../build-specs/WS-005-polished-intro.md).
+Implementation State: Read-only 15-slide walkthrough built and browser-tested. See
+[verification report](../testing/subway-polished-intro.md).
+Review State: PR #198 — Approved by /root/intro_review for source head
+26ca72b58aa5cca756f618e2cec5f221c513d80a. Implementation actor: /root.
+Verdict: https://github.com/50thycal/party-games/pull/198#issuecomment-5747119855.
+No Blocking or Should-fix findings remain. Finalization: pushed (documentation
+only); reviewer verification of the resulting head is recorded on PR #198.
+Prior PR verdicts below preserved.
+PR #197 remains separate extension work; configurable line counts are parked.
+Next Step: None for the completed intro mission. Paid extensions continue separately
+in #197; this PR does not claim their implementation or merge.
 
 ## Previous continuation — combined YMIF playtest verification
 

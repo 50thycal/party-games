@@ -2066,7 +2066,30 @@ Destination faces show earned versus prospective cash, iPad recaps name payers,
 and a once-per-game dismissible yellow-dot hint explains next-station previews.
 New slide-style introduction and lower-player extra lines remain parked.
 
-### DEC-061 — Paid extensions after the third completed line
+### DEC-061 — Teach connections in a read-only host walkthrough
+
+**Date:** 2026-09-20
+**Status:** Accepted by owner request.
+
+**Context:** New players confused shared neighborhoods and string crossings with
+station transfers; the practice table alone did not explain the distinction visually.
+
+**Decision:** Add a short in-game slide introduction with a four-slide connection
+lesson, deterministic board diagrams and a before/after station join. Open over
+the existing game, consume only setup modes, and offer it again through Settings
+or phone General. Keep the interactive practice table as a separate reference.
+
+**Rationale:** A host can explain one idea at a time without performing game actions
+or losing the current table. Geometry examples are checked against game helpers.
+
+**Alternatives considered:** Downloadable deck, replacing the practice game, or
+running reducer actions during the presentation; none meets the read-only host need.
+
+**Consequences:** Update the intro alongside future rule changes. Teach current
+three-line play only; PR #197 extensions remain unimplemented and configurable
+line counts remain parked. No state-version change or gameplay rebalance.
+
+### DEC-062 — Paid extensions after the third completed line
 
 **Date:** 2026-09-20
 **Status:** Accepted by owner in chat.
