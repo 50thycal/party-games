@@ -1,4 +1,5 @@
 "use client";
+import { HowToPlay } from "@/games/subway/Intro";
 
 import {validatePath,pathContacts,tokenCost,remainingLength} from './bends';
 import {constructionTip} from './paths';
@@ -1274,7 +1275,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   );
 
 
-  const settingsPanel = settingsOpen && <SettingsDialog onClose={()=>setSettingsOpen(false)}><label className="my-4 flex items-center gap-3"><input type="checkbox" checked={ghostEnabled} onChange={e=>toggleGhost(e.target.checked)}/> Ghost planning (optional)</label><p className="my-4"><Link href="/subway/tutorial">How to play</Link></p>{settingsContent}<button className="rounded border px-3 py-2" onClick={()=>setShowLog(v=>!v)}>Action log</button>{showLog && <ol className="mt-3 space-y-2 text-sm">{game.events.map(e=><li key={e.seq}>{e.text}</li>)}</ol>}</SettingsDialog>;
+  const settingsPanel = settingsOpen && <SettingsDialog onClose={()=>setSettingsOpen(false)}><label className="my-4 flex items-center gap-3"><input type="checkbox" checked={ghostEnabled} onChange={e=>toggleGhost(e.target.checked)}/> Ghost planning (optional)</label><p className="my-4"><HowToPlay bendMode={game.bendMode} segmentLengthMode={game.segmentLengthMode}/></p>{settingsContent}<button className="rounded border px-3 py-2" onClick={()=>setShowLog(v=>!v)}>Action log</button>{showLog && <ol className="mt-3 space-y-2 text-sm">{game.events.map(e=><li key={e.seq}>{e.text}</li>)}</ol>}</SettingsDialog>;
   const resultsPanel = game.phase === "RESULTS" && showResults && <div role="dialog" aria-modal="true" aria-label="Final results" className="fixed inset-0 z-40 overflow-auto bg-[#fff7e5] p-3 text-stone-900"><button autoFocus className="mb-3 rounded border px-4 py-2" onClick={()=>setShowResults(false)}>Back to board</button><ResultsSheet game={game} roomCode={room.roomCode} mode={room.mode} reportContext={reportContext}/></div>;
 
   return (

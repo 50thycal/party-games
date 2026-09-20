@@ -1,4 +1,5 @@
 "use client";
+import { HowToPlay } from "@/games/subway/Intro";
 
 import {SegmentLengthSelect,type SegmentLengthMode} from "@/games/subway/SegmentLengthSelect";
 import {BendModeSelect} from "@/games/subway/BendModeSelect";
@@ -201,6 +202,7 @@ export default function SubwayMultiplayerPage() {
   if(!view) return <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-5 p-6">
     <Link href="/" className="text-sm text-slate-400">← Party Games</Link>
     <h1 className="text-3xl font-black">Subway · Table & phones</h1>
+    <HowToPlay bendMode={bendMode} segmentLengthMode={segmentLengthMode}/>
     <p>Create the shared board on your iPad, then join each company on a phone.</p>
     {identity ? <><p>{online?"Opening your company…":"Could not reconnect. Your game is saved."}</p><button className={button} onClick={leave}>Join with a recovery key</button></> : <>
       <button className={button} disabled={busy} onClick={()=>void enter("create")}>I am the iPad · Create game</button>
@@ -239,7 +241,7 @@ export default function SubwayMultiplayerPage() {
   const settings=deviceSettings&&settingsContent;
   const reports=game?.phase==='RESULTS'&&<><ReportSaveControls report={generateAiPlaytestReport(game,{...view.reportContext,roomCode:view.room.roomCode,mode:view.room.mode})} roomCode={view.room.roomCode}/>{!view.lab&&<button className={button} onClick={()=>void exportRecord()}>Download replay JSON</button>}</>;
   const notices=<>{!online&&<p role="alert" className="rounded-lg bg-amber-950 p-3">Connection lost. Reconnecting… Board actions are paused.</p>}{error&&<p role="alert" className="rounded-lg bg-rose-950 p-3">{error}</p>}</>;
-  if(!game) return <main className="mx-auto max-w-xl space-y-5 p-4">{header}{settings}{notices}
+  if(!game) return <main className="mx-auto max-w-xl space-y-5 p-4">{header}{settings}{notices}<HowToPlay bendMode={bendMode} segmentLengthMode={segmentLengthMode}/>
     <h1 className="text-2xl font-bold">Companies at the table</h1>
     <div className="rounded-xl bg-slate-800 p-4"><p className="text-sm">Join on each phone at</p><p className="break-all font-bold">{typeof window!=="undefined"?window.location.host:""}/subway/multiplayer</p><p className="text-5xl font-black tracking-widest">{view.room.roomCode}</p>{view.lab&&<p className="mt-3">Choose <strong>My testing phone · Playtest Lab</strong> on your phone to control your managed companies. First connection needs only this room code. Friends with reserved seats choose My phone.</p>}</div>
     {view.room.players.map(p=><p key={p.id} className="rounded-xl bg-white/10 p-4">{p.name} · ready</p>)}
@@ -293,7 +295,7 @@ export default function SubwayMultiplayerPage() {
       {header}{settings}{reports}
       <PhoneStatus game={game} playerId={me.id} details/>
       <p className="text-sm">Round {game.currentPeriod}/{SUBWAY_CONFIG.timelinePeriods}</p>
-      <Link href="/subway/tutorial" className="underline">How to play</Link>
+      <HowToPlay bendMode={game.bendMode} segmentLengthMode={game.segmentLengthMode}/>
       <BuyCardButton game={game} playerId={me.id} busy={controlsDisabled} act={run} counts={view.drawPileCounts}/>
       {game.playerOrder.map(id=>{const p=game.players[id];return <section key={id} className="space-y-2 rounded-xl border border-white/20 p-4"><strong>{p.name} · ${p.money}M {p.score!==undefined?`· ${p.score} VP`:""}</strong><p>{p.lines.filter(lineComplete).length}/3 lines complete</p>{p.lines.map(l=><p key={l.contractId}>{contractOf(l)?.name}: {segmentsBuilt(l)}/{contractOf(l)?.recipe.length} segments</p>)}{game.phase==="RESULTS"&&p.scoreBreakdown?.map((s,i)=><p key={i} className="text-sm">{s.label}: {s.points} VP</p>)}</section>;})}
       <p className="text-sm">Crews: $1M / $3M / $6M. Completing each line pays $3M. Final debt costs 2 VP per $1M. $4M earns 2 VP; $5M or more earns 3 VP.</p>
