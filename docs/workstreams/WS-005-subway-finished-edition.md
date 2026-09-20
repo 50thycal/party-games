@@ -1,13 +1,37 @@
 # WS-005 — Subway finished edition
 
 Build OS: v0.12
-Phase: REVIEW
-Status: Active
-Updated: 2026-09-19
-Implementation State: Both approved YMIF bundles delivered by PRs #194/#195. Production build, lint and full Subway suite pass; second-bundle code independently approved. Phone/iPad visual acceptance remains outstanding.
+Phase: READY_TO_BUILD
+Status: Blocked
+Updated: 2026-09-20
+Implementation State: Paid extensions and configurable lines-per-company authorized; coding blocked by offline execution environment. Build spec and separate intro handoff prepared; no runtime changes or new validation claimed.
 Related PRs: [#195](https://github.com/50thycal/party-games/pull/195) (second YMIF economy/card bundle); [#194](https://github.com/50thycal/party-games/pull/194) (YMIF bundle); [#188](https://github.com/50thycal/party-games/pull/188) (terminology audit); [#187](https://github.com/50thycal/party-games/pull/187) (optional bend modes); [#186](https://github.com/50thycal/party-games/pull/186) (draft rules/highlights); [#185](https://github.com/50thycal/party-games/pull/185) (public status/payments/draft); [#184](https://github.com/50thycal/party-games/pull/184) (JNCG cards/surveys/labels); [#177](https://github.com/50thycal/party-games/pull/177) (PRWK feedback); [#176](https://github.com/50thycal/party-games/pull/176) (phone joining; merged); [#175](https://github.com/50thycal/party-games/pull/175) (Playtest Lab); [#174](https://github.com/50thycal/party-games/pull/174) (transfer/objective continuation); [#173](https://github.com/50thycal/party-games/pull/173) (larger neighborhoods/reversed VP; merged); [#172](https://github.com/50thycal/party-games/pull/172) (guided turns, neighborhoods and tiers; merged); [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; merged); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
-## Current continuation — YMIF economy and card purchases
+## Current continuation — extensions and configurable draft size
+
+Owner authorized this bundle on 2026-09-20: after finishing all contracted lines,
+pay $1M to extend any owned line; make lines drafted per company configurable at
+setup. Continue WS-005. Remaining design ideas stay parked. The polished in-game
+intro is a handoff for another session, not implementation in this bundle.
+
+Goal: meaningful late-game board actions and configurable draft counts for experiments.
+Non-goals: passive operation income, automatic player-count balance changes, new
+cards/colors, tutorial implementation, altered ending round or KC strategy nerfs.
+Build contract and acceptance: [extensions/draft spec](../build-specs/WS-005-extensions-draft-size.md).
+Separate-session handoff: [polished intro](../handoffs/subway-polished-intro.md).
+Source audit: 13 unique line contracts, $40M cash-only draft; higher counts need
+an affordability-safe acquisition path as well as supply limits. Do not silently
+introduce more cash or contract debt; see spec risk before exposing high counts.
+Blocker: execution environment disconnected, then reported 409 environment_offline
+on shell and Node runtime recovery attempts. GitHub remained available. This draft
+records approved work; nothing executable was changed and no new tests ran.
+Review State: Not reviewed; design handoff draft, not ready to merge.
+Related PRs: New draft extension/draft-size handoff PR; #196 remains the separate,
+open, independently approved verification PR at 84c93647a472f18af1dbddf8509b925a03f87423.
+Next Step: Restore coding workspace, continue this draft PR through implementation,
+resolve high-count acquisition safely, validate, then obtain independent review.
+
+## Previous continuation — YMIF economy and card purchases
 
 Owner authorized this second bundle in chat on 2026-09-19. Significant continuation
 of WS-005, no new mission. Canonical Build OS v0.12 already checked this session.
