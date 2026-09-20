@@ -2,34 +2,31 @@
 
 Build OS: v0.12
 Phase: READY_TO_BUILD
-Status: Blocked
+Status: Active
 Updated: 2026-09-20
-Implementation State: Paid extensions and configurable lines-per-company authorized; coding blocked by offline execution environment. Build spec and separate intro handoff prepared; no runtime changes or new validation claimed.
-Related PRs: [#195](https://github.com/50thycal/party-games/pull/195) (second YMIF economy/card bundle); [#194](https://github.com/50thycal/party-games/pull/194) (YMIF bundle); [#188](https://github.com/50thycal/party-games/pull/188) (terminology audit); [#187](https://github.com/50thycal/party-games/pull/187) (optional bend modes); [#186](https://github.com/50thycal/party-games/pull/186) (draft rules/highlights); [#185](https://github.com/50thycal/party-games/pull/185) (public status/payments/draft); [#184](https://github.com/50thycal/party-games/pull/184) (JNCG cards/surveys/labels); [#177](https://github.com/50thycal/party-games/pull/177) (PRWK feedback); [#176](https://github.com/50thycal/party-games/pull/176) (phone joining; merged); [#175](https://github.com/50thycal/party-games/pull/175) (Playtest Lab); [#174](https://github.com/50thycal/party-games/pull/174) (transfer/objective continuation); [#173](https://github.com/50thycal/party-games/pull/173) (larger neighborhoods/reversed VP; merged); [#172](https://github.com/50thycal/party-games/pull/172) (guided turns, neighborhoods and tiers; merged); [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; merged); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
+Implementation State: PR #197 remains a design-only draft for paid extensions and intro handoff. Owner parked configurable line count; three lines per company retained. Shell access recovered; extension implementation and validation remain outstanding.
+Related PRs: [#197](https://github.com/50thycal/party-games/pull/197) (extension design draft); [#196](https://github.com/50thycal/party-games/pull/196) (approved verification, open); [#195](https://github.com/50thycal/party-games/pull/195) (second YMIF economy/card bundle); [#194](https://github.com/50thycal/party-games/pull/194) (YMIF bundle); [#188](https://github.com/50thycal/party-games/pull/188) (terminology audit); [#187](https://github.com/50thycal/party-games/pull/187) (optional bend modes); [#186](https://github.com/50thycal/party-games/pull/186) (draft rules/highlights); [#185](https://github.com/50thycal/party-games/pull/185) (public status/payments/draft); [#184](https://github.com/50thycal/party-games/pull/184) (JNCG cards/surveys/labels); [#177](https://github.com/50thycal/party-games/pull/177) (PRWK feedback); [#176](https://github.com/50thycal/party-games/pull/176) (phone joining; merged); [#175](https://github.com/50thycal/party-games/pull/175) (Playtest Lab); [#174](https://github.com/50thycal/party-games/pull/174) (transfer/objective continuation); [#173](https://github.com/50thycal/party-games/pull/173) (larger neighborhoods/reversed VP; merged); [#172](https://github.com/50thycal/party-games/pull/172) (guided turns, neighborhoods and tiers; merged); [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; merged); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
-## Current continuation — extensions and configurable draft size
+## Current continuation — paid extensions; configurable draft parked
 
-Owner authorized this bundle on 2026-09-20: after finishing all contracted lines,
-pay $1M to extend any owned line; make lines drafted per company configurable at
-setup. Continue WS-005. Remaining design ideas stay parked. The polished in-game
-intro is a handoff for another session, not implementation in this bundle.
+Owner authorized paid extensions after all three lines finish. On 2026-09-20 the
+owner withdrew configurable line counts until the supply/budget effects are resolved.
+Keep three lines per company; do not build or expose the count control.
 
-Goal: meaningful late-game board actions and configurable draft counts for experiments.
-Non-goals: passive operation income, automatic player-count balance changes, new
-cards/colors, tutorial implementation, altered ending round or KC strategy nerfs.
-Build contract and acceptance: [extensions/draft spec](../build-specs/WS-005-extensions-draft-size.md).
+Goal: meaningful late-game board actions by extending any owned completed line for $1M.
+Non-goals: configurable draft counts, passive income, new cards/colors, automatic
+player-count rebalancing, tutorial implementation, changed end trigger or KC nerfs.
+Build contract: [paid extension spec](../build-specs/WS-005-extensions-draft-size.md).
 Separate-session handoff: [polished intro](../handoffs/subway-polished-intro.md).
-Source audit: 13 unique line contracts, $40M cash-only draft; higher counts need
-an affordability-safe acquisition path as well as supply limits. Do not silently
-introduce more cash or contract debt; see spec risk before exposing high counts.
-Blocker: execution environment disconnected, then reported 409 environment_offline
-on shell and Node runtime recovery attempts. GitHub remained available. This draft
-records approved work; nothing executable was changed and no new tests ran.
-Review State: Not reviewed; design handoff draft, not ready to merge.
-Related PRs: New draft extension/draft-size handoff PR; #196 remains the separate,
-open, independently approved verification PR at 84c93647a472f18af1dbddf8509b925a03f87423.
-Next Step: Restore coding workspace, continue this draft PR through implementation,
-resolve high-count acquisition safely, validate, then obtain independent review.
+PARK — Custom draft size needs budget/supply design; no runtime option exists today.
+The prior environment outage stopped implementation; shell access has now recovered.
+This update changes only documentation. No extension code or new test pass is claimed.
+Review State: PR #197 not reviewed; design-only draft, not ready to merge.
+PR order: owner may merge independently approved #196 first at
+84c93647a472f18af1dbddf8509b925a03f87423. Then integrate that main into #197,
+preserving its verification record, implement extensions, test and review #197.
+Next Step: Continue #197 as the extension-only implementation; keep intro implementation
+in the owner's separate session. Do not merge #197 as a completed feature.
 
 ## Previous continuation — YMIF economy and card purchases
 

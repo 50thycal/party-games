@@ -13,7 +13,7 @@ connect into transfer stations and how a company's lines form a network.
 ## Start here
 Read AGENTS.md, docs/workstreams/ACTIVE.md, WS-005, PROJECT_MODEL, relevant DECISIONS
 and the actual current rule implementation. Check open PRs before editing.
-The paid-extension/configurable-line-count bundle is approved but was not built
+The paid-extension feature is approved but was not built
 in the session creating this handoff. Check its implementation status; do not
 present planned behavior as currently playable or duplicate that implementation.
 Older rulebook documents are drafts and contain historical rules. Reconcile
@@ -23,7 +23,7 @@ against code and latest accepted decisions rather than copying them wholesale.
 1. Your company, owned line colors and how victory points determine the winner.
 2. What stays on the iPad and what players do on their phones.
 3. Drafting line recipes, summed lengths, Engineering goals and Destinations.
-   Show the selected number of lines; do not hardcode three once configurable.
+   Teach the current fixed three-line draft. Configurable line count is parked.
 4. Starter placement on empty legal border pegs.
 5. A normal turn: optional card purchase, crews and price, select/preview/confirm.
 6. The core connection lesson: two owned lines connected by adjacent stations;
