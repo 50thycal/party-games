@@ -308,3 +308,20 @@ old saves are not migrated. Neighborhood names and size labels fit wholly inside
 their actual footprints, with wrapped text and camera-adaptive font sizes.
 Automated games test termination and rule behavior, not human enjoyment or
 statistically proven balance. Physical iPad acceptance remains a human playtest task.
+
+## Paid extensions (state v30)
+
+After all three of your lines are complete, starting on your next turn you may
+extend any one line, or skip. Select a line and preview one straight placement
+1–2 peg spaces from its current end (diagonal placements within that distance
+are allowed). Turn at most 90°, use an empty hole and obey normal self-crossing,
+overlap and contact rules. No intermediate bend/worksite is added to this short
+placement. Confirm to pay $1M plus crossing tolls; there is no extra crew bill.
+You may borrow under the normal construction rule. Skipping pays nothing.
+
+The original recipe stays complete and its final station still qualifies for
+endpoint Engineering cards. Extensions add network length and real stations,
+including destination service and transfer opportunities, without repeating
+completion cash. Undo reverses the extension and its payments. Buy optional cards
+before selecting your extension. One extension per turn; play still ends by round
+nine. Drafting remains three lines per player. Existing rooms must restart for v30.

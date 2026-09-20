@@ -32,7 +32,7 @@ import type { BaseAction, GameContext, Player } from "@/engine/types";
 // ============================================================================
 
 /** Bumped when the state shape changes; older rooms must restart. */
-export const SUBWAY_STATE_VERSION = 29;
+export const SUBWAY_STATE_VERSION = 30;
 
 // ----------------------------------------------------------------------------
 // Tunable configuration
@@ -397,6 +397,8 @@ export type SubwayPlayer = {
   color: string;
   money: number;
   crewsHired?: boolean;
+  /** This turn selected a completed line for a paid extension. */
+  extending?: boolean;
   crewPaid?: number;
   engineeringHand: string[];
   committedEngineering: string[];
@@ -611,6 +613,7 @@ export interface SubwayAction extends BaseAction {
     choice?: "buy" | "pass";
     contractId?: string;
     expectedPick?: number;
+    expectedNodes?: number;
     lineIndexes?: number[];
     deck?: CardDeckId;
     cardIds?: string[];
@@ -648,8 +651,15 @@ export const lineComplete = (line: PlayerLine): boolean => {
 export const allLinesComplete = (p: SubwayPlayer): boolean =>
   p.lines.length > 0 && p.lines.every(lineComplete);
 
+/** Extensions unlock only after the fixed three-contract portfolio is complete. */
+export const extensionEligible = (p: SubwayPlayer): boolean => p.lines.length === 3 && allLinesComplete(p);
+
 /** How many recipe segments this line has actually built. */
-export const segmentsBuilt = (line: PlayerLine): number => Math.max(0, line.route.length - 1);
+export const segmentsBuilt = (line: PlayerLine): number => Math.min(contractOf(line)?.recipe.length ?? 0, Math.max(0, line.route.length - 1));
+
+/** Physical stations added after the original recipe was finished. */
+export const extensionCount = (line: PlayerLine): number => Math.max(0, line.route.length - (contractOf(line)?.recipe.length ?? 0) - 1);
+export const recipeEndpoint = (line: PlayerLine): RouteNode | undefined => lineComplete(line) ? line.route[contractOf(line)!.recipe.length] : undefined;
 
 /** The length the next construction action on this line must hit, if any. */
 export function nextSegmentLength(line: PlayerLine): number | undefined {
@@ -1068,7 +1078,7 @@ export function validateNode(
   ) {
     return "Starter pegs must sit on the outer border of the board.";
   }
-  if (!starter && myLine.route.length && lineComplete(myLine)) {
+  if (!starter && myLine.route.length && lineComplete(myLine) && !extensionEligible(state.players[playerId])) {
     return `${contract.name} is already finished.`;
   }
 
@@ -1104,7 +1114,7 @@ export function legalTargets(
 /** True when this line has at least one legal placement anywhere. */
 export function hasLegalMove(state: SubwayState, playerId: string, lineIndex: number): boolean {
   const line = state.players[playerId]?.lines[lineIndex];
-  if (!line || lineComplete(line)) return false;
+  if (!line || lineComplete(line) && !extensionEligible(state.players[playerId])) return false;
   return line.route.length===0?legalTargets(state,playerId,lineIndex,true).length>0:!!findBendMove(state,playerId,lineIndex);
 }
 
@@ -1114,7 +1124,7 @@ export function buildableLines(state: SubwayState, playerId: string): number[] {
   if (!me) return [];
   return me.lines
     .map((_, i) => i)
-    .filter((i) => !lineComplete(me.lines[i]) && hasLegalMove(state, playerId, i));
+    .filter((i) => hasLegalMove(state, playerId, i));
 }
 
 // ----------------------------------------------------------------------------
@@ -1538,10 +1548,10 @@ function toScoring(s: SubwayState, now: number, reason: SubwayEndReason): Subway
   return s;
 }
 
-/** True once no incomplete route owned by any company has a legal next segment. */
+/** Finished companies can keep extending until the round cap or true exhaustion. */
 export function constructionExhausted(s: SubwayState): boolean {
   return seats(s).every((p) =>
-    p.lines.every((line, lineIndex) => lineComplete(line) || !hasLegalMove(s, p.id, lineIndex))
+    p.lines.every((_, lineIndex) => !hasLegalMove(s, p.id, lineIndex))
   );
 }
 
@@ -1603,6 +1613,7 @@ function beginConstructionPeriod(s: SubwayState, now: number, opening = false): 
     p.pendingActions = [];
     p.actedThisPeriod = false;
     p.crewsHired = false;
+    p.extending = false;
   }
   s.resolveQueue = s.playerOrder.map((_,i) => draftTurnId(s,i,0));
   pushEvent(s, now, "PERIOD", "banner", `${opening ? "Construction begins. " : ""}Round ${s.currentPeriod}: choose crews on your turn.`);
@@ -1815,15 +1826,17 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
     case "HIRE_CREWS": {
       if (s.phase !== "CONSTRUCTION" || s.resolveQueue[0] !== me?.id || me.crewsHired || action.payload?.period !== s.currentPeriod) return state;
       const indexes = action.payload?.lineIndexes;
-      if (!Array.isArray(indexes) || indexes.length > 3 || new Set(indexes).size !== indexes.length || indexes.some(i => !Number.isInteger(i) || !buildableLines(s,me.id).includes(i))) return state;
-      const cost = activationCost(me,indexes.length);
+      if (!Array.isArray(indexes) || indexes.length > (extensionEligible(me) ? 1 : 3) || new Set(indexes).size !== indexes.length || indexes.some(i => !Number.isInteger(i) || !buildableLines(s,me.id).includes(i))) return state;
+      const extending = extensionEligible(me);
+      const cost = extending ? 0 : activationCost(me,indexes.length);
       // Crews are paid from cash on hand unless the bridging-debt rule is on.
       if (!canAffordCrews(me, indexes.length)) return state;
       me.money -= cost;
       me.crewPaid = (me.crewPaid ?? 0) + cost;
       me.crewsHired = true;
+      me.extending = extending;
       me.pendingActions = [...indexes];
-      pushEvent(s, ctx.now(), "TURN", "notice", `${me.name} hired ${indexes.length} crew(s) for $${cost}M.`, me.id);
+      pushEvent(s, ctx.now(), "TURN", "notice", extending ? `${me.name} ${indexes.length ? "is choosing a $1M extension" : "skipped extending"}.` : `${me.name} hired ${indexes.length} crew(s) for $${cost}M.`, me.id);
       return indexes.length ? s : endPlayerTurn(s,me.id,ctx.now());
     }
     case "BUILD": {
@@ -1832,7 +1845,10 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       const lineIndex = action.payload?.lineIndex ?? -1;
       if (!me.pendingActions.includes(lineIndex)) return state;
       const line = me.lines[lineIndex];
-      if (!line || lineComplete(line)) return state;
+      if (!line) return state;
+      const extension = lineComplete(line);
+      if (extension && (!me.extending || !extensionEligible(me) || action.payload?.period !== s.currentPeriod || action.payload?.expectedNodes !== line.route.length)) return state;
+      if (extension && !SUBWAY_CONFIG.crewDebtAllowed && me.money < 1) return state;
 
       const pt = { x: action.payload?.x ?? -1, y: action.payload?.y ?? -1 };
       const slot = action.payload?.slot;
@@ -1841,6 +1857,7 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       const pause=action.payload?.pause===true;
       const points=[...bends,pt];
       if(validatePath(s,me.id,lineIndex,points,pause))return state;
+      if(extension) me.money -= 1;
       const extraTokens=s.bendMode==='tokens'?tokenCost(s,me.id,bends.length):0;
       if(s.bendMode==='tokens'){me.money-=extraTokens;me.bendTokens=Math.max(0,(me.bendTokens??0)-bends.length);}
 
@@ -1870,11 +1887,12 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
         line.work=undefined;
       }
 
-      // Legal BUILD rejects completed lines; Undo restores the prior balance.
-      if (lineComplete(line)) me.money += SUBWAY_CONFIG.completionReward;
+      // Only original recipe completion earns the reward; extensions never repeat it.
+      if (!extension && lineComplete(line)) me.money += SUBWAY_CONFIG.completionReward;
       const payments:MoneyEvent['payments']=contacts.map(c=>({from:me.id,to:c.ownerId,amount:SUBWAY_CONFIG.contact.toll,reason:c.kind==='station'?'Transfer access':'Line contact'}));
+      if(extension)payments.push({from:me.id,amount:1,reason:'Line extension'});
       if(extraTokens)payments.push({from:me.id,amount:extraTokens,reason:'Bend tokens'});
-      if(lineComplete(line))payments.push({from:'bank',to:me.id,amount:SUBWAY_CONFIG.completionReward,reason:'Line completed'});
+      if(!extension&&lineComplete(line))payments.push({from:'bank',to:me.id,amount:SUBWAY_CONFIG.completionReward,reason:'Line completed'});
       // Destination missions pay once, the first time the network connects them.
       const newlyMet=payConnectedDestinations(me,payments);
       if(payments.length)recordMoney(s,me.id,payments);
@@ -1892,9 +1910,9 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       pushEvent(
         s,
         ctx.now(),
-        lineComplete(line) ? "ROUTE" : "PLACEMENT",
+        !extension && lineComplete(line) ? "ROUTE" : "PLACEMENT",
         "notice",
-        (lineComplete(line)
+        (extension ? `${me.name} extended the ${contract.name} to ${where} for $1M.` : lineComplete(line)
           ? `${me.name} completed the ${contract.name} at ${where}! +$${SUBWAY_CONFIG.completionReward}M completion reward.`
           : pause?`${me.name} paused ${contract.name} at a bend. Hire this line again to finish.`:`${me.name} extended the ${contract.name} to ${where}.`) + tollNote
           + (newlyMet.length?` Destination${newlyMet.length===1?'':'s'} connected: +$${newlyMet.reduce((n,id)=>n+destinationReward(id),0)}M.`:""),

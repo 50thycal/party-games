@@ -20,7 +20,7 @@ import { DestinationCardFace, EngineeringCardFace } from "@/games/subway/CardArt
 import { ContractCard } from "@/games/subway/cards";
 import { phoneGuidance } from "@/games/subway/guidance";
 import { destinationColor } from "@/games/subway/destinationColors";
-import { SUBWAY_CONFIG, cardPurchaseBlocker, contractById, contractOf, destinationMet, objectiveProgress, lineComplete, segmentsBuilt, type RouteNode } from "@/games/subway/config";
+import { SUBWAY_CONFIG, cardPurchaseBlocker, contractById, contractOf, destinationMet, objectiveProgress, lineComplete, segmentsBuilt, extensionCount, type RouteNode } from "@/games/subway/config";
 
 const KEY = DEVICE_SESSION_KEY;
 type Identity = SavedDeviceIdentity;
@@ -277,6 +277,7 @@ export default function SubwayMultiplayerPage() {
       {game.phase==="PROCUREMENT"&&<section className="space-y-4"><p>Choose three lines, one per turn.</p>{game.procurement.row.map(id=>{const c=contractById(id)!;return <ContractCard key={id} contract={c}><button className={`${button} mt-3 w-full`} disabled={controlsDisabled||!myTurn||me.money<c.cost} onClick={()=>run("PROCURE",{choice:"buy",contractId:id})}>Buy {c.name} · ${c.cost}M</button></ContractCard>;})}</section>}
       {me.lines.map(line=>{const c=contractOf(line)!;const plan=view.plans[line.contractId];return <ContractCard key={line.contractId} contract={c} progress={game.phase==="PROCUREMENT"||game.phase==="ENGINEERING"?undefined:{built:segmentsBuilt(line),total:c.recipe.length}}>
         <p className="mt-3 text-sm">{lineComplete(line)?"Complete · $3M reward paid":"Complete this line to receive $3M."}</p>
+        {extensionCount(line)>0&&<p className="text-sm font-bold">+{extensionCount(line)} extension{extensionCount(line)===1?"":"s"} · original recipe complete</p>}
         {plan&&<GhostDiagram nodes={plan.nodes} color={c.color} built={line.route.length}/>}
       </ContractCard>;})}
     </>}
@@ -295,7 +296,7 @@ export default function SubwayMultiplayerPage() {
       <p className="text-sm">Round {game.currentPeriod}/{SUBWAY_CONFIG.timelinePeriods}</p>
       <Link href="/subway/tutorial" className="underline">How to play</Link>
       <BuyCardButton game={game} playerId={me.id} busy={controlsDisabled} act={run} counts={view.drawPileCounts}/>
-      {game.playerOrder.map(id=>{const p=game.players[id];return <section key={id} className="space-y-2 rounded-xl border border-white/20 p-4"><strong>{p.name} · ${p.money}M {p.score!==undefined?`· ${p.score} VP`:""}</strong><p>{p.lines.filter(lineComplete).length}/3 lines complete</p>{p.lines.map(l=><p key={l.contractId}>{contractOf(l)?.name}: {segmentsBuilt(l)}/{contractOf(l)?.recipe.length} segments</p>)}{game.phase==="RESULTS"&&p.scoreBreakdown?.map((s,i)=><p key={i} className="text-sm">{s.label}: {s.points} VP</p>)}</section>;})}
+      {game.playerOrder.map(id=>{const p=game.players[id];return <section key={id} className="space-y-2 rounded-xl border border-white/20 p-4"><strong>{p.name} · ${p.money}M {p.score!==undefined?`· ${p.score} VP`:""}</strong><p>{p.lines.filter(lineComplete).length}/3 lines complete</p>{p.lines.map(l=><p key={l.contractId}>{contractOf(l)?.name}: {segmentsBuilt(l)}/{contractOf(l)?.recipe.length} segments{extensionCount(l)?` +${extensionCount(l)} extensions`:""}</p>)}{game.phase==="RESULTS"&&p.scoreBreakdown?.map((s,i)=><p key={i} className="text-sm">{s.label}: {s.points} VP</p>)}</section>;})}
       <p className="text-sm">Crews: $1M / $3M / $6M. Completing each line pays $3M. Final debt costs 2 VP per $1M. $4M earns 2 VP; $5M or more earns 3 VP.</p>
       <section className="space-y-3">{game.events.slice().reverse().map(e=><p key={e.seq} className="border-t border-white/10 pt-3 text-sm">{e.text}</p>)}</section>
     </>}

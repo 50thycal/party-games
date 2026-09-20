@@ -8,10 +8,10 @@ export function BuildCostPreview({ player, contacts, game }: {
   game: SubwayState;
 }) {
   const quote = quoteBuildCost(player, contacts);
-  if (!quote.recipients.length) return null;
+  if (!quote.recipients.length && !player.extending) return null;
   return <div aria-label="Cost of next real segment" className="rounded-lg border border-stone-300 bg-white/80 px-2 py-1.5 text-xs text-stone-700">
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-      <b>You pay {money(quote.playerCost)}</b>
+      <b>You pay {money(quote.playerCost)}{player.extending?" ($1M extension + tolls)":""}</b>
       <span>Cash {money(player.money)} → <b className={quote.cashAfter < 0 ? "text-red-800" : "text-stone-900"}>{money(quote.cashAfter)}</b></span>
     </div>
     <p className="mt-1">

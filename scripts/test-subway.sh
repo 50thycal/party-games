@@ -2,10 +2,10 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
-out_dir="/tmp/subway-test"
-config="/tmp/subway-tsconfig.json"
-
-rm -rf "$out_dir"
+test_dir="$(mktemp -d /tmp/subway-check.XXXXXX)"
+out_dir="$test_dir/out"
+config="$test_dir/tsconfig.json"
+trap 'rm -rf "$test_dir"' EXIT
 cat >"$config" <<EOF
 {
   "extends": "$repo_root/tsconfig.json",
@@ -31,6 +31,7 @@ cat >"$config" <<EOF
     "$repo_root/scripts/subway-gzzf-test.tsx",
     "$repo_root/scripts/subway-lab-test.ts",
     "$repo_root/scripts/subway-rules-test.ts",
+    "$repo_root/scripts/subway-extensions-test.ts",
     "$repo_root/scripts/subway-strategy-test.ts",
     "$repo_root/scripts/subway-multiplayer-test.ts",
     "$repo_root/scripts/subway-companion-api-test.ts",
@@ -47,6 +48,7 @@ mkdir -p "$out_dir/node_modules/@"
 ln -s "$out_dir/src/engine" "$out_dir/node_modules/@/engine"
 ln -s "$out_dir/src/games" "$out_dir/node_modules/@/games"
 node "$out_dir/scripts/subway-rules-test.js"
+node "$out_dir/scripts/subway-extensions-test.js"
 node "$out_dir/scripts/subway-cluster-planning-test.js"
 NODE_PATH="$repo_root/node_modules" node "$out_dir/scripts/subway-strategy-test.js"
 
@@ -64,4 +66,4 @@ NODE_PATH="$repo_root/node_modules" node "$out_dir/scripts/subway-card-audit-tes
 NODE_PATH="$repo_root/node_modules" node scripts/subway-audit-storage-test.mjs "$out_dir"
 NODE_PATH="$repo_root/node_modules" node scripts/subway-audit-ui-test.mjs "$out_dir"
 NODE_PATH="$repo_root/node_modules" node scripts/subway-audit-pool-test.mjs "$out_dir"
-NODE_PATH="$repo_root/node_modules" node scripts/subway-status-ui-test.mjs
+NODE_PATH="$repo_root/node_modules" node scripts/subway-status-ui-test.mjs "$out_dir"

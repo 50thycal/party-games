@@ -1,4 +1,4 @@
-import { SUBWAY_CONFIG, affordableCrews, cashScore, buildableLines, contractOf, lineActionsRemaining, lineComplete, legalTargets, objectiveProgress, stationAt, routeContacts, contactToll, type SubwayState, type PlacementTarget } from './config';
+import { SUBWAY_CONFIG, extensionEligible, affordableCrews, cashScore, buildableLines, contractOf, lineActionsRemaining, lineComplete, legalTargets, objectiveProgress, stationAt, routeContacts, contactToll, type SubwayState, type PlacementTarget } from './config';
 
 const crewCost = (n: number) => n * (n + 1) / 2;
 
@@ -27,6 +27,7 @@ export function immediateObjectiveBuild(state: SubwayState, id: string, index: n
  */
 export function planBotCrews(state: SubwayState, id: string, cautious = false, prioritizeCompletion = false): number[] {
   const me = state.players[id], rounds = SUBWAY_CONFIG.timelinePeriods + 1 - state.currentPeriod;
+  if (extensionEligible(me)) return buildableLines(state,id).slice(0,1);
   const remaining = me.lines.map(lineActionsRemaining);
   const available = new Set(buildableLines(state, id));
   type Plan = { cost: number; now: number[]; urgency: number };

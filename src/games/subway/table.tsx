@@ -32,6 +32,7 @@ import {
   scheduleProblems,
   schedulingById,
   segmentsBuilt,
+  extensionCount,
   stationById,
   type CardDeckId,
   type LineContract,
@@ -347,7 +348,7 @@ export function OpponentEdge({
             <span key={i} className="flex items-center gap-[12px] text-[20px]">
               <LineTile contract={contract} size={38} subdued={scheduleRevealed && shelved} />
               <b className="tabular-nums">
-                {line.route.length}/{contractNodes(contract)}
+                {Math.min(line.route.length,contractNodes(contract))}/{contractNodes(contract)}{extensionCount(line)?` +${extensionCount(line)} extensions`:""}
               </b>
               <span className="text-stone-600">
                 {lineComplete(line) ? "complete" : "available for crew activation"}
@@ -860,7 +861,7 @@ export function LineContractBoard({
         )}
         {pendingActions > 0 && <Pill tone="warn">{pendingActions} action{pendingActions === 1 ? "" : "s"} due</Pill>}
         <span className="ml-auto text-[28px] font-black tabular-nums">
-          {line.route.length}/{nodes} <span className="text-[19px] font-bold text-stone-500">stations</span>
+          {Math.min(line.route.length,nodes)}/{nodes}{extensionCount(line)?` +${extensionCount(line)} extensions`:""} <span className="text-[19px] font-bold text-stone-500">stations</span>
         </span>
       </div>
 

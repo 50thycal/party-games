@@ -1,6 +1,6 @@
 # WS-005 — Paid extensions (draft-count option parked)
 
-Status: Owner-authorized extension implementation; design-only draft, not yet built.
+Status: Implementation in progress in PR #197.
 Date: 2026-09-20. Build OS v0.12; canonical version checked via GitHub this session.
 This is a continuation of WS-005, not a new workstream. Continue this draft PR
 through implementation and review; do not open a second PR for the same bundle.
@@ -76,7 +76,7 @@ future design, not an implementation task or blocker for paid extensions.
   documentation-only finalization. Do not merge without owner direction.
 
 ## Execution status
-The previous session could not begin coding because shell and Node execution
-reported environment_offline. Shell access recovered on 2026-09-20. This scope
-update changes documentation only. Extensions are not implemented or validated;
-continue PR #197 through implementation, checks and independent review before merge.
+Extension implementation is underway. The selected line uses existing HIRE/BUILD
+turn controls; confirmation charges $1M and Undo restores it. The short extension
+is a single straight placement, 1–2 spaces, with normal heading/contact checks.
+Validation and independent review are required before making PR #197 ready.
