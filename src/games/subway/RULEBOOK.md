@@ -7,64 +7,81 @@
 
 ## 1. Your goal
 
-Subway is a line-building strategy game for **two to four players**. Each player
-runs a company with three subway lines. Earn victory points by completing lines,
-fulfilling private Destination missions, meeting Engineering goals, and building
-the Longest Network and Largest Transfer Station public goals.
+Subway is a line-building strategy game for **two to four players**. Each player runs a transit company with three subway lines.
 
-Money pays for contracts, crews, and access to opponents' infrastructure.
-Unfinished lines reduce your final score, and your ending cash scores on a spectrum.
+During the game, you build subway lines across a shared city, connect your lines through transfer stations, serve neighborhoods, and navigate around — or across — your opponents’ networks.
+
+Earn victory points by **completing subway lines, finishing Destination missions, meeting Engineering goals, and competing for the Longest Network and Largest Transfer Station.**
+
+Money is used to buy line contracts, hire construction crews, purchase additional goals, and pay opponents when your tracks cross their infrastructure.
+
+You may go into debt during construction. To finish your lines. Your final cash balance — including any debt — affects your score at the end of the game.
+
+Unfinished lines reduce your final score. The company with the most victory points wins.
 
 ## 2. The city and its pieces
 
-The board is a grid of holes surrounded by four borders: north, south, east and
-west. It contains three small neighborhoods of six holes each, one medium of ten
-holes, and six large neighborhoods of sixteen holes each. Locations and shapes
-vary between games.
+The board is a grid of **pegs** surrounded by four borders: north, south, east, and west.
 
-A **station** is one placed peg. A **segment** connects successive stations.
-A **line** consists of its starter station and the segments listed on its contract.
+The board contains three small neighborhoods **(six pegs each)**, one medium neighborhood **(ten pegs)**, and six large neighborhoods **(sixteen pegs each)**. Neighborhood locations are randomized each game.
 
-A **peg space** measures distance, not the number of pegs placed. A **round**
-gives each company a **turn**. Each hired line gets one **construction
-activation** during that turn. In delayed mode, an activation may build only
-one **leg** of a segment and leave an unfinished **worksite**. A bend or worksite
-is not a peg. See [terminology](TERMINOLOGY.md) for shared card and scoring terms.
+A **peg** is one location on the board where a station may be placed. Each peg can hold only one station.
 
-To **serve a neighborhood**, place a peg on a hole inside its boundary. Passing a
-string through does not serve it. Several companies may serve the same
-neighborhood. Stops are limited only by available holes.
+A **station** is a stop on one of your subway lines and occupies one peg on the board.
 
-**Every hole holds at most one peg, regardless of its owner or line.**
+A **peg space** is the distance from one peg to the next neighboring peg, either orthogonally or diagonally. Segment lengths are measured in peg spaces.
+
+A **segment** connects two successive stations on the same subway line. A segment may be straight or contain one bend between its two stations.
+
+A **line** consists of the stations and segments allowed per the line contract card.
+
+A **round** gives every company one **turn**. During your turn, you may hire construction crews to build your subway lines. Each hired crew may build the next segment of one line during that turn.
+
+To **serve a neighborhood**, one of your stations must occupy a peg inside that neighborhood. A line passing through a neighborhood without a station there does not serve it. Multiple companies or lines from the same company may serve the same neighborhood.
 
 ## 3. Setup and drafting
 
-Each company starts with **$40 million** and two private Destination cards: one
-two-neighborhood mission and one three-neighborhood mission.
+Each company begins the game with **$40 million** and two Destination missions.
 
-The game establishes a starting player. Use the same repeating seat order during
-both drafts and construction. The order does not reverse between rounds.
+Randomly determine the starting player. Play continues in the same order throughout drafting and construction. The order does not reverse between rounds.
 
 ### Buy your lines
 
-Buy one contract per turn until everyone owns three. The pool has seven contracts
-for two players, ten for three, and thirteen for four. The visible selection
-normally contains as many contracts as there are players. Refill it while cards
-remain. Pay the printed price; there are no discounts or passes. The last buyer
-chooses between two contracts, leaving one unused. Each line has a unique color
-and identifying code.
+Each company buys **three Line Contracts**.
 
-### Draft Engineering cards
+Starting with the first player, buy one Line Contract per turn until every company owns three lines.
 
-Take one Engineering card per turn until everyone holds three. Choose one of two
-face-up cards or draw blind. Refill an empty face-up space. The deck has twenty-one
-cards: seven Line, seven Station and seven Neighborhood cards.
+The available contract pool depends on the number of players:
+
+- **2 players:** 7 contracts
+- **3 players:** 10 contracts
+- **4 players:** 13 contracts
+
+The number of face-up Line Contracts is equal to the number of players. After a contract is purchased, refill the available contracts while cards remain.
+
+Pay the price shown on the Line Contract when you purchase it. Players may not pass during the draft.
+
+After every company has purchased three lines, one Line Contract will remain unused.
+
+**Tip:** Try to have at least **$15–$20 million** remaining after buying your three Line Contracts.
+
+### Draft Engineering goals
+
+Each company drafts **three Engineering goals**.
+
+On your turn, either choose one of the two face-up Engineering cards or draw one randomly from the deck. Refill the face-up cards after one is selected.
+
+Continue in player order until every company has three Engineering goals.
 
 ### Place starter stations
 
-Place one starter for each line on an empty outer-border hole. Neighborhoods do
-not occupy the border. Starters may be beside another peg, but never on top.
-Starter placement and joining an opponent’s station are free.
+Each Line Contract begins with one **starter station**. The starter station is the first station of that subway line and is the point from which construction of that line begins.
+
+In player order, place the starter station for each of your lines on an empty peg along one of the four outer borders of the board.
+
+Starter stations must be placed on a border of the board.
+
+A starter station may be placed next to another station, including an opponent’s station.
 
 ## 4. Construction rounds
 
