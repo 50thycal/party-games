@@ -72,6 +72,7 @@ export function companionView(state: RoomState, device: CompanionDevice): Compan
       playersBefore:Object.fromEntries(Object.entries(e.playersBefore).map(([id,p])=>[id,{...p,engineeringCards:[],destinationCards:[]}])),
       playersAfter:Object.fromEntries(Object.entries(e.playersAfter).map(([id,p])=>[id,{...p,engineeringCards:[],destinationCards:[]}]))}));
     if (game.undo) game.undo.state = undefined as unknown as SubwayState;
+    const actor = companionActor(original);
     for (const p of Object.values(game.players)) {
       if (p.id !== owner && game.phase !== "RESULTS") {
         p.engineeringHand = [];
@@ -82,11 +83,12 @@ export function companionView(state: RoomState, device: CompanionDevice): Compan
         p.scoreBreakdown = undefined;
       }
       // Tablet carries public pieces only, even after company acknowledgement.
-      // Held Engineering and Destination card ids are public there (DEC-056):
-      // the player pads show every company's card glyphs. Decks stay hidden.
+      // Only the company whose turn it is has its held card ids there (DEC-063,
+      // superseding DEC-056's all-company glyphs). Decks stay hidden.
       if (device.role === "tablet" && game.phase !== "RESULTS") {
-        p.engineeringHand = [...(original!.players[p.id]?.engineeringHand ?? [])];
-        p.destinationHand = [...(original!.players[p.id]?.destinationHand ?? [])];
+        const current = p.id === actor;
+        p.engineeringHand = current ? [...(original!.players[p.id]?.engineeringHand ?? [])] : [];
+        p.destinationHand = current ? [...(original!.players[p.id]?.destinationHand ?? [])] : [];
         p.committedEngineering = []; p.destinationCommitments = []; p.schedulingHand = [];
       }
     }

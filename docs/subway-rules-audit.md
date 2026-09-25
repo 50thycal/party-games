@@ -66,7 +66,22 @@ places, and some knobs don't actually control the game.
 | K3 | Low | **Dead or duplicated knobs.** `crewCostPerOverlapPeriod`, `mobilizationTiers`, `tolerances`, `stationScores`, `destinationRow`, `destinationsPerPlayer`, `minContractsPerPlayer`/`maxContractsPerPlayer` (the reducer hard-codes 3). The debt rate is defined twice: `contact.debtVpPerMillion` (used) and `cashBands[-1].vp` (display only). DEC-057 still says `debtVpPerMillion` is "only for archived reports"; since DEC-060 it is the live rate. | `config.ts:41-117` | PARK — prune with K2; mark the retired schedule knobs as legacy. |
 | K4 | Medium | **No test ties text to config.** Rulebook, quick start, rules reference, tutorial and intro hard-code every number, and nothing checks them against `SUBWAY_CONFIG`. G1, G6, G8 and G14 are all drift of this kind. | No script reads the `.md` files | FIX NOW — add a small rules-consistency check to `test-subway.sh` that asserts the key numbers (start cash, crew bills, rewards, VP, bands, tokens, extension fee) appear correctly in each surface. |
 
-## Recommended path
+## Owner rulings — 2026-09-25
+
+| ID | Ruling | Result in this PR |
+|---|---|---|
+| G4 | The iPad shows only the current company's cards; everyone else's stay hidden until results. | Code: the tablet projection and `PlayerPads` carry only the current company's cards; text updated everywhere. DEC-063. |
+| G5 | Exact length only; no shortened segments; bends remain. | Code: setup selector removed, START_GAME rejects `flexible`; intro slide updated. DEC-063. |
+| Scope | Docs + drift test + K1. | Done: all FIX NOW items, `engineeringPurchaseCost`, `scripts/subway-docs-test.ts` in `test-subway.sh`. |
+| G2, G3 | **Open.** The owner asked how distance is measured and whether a diagonal step equals one orthogonal step. | Approved §1–3 left untouched pending the ruling; G9 and G15 wait with them. |
+
+## Status after this PR
+
+Fixed: G1, G4, G5, G6, G7 (quick start and a tutorial line; no new practice lesson),
+G8, G10, G11, G12, G14, K1, K4. Discarded: G13. Open for the owner: G2, G3, G9, G15.
+Parked: K2, K3.
+
+## Recommended path (as originally proposed)
 
 1. **Owner rulings:** G2/G3 (approved §2 wording), G4 (card privacy), G5 (flexible length),
    G9/G15 (approved-text touch-ups).

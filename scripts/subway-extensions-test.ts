@@ -52,7 +52,7 @@ let extensions=0;
 for(const count of [2,3,4]) {
  const r=testRoom(count),random=seededRandom(700+count);let game=subwayGame.initialState(r.players);const record=newRecord(r,game,'bots');let ticks=0;
  const act=(a:SubwayAction)=>{const next=recordedReducer(game,a,{room:r,playerId:a.playerId,now:()=>++ticks,random},record,'bot');assert.notEqual(next,game,`accepted ${a.type}`);game=next;};
- act({type:'START_GAME',playerId:r.hostId,payload:{segmentLengthMode:'flexible',bendMode:'straight'}});
+ act({type:'START_GAME',playerId:r.hostId,payload:{bendMode:'straight'}});
  for(let n=0;n<400&&game.phase!=='RESULTS';n++) {
   const actor=nextCompanyId(game)!,p=game.players[actor];let a:SubwayAction;
   if(game.phase==='STARTER_PLACEMENT') {
@@ -60,7 +60,11 @@ for(const count of [2,3,4]) {
    assert.ok(legalTargets(game,actor,lineIndex,true).some(t=>t.x===x&&t.y===0));a={type:'PLACE_STARTER',playerId:actor,payload:{lineIndex,x,y:0}};
   } else if(game.phase==='CONSTRUCTION'&&!extensionEligible(p)) {
    if(!p.crewsHired)a={type:'HIRE_CREWS',playerId:actor,payload:{lineIndexes:buildableLines(game,actor),period:game.currentPeriod}};
-   else {const lineIndex=p.pendingActions[0],tip=p.lines[lineIndex].route.at(-1)!;assert.ok(legalTargets(game,actor,lineIndex).some(t=>t.x===tip.x&&t.y===tip.y+1));a={type:'BUILD',playerId:actor,payload:{lineIndex,x:tip.x,y:tip.y+1}};}
+   else {
+    // Exact lengths only (DEC-063): take the reducer's own first legal straight move.
+    const lineIndex=p.pendingActions[0],move=findBendMove(game,actor,lineIndex),to=move?.points.at(-1);
+    a=to?{type:'BUILD',playerId:actor,payload:{lineIndex,x:to.x,y:to.y}}:{type:'SKIP_ACTION',playerId:actor,payload:{lineIndex}};
+   }
   } else a=chooseBotAction(game,random,undefined,undefined,false)!;
   if(a.type==='BUILD'&&p.extending)extensions++;act(a);
  }

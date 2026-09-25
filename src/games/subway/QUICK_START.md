@@ -48,6 +48,10 @@ previews your selection before you confirm.
 Finishing a line immediately earns **$3 million**, plus its printed victory
 points at the end.
 
+Once all three of your lines are finished, from your next turn you may instead
+extend any one line by a single straight placement of 1–2 peg spaces for $1 million
+plus crossing tolls, or skip for free.
+
 ## 4. Connect and serve
 
 A neighborhood is served when one of your pegs sits inside it. A string passing
@@ -68,7 +72,8 @@ confirming. Player panels show who pays and who receives the money.
 
 **Destination cards:** Connect all named neighborhoods within one company network.
 Visit them in any order. They do not have to be your start or finish, and your
-lines may still be unfinished.
+lines may still be unfinished. The first time a mission connects, you also get
+**$2 million** (two neighborhoods) or **$3 million** (three) immediately.
 
 **Engineering cards:** Follow the specific requirement. Some need one line;
 others allow a connected network or any of your lines.
@@ -76,7 +81,7 @@ others allow a connected network or any of your lines.
 ## 7. Score
 
 The game ends after round nine, or earlier when no player has a legal next segment
-left. Add completed-line points, fulfilled Engineering and Destination cards, and
+or paid extension left. Add completed-line points, fulfilled Engineering and Destination cards, and
 any longest-network and Largest Transfer Station awards. Subtract unfinished-line penalties, then
 score your **ending cash**: +3 VP at $5M or more, +2 VP at $4M, +1 VP at $2M to $3M,
 and zero at $0M to $1M. Debt costs 2 VP per $1M owed, without a cap. Neighborhood visits do not earn

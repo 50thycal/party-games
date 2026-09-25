@@ -1095,7 +1095,7 @@ export function PlayerTabletop({
         {!veiled && (status.length > 0 || me.engineeringHand.length > 0) && !planningStep && (
           <Printed
             title="Company objectives"
-            subtitle="Every drafted goal can score — private until results"
+            subtitle="Every held goal can score — others see them only on your turn"
             tone="slip"
             style={{ width: Math.max(660, status.length * 378 + 48) }}
           >

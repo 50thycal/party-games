@@ -110,7 +110,7 @@ export function generateAiPlaytestReport(game: SubwayState, context: SubwayRepor
       geometry: SUBWAY_CONFIG.geometry,
       engineeringPicks: SUBWAY_CONFIG.engineeringPicks,
       destinationPurchaseMillions: SUBWAY_CONFIG.destinationPurchaseCost,
-      engineeringPurchaseMillions: SUBWAY_CONFIG.destinationPurchaseCost,
+      engineeringPurchaseMillions: SUBWAY_CONFIG.engineeringPurchaseCost,
       extraCardPurchases: "One Engineering goal (face-up choice on phone or random on either device) and one random Destination per company per game, $3M each before hiring crews",
       firstCompletedPlayerId: game.firstCompletedPlayerId,
       longestNetwork: "Actual path length of completed segments in peg spaces, no repeated segments; winner 5 VP, ties 3 VP each",

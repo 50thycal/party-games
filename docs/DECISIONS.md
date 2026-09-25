@@ -1891,7 +1891,7 @@ identify the changed policy/rules. Browser device validation remains unavailable
 ### DEC-056 — Crews paid from cash, Destination completion cash and public pad card glyphs
 
 **Date:** 2026-09-17
-**Status:** Accepted by owner for playtest; balance not certified.
+**Status:** Accepted by owner for playtest; balance not certified. Card-visibility clause superseded by DEC-063.
 
 **Context:** The DGLE playtest (playtests/subway, room DGLE) showed the debt rule never
 bit: hiring into debt and repaying it with same-turn completion cash cost nothing, while
@@ -2027,7 +2027,7 @@ bot personalities remain a separate future experiment, deliberately outside the 
 ### DEC-059 — Optional flexible segment lengths and compact YMIF status
 
 **Date:** 2026-09-19
-**Status:** Accepted by owner in chat.
+**Status:** Accepted by owner in chat. Flexible-length option superseded by DEC-063.
 
 **Context:** Four humans needed line totals and clearer progress without larger phone panels.
 **Decision:** Exact segment length stays the default; setup can choose flexible 1-to-printed-length segments, retaining geometric tolerance and one shared budget across bends and delayed work. State v28 protects existing games. Totals always sum the printed recipe. Phone cards sit beside routes; iPad progress shows only the current company in one row. Leader badges use existing network and transfer standings. No economic changes.
@@ -2115,3 +2115,36 @@ owner chose extensions and withdrew the draft-size control pending supply/budget
 **Consequences:** State v30 requires a fresh room. Extension BUILD submissions carry
 period and expected node count; companion revision guards continue to apply. Undo
 restores the extension fee, tolls, rewards, route and turn. Intro work is separate.
+
+### DEC-063 — Current-company cards on the iPad; exact segment lengths only
+
+**Date:** 2026-09-25
+**Status:** Accepted by owner in chat (rules-vs-code audit).
+
+**Context:** The rules audit (`docs/subway-rules-audit.md`) found two places where the
+rulebooks and the game disagreed on setup knobs. DEC-056 put every company's held
+Engineering and Destination cards on the shared iPad pads, while the rulebook, rules
+reference, tutorial and hand panel said cards were private until results. DEC-059's
+flexible segment length was offered at setup but documented nowhere except the intro;
+the owner playtested it with a second player and found it far too easy.
+
+**Decision:** The shared iPad shows only the current company's held cards, during its
+turn; every hand is revealed at results. The tablet projection carries only that
+company's card ids, so waiting companies' cards never reach the iPad. New games use
+exact segment lengths only: the setup selector is removed and START_GAME rejects
+`flexible`. Bends remain the way to change direction within a segment.
+
+**Rationale:** Current-company cards keep the table-readability benefit of DEC-056 for the
+player acting, without handing every opponent a live read of everyone's goals. Shortened
+segments removed the recipe's constraint, which is where Subway's route planning lives.
+
+**Alternatives considered:** Keeping all cards public and correcting the text; restoring
+full privacy on the iPad; documenting flexible length as a variant. The owner chose
+current-company visibility and exact length.
+
+**Consequences:** No state-version bump: the state shape is unchanged, and rooms already
+started in flexible mode keep their validation branch until they finish. The rules
+fingerprint is unchanged by these rulings; the separate `engineeringPurchaseCost` knob
+added in the same PR changes it without changing any price. Rules text is now checked
+against `SUBWAY_CONFIG`, the contract data and the card data by
+`scripts/subway-docs-test.ts`.

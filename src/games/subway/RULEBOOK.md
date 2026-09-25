@@ -114,7 +114,8 @@ rules, review the preview, and confirm.
 
 ### Lengths and curves
 
-Measure straight-line distance in peg spaces. The digital game allows half a peg
+Measure straight-line distance in peg spaces. Every segment must match its printed
+length; shortened segments are not allowed. The digital game allows half a peg
 space above or below the printed length: a length-four segment may measure 3.5
 to 4.5 spaces. Diagonals qualify when their measured length fits. Use the legal
 placement indicators rather than adding horizontal and vertical steps.
@@ -213,8 +214,11 @@ identifies recipients, amounts and reasons before confirmation.
 Serve every named neighborhood within **one connected company network**, in any
 order. None is a required start or finish. Several connected lines may contribute,
 and they need not be complete. Two-neighborhood missions award **4 VP**;
-three-neighborhood missions award **7 VP**. Unfulfilled missions score zero with
-no penalty. Cards are not assigned to individual lines; one network may fulfill
+three-neighborhood missions award **7 VP**. The first time your network connects a
+mission you hold, the bank also pays you **$2 million** (two neighborhoods) or
+**$3 million** (three) immediately; a bought mission that is already connected pays
+at once. Each mission pays once, and Undo reverses the payment with the placement.
+Unfulfilled missions score zero with no penalty. Cards are not assigned to individual lines; one network may fulfill
 several cards.
 
 Before hiring crews on your turn, you may buy one extra random Destination for
@@ -222,13 +226,14 @@ Before hiring crews on your turn, you may buy one extra random Destination for
 once per game. Choose one of the two face-up Engineering goals on your phone,
 then refill that space; or draw randomly on your phone or iPad. The iPad directs
 face-up choices to the phone. Purchases require available cash. Cards
-remain private until results; enabling a highlight shares that selected mission
-on the iPad during your turn.
+stay private: the iPad shows only the current company's cards, during its turn, and
+every hand is revealed at results. Enabling a highlight also marks that selected
+mission's neighborhoods on the iPad board during your turn.
 
 ## 9. Engineering cards
 
-Score each of your three cards once at game end, for its full printed value or
-zero. One construction may satisfy several cards. Live “Currently met” indicators
+Score each Engineering card you hold — your three drafted cards plus any you
+bought — once at game end, for its full printed value or zero. One construction may satisfy several cards. Live “Currently met” indicators
 are provisional: later actions can change fulfillment.
 
 A **qualifying line end** is a starter or the final station of a completed line. The
