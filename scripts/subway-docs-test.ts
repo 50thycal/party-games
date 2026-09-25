@@ -88,6 +88,8 @@ const retired: [string, RegExp][] = [
   ['end condition ignoring extensions', /no incomplete line has a legal next segment|legal next segment on any incomplete line|legal next segment\s+left\./],
   ['drafted Destinations', /[Dd]raft three Engineering goals and two Destinations/],
   ['paid station access', /\$1M once per line, opponent/],
+  ['diagonal step counted as one peg space (G2)', /neighboring peg, either orthogonally or diagonally/],
+  ['board locations called pegs (G3)', /grid of pegs|Each peg can hold only one station/],
 ];
 const everywhere = { ...docs, tutorial, intro, terminology: read('TERMINOLOGY.md'), table: read('table.tsx') };
 for (const [surface, text] of Object.entries(everywhere)) for (const [what, pattern] of retired) {
