@@ -74,11 +74,12 @@ places, and some knobs don't actually control the game.
 | G5 | Exact length only; no shortened segments; bends remain. | Code: setup selector removed, START_GAME rejects `flexible`; intro slide updated. DEC-063. |
 | Scope | Docs + drift test + K1. | Done: all FIX NOW items, `engineeringPurchaseCost`, `scripts/subway-docs-test.ts` in `test-subway.sh`. |
 | G2, G3 | **Open.** The owner asked how distance is measured and whether a diagonal step equals one orthogonal step. | Approved §1–3 left untouched pending the ruling; G9 and G15 wait with them. |
+| G2, G3 (ruled later on 2026-09-25) | A segment's length is a tight physical string stretched straight from peg to peg; the rules should match how the string works in the physical game. That is the straight-line measurement the code already uses. | Follow-up PR: §2 rewritten (holes are locations, pegs are stations, a diagonal step ≈ 1.4 spaces), §1 fragment fixed, §3 names the pair and triple, and the intro explains the string. The drift test blocks the old wording. No mechanics change. |
 
 ## Status after this PR
 
-Fixed: G1, G4, G5, G6, G7 (quick start and a tutorial line; no new practice lesson),
-G8, G10, G11, G12, G14, K1, K4. Discarded: G13. Open for the owner: G2, G3, G9, G15.
+Fixed in #200: G1, G4, G5, G6, G7 (quick start and a tutorial line; no new practice lesson),
+G8, G10, G11, G12, G14, K1, K4. Fixed in the follow-up: G2, G3, G9, G15. Discarded: G13.
 Parked: K2, K3.
 
 ## Recommended path (as originally proposed)

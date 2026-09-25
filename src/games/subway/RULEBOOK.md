@@ -15,21 +15,21 @@ Earn victory points by **completing subway lines, finishing Destination missions
 
 Money is used to buy line contracts, hire construction crews, purchase additional goals, and pay opponents when your tracks cross their infrastructure.
 
-You may go into debt during construction. To finish your lines. Your final cash balance — including any debt — affects your score at the end of the game.
+You may go into debt during construction to finish your lines. Your final cash balance — including any debt — affects your score at the end of the game.
 
 Unfinished lines reduce your final score. The company with the most victory points wins.
 
 ## 2. The city and its pieces
 
-The board is a grid of **pegs** surrounded by four borders: north, south, east, and west.
+The board is a grid of **holes** surrounded by four borders: north, south, east, and west.
 
-The board contains three small neighborhoods **(six pegs each)**, one medium neighborhood **(ten pegs)**, and six large neighborhoods **(sixteen pegs each)**. Neighborhood locations are randomized each game.
+The board contains three small neighborhoods **(six holes each)**, one medium neighborhood **(ten holes)**, and six large neighborhoods **(sixteen holes each)**. Neighborhood locations are randomized each game.
 
-A **peg** is one location on the board where a station may be placed. Each peg can hold only one station.
+A **hole** is one location on the board where a station may be placed. Each hole can hold only one station.
 
-A **station** is a stop on one of your subway lines and occupies one peg on the board.
+A **station** is a stop on one of your subway lines: a peg placed in one hole on the board.
 
-A **peg space** is the distance from one peg to the next neighboring peg, either orthogonally or diagonally. Segment lengths are measured in peg spaces.
+A **peg space** is the distance between two neighboring holes in the same row or column. Segment lengths are measured in peg spaces, as a tight string stretched straight from one station to the next: measure the string, not the number of holes it passes. A diagonal step to a neighboring hole is about 1.4 peg spaces, so two diagonal steps are about 2.8, not 2. The digital game accepts a string within half a peg space of the printed length and highlights every hole that fits.
 
 A **segment** connects two successive stations on the same subway line. A segment may be straight or contain one bend between its two stations.
 
@@ -37,11 +37,11 @@ A **line** consists of the stations and segments allowed per the line contract c
 
 A **round** gives every company one **turn**. During your turn, you may hire construction crews to build your subway lines. Each hired crew may build the next segment of one line during that turn.
 
-To **serve a neighborhood**, one of your stations must occupy a peg inside that neighborhood. A line passing through a neighborhood without a station there does not serve it. Multiple companies or lines from the same company may serve the same neighborhood.
+To **serve a neighborhood**, one of your stations must occupy a hole inside that neighborhood. A line passing through a neighborhood without a station there does not serve it. Multiple companies or lines from the same company may serve the same neighborhood.
 
 ## 3. Setup and drafting
 
-Each company begins the game with **$40 million** and two Destination missions.
+Each company begins the game with **$40 million** and two Destination missions: one naming two neighborhoods and one naming three.
 
 Randomly determine the starting player. Play continues in the same order throughout drafting and construction. The order does not reverse between rounds.
 
@@ -77,7 +77,7 @@ Continue in player order until every company has three Engineering goals.
 
 Each Line Contract begins with one **starter station**. The starter station is the first station of that subway line and is the point from which construction of that line begins.
 
-In player order, place the starter station for each of your lines on an empty peg along one of the four outer borders of the board.
+In player order, place the starter station for each of your lines on an empty hole along one of the four outer borders of the board.
 
 Starter stations must be placed on a border of the board.
 
