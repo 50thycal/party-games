@@ -3,13 +3,13 @@
 <!-- The project's active-work control board. What are we working on and where is each
      effort? One line per workstream; anything needing a paragraph belongs in its file. -->
 
-**Updated:** 2026-09-20 · **Build OS v0.12**
+**Updated:** 2026-09-25 · **Build OS v0.12**
 
 | ID | Workstream | Phase | Status | Current Next Step | Related PR |
 |---|---|---|---|---|---|
 | [WS-007](WS-007-subway-strategy-telemetry.md) | Subway strategy telemetry | REVIEW | Active | Owner review of classifier 1.0.0 readings against real playtests; calibrate thresholds | Strategy telemetry PR open |
 | [WS-006](WS-006-subway-dgle-playtest.md) | Subway DGLE playtest follow-up | REVIEW | Active | Owner playtest of the ending-cash spectrum and restored borrowing; rule on D2–D4 | [#191](https://github.com/50thycal/party-games/pull/191) merged; spectrum/lookahead PR open |
-| [WS-005](WS-005-subway-finished-edition.md) | Subway 2–4 player finished edition | REVIEW | Active | None for paid extensions and intro integration | [#197](https://github.com/50thycal/party-games/pull/197) paid extensions; #198 intro and #196 verification merged |
+| [WS-005](WS-005-subway-finished-edition.md) | Subway 2–4 player finished edition | REVIEW | Active | Owner rules on peg-space measurement (audit G2/G3); independent review of PR #200 | [#200](https://github.com/50thycal/party-games/pull/200) rules audit open; [#197](https://github.com/50thycal/party-games/pull/197) paid extensions merged |
 | [WS-001](WS-001-subway-v0-3-redesign.md) | Subway v0.3 gameplay redesign | REVIEW | Active | Independent design review of merged v0.3 against the reconstructed Build Card; owner to rule on D1–D4 | [#137](https://github.com/50thycal/party-games/pull/137), [#139](https://github.com/50thycal/party-games/pull/139) (both merged) |
 | [WS-002](WS-002-subway-route-engineering.md) | Subway route engineering and playtest UX | REVIEW | Active | Record the merged closeout; playtest follow-ups moved to WS-003 | [#141](https://github.com/50thycal/party-games/pull/141), [#142](https://github.com/50thycal/party-games/pull/142) (merged) |
 | [WS-003](WS-003-subway-construction-access.md) | Subway construction access and route lookahead | REVIEW | Active | Owner's balance playtest of the merged toll/debt/recipe changes; browser debt case and hotseat still unexercised | [#143](https://github.com/50thycal/party-games/pull/143) (merged design-only), [#144](https://github.com/50thycal/party-games/pull/144) (implementation, merged), [#145](https://github.com/50thycal/party-games/pull/145) (Build OS v0.5) |

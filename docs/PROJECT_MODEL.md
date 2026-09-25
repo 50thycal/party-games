@@ -37,7 +37,8 @@ and scores. Host scoring permits a host without a company seat.
 
 Responses omit credentials, draw-pile identities and Undo snapshots. Phones receive
 only their own private hands and ghost plans until results; the tablet receives
-no private hands and only the currently acknowledged company's plans. A changed
+only the current company's held card ids (DEC-063) and the currently acknowledged
+company's plans. A changed
 turn invalidates the acknowledgement and removes ghosts; a fresh tablet page also
 covers the board until confirmation. Public construction history retains sanitized
 build/Undo/hiring records. Results reveal hands and the complete playtest ledger.
@@ -876,9 +877,10 @@ first connects it; full-state Undo reverses it. `cardPurchaseBlocker` is the sin
 source of purchase legality for BUY_DESTINATION and the new BUY_ENGINEERING (random
 unheld goal from the shuffled deck or face-up row, $3M, once per game; DEC-060); both are allowed from the
 acknowledged company on the iPad and from its phone, and `BuyCardButton` is the one
-chooser used on both. The tablet projection keeps every company's Engineering and
-Destination card ids (never decks); `PlayerPads` renders `CardGlyphs` (category base
-shape plus per-card detail, green when met) and neighborhood abbreviation chips.
+chooser used on both. The tablet projection keeps only the current company's
+Engineering and Destination card ids (never decks; DEC-063); `PlayerPads` renders that
+company's `CardGlyphs` (category base shape plus per-card detail, green when met) and
+neighborhood abbreviation chips, and every company's at results.
 `turnSummary` derives a since-your-last-action recap from public telemetry and events;
 the iPad flashes it after ACK_COMPANY. `deviceSession` stamps the saved companion
 identity while polling; after twenty idle minutes a reopened page peeks once and either
@@ -915,8 +917,9 @@ runs and the affected classifier lowers its own confidence when it is skipped.
 
 ### YMIF optional lengths and compact status (DEC-059, state v28)
 
-Local and companion setup select exact (default) or flexible segment length.
-`validatePath` remains authoritative for previews and reducer placement: flexible
+New games use exact segment length only: DEC-063 removed the setup selector and
+START_GAME rejects `flexible`. `validatePath` keeps the branch for rooms started
+earlier and remains authoritative for previews and reducer placement: flexible
 segments may finish at 1 through printed length with existing tolerance; bends and
 unfinished work share the same budget. Bot candidate offsets distinguish modes.
 Reports record the mode. Existing games require restart via the version guard.

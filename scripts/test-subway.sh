@@ -22,6 +22,7 @@ cat >"$config" <<EOF
   },
   "include": [
     "$repo_root/scripts/subway-intro-test.tsx",
+    "$repo_root/scripts/subway-docs-test.ts",
     "$repo_root/scripts/subway-engineering-art-test.tsx",
     "$repo_root/scripts/subway-cluster-planning-test.ts",
     "$repo_root/scripts/subway-policy-benchmark.ts",
@@ -49,6 +50,7 @@ mkdir -p "$out_dir/node_modules/@"
 ln -s "$out_dir/src/engine" "$out_dir/node_modules/@/engine"
 ln -s "$out_dir/src/games" "$out_dir/node_modules/@/games"
 NODE_PATH="$repo_root/node_modules" node "$out_dir/scripts/subway-intro-test.js"
+NODE_PATH="$repo_root/node_modules" node "$out_dir/scripts/subway-docs-test.js"
 node "$out_dir/scripts/subway-rules-test.js"
 node "$out_dir/scripts/subway-extensions-test.js"
 node "$out_dir/scripts/subway-cluster-planning-test.js"

@@ -72,7 +72,8 @@ export function PlayerPads({game,roomKey}:{game:SubwayState;roomKey:string}) {
       const p=game.players[id];return <div key={id} className="min-w-0"><LeaderBadges game={game} playerId={id}/><div aria-current={activeId===id?'step':undefined} className={`min-w-0 rounded-lg border-t-4 px-2 py-1 ${activeId===id?'bg-teal-700/40 ring-1 ring-teal-300/60':'bg-white/5'}`} style={{borderColor:p.color}}>
         <div className="flex flex-wrap justify-between gap-x-2 text-sm"><b className="truncate" title={p.name}>{p.name}</b><strong>${p.money}M</strong></div>
         <div aria-label={`${p.name}'s lines`} className="mt-1 flex flex-wrap gap-1">{p.lines.map(l=>{const c=contractOf(l)!;return <span key={c.id} title={c.name} aria-label={c.name} className="rounded border border-white/30 bg-slate-900 px-1 text-[10px] font-black"><span className="mr-1 inline-block h-1.5 w-3 rounded" style={{background:c.color}}/>{c.code}</span>;})}</div>
-        {(p.engineeringHand.length>0||p.destinationHand.length>0)&&<div aria-label={`${p.name}'s cards`} data-public-cards={id} className="mt-1 flex flex-wrap items-center gap-1">
+        {/* Only the company whose turn it is shows its cards, until results (DEC-063). */}
+        {(activeId===id||game.phase==="RESULTS")&&(p.engineeringHand.length>0||p.destinationHand.length>0)&&<div aria-label={`${p.name}'s cards`} data-public-cards={id} className="mt-1 flex flex-wrap items-center gap-1">
           {p.engineeringHand.map(cardId=><EngineeringGlyph key={cardId} id={cardId} met={objectiveMet(cardId,p,ids.filter(o=>o!==id).map(o=>game.players[o]),game)}/>)}
           {p.destinationHand.map(cardId=><DestinationChip key={cardId} id={cardId} met={destinationMet(p,cardId)}/>)}
         </div>}

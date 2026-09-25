@@ -15,7 +15,7 @@ A light-strategy line-building game for **2–4 companies**. Most victory points
 3. Draft **three Engineering goals each**, choosing between two face-up cards or a blind draw.
 4. Place one free starter for each line on an **empty**, non-neighborhood outer-border hole. A starter cannot overlap any company's existing peg including your own. Adjacent empty holes are allowed. No placement may stack pegs. Joining an opponent station is also free.
 5. Play up to **9 construction rounds**, choosing crews anew each turn. End
-   immediately if no incomplete line has a legal next segment.
+   immediately if no company has a legal next segment or paid extension.
 6. Score all held goals and lines; subtract unfinished-line
    penalties and the **ending-cash band** below.
 
@@ -76,12 +76,13 @@ goal, once per game**. Choose either face-up Engineering goal on your phone or d
 randomly on your phone or iPad. Refill the face-up space after a choice. The iPad
 points players to their phones for face-up selections. Pay immediately; purchases
 cannot create debt. Phone card pages keep the draw area below your held cards.
-Missions stay private until results and score only if fulfilled. No line assignment,
+Missions score only if fulfilled. Cards stay private: the iPad shows only the
+current company's cards during its turn, and every hand is revealed at results. No line assignment,
 card lock, or penalty for an unfulfilled mission applies.
 
 ## Engineering goals
 
-All three drafted goals may score once at game end, for their full VP or zero.
+Every Engineering goal you hold, drafted or bought, may score once at game end, for its full VP or zero.
 Live “Currently met” status is provisional: every action and Undo recomputes it.
 The same construction may satisfy multiple cards. There are no scoring tiers.
 
@@ -201,7 +202,7 @@ The displayed bill previews remaining cash and the final penalty at that balance
 
 Every company gets a turn each round, including a company choosing no crews.
 Construction ends after round 9, or immediately after a placement leaves no
-legal next segment on any incomplete line. Empty rounds are never played. A
+company a legal next segment or paid extension. Empty rounds are never played. A
 blocked or skipped placement does not refund its hired crew. Normal placement
 legality remains unchanged.
 
@@ -234,12 +235,13 @@ still lasts at most nine rounds; unfinished lines retain their normal penalty.
 ## Placement and contact rules
 
 Follow the line's lengths **in the printed order**, within ±0.5 peg-space distance.
+Shortened segments are not allowed; the former flexible-length setup option is retired.
 A curve may be at most **90°**, inclusive. The first segment has no heading constraint.
 The ten named neighborhoods have **3 small, 6 large and 1 medium** footprints.
 Small areas cover 6 holes, medium 10 and large 16. No area awards automatic VP. Setup varies
 area locations and connected shapes using seeded randomness. Six interior bays
 pack the larger footprints without overlap or border coverage. Areas may touch
-boundaries. 51 interior holes remain outside areas.
+each other but never the outer border. 51 interior holes remain outside areas.
 
 Place a peg on any hole inside an area to serve it. String merely passing through
 is not service. There are **no dock limits**. Multiple companies and lines may

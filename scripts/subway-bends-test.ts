@@ -125,7 +125,8 @@ for(const mode of ['tokens','delayed'] as const)for(const count of [2,3,4]){
 }
 console.log('Bend modes: setup, paths, tokens, delayed work, contacts, scoring and Undo passed.');
 
-// YMIF optional shortening: authoritative validation, bends and delayed work use total path length.
+// Legacy YMIF shortening: rooms started before DEC-063 keep flexible validation;
+// new games can only start with exact lengths.
 for(const mode of ['straight','tokens','delayed'] as const) {
  const s=base(mode);s.segmentLengthMode='flexible';
  assert.equal(validatePath(s,id,0,[{x:1,y:0}]),null);
@@ -143,8 +144,9 @@ for(const mode of ['straight','tokens','delayed'] as const) {
  assert.match(validatePath(work,id,0,[{x:1,y:2}])!,/total/);
  assert.equal(validatePath(work,id,0,[{x:1,y:1}]),null);
  const initial=subwayGame.initialState(room.players),ctx={room,playerId:room.hostId,now:()=>1,random:()=>.4};
- const start=subwayGame.reducer(initial,{type:'START_GAME',playerId:room.hostId,payload:{segmentLengthMode:'flexible'}},ctx);
- assert.equal(JSON.parse(JSON.stringify(start)).segmentLengthMode,'flexible');
+ assert.equal(subwayGame.reducer(initial,{type:'START_GAME',playerId:room.hostId,payload:{segmentLengthMode:'flexible'}},ctx),initial,'flexible length is retired for new games');
+ const start=subwayGame.reducer(initial,{type:'START_GAME',playerId:room.hostId,payload:{}},ctx);
+ assert.equal(JSON.parse(JSON.stringify(start)).segmentLengthMode,'exact');
  assert.equal(subwayGame.reducer(initial,{type:'START_GAME',playerId:room.hostId,payload:{segmentLengthMode:'invalid'} as never},ctx),initial);
 }
-console.log('YMIF exact/flexible length and shared bend budget checks passed.');
+console.log('Exact-only new games, legacy flexible length and shared bend budget checks passed.');

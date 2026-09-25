@@ -24,5 +24,6 @@ for(const line of sameArea.lines) for(const node of line.route) node.stationId=m
 assert.equal(companyComponents(sameArea).length,2);
 assert.match(introSlides({})[10].title,/Two activations/);
 assert.match(introSlides({bendMode:'tokens'})[10].text,/3 bend tokens/);
-assert.match(introSlides({segmentLengthMode:'flexible'})[9].title,/Shortening/);
+assert.match(introSlides({})[9].title,/printed length/);
+assert.doesNotMatch(JSON.stringify(introSlides({})),/Shortening|shortening|Draft three Engineering goals and two Destinations/);
 console.log('Intro: rendered connection fixtures match network and Destination rules; setup mode copy passed.');

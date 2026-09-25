@@ -88,6 +88,8 @@ export const SUBWAY_CONFIG = {
   destinationVp: 4,
   threeStationDestinationVp: 7,
   destinationPurchaseCost: 3,
+  /** Separate knob so tuning one optional card never re-prices the other. */
+  engineeringPurchaseCost: 3,
   engineeringPicks: 3,
   /** Construction interaction with the opposing network (WS-003, DEC-018). */
   contact: {
@@ -1582,6 +1584,9 @@ export function affordableCrews(p: SubwayPlayer, count: number): number {
   while (n > 0 && !canAffordCrews(p, n)) n--;
   return n;
 }
+/** $M price of one optional card from this deck. */
+export const cardPurchaseCost = (deck: "engineering" | "destination"): number =>
+  deck === "engineering" ? SUBWAY_CONFIG.engineeringPurchaseCost : SUBWAY_CONFIG.destinationPurchaseCost;
 /** Why this company cannot buy an extra card right now; undefined when it can. Shared by reducer and buttons. */
 export type CardDrawCounts = { engineering: number; destination: number };
 export function cardPurchaseBlocker(s: SubwayState, playerId: string, deck: "engineering" | "destination", cardId?: string, counts?: CardDrawCounts): string | undefined {
@@ -1590,7 +1595,8 @@ export function cardPurchaseBlocker(s: SubwayState, playerId: string, deck: "eng
   if (s.resolveQueue[0] !== playerId) return "Wait for your construction turn.";
   if (me.crewsHired) return "Buy before hiring crews.";
   if (deck === "destination" ? me.destinationPurchased : me.engineeringPurchased) return `One extra ${deck === "destination" ? "Destination" : "Engineering"} card per game.`;
-  if (me.money < SUBWAY_CONFIG.destinationPurchaseCost) return `Needs $${SUBWAY_CONFIG.destinationPurchaseCost}M in cash.`;
+  const price = cardPurchaseCost(deck);
+  if (me.money < price) return `Needs $${price}M in cash.`;
   if(cardId && (deck!=="engineering" || !s.market.rows.engineering.includes(cardId) || me.engineeringHand.includes(cardId))) return "That face-up goal is no longer available.";
   const available = cardId ? true : counts ? counts[deck]>0 : deck === "destination" ? s.destinationDeck.length > 0 : s.market.decks.engineering.some(id => !me.engineeringHand.includes(id));
   if (!available) return "No cards left to draw.";
@@ -1695,8 +1701,10 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       // strand a player outside the game. First four joiners become companies.
       if(action.payload?.bendMode!==undefined&&!isBendMode(action.payload.bendMode))return state;
       const fresh = initialState(ctx.room.players);
-      if(action.payload?.segmentLengthMode!==undefined&&!['exact','flexible'].includes(action.payload.segmentLengthMode))return state;
-      fresh.segmentLengthMode=action.payload?.segmentLengthMode??'exact';
+      // Flexible (shortened) segments are retired for new games (DEC-063). The
+      // validatePath branch remains only for rooms started before that ruling.
+      if(action.payload?.segmentLengthMode!==undefined&&action.payload.segmentLengthMode!=='exact')return state;
+      fresh.segmentLengthMode='exact';
       fresh.bendMode=action.payload?.bendMode??'delayed';
       for(const p of Object.values(fresh.players))p.bendTokens=fresh.bendMode==='tokens'?3:0;
       fresh.startedAt = ctx.now();
@@ -1768,12 +1776,12 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       const source=cardId?s.market.rows.engineering:s.market.decks.engineering;
       const index=cardId?source.indexOf(cardId):source.findIndex(id=>!me.engineeringHand.includes(id));
       if(index<0)return state;
-      me.money -= SUBWAY_CONFIG.destinationPurchaseCost;
+      me.money -= SUBWAY_CONFIG.engineeringPurchaseCost;
       me.engineeringHand.push(source.splice(index,1)[0]);
       while(s.market.rows.engineering.length<2&&s.market.decks.engineering.length)s.market.rows.engineering.push(s.market.decks.engineering.shift()!);
       me.engineeringPurchased = true;
-      recordMoney(s,me.id,[{from:me.id,amount:SUBWAY_CONFIG.destinationPurchaseCost,reason:'Engineering purchase'}]);
-      pushEvent(s, ctx.now(), "CARD", "notice", `${me.name} bought ${cardId?'a face-up':'a random'} Engineering goal for $${SUBWAY_CONFIG.destinationPurchaseCost}M.`, me.id);
+      recordMoney(s,me.id,[{from:me.id,amount:SUBWAY_CONFIG.engineeringPurchaseCost,reason:'Engineering purchase'}]);
+      pushEvent(s, ctx.now(), "CARD", "notice", `${me.name} bought ${cardId?'a face-up':'a random'} Engineering goal for $${SUBWAY_CONFIG.engineeringPurchaseCost}M.`, me.id);
       return s;
     }
 

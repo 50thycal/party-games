@@ -3,7 +3,6 @@ import { HowToPlay } from "@/games/subway/Intro";
 
 import {validatePath,pathContacts,tokenCost,remainingLength} from './bends';
 import {constructionTip} from './paths';
-import {SegmentLengthSelect,type SegmentLengthMode} from "./SegmentLengthSelect";
 import {BendModeSelect} from "./BendModeSelect";
 import {type BendMode} from "./bends";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -226,7 +225,6 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   useEffect(()=>{try{setDismissedHintKey(localStorage.getItem(hintKey)==='dismissed'?hintKey:null);}catch{setDismissedHintKey(null);}},[hintKey]);
   const dismissPlacementHint=()=>{setDismissedHintKey(hintKey);try{localStorage.setItem(hintKey,'dismissed');}catch{/* Still dismissed for this mounted game. */}};
 
-  const [segmentLengthMode,setSegmentLengthMode]=useState<SegmentLengthMode>('exact');
   const [bendDraft,setBendDraft]=useState<Point[]>([]);
   const [bendPick,setBendPick]=useState(false);
   const [chosen, setChosen] = useState<string[]>([]);
@@ -753,7 +751,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
         <p className="text-xs font-bold uppercase tracking-[.3em] text-amber-800">Metropolitan Transit Authority · 2–4 players</p>
         <h2 className="mt-2 font-serif text-3xl font-black">Subway</h2>
         <p className="mx-auto my-4 max-w-xl text-sm text-stone-600">
-          Build a city that connects. Each company takes three lines from a pool of thirteen services. Each carries an
+          Build a city that connects. Each company drafts three lines from a shuffled pool of 7, 10 or 13 services for 2, 3 or 4 companies. Each carries an
           ordered recipe of segment lengths and its own line color. Draft Engineering goals,
           place starters, choose crews each round, then
           engineer the lines hole by hole — all on one table you pan and zoom around.
@@ -768,12 +766,11 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
           Companies: {room.players.slice(0, 4).map((p) => p.name).join(" vs ") || "waiting…"}
           {room.players.length > 4 && ` · ${room.players.length - 4} spectating`}
         </p>
-        {isHost&&<SegmentLengthSelect value={segmentLengthMode} onChange={setSegmentLengthMode}/>}
         {isHost&&<BendModeSelect value={bendMode} onChange={setBendMode}/>}
       {isHost ? (
           <button
             disabled={busy || !enough}
-            onClick={() => act("START_GAME",{bendMode,segmentLengthMode})}
+            onClick={() => act("START_GAME",{bendMode})}
             className="rounded-xl bg-emerald-700 px-6 py-3 font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-40"
           >
             {busy ? "Starting…" : enough ? "Start Subway" : "Waiting for a second player"}
@@ -1278,7 +1275,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   );
 
 
-  const settingsPanel = settingsOpen && <SettingsDialog onClose={()=>setSettingsOpen(false)}><label className="my-4 flex items-center gap-3"><input type="checkbox" checked={ghostEnabled} onChange={e=>toggleGhost(e.target.checked)}/> Ghost planning (optional)</label><p className="my-4"><HowToPlay bendMode={game.bendMode} segmentLengthMode={game.segmentLengthMode}/></p>{settingsContent}<button className="rounded border px-3 py-2" onClick={()=>setShowLog(v=>!v)}>Action log</button>{showLog && <ol className="mt-3 space-y-2 text-sm">{game.events.map(e=><li key={e.seq}>{e.text}</li>)}</ol>}</SettingsDialog>;
+  const settingsPanel = settingsOpen && <SettingsDialog onClose={()=>setSettingsOpen(false)}><label className="my-4 flex items-center gap-3"><input type="checkbox" checked={ghostEnabled} onChange={e=>toggleGhost(e.target.checked)}/> Ghost planning (optional)</label><p className="my-4"><HowToPlay bendMode={game.bendMode}/></p>{settingsContent}<button className="rounded border px-3 py-2" onClick={()=>setShowLog(v=>!v)}>Action log</button>{showLog && <ol className="mt-3 space-y-2 text-sm">{game.events.map(e=><li key={e.seq}>{e.text}</li>)}</ol>}</SettingsDialog>;
   const resultsPanel = game.phase === "RESULTS" && showResults && <div role="dialog" aria-modal="true" aria-label="Final results" className="fixed inset-0 z-40 overflow-auto bg-[#fff7e5] p-3 text-stone-900"><button autoFocus className="mb-3 rounded border px-4 py-2" onClick={()=>setShowResults(false)}>Back to board</button><ResultsSheet game={game} roomCode={room.roomCode} mode={room.mode} reportContext={reportContext}/></div>;
 
   return (

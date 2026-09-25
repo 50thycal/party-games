@@ -140,6 +140,10 @@ console.log('GZZF deadlines, completion economics, starter occupancy, segment re
  assert.match(withCards,/data-destination-chip="dest-market-grand"[^>]*>Mk\+GC</);assert.match(withCards,/>S\+H</);
  assert.equal(new Set(Object.values(NEIGHBORHOOD_ABBREVIATIONS)).size,10,'abbreviations are unique');
  assert.doesNotMatch(pads,/data-engineering-glyph/,'no glyph row for empty hands');
+ // DEC-063: a waiting company's cards stay off the shared pads until results.
+ const waiting=structuredClone(carded);waiting.resolveQueue=[room.players[1].id];
+ assert.doesNotMatch(renderToStaticMarkup(<PlayerPads game={waiting} roomKey="fixture"/>),/data-engineering-glyph|data-destination-chip/);
+ waiting.phase='RESULTS';assert.equal((renderToStaticMarkup(<PlayerPads game={waiting} roomKey="fixture"/>).match(/data-engineering-glyph=/g)??[]).length,3);
  const destination=renderToStaticMarkup(<DestinationCardFace card="dest-market-grand" color="#fff"/>);
  assert.match(destination,/Complete to earn \$2M/);
  assert.match(renderToStaticMarkup(<DestinationCardFace card="dest-market-grand" paid color="#fff"/>),/Earned \$2M/);

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { SUBWAY_CONFIG, engineeringById, cardPurchaseBlocker, type CardDrawCounts, type SubwayState } from "./config";
+import { engineeringById, cardPurchaseBlocker, cardPurchaseCost, type CardDrawCounts, type SubwayState } from "./config";
 
 /**
  * One button, one question. Tapping "Buy a card" opens a small chooser for a
@@ -14,7 +14,7 @@ export function BuyCardButton({game, playerId, busy, act, size = "md", counts, d
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const me = game.players[playerId];
-  const price = SUBWAY_CONFIG.destinationPurchaseCost;
+  const price = Math.min(cardPurchaseCost("engineering"), cardPurchaseCost("destination"));
   const engineering = cardPurchaseBlocker(game, playerId, "engineering", undefined, counts);
   const destination = cardPurchaseBlocker(game, playerId, "destination", undefined, counts);
   const show = !!me && game.phase === "CONSTRUCTION" && game.resolveQueue[0] === playerId && !me.crewsHired && !(me.engineeringPurchased && me.destinationPurchased);
@@ -31,7 +31,7 @@ export function BuyCardButton({game, playerId, busy, act, size = "md", counts, d
     <button type="button" data-buy-choice={deck} disabled={busy || !!blocker} aria-disabled={!!blocker || undefined} title={blocker}
       onClick={() => { setOpen(false); act(deck === "engineering" ? "BUY_ENGINEERING" : "BUY_DESTINATION", {period: game.currentPeriod}); }}
       className={`flex min-h-12 w-full flex-col items-start rounded-lg border-2 px-3 py-2 text-left ${text} ${blocker ? "border-stone-300 bg-stone-100 text-stone-500" : deck === "engineering" ? "border-amber-600 bg-amber-50 text-stone-900 hover:bg-amber-100" : "border-purple-600 bg-purple-50 text-stone-900 hover:bg-purple-100"}`}>
-      <b>{label} · ${price}M</b><span className="text-[0.8em]">{blocker ?? detail}</span>
+      <b>{label} · ${cardPurchaseCost(deck)}M</b><span className="text-[0.8em]">{blocker ?? detail}</span>
     </button>;
   return <div ref={root} data-buy-card className="relative inline-block">
     <button type="button" aria-haspopup="dialog" aria-expanded={open} disabled={busy} onClick={() => setOpen(v => !v)}
