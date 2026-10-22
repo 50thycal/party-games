@@ -364,20 +364,32 @@ You can take back your most recent placement (a starter, a station, or the first
 
 ## 12. Ending and scoring
 
-End after round nine, or earlier when no company has a legal next segment.
-One blocked or finished company does not end play while another can still build.
+### When the game ends
 
-1. Add completed-line points.
-2. Apply unfinished-line penalties.
-3. Add fulfilled Engineering cards.
-4. Add fulfilled Destination cards.
-5. Add any longest-network and Largest Transfer Station awards.
-6. Score your **ending cash** on the spectrum: $5M or more +3 VP, $4M +2 VP, $2M to $3M +1 VP,
-   $0M to $1M 0 VP. Debt costs **2 VP per $1M owed**, with no cap.
+Construction ends after round nine, or earlier as soon as no company can build. A company that is finished or blocked doesn't end the game while another can still build (§4). The host then reveals every hand and the final scores.
 
-There are no automatic points for neighborhood visits or leftover
-positive cash. Highest total wins. Break ties by number of different large
-neighborhoods served, then remaining cash, then shared victory.
+### Scoring
+
+| Item | Points |
+|---|---|
+| Each completed line | its printed completion VP (§13) |
+| Each unfinished line | its printed penalty (§13) |
+| Each fulfilled Engineering card | its printed VP (§9) |
+| Each fulfilled Destination | 4 VP for two neighborhoods, 7 VP for three (§8) |
+| Ending cash | $5M or more +3 VP, $4M +2 VP, $2M to $3M +1 VP, $0M to $1M 0 VP |
+| Debt | −2 VP per $1M owed, with no cap |
+| Longest Network | 5 VP, or 3 VP each if tied (§10) |
+| Largest Transfer Station | 6 / 3 / 2 / 0 VP (§10) |
+
+Serving a neighborhood scores nothing by itself; it only counts toward cards.
+
+### Winning
+
+The highest total wins. Break ties by:
+
+1. the number of different large neighborhoods with at least one of your stations;
+2. then the most cash left;
+3. then the tied companies share the win.
 
 ## 13. Line-contract reference
 
