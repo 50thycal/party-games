@@ -660,7 +660,9 @@ restart and new plan/replay namespaces. Bot policy v4/audit policy v3 identify n
 
 `stationAccess.ts` returns no fees under DEC-060. Starter/build adjacency joins are
 free even with multiple opponents. Historical receipt shapes remain readable.
-`routeContacts` still charges distinct geometric contacts with opposing strings;
+`routeContacts` charges each opposing line once per contact point (DEC-066) and
+drops contacts within `contact.sharedStationFreeReach` of that line's station in a
+transfer station already shared with its owner (`network.ts` `sharedStationPegs`);
 BUILD transfers those payments and records public money events. Full-state Undo
 restores balances and appends a monotonic reversal.
 

@@ -64,8 +64,9 @@ cannot connect your network for you.
 
 ## 5. Watch your payments
 
-Joining an opponent’s station is free. Crossing or touching an opponent’s string
-costs $1 million per distinct contact per owner. Check the payment preview before
+Joining an opponent’s station is free. Crossing or touching an opponent’s line
+costs $1 million per line at each contact point, except within 1 space of that
+line's station in a shared transfer station that already exists. Check the payment preview before
 confirming. Player panels show who pays and who receives the money.
 
 ## 6. Complete your cards

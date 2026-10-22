@@ -199,22 +199,33 @@ Each Engineering and Destination card uses one of three scopes:
 
 ## 7. Paying other companies
 
-### Joining stations
+Building next to other companies is free. Building **through** their track costs money, except right at a transfer station you share with them.
 
-Joining a transfer station is free, including starters and stations shared by
-multiple opponents. Crossing and touching strings is still priced separately.
+### What is free
 
-### Crossing and touching strings
+- Placing a station next to an opponent's station, including their starters. You now share a transfer station with them (§6).
+- Crossing or touching your own lines.
+- Crossing or touching an opponent's line within **1 peg space** of that line's station in a transfer station you already share with them. This works both ways. The same line anywhere else still costs money, and so do their lines that have no station in the shared transfer station.
 
-Each distinct contact with an opponent's existing infrastructure costs
-**$1 million to that owner**. Two separate crossing points with the same opponent
-cost $2 million. Several strings belonging to that opponent at one contacted
-point cost $1 million at that point. Pay each owner when several opponents share
-a contacted point.
+### What costs money
 
-Extending away from an already contacted starting point does not charge for that
-same departure again. **Joining stations never grants free crossings.** The preview
-identifies recipients, amounts and reasons before confirmation.
+Each time your new string makes contact with one of an opponent's lines, pay that company **$1 million**. A contact is any of these:
+
+- your string crosses their string;
+- your string passes over one of their stations;
+- your string passes through one of their bends or worksites;
+- your new station sits in an empty hole that their string passes over.
+
+Contacts are counted by line and point:
+
+- Each separate point costs $1 million, so crossing the same opponent at two points costs $2 million.
+- If two of one opponent's lines meet at a point you contact, that point costs $2 million: $1 million for each line. One line's own station, where its two strings meet, costs $1 million.
+- If several opponents meet at that point, pay each of them for each of their lines.
+- The station your segment starts from is never charged again.
+
+A shared transfer station counts only if it exists before you confirm. The placement that creates one still pays for its contacts.
+
+A bent segment pays for each leg as it is built. Payments may take your cash below zero (§4). Before you confirm, the preview shows whom you will pay, how much and why. Undo refunds the payments.
 
 ## 8. Destination cards
 

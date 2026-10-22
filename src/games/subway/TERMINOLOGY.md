@@ -28,7 +28,7 @@ not approve balance or remove the rulebooks’ DRAFT — NEEDS OWNER REVIEW stat
 | Destination card | Connect listed neighborhoods in any order through your own network. |
 | Engineering card | Seven Line, seven Station and seven Neighborhood cards. IDs, requirements and VP unchanged. |
 | Transfer access | Free. Joining any transfer station, including with a starter, costs nothing (DEC-060). |
-| Line contact / crossing | Each new distinct contact with an opponent's string or station costs $1M to that owner. |
+| Line contact / crossing | Each new contact costs $1M per opposing line at that point, paid to its owner. Free within 1 space of that line's station in a transfer station already shared with its owner. |
 | $M / VP | Millions of game dollars / victory points. |
 
 ## Audit coverage and findings

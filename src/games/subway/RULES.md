@@ -249,16 +249,17 @@ pass through pegs. Only collinear **string overlap** is prohibited. Stations nev
 block strings passing over them. The current line glows during construction; a
 selected next station draws a translucent line-colored segment until Confirm.
 
-Each distinct contact with another company's network costs **$1M to that
-owner**. Multiple incident strings at one vertex cost once per owner. If several
-companies share a contacted point, pay each. Contacts with your own lines are
-free. Departing a previously contacted point is not charged again. Construction can incur debt: the
+Each contact with another company's line costs **$1M to that owner**, counted per
+line and point: two of one opponent's lines meeting where you touch cost $2M, while
+one line's own station costs $1M. If several companies share a contacted point, pay
+each for each line. Contacts with your own lines are free, and so are contacts within
+1 space of an opponent line's station in a shared transfer station that already
+exists (both ways); that line elsewhere still pays. Departing a previously contacted point is not charged again. Construction can incur debt: the
 balance you finish on scores on the ending-cash spectrum below, so borrowing is a priced choice
 rather than a flat fine. Money the opposition pays you moves your band before scoring.
 
 Joining stations is free, including starters and stations with several opponents.
-Crossing or touching opponents' strings still costs $1M per distinct contact per
-owner. Preview shows recipients/reasons before Confirm; Undo restores transfers.
+The placement that creates a shared transfer station still pays for its contacts. Preview shows recipients/reasons before Confirm; Undo restores transfers.
 
 Each Confirm consumes one hired action. Undo restores the latest physical placement,
 its toll transfers and pending action, until another accepted action occurs.

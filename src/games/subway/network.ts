@@ -75,6 +75,30 @@ export function interchangeAt(lines: PlayerLine[], stationId: string): boolean {
   return Array.from(memberships[0]).some(group => memberships.every(set => set.has(group)));
 }
 
+/**
+ * Stations of each opponent line that sit in a transfer station shared with `playerId`,
+ * keyed `${ownerId}/${lineIndex}`. A transfer station chains orthogonally adjacent
+ * stations of different lines or companies, as Station cards do; it is shared when it
+ * holds stations of both companies (DEC-066).
+ */
+export function sharedStationPegs(players: SubwayPlayer[], playerId: string): Map<string, Point[]> {
+  const members = players.flatMap(p => p.lines.flatMap((line, lineIndex) => line.route.map(node => ({node, owner: p.id, lineIndex}))));
+  const parent = members.map((_, i) => i);
+  const root = (i: number): number => parent[i] === i ? i : (parent[i] = root(parent[i]));
+  for (let i = 0; i < members.length; i++) for (let j = i + 1; j < members.length; j++) {
+    const a = members[i], b = members[j];
+    if ((a.owner !== b.owner || a.lineIndex !== b.lineIndex) && nodesTransfer(a.node, b.node)) parent[root(i)] = root(j);
+  }
+  const mine = new Set(members.flatMap((m, i) => m.owner === playerId ? [root(i)] : []));
+  const out = new Map<string, Point[]>();
+  members.forEach((m, i) => {
+    if (m.owner === playerId || !mine.has(root(i))) return;
+    const key = `${m.owner}/${m.lineIndex}`;
+    out.set(key, [...(out.get(key) ?? []), m.node]);
+  });
+  return out;
+}
+
 export type BoardSide = "north" | "south" | "east" | "west";
 export function borderSides(point: Point, columns = 27, rows = 9): BoardSide[] {
   const sides: BoardSide[] = [];

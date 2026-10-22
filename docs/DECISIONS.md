@@ -785,7 +785,7 @@ debt keeps payments received meaningful and makes the rule readable from the fin
 ### DEC-018 — Normal Subway routes may interact freely; opposing contacts are paid
 
 **Date:** 2026-08-27
-**Status:** Accepted · **Supersedes:** DEC-017
+**Status:** Accepted · **Supersedes:** DEC-017. Once-per-point contact counting superseded by DEC-066.
 
 **Context**
 DEC-017 removed the opposing-node spacing rule and priced reuse of an opponent's exact peg, while
@@ -2206,3 +2206,42 @@ only delayed construction, and the drift test rejects bend-token, straight-only 
 "optional bend" wording. Full-game bot simulations now run in delayed mode only; token
 behavior keeps its unit coverage for legacy rooms. Pruning the legacy flexible, token and
 straight branches is parked with the K2/K3 knob consolidation.
+
+### DEC-066 — Contacts pay per opposing line; free beside a shared transfer station
+
+**Date:** 2026-10-22
+**Status:** Accepted by owner in chat (rulebook §7 approval).
+
+**Context:** DEC-018 counted a contact once per owner and point, so touching a point where
+two of one opponent's lines meet cost $1M. DEC-060 made station joins free but kept every
+crossing toll, so two companies sharing a transfer station still paid each other to
+untangle their lines right beside it. While approving §7 the owner changed both.
+
+**Decision:** A contact is charged $1M per opposing line at that point: two of one
+opponent's lines meeting where you touch cost $2M; one line's own station, where its two
+strings meet, still costs $1M. A contact with an opponent line is free when it lies within
+1 peg space (`contact.sharedStationFreeReach`) of that line's own station in a transfer
+station that already holds stations of both companies. Transfer stations chain
+orthogonally adjacent stations of different lines or companies, as Station cards do. The
+waiver works both ways. It covers only lines with a station in the shared transfer
+station, and only near that station: the same line elsewhere still pays. Sharing is
+judged on the board before the placement, so the placement that creates a shared
+station pays its contacts.
+
+**Rationale:** Companies that build a station together should be able to route through it
+without paying each other, but sharing should not switch off tolls across the board.
+Charging per line makes a busier crossing cost more.
+
+**Alternatives considered:** Free crossings of all the opponent's lines anywhere; free
+crossings of the station's lines anywhere; only between the two lines that share the
+station; free only exactly on the station peg; a free zone covering the station's
+bounding box; counting the placement that creates the sharing. The owner chose the
+local, line-specific waiver from the next placement.
+
+**Consequences:** No state-version bump: the state shape is unchanged; rooms in progress
+switch to the new pricing on their next placement. The new config key changes the rules
+fingerprint, so old replays are refused as "rules differ". Preview, BUILD, bots and
+extensions share `routeContacts`, which now keys contacts by owner, line and point and
+filters free contacts with `sharedStationPegs`. Free contacts are not shown in the
+payment preview. Balance is unmeasured: toll income may fall where companies cluster and
+rise at multi-line crossings.

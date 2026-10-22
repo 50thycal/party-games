@@ -92,10 +92,16 @@ const retired: [string, RegExp][] = [
   ['board locations called pegs (G3)', /grid of pegs|Each peg can hold only one station/],
   ['extension reach without the ±0.5 tolerance', /1–2 peg spaces/],
   ['bend-token or straight-only variant (DEC-065)', /bend tokens|straight-only|Optional bend/i],
+  ['one charge per owner at a point (DEC-066)', /once per owner|per distinct contact per owner|even after transfer access/],
 ];
 const everywhere = { ...docs, tutorial, intro, terminology: read('TERMINOLOGY.md'), table: read('table.tsx') };
 for (const [surface, text] of Object.entries(everywhere)) for (const [what, pattern] of retired) {
   assert.ok(!pattern.test(text), `${surface}: stale ${what} (${pattern})`);
+}
+
+// Free contacts at a shared transfer station are taught wherever tolls are (DEC-066).
+for (const [surface, text] of Object.entries({ ...docs, tutorial, intro })) {
+  has(surface, text, new RegExp(`within ${C.contact.sharedStationFreeReach} (peg )?space`), 'shared-station free contacts');
 }
 
 // Extensions are taught wherever play is summarised (G6, G7).
