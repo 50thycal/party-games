@@ -165,26 +165,37 @@ A line is complete when every printed segment is built. You immediately receive 
 
 ## 6. Transfers, stations and networks
 
-Two different lines belonging to you connect when their pegs occupy immediately
-neighboring holes horizontally or vertically. This creates a transfer.
+### Transfers
 
-Diagonal adjacency, crossing strings, visiting the same neighborhood without
-adjacent pegs, and lines through an opponent's line do **not** connect your lines.
-An opponent may share a local transfer station, but never bridges your company network.
+A **transfer** joins two of your lines. It happens when a station on one of your lines sits in the hole directly next to a station on a different one of your lines: north, south, east or west.
 
-A **transfer station** is a local group of horizontally/vertically adjacent
-stations. For Station cards and company-network connections, group stations only
-through adjacency between different lines; same-line adjacency alone does not
-create a qualifying transfer. Transfer stations may contain several lines and companies and cross
-neighborhood boundaries. Strings between distant locations do not make one
-transfer station. Two local transfer stations that grow together become one transfer station.
+None of these create a transfer:
 
-**Single Line:** One line supplies the entire requirement.
+- stations that touch only diagonally;
+- strings that cross;
+- two stations in the same neighborhood that are not next to each other;
+- two neighboring stations on the same line;
+- your station next to an opponent's station.
 
-**Connected Network:** Your physically connected lines may contribute together.
-Disconnected sections cannot be combined.
+### Transfer stations
 
-**Company-wide:** Any of your lines may contribute, connected or not.
+A **transfer station** is a group of stations joined by transfers. It grows as more stations on different lines are built next to it, and two transfer stations that grow together become one. A transfer station can hold any number of lines and can cross neighborhood boundaries.
+
+When your stations sit next to an opponent's, you share a transfer station with that company. Some Engineering cards reward this (§9), but it never connects your lines to theirs.
+
+The Largest Transfer Station award (§10) counts differently; see that section.
+
+### Your network
+
+Your **network** is a set of your lines joined by transfers. Every station you have built counts, including those on unfinished lines. Lines with no transfer between them are separate networks, even if they cross or serve the same neighborhood.
+
+### How cards count your lines
+
+Each Engineering and Destination card uses one of three scopes:
+
+- **Single Line:** one line must meet the whole requirement.
+- **Connected Network:** lines in one network may combine.
+- **Company-wide:** any of your lines may combine, connected or not.
 
 ## 7. Paying other companies
 
