@@ -85,26 +85,46 @@ A starter station may be placed next to another station, including an opponent�
 
 ## 4. Construction rounds
 
-Play up to nine rounds, with one turn per company per round. At the beginning of
-your turn, you may buy your optional extra Destination card. Then select the
-lines to activate and pay for their crews.
+Construction lasts up to **nine rounds**. In each round, every company takes one turn, in the same player order used during setup. The game can end earlier; see §12.
 
-| Different lines activated | Total cost |
+### Your turn
+
+Your turn has three steps, in this order:
+
+1. **Buy extra cards (optional).** You may buy one extra Destination mission and one extra Engineering goal, each for **$3 million**. Each can be bought only once per game, and you must pay from cash on hand. You cannot borrow to buy a card. See §8 and §9.
+2. **Hire crews.** Choose which of your lines will build this turn and pay for all their crews at once.
+3. **Build.** Each hired crew builds the next segment of its line (see §5). Build your hired lines in any order.
+
+### Hiring crews
+
+| Crews hired | Total cost |
 |---|---:|
-| Zero | $0 million |
+| None | $0 |
 | One | $1 million |
 | Two | $3 million |
 | Three | $6 million |
 
-For ordinary crew hiring, only unfinished lines with legal next placements can be activated. Each selected
-line receives **one construction activation** (normally one segment placement). Hiring two crews means extending two
-different lines, not extending one line twice.
+Each crew works on a different line. You cannot hire two crews for the same line.
 
-Hire once per turn. You cannot change your selection after paying. Hiring zero
-crews ends your turn. Crew costs and contact payments may both take cash below
-zero on the turn you build: borrowing is allowed, and what it costs depends on
-the band you finish the game in. Skipping or blocking a placement does
-not refund its crew cost.
+You may hire a crew only for an unfinished line that has at least one legal place for its next segment.
+
+You hire once per turn. After you pay, you cannot add or change crews. Hiring no crews ends your turn.
+
+If a hired crew does not build, whether because you skip it or because it has no legal placement left, that line does nothing this turn. Crew costs are never refunded.
+
+### Borrowing
+
+Crew costs and payments to other companies may take your cash below zero, and you may keep building while in debt. Debt costs victory points at the end of the game (§12). Extra cards cannot be bought with borrowed money.
+
+### After your three lines are finished
+
+Once all three of your lines are complete, you stop hiring crews. Starting on your next turn, you may instead **extend** one of your lines:
+
+- Pay **$1 million** to add one new station to the end of any one of your completed lines.
+- The new segment must be straight, with no bends. Its printed length is 2 peg spaces with the usual half-space allowance, so it may measure **1–2.5 peg spaces**. One diagonal step (about 1.4) or a knight's-move step (about 2.2) fits; two diagonal steps (about 2.8) do not.
+- The normal placement rules apply: the 90° curve limit, one peg per hole, no overlaps, and payments to other companies.
+- You may extend once per turn, or skip for free. Borrowing and Undo work as usual.
+- Extending does not pay the line's completion reward again. New stations and track count toward your Engineering goals, Destinations, Longest Network and Largest Transfer Station.
 
 ## 5. Building a line
 
@@ -325,13 +345,6 @@ shows your own construction progress. Destination highlight selections are saved
 per player. Only the current player's selected destinations appear on the shared
 board; your phone keeps your own choices visible even off-turn. With no active
 player, the shared board shows no destination highlights.
-
-After all three lines finish, starting on your next turn you may instead extend
-any one line with a single straight placement of 1–2 peg spaces for $1 million
-plus crossing tolls, or skip for free. Normal heading and placement rules apply.
-Pay on confirmation; borrowing and Undo apply, with no extra crew bill or repeated
-completion reward. Buy optional cards before selecting the extension. Original
-recipe endpoints remain qualified; new track and stations count toward goals.
 
 ## 12. Ending and scoring
 

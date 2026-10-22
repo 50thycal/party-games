@@ -90,6 +90,7 @@ const retired: [string, RegExp][] = [
   ['paid station access', /\$1M once per line, opponent/],
   ['diagonal step counted as one peg space (G2)', /neighboring peg, either orthogonally or diagonally/],
   ['board locations called pegs (G3)', /grid of pegs|Each peg can hold only one station/],
+  ['extension reach without the ±0.5 tolerance', /1–2 peg spaces/],
 ];
 const everywhere = { ...docs, tutorial, intro, terminology: read('TERMINOLOGY.md'), table: read('table.tsx') };
 for (const [surface, text] of Object.entries(everywhere)) for (const [what, pattern] of retired) {
@@ -98,7 +99,7 @@ for (const [surface, text] of Object.entries(everywhere)) for (const [what, patt
 
 // Extensions are taught wherever play is summarised (G6, G7).
 for (const [surface, text] of Object.entries({ ...docs, tutorial, intro })) {
-  has(surface, text, /1–2 peg spaces/, 'extension reach');
+  has(surface, text, /1–2\.5 peg spaces/, 'extension reach');
 }
 
 console.log('Rules text: numbers, contract and card tables match the reducer; no retired rules remain.');

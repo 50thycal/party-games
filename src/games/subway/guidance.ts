@@ -13,7 +13,7 @@ export function phoneGuidance(game:SubwayState, playerId:string): {text:string;t
   if (game.phase==="STARTER_PLACEMENT") return {text:turn(starterTurnId(game),"Place 1 starter station on the iPad border."),tab:"lines",label:"Open Lines"};
   if (game.phase==="CONSTRUCTION") {
     const active=game.resolveQueue[0]===playerId;
-    return {text:active?(me&&extensionEligible(me)?"Extend one line 1–2 spaces for $1M on the iPad, or skip.":me?.crewsHired?(game.bendMode==='delayed'?"Build on the iPad. Stopping at a bend uses this line’s activation.":"Build each hired line on the iPad."):"Choose crews on the iPad."):`Waiting for ${game.players[game.resolveQueue[0]]?.name??"another company"}.`,tab:"destinations",label:"Open Destinations"};
+    return {text:active?(me&&extensionEligible(me)?"Extend one line 1–2.5 spaces for $1M on the iPad, or skip.":me?.crewsHired?(game.bendMode==='delayed'?"Build on the iPad. Stopping at a bend uses this line’s activation.":"Build each hired line on the iPad."):"Choose crews on the iPad."):`Waiting for ${game.players[game.resolveQueue[0]]?.name??"another company"}.`,tab:"destinations",label:"Open Destinations"};
   }
   return {text:game.phase==="RESULTS"?"Final scores are in General.":"Reveal final scores on the iPad.",tab:"general",label:"Open General"};
 }

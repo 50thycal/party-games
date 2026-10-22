@@ -2092,7 +2092,7 @@ line counts remain parked. No state-version change or gameplay rebalance.
 ### DEC-062 — Paid extensions after the third completed line
 
 **Date:** 2026-09-20
-**Status:** Accepted by owner in chat.
+**Status:** Accepted by owner in chat. Extension length clause superseded by DEC-064.
 
 **Context:** Early finishers in the four-player test ran out of meaningful actions.
 
@@ -2148,3 +2148,31 @@ fingerprint is unchanged by these rulings; the separate `engineeringPurchaseCost
 added in the same PR changes it without changing any price. Rules text is now checked
 against `SUBWAY_CONFIG`, the contract data and the card data by
 `scripts/subway-docs-test.ts`.
+
+### DEC-064 — Extensions take the normal ±0.5 length tolerance
+
+**Date:** 2026-10-22
+**Status:** Accepted by owner in chat (rulebook §4 approval).
+
+**Context:** While approving rulebook §4, the owner was shown that a paid extension
+(DEC-062) accepted exactly 1 to 2 peg spaces with no tolerance, stricter than every
+other segment, which accepts ±0.5 around its printed length. A knight's-move step
+(≈2.24) was therefore illegal for an extension but legal for a printed length-2 segment.
+
+**Decision:** An extension is a printed 2-space segment with the usual ±0.5 tolerance:
+any straight placement from 1 to 2.5 peg spaces fits. The minimum stays 1, the
+shortest distance between holes. `SUBWAY_CONFIG.extensionReach` (2) carries the printed
+length; `geometry.lengthTolerance` supplies the allowance. Everything else in DEC-062
+stands. Approved rulebook §4 now holds the extension rules, moved from §11.
+
+**Rationale:** One length rule for every segment is simpler to teach and matches how the
+physical string is measured (§2). The change only adds legal placements.
+
+**Alternatives considered:** Keeping exact 1–2 spaces and documenting the exception.
+
+**Consequences:** No state-version bump: the state shape is unchanged and the new rule is
+a superset, so a game recorded before it never made a now-illegal move. The new config
+key changes the rules fingerprint, so replays recorded under the old fingerprint are
+refused as "rules differ", as for any config change. Reducer, preview, lookahead, bots
+and every rules surface share `validatePath`, and the drift test now rejects "1–2 peg
+spaces".

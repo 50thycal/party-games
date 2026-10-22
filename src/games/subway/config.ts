@@ -46,6 +46,11 @@ export const SUBWAY_CONFIG = {
   startingMoney: 40,
   completionReward: 3,
   /**
+   * Printed length of a paid extension after all three lines finish. Like any
+   * segment it accepts geometry.lengthTolerance, so 1 to 2.5 peg spaces fit.
+   */
+  extensionReach: 2,
+  /**
    * Cash paid the moment a held Destination mission is first connected: pair
    * and triple missions pay differently. Paid in the authoritative BUILD and
    * reversed by placement Undo, exactly like the line completion reward.

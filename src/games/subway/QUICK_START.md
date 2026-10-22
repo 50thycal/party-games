@@ -49,8 +49,8 @@ Finishing a line immediately earns **$3 million**, plus its printed victory
 points at the end.
 
 Once all three of your lines are finished, from your next turn you may instead
-extend any one line by a single straight placement of 1–2 peg spaces for $1 million
-plus crossing tolls, or skip for free.
+extend any one line by a single straight placement of 1–2.5 peg spaces (2 spaces with
+the usual half-space allowance) for $1 million plus crossing tolls, or skip for free.
 
 ## 4. Connect and serve
 

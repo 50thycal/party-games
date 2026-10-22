@@ -315,8 +315,8 @@ statistically proven balance. Physical iPad acceptance remains a human playtest 
 
 After all three of your lines are complete, starting on your next turn you may
 extend any one line, or skip. Select a line and preview one straight placement
-1–2 peg spaces from its current end (diagonal placements within that distance
-are allowed). Turn at most 90°, use an empty hole and obey normal self-crossing,
+1–2.5 peg spaces from its current end: two spaces with the usual ±0.5 tolerance, so
+a diagonal step (≈1.4) or a knight's step (≈2.2) fits, two diagonal steps (≈2.8) do not. Turn at most 90°, use an empty hole and obey normal self-crossing,
 overlap and contact rules. No intermediate bend/worksite is added to this short
 placement. Confirm to pay $1M plus crossing tolls; there is no extra crew bill.
 You may borrow under the normal construction rule. Skipping pays nothing.

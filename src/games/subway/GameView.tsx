@@ -1119,7 +1119,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
             <span className="text-xs text-stone-500">
               {placingStarter
                 ? "starter peg · border holes only"
-                : me.extending ? "Extension · 1–2 peg spaces · $1M + crossing tolls" : `segment ${segmentsBuilt(activeLine) + 1}/${contractOf(activeLine)?.recipe.length} · ${
+                : me.extending ? "Extension · 1–2.5 peg spaces · $1M + crossing tolls" : `segment ${segmentsBuilt(activeLine) + 1}/${contractOf(activeLine)?.recipe.length} · ${
                     nextSegmentLength(activeLine) ?? "—"
                   } peg spaces`}
             </span>

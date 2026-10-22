@@ -18,7 +18,7 @@ function fixture():SubwayState {
 }
 let s=fixture();assert.ok(extensionEligible(s.players[id]));assert.ok(!constructionExhausted(s));assert.deepEqual(buildableLines(s,id),[0,1,2]);
 const original=structuredClone(s.players[id].lines[0]);const end=original.route.at(-1)!;const target={x:end.x,y:1};
-assert.equal(validatePath(s,id,0,[target]),null);assert.ok(validatePath(s,id,0,[{x:end.x,y:3}]));assert.ok(validatePath(s,id,0,[original.route[0]]));assert.ok(validatePath(s,id,0,[{x:end.x-1,y:1}]));
+assert.equal(validatePath(s,id,0,[target]),null);assert.equal(validatePath(s,id,0,[{x:end.x+1,y:2}]),null,'±0.5 tolerance: a knight step (≈2.24) extends');assert.equal(validatePath(s,id,0,[{x:end.x+2,y:0}]),null,'exactly 2 spaces extends');assert.match(validatePath(s,id,0,[{x:end.x+2,y:2}])??'',/1–2\.5 spaces/,'two diagonal steps (≈2.83) exceed 2.5');assert.ok(validatePath(s,id,0,[{x:end.x,y:3}]));assert.ok(validatePath(s,id,0,[original.route[0]]));assert.ok(validatePath(s,id,0,[{x:end.x-1,y:1}]));
 assert.equal(send(s,'HIRE_CREWS',{lineIndexes:[0,1],period:6}),s,'one extension per turn');
 assert.equal(send(s,'HIRE_CREWS',{lineIndexes:[0],period:5}),s,'stale period rejected');
 assert.equal(send(s,'HIRE_CREWS',{lineIndexes:[0],period:6},other),s,'out of turn');
