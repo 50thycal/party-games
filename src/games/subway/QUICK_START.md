@@ -90,12 +90,10 @@ points by themselves.
 **Remember:** One peg per hole. Adjacent pegs connect different lines. Crossings
 cost money. Finish what you start.
 
-## Optional bends — choose before starting
+## Bends
 
-**Delayed construction** is the default: stop at a bend now, hire that line again
-later to finish. Other hired lines can still build. Only one bend per segment.
-Alternatively, choose **Bend tokens**: three per company, one per bend; extra
-tokens cost $3M from available cash. Finish the bent segment in one activation.
+A bend takes two turns: stop at a bend now, then hire that line again later to
+finish. Other hired lines can still build. Only one bend per segment.
 
 Curves stay within 90 degrees, and the combined leg lengths must match the printed
 segment. Bend/worksite markers are not scoring pegs. Crossings cost money as each

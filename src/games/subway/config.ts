@@ -1,5 +1,5 @@
 import {lineLegs, pathLegs} from './paths';
-import {isBendMode, validatePath, pathContacts, tokenCost, findBendMove, type BendMode} from './bends';
+import {validatePath, pathContacts, tokenCost, findBendMove, type BendMode} from './bends';
 import { largestCluster } from './clusters';
 import { stationAccessContacts, type StationAccess } from './stationAccess';
 import { ENGINEERING_CARDS, engineeringMet, type EngineeringCard } from './engineering';
@@ -1704,14 +1704,16 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       if (ctx.room.players.length < 2 || ctx.room.players.length > 4) return state;
       // Rebuild seats from the live room so lazily-initialized state can never
       // strand a player outside the game. First four joiners become companies.
-      if(action.payload?.bendMode!==undefined&&!isBendMode(action.payload.bendMode))return state;
+      // Delayed construction is the only bend rule for new games (DEC-065). Token and
+      // straight-only branches remain only for rooms started before that ruling.
+      if(action.payload?.bendMode!==undefined&&action.payload.bendMode!=='delayed')return state;
       const fresh = initialState(ctx.room.players);
       // Flexible (shortened) segments are retired for new games (DEC-063). The
       // validatePath branch remains only for rooms started before that ruling.
       if(action.payload?.segmentLengthMode!==undefined&&action.payload.segmentLengthMode!=='exact')return state;
       fresh.segmentLengthMode='exact';
-      fresh.bendMode=action.payload?.bendMode??'delayed';
-      for(const p of Object.values(fresh.players))p.bendTokens=fresh.bendMode==='tokens'?3:0;
+      fresh.bendMode='delayed';
+      for(const p of Object.values(fresh.players))p.bendTokens=0;
       fresh.startedAt = ctx.now();
       fresh.phase = "PROCUREMENT";
       fresh.market.rows = {engineering:[], scheduling:[]};

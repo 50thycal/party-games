@@ -3,8 +3,6 @@ import { HowToPlay } from "@/games/subway/Intro";
 
 import {validatePath,pathContacts,tokenCost,remainingLength} from './bends';
 import {constructionTip} from './paths';
-import {BendModeSelect} from "./BendModeSelect";
-import {type BendMode} from "./bends";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { PlayerPads, PublicLeaders } from "./PlayerStatus";
@@ -219,7 +217,6 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
   const me = game?.players[playerId];
   const isHotseat = room.mode === "hotseat";
 
-  const [bendMode,setBendMode]=useState<BendMode>('delayed');
   const hintKey=`subway-yellow-hint:${room.roomCode}:${game?.startedAt??'setup'}`;
   const [dismissedHintKey,setDismissedHintKey]=useState<string|null>(null);
   useEffect(()=>{try{setDismissedHintKey(localStorage.getItem(hintKey)==='dismissed'?hintKey:null);}catch{setDismissedHintKey(null);}},[hintKey]);
@@ -766,11 +763,10 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
           Companies: {room.players.slice(0, 4).map((p) => p.name).join(" vs ") || "waiting…"}
           {room.players.length > 4 && ` · ${room.players.length - 4} spectating`}
         </p>
-        {isHost&&<BendModeSelect value={bendMode} onChange={setBendMode}/>}
       {isHost ? (
           <button
             disabled={busy || !enough}
-            onClick={() => act("START_GAME",{bendMode})}
+            onClick={() => act("START_GAME",{})}
             className="rounded-xl bg-emerald-700 px-6 py-3 font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-40"
           >
             {busy ? "Starting…" : enough ? "Start Subway" : "Waiting for a second player"}

@@ -128,64 +128,40 @@ Once all three of your lines are complete, you stop hiring crews. Starting on yo
 
 ## 5. Building a line
 
-Begin at the starter and follow the contract's lengths in printed order. Extend
-from the current last peg, choose an empty hole, meet the next length and curve
-rules, review the preview, and confirm.
+Each line starts at its starter station and follows its Line Contract: build the printed segments in order, one segment per hired crew. Each new segment starts at the line's last station and ends at a new station in an empty hole. The game shows every legal hole and previews your choice before you confirm.
 
-### Lengths and curves
+### Length and direction
 
-Measure straight-line distance in peg spaces. Every segment must match its printed
-length; shortened segments are not allowed. The digital game allows half a peg
-space above or below the printed length: a length-four segment may measure 3.5
-to 4.5 spaces. Diagonals qualify when their measured length fits. Use the legal
-placement indicators rather than adding horizontal and vertical steps.
+Each segment must match its printed length, measured as a tight string from station to station (see §2). Segments cannot be shortened.
 
-Your line may curve by **at most 90 degrees** at a peg. Continuing
-straight is allowed; curving back more sharply is not. The first segment has no
-previous direction. Straight mode connects pegs directly. In an optional bend
-mode, measure each straight leg and add the lengths.
+A line may curve by **at most 90°** wherever it changes direction, both at a station and at a bend. The first segment of a line can go in any direction.
 
-### Optional bend modes
+### Bends
 
-The host chooses one mode before starting; it cannot change during the game.
-**Delayed construction** is the default. The old straight-only option is hidden.
-**Bend tokens** gives each company three
-tokens. Each bend costs one token; missing tokens cost **$3M each**, automatically
-purchased on Confirm using available cash (no borrowing). Preview one bend
-and finish the whole segment in one activation. Cancel is free; Undo restores
-spent tokens and purchases.
+A segment may contain **one bend**: a corner between its two stations. A bent segment's length is the sum of its two legs, and the half-space allowance applies once to the whole segment.
 
-**Delayed construction** has no token cost. Choose “Stop at a bend” and confirm
-to build one leg and end that line’s activation. Other hired lines still act.
-Hire that line again on a later turn to finish its remaining length.
-Only one bend is allowed per segment; a second stop is not allowed. A worksite does not reserve future
-holes or strings; later construction may block its continuation.
+A bend takes two turns. Build the segment's first leg and stop at the bend. This uses that line's crew for the turn and leaves a **worksite** at the bend. On a later turn, hire that line again to build the second leg and finish the segment. Your other hired lines still build normally.
 
-Each leg joins board holes and curves by at most **90 degrees**.
-Add the actual leg lengths; apply the existing ±0.5-space tolerance once to the
-whole printed segment. A stop must leave at least one space available to finish.
-Bends and worksites are **not pegs or stations**: they do not serve neighborhoods,
-create transfers, satisfy station objectives or count as line ends. Partial strings
-are physical: crossings cost money when built and overlaps remain forbidden.
-Only completed segments contribute network length, using their full bent path.
-No completion reward is paid until all printed segments are finished. The game
-still lasts at most nine rounds; unfinished lines retain their normal penalty.
+- The first leg can be at most the printed length minus ½ peg space, so there is always room to finish.
+- A worksite does not reserve anything. If other construction blocks every way to finish the segment, that line cannot be hired again and stays unfinished.
 
-### Contacts and overlaps
+A bend is not a station. It does not serve a neighborhood, create a transfer, count toward an Engineering goal, or count as the end of a line.
 
-A line cannot cross or rejoin an earlier part of itself. Different lines may
-cross, including your own. Strings may pass through existing pegs, and a new peg
-may occupy an empty hole crossed by another line's string.
+A partly built segment is real track: crossing it costs money (§7), and nothing may overlap it. Only finished segments count toward network length.
 
-Two strings cannot lie along the same stretch. Crossing at a point is allowed;
-overlapping along a length is not. Your own different lines charge no money;
-opponent contacts may require payment.
+### Crossing and overlapping
+
+A line cannot cross itself or touch an earlier part of itself.
+
+Different lines may cross each other, including two of your own lines. A string may pass over a station, and a new station may go in an empty hole that another line's string passes over.
+
+Two strings may never run along the same stretch. Crossing at a single point is fine; lying on top of each other is not.
+
+Contact with your own lines is free. Contact with another company's line or station may cost money (§7).
 
 ### Completing a line
 
-Build every printed segment to complete a line. Receive **$3 million immediately**
-and its contract's completion points at scoring. An unfinished line receives its
-printed penalty instead; there are no partial completion points.
+A line is complete when every printed segment is built. You immediately receive **$3 million**, and the line scores its completion points at the end of the game. A line left unfinished scores its printed penalty instead; partly built lines earn nothing.
 
 ## 6. Transfers, stations and networks
 

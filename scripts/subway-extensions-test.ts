@@ -52,7 +52,7 @@ let extensions=0;
 for(const count of [2,3,4]) {
  const r=testRoom(count),random=seededRandom(700+count);let game=subwayGame.initialState(r.players);const record=newRecord(r,game,'bots');let ticks=0;
  const act=(a:SubwayAction)=>{const next=recordedReducer(game,a,{room:r,playerId:a.playerId,now:()=>++ticks,random},record,'bot');assert.notEqual(next,game,`accepted ${a.type}`);game=next;};
- act({type:'START_GAME',playerId:r.hostId,payload:{bendMode:'straight'}});
+ act({type:'START_GAME',playerId:r.hostId,payload:{}});
  for(let n=0;n<400&&game.phase!=='RESULTS';n++) {
   const actor=nextCompanyId(game)!,p=game.players[actor];let a:SubwayAction;
   if(game.phase==='STARTER_PLACEMENT') {
@@ -61,9 +61,10 @@ for(const count of [2,3,4]) {
   } else if(game.phase==='CONSTRUCTION'&&!extensionEligible(p)) {
    if(!p.crewsHired)a={type:'HIRE_CREWS',playerId:actor,payload:{lineIndexes:buildableLines(game,actor),period:game.currentPeriod}};
    else {
-    // Exact lengths only (DEC-063): take the reducer's own first legal straight move.
+    // Exact lengths (DEC-063), delayed bends (DEC-065): take the reducer's own first legal move,
+    // which may be a stop at a bend.
     const lineIndex=p.pendingActions[0],move=findBendMove(game,actor,lineIndex),to=move?.points.at(-1);
-    a=to?{type:'BUILD',playerId:actor,payload:{lineIndex,x:to.x,y:to.y}}:{type:'SKIP_ACTION',playerId:actor,payload:{lineIndex}};
+    a=to?{type:'BUILD',playerId:actor,payload:{lineIndex,x:to.x,y:to.y,pause:move!.pause}}:{type:'SKIP_ACTION',playerId:actor,payload:{lineIndex}};
    }
   } else a=chooseBotAction(game,random,undefined,undefined,false)!;
   if(a.type==='BUILD'&&p.extending)extensions++;act(a);

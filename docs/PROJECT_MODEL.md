@@ -853,8 +853,9 @@ unreviewed; their Largest Cluster scoring text now reflects PR #183.
 
 ### Optional Subway bend modes (DEC-055)
 
-Setup on local, companion-host and Lab surfaces selects immutable `bendMode`:
-straight (default), tokens, or delayed. State v25 protects older persisted rooms.
+`bendMode` is immutable per game. Since DEC-065 every new game is `delayed`: setup
+offers no choice and START_GAME refuses `tokens` and `straight`, whose branches remain
+only for rooms started earlier. State v25 protects older persisted rooms.
 `paths.ts` separates physical legs from scoring nodes: endpoint `via` stores
 completed incoming bends; line `work` stores unfinished construction vertices.
 `bends.ts` owns shared path validation, actual contact projection and legal-move

@@ -206,17 +206,9 @@ company a legal next segment or paid extension. Empty rounds are never played. A
 blocked or skipped placement does not refund its hired crew. Normal placement
 legality remains unchanged.
 
-### Optional bend modes
+### Bends (delayed construction)
 
-The host chooses one mode before starting; it cannot change during the game.
-**Delayed construction** is the default. The old straight-only option is hidden.
-**Bend tokens** gives each company three
-tokens. Each bend costs one token; missing tokens cost **$3M each**, automatically
-purchased on Confirm using available cash (no borrowing). Preview one bend
-and finish the whole segment in one activation. Cancel is free; Undo restores
-spent tokens and purchases.
-
-**Delayed construction** has no token cost. Choose “Stop at a bend” and confirm
+Delayed construction is the only bend rule; there are no setup variants. Choose “Stop at a bend” and confirm
 to build one leg and end that line’s activation. Other hired lines still act.
 Hire that line again on a later turn to finish its remaining length.
 Only one bend is allowed per segment; a second stop is not allowed. A worksite does not reserve future
@@ -224,7 +216,7 @@ holes or strings; later construction may block its continuation.
 
 Each leg joins board holes and curves by at most **90 degrees**.
 Add the actual leg lengths; apply the existing ±0.5-space tolerance once to the
-whole printed segment. A stop must leave at least one space available to finish.
+whole printed segment. The first leg can be at most the printed length minus ½ space.
 Bends and worksites are **not pegs or stations**: they do not serve neighborhoods,
 create transfers, satisfy station objectives or count as line ends. Partial strings
 are physical: crossings cost money when built and overlaps remain forbidden.
@@ -245,7 +237,7 @@ each other but never the outer border. 51 interior holes remain outside areas.
 
 Place a peg on any hole inside an area to serve it. String merely passing through
 is not service. There are **no dock limits**. Multiple companies and lines may
-serve the same area. Visits matter for destinations and Engineering objectives. Exact peg positions and optional bend vertices
+serve the same area. Visits matter for destinations and Engineering objectives. Exact peg positions and bend vertices
 determine segment lengths, curves and physical contacts.
 
 Different company lines transfer only at horizontally/vertically
@@ -305,7 +297,7 @@ complete accepted-action ledger: setup, cards, lines, placements, crew and toll
 economy, Undo actions, scoring, timing, and the construction end reason. Rejected
 actions are not tracked because they never change reducer state.
 
-State version **29** requires a fresh game for the optional bend modes;
+State version **29** requires a fresh game for the bend rules;
 old saves are not migrated. Neighborhood names and size labels fit wholly inside
 their actual footprints, with wrapped text and camera-adaptive font sizes.
 Automated games test termination and rule behavior, not human enjoyment or

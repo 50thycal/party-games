@@ -16,5 +16,5 @@ on color alone. Quick-start needs the first, third and fifth graphics below.
 | Network versus transfer station | Counted continuous trail versus a local group of adjacent stations. |
 | Card-symbol legend | Single Line, Connected Network, Company-wide, Line Ends Only, Consecutive Stations. |
 
-Optional bend modes are implemented. Future diagrams should distinguish scoring
-stations from bend/worksite markers and match the selected mode’s rules.
+Delayed construction is the only bend rule. Future diagrams should distinguish scoring
+stations from bend/worksite markers.

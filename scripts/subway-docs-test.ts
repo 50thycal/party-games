@@ -91,6 +91,7 @@ const retired: [string, RegExp][] = [
   ['diagonal step counted as one peg space (G2)', /neighboring peg, either orthogonally or diagonally/],
   ['board locations called pegs (G3)', /grid of pegs|Each peg can hold only one station/],
   ['extension reach without the ±0.5 tolerance', /1–2 peg spaces/],
+  ['bend-token or straight-only variant (DEC-065)', /bend tokens|straight-only|Optional bend/i],
 ];
 const everywhere = { ...docs, tutorial, intro, terminology: read('TERMINOLOGY.md'), table: read('table.tsx') };
 for (const [surface, text] of Object.entries(everywhere)) for (const [what, pattern] of retired) {

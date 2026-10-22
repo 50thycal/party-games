@@ -1865,7 +1865,7 @@ sets. No bending rule is implemented by this conflict resolution.
 ### DEC-055 — Game-start bend experiments share physical geometry
 
 **Date:** 2026-09-16
-**Status:** Accepted by owner; wording and balance remain draft.
+**Status:** Accepted by owner; wording and balance remain draft. Setup choice of bend mode superseded by DEC-065.
 
 **Context:** The owner approved building token and delayed-construction experiments
 as alternatives chosen at game setup, preserving straight play by default.
@@ -2176,3 +2176,33 @@ key changes the rules fingerprint, so replays recorded under the old fingerprint
 refused as "rules differ", as for any config change. Reducer, preview, lookahead, bots
 and every rules surface share `validatePath`, and the drift test now rejects "1–2 peg
 spaces".
+
+### DEC-065 — Delayed construction is the only bend rule
+
+**Date:** 2026-10-22
+**Status:** Accepted by owner in chat (rulebook §5 approval).
+
+**Context:** DEC-055 made bends a setup experiment: straight-only, bend tokens or delayed
+construction. Delayed construction became the default and straight-only was hidden
+(DEC-060), but the host could still pick bend tokens, and the rulebook described two
+modes. While approving §5 the owner ruled there should be no variants.
+
+**Decision:** Every new game uses delayed construction: a segment may have one bend, built
+over two turns (first leg, then the finishing leg on a later hire). The setup selector is
+removed from the local, companion-host and in-room setup surfaces; START_GAME accepts only
+`delayed` (or no mode) and refuses `tokens` and `straight`. The token and straight-only
+validation branches remain only so rooms started before this ruling can finish.
+
+**Rationale:** One bend rule is simpler to teach and leaves no setup decision for the host.
+Delayed construction makes a bend cost tempo rather than money, which is the trade the
+owner wants.
+
+**Alternatives considered:** Keeping bend tokens as a documented variant; removing the token
+and straight-only code outright with a state-version bump. The owner chose no variants;
+the legacy code stays, matching the DEC-063 precedent for flexible length.
+
+**Consequences:** No state-version bump: the state shape is unchanged. Rules text describes
+only delayed construction, and the drift test rejects bend-token, straight-only and
+"optional bend" wording. Full-game bot simulations now run in delayed mode only; token
+behavior keeps its unit coverage for legacy rooms. Pruning the legacy flexible, token and
+straight branches is parked with the K2/K3 knob consolidation.
