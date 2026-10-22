@@ -1760,7 +1760,7 @@ manual card testing rejected by the owner; automatic rule retuning excluded.
 
 ### DEC-054 — Shared Largest Cluster and bounded algorithmic planning
 
-Date: 2026-09-15. Status: owner-authorized implementation; independent review pending.
+Date: 2026-09-15. Status: owner-authorized implementation; independent review pending. Cluster grouping superseded by DEC-069.
 
 Calvin approved a second global goal: the company with the most route nodes in
 the largest shared orthogonal cluster earns 6 VP. Aggregate company counts across
@@ -2312,3 +2312,33 @@ validation, bots and UI are dormant and join the legacy prune parked with K2/K3.
 no longer mentions extensions, and the drift test rejects extension wording. Approved §4
 replaces its extension subsection with "When you have nothing left to build". Games may end
 a little earlier, because finished companies no longer keep construction alive.
+
+### DEC-069 — Largest Transfer Station scores the §6 transfer stations
+
+**Date:** 2026-10-22
+**Status:** Accepted by owner in chat (rulebook §10 approval).
+
+**Context:** DEC-054's award grouped every occupied hole by orthogonal adjacency, including two
+stations of the same line, and counted a lone station as a group of one. So the award named
+"Largest Transfer Station" did not use the transfer stations defined in §6, and on a board
+with no transfers it went to whichever company simply had the most stations.
+
+**Decision:** The award uses the §6 transfer station: stations chained by orthogonal adjacency
+between different lines or different companies, across all companies. Same-line neighbours do
+not join and lone stations are not transfer stations. The largest transfer station (all of
+them if tied) is found; each company counts its own stations in it, and the leaders score
+6 VP alone, 3 VP each for two, 2 VP each for three, and nothing for four. With no transfer
+station on the board nobody scores the award. In the owner's words: whoever has the most
+stations in the largest single transfer station gets the points, split if tied.
+
+**Rationale:** One meaning of "transfer station" across cards, networks and awards; the award
+rewards building real interchanges rather than station count.
+
+**Alternatives considered:** Renaming the award and keeping occupied-hole grouping; keeping
+both definitions with an explanatory note. The owner chose one definition.
+
+**Consequences:** No state-version bump. `clusters.ts` `largestCluster` keeps its result shape,
+so scoring, public standings, badges, bots and reports follow automatically; grouping is
+linear in occupied holes. This change alone does not alter the rules fingerprint, but the
+same PR's config changes do, so replays recorded before it are refused rather than rescored. Rules text and the drift test reject
+same-line or lone-station wording.

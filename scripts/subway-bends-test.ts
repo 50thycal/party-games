@@ -28,7 +28,8 @@ const base=(mode:SubwayState['bendMode']='tokens')=>{
  assert.equal(segmentsBuilt(b.players[id].lines[0]),1);assert.equal(b.players[id].lines[0].route.length,2);
  assert.equal(longestNetwork(b.players[id]),2);assert.equal(lineLegs(b.players[id].lines[0]).length,2);
  assert.equal(b.players[id].lines[0].route[1].stationId,undefined);
- assert.equal(largestCluster(b.players).size,1,'bend is not occupied peg');
+ const beside=structuredClone(b);beside.players[other].lines[0].route.push({x:2,y:0});
+ assert.equal(largestCluster(beside.players).size,0,'a bend is not a station: no transfer station with the neighbouring peg');
  const u=act(b,'UNDO_PLACEMENT');assert.deepEqual(u.players[id],s.players[id]);
  const straight=base('straight');assert.equal(act(straight,'BUILD',payload),straight);
  assert.match(validatePath(s,id,0,[{x:1,y:0},{x:0,y:1}])!,/90/);
@@ -100,7 +101,8 @@ for(const mode of ['tokens','delayed'] as const) {
  const s=base();s.stations=[{id:'bend-only',name:'Bend Only',kind:'minor',x:1,y:0,cells:[{x:1,y:0}]}];
  const b=act(s,'BUILD',{lineIndex:0,x:1,y:1,bends:[{x:1,y:0}]});
  assert.equal(b.players[id].lines[0].route.some(n=>n.stationId==='bend-only'),false);
- assert.equal(largestCluster(b.players).size,1);
+ const beside=structuredClone(b);beside.players[other].lines[0].route.push({x:2,y:0});
+ assert.equal(largestCluster(beside.players).size,0);
 }
 // Completion pays once, only after the unfinished final segment reaches a peg.
 {

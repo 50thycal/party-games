@@ -9,8 +9,8 @@ Build a subway company across the city. Complete lines, connect neighborhoods,
 and create transfer stations to earn victory points. Most points wins.
 
 A **station** is one placed peg. A **transfer station** is a group of
-horizontally/vertically adjacent stations. Card transfers require different-line
-adjacency; Largest Transfer Station also counts same-line adjacency.
+horizontally/vertically adjacent stations on different lines or companies. Cards
+and the Largest Transfer Station award use this one definition.
 
 ## 1. Set up your company
 

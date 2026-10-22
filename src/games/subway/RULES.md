@@ -147,14 +147,16 @@ Unless a card requires completion or a final station, incomplete lines may quali
 
 ## Largest Transfer Station — public goal
 
-Group occupied peg holes across all companies, including pegs on the same line,
-using horizontal/vertical adjacency. One hole holds one peg. Diagonals, strings,
-bends and worksites do not join or enlarge transfer stations. Size is the number of occupied holes.
+Use the transfer stations defined for cards: stations chained by horizontal/vertical
+adjacency between different lines or companies, across all companies. Two neighbouring
+stations on the same line do not form one, and a lone station is not one. Diagonals,
+strings, bends and worksites do not join or enlarge transfer stations. Size is the number
+of stations.
 
 Find all transfer stations tied for largest and total each company's stations across those
 transfer stations. Award the bonus once to the leaders: **6 VP** alone, **3 VP each** for
 two tied leaders, **2 VP each** for three, and **0 VP** for four. Empty boards
-award nothing; singleton occupied holes count as transfer stations. This does not change
+award nothing, and so does a board with no transfer station. This does not change
 the company transfer or Longest Network rules.
 
 ## Longest network — public goal
@@ -169,10 +171,9 @@ never wins the award. Unfinished lines can contribute.
 ## Public standings and player status
 
 The iPad and phone show current longest-network length and Largest Transfer Station
-standings using the same occupied-hole grouping and tied-largest aggregation as
-scoring. Same-line adjacent pegs count for this public award, unlike the different-
-line transfers required for Station cards. The phone shows your station total across
-all equally largest transfer stations. Empty boards have no leader.
+standings using the same transfer stations and tied-largest aggregation as scoring.
+The phone shows your station total across all equally largest transfer stations. With
+no transfer station on the board there is no leader.
 
 Bottom iPad player pads show names, cash and line colors/codes. Confirmed payments
 show corresponding debits/credits beside these pads, with reversed signs on Undo.

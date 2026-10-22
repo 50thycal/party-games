@@ -802,6 +802,9 @@ Engineering descriptions identical to their requirements render only once.
 
 ### Largest Cluster and company-aware bot planning (DEC-054)
 
+Since DEC-069 the award, now named Largest Transfer Station, groups only §6 transfer
+stations: orthogonal neighbours join unless both holes hold the same single line, and
+groups of one are dropped, so no transfer station means no award.
 State v24 integrates the separate public Largest Cluster award with the later no-stacking/card/payment rules. The pure cluster helper
 groups route-node holes across companies with orthogonal adjacency, deduplicates
 each company's presence per hole, and ignores strings, diagonals and Survey Pins.

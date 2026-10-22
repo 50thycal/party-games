@@ -10,25 +10,30 @@ const fixture=(n=4)=>subwayGame.initialState(testRoom(n).players);
 const line=(nodes:number[][]):PlayerLine=>({contractId:'long',paid:0,start:1,route:nodes.map(([x,y])=>({x,y}))});
 const s=fixture();
 assert.deepEqual(largestCluster(s.players).leaders,[]);
+// DEC-069: the award uses §6 transfer stations. A lone station is not one.
 for(let n=1;n<=4;n++) {
   const game=fixture();
   for(let i=0;i<n;i++) game.players[`seat-${i+1}`].lines=[line([[i,0]])];
   const r=largestCluster(game.players);
-  assert.equal(r.size,n);assert.equal(r.leaders.length,n);
-  for(let i=1;i<=n;i++) assert.equal(r.points[`seat-${i}`],n===4?0:6/n);
+  assert.equal(r.size,n===1?0:n);assert.equal(r.leaders.length,n===1?0:n);
+  for(let i=1;i<=n;i++) assert.equal(r.points[`seat-${i}`],n===1||n===4?0:6/n);
 }
-s.players['seat-1'].lines=[line([[0,0],[1,0]]),line([[0,0]])];
+s.players['seat-1'].lines=[line([[0,0],[5,5]])];
 s.players['seat-2'].lines=[line([[1,0],[2,1]])];
-s.players['seat-3'].lines=[line([[10,0],[11,0]])];
+s.players['seat-3'].lines=[line([[10,0]]),line([[11,0]])];
+// Same-line neighbours and lone stations are not transfer stations.
+s.players['seat-4'].lines=[line([[20,0],[21,0]])];
 let r=largestCluster(s.players);
-assert.equal(r.size,2);assert.equal(r.clusters.length,2);
-assert.deepEqual(r.counts,{'seat-1':2,'seat-2':1,'seat-3':2,'seat-4':0});
-assert.equal(r.points['seat-1'],3);assert.equal(r.points['seat-3'],3);
-// The long string and diagonal gap do not make a physical cluster.
-s.players['seat-4'].lines=[line([[20,0],[26,8]])];
-assert.deepEqual(largestCluster(s.players),r);
+assert.equal(r.size,2);assert.equal(r.clusters.length,2,'two tied-largest transfer stations');
+assert.deepEqual(r.counts,{'seat-1':1,'seat-2':1,'seat-3':2,'seat-4':0});
+assert.deepEqual(r.leaders,['seat-3']);assert.equal(r.points['seat-3'],6);
+// A six-station transfer station outranks the pairs; its majority company scores alone.
+s.players['seat-2'].lines.push(line([[1,1]]),line([[0,1]]));s.players['seat-1'].lines.push(line([[1,2]]));
+r=largestCluster(s.players);
+assert.equal(r.size,6);assert.deepEqual(r.counts,{'seat-1':2,'seat-2':4,'seat-3':0,'seat-4':0});
+assert.deepEqual(r.points,{'seat-1':0,'seat-2':6,'seat-3':0,'seat-4':0});
 const scored=scoreGame(s,1);
-assert.equal(scored.players['seat-1'].scoreBreakdown?.find(i=>i.label.startsWith('Largest Transfer Station'))?.points,3);
+assert.equal(scored.players['seat-2'].scoreBreakdown?.find(i=>i.label.startsWith('Largest Transfer Station'))?.points,6);
 assert.equal(scored.players['seat-4'].scoreBreakdown?.find(i=>i.label.startsWith('Largest Transfer Station'))?.points,0);
 
 const game=fixture(2),id='seat-1';game.phase='CONSTRUCTION';game.currentPeriod=1;game.resolveQueue=[id];
@@ -67,12 +72,12 @@ finish.firstCompletedPlayerId='seat-2';
 assert.equal(forecastBotBuild(finish,id,2,{x:4,y:2},false,true).firstCompletedPlayerId,'seat-2');
 console.log('Cluster rules, score ledger, bounded planner, cache determinism, privacy and mutation checks passed.');
 
-// Shared standings and scorer use identical same-line/tied-largest semantics.
+// Shared standings and scorer agree; same-line neighbours never form a transfer station (DEC-069).
 const display=fixture();display.players['seat-1'].lines=[line([[0,0],[1,0],[2,0]])];
 display.players['seat-2'].lines=[line([[10,0],[11,0]])];display.players['seat-3'].lines=[line([[12,0]])];
 assert.deepEqual(publicStandings(display).stationLeaders,largestCluster(display.players).leaders);
 assert.deepEqual(publicStandings(display).stationCounts,largestCluster(display.players).counts);
-assert.deepEqual(publicStandings(display).stationLeaders,['seat-1']);
+assert.deepEqual(publicStandings(display).stationLeaders,['seat-2','seat-3'],'only the seat-2/seat-3 pair is a transfer station');
 // Forecast cash, opponent credits and receipts agree with real accepted placements.
 for(const starter of [true,false]) {
  const f=fixture(2),who='seat-1'; f.stations=[];

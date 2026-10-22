@@ -92,6 +92,7 @@ const retired: [string, RegExp][] = [
   ['paid extensions (DEC-068)', /1–2(\.5)? peg spaces|paid extension\b(?! ?\(?DEC)|[Ee]xtend (any )?one (of your )?lines?/],
   ['bend-token or straight-only variant (DEC-065)', /bend tokens|straight-only|Optional bend/i],
   ['one pair and one triple dealt (DEC-067)', /one two-neighborhood and one three-neighborhood|one pair and one triple|one naming two neighborhoods and one naming three/],
+  ['same-line or lone-station award groups (DEC-069)', /including (pegs on )?the same line|counts same-line adjacency|includes same-line adjacency|size-one group|singleton occupied holes count/],
   ['one charge per owner at a point (DEC-066)', /once per owner|per distinct contact per owner|even after transfer access/],
 ];
 const everywhere = { ...docs, tutorial, intro, terminology: read('TERMINOLOGY.md'), table: read('table.tsx') };

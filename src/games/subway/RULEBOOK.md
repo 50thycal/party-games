@@ -321,29 +321,21 @@ A corner hole lies on two borders, but a card that asks for different border sid
 
 ## 10. Public standings
 
-### Longest network
+Two awards are scored at the end of the game. The iPad shows the current leaders throughout.
 
-Find your longest continuous trail through built segments, measured by actual
-length in peg spaces. Transfers add zero length; unfinished lines may contribute.
-You may revisit a peg, but cannot use a segment twice. Do not simply add every
-branch or disconnected section together.
+### Longest Network
 
-The longest company receives **5 VP**, or **3 VP each** when tied. Empty networks
-cannot win.
+Your longest network is the longest single route you could travel through your own built track without using any segment twice.
+
+- Measure each segment's actual length in peg spaces. A bent segment counts both legs; a partly built segment doesn't count.
+- You may pass through a station more than once, and you may change lines at a transfer for free (it adds no length).
+- Unfinished lines count. Branches and separate networks don't add together.
+
+The company with the longest scores **5 VP**. If companies tie, each scores **3 VP**. A company with no built segments can't score it.
 
 ### Largest Transfer Station
 
-Group all occupied peg holes by horizontal/vertical adjacency across every
-company, including pegs on the same line. Diagonals and strings do not join
-transfer stations. A single occupied hole is a size-one group for this award.
-
-Find all equally largest transfer stations, then add each company's pegs across those
-transfer stations. Award once to the company or companies with the greatest total:
-**6 VP** for one leader, **3 each** for two, **2 each** for three, and **zero**
-for four. An empty board awards nothing. The public display uses this same rule.
-
-This occupied-hole award is distinct from Station-card transfers, which require
-different-line adjacency. Opponents still never bridge your company network.
+Find the largest transfer station on the board (§6), counting every company's stations in it. If several tie for largest, use all of them. Each company counts its own stations in those transfer stations. The company with the most scores **6 VP**. Two tied leaders score **3 VP** each, three score **2 VP** each, and four score nothing. If no transfer station exists, nobody scores this award.
 
 ## 11. Planning, confirming and Undo
 
