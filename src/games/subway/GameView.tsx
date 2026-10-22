@@ -98,6 +98,7 @@ import {
 
 const PHASE_LABELS: Record<string, string> = {
   SETUP: "Setup",
+  DESTINATIONS: "Destinations",
   PROCUREMENT: "Procurement",
   ENGINEERING: "Engineering",
   SCHEDULING: "Scheduling",
@@ -137,6 +138,10 @@ function statusFor(game: SubwayState, me: SubwayPlayer | undefined, isHost: bool
       return isHost
         ? { headline: "Start the game when all companies are ready.", tone: "act" }
         : { headline: "Waiting for the host to start.", tone: "wait" };
+    case "DESTINATIONS":
+      return me.destinationDiscarded
+        ? { headline: "Destinations kept — waiting for the other companies.", tone: "wait" }
+        : { headline: "Keep two of your three Destination cards.", tone: "act", detail: "Discard one; it leaves the game." };
     case "PROCUREMENT": {
       const offer = game.procurement.offer;
       if (!offer) return { headline: "Shuffling the contract deck…", tone: "wait" };
@@ -1183,7 +1188,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
 
   // Quick-focus controls, one-handed on a phone: the short label is what a
   // narrow screen shows, the long one is the accessible name everywhere.
-  const officeOpen = !boardOnly && (game.phase === "PROCUREMENT" || (game.phase === "ENGINEERING" && game.engineeringStep === "CARD_DRAFT"));
+  const officeOpen = !boardOnly && (game.phase === "DESTINATIONS" || game.phase === "PROCUREMENT" || (game.phase === "ENGINEERING" && game.engineeringStep === "CARD_DRAFT"));
   const focusButtons: { zone: TableZone; label: string; short: string }[] = [
     ...(officeOpen ? [{ zone: "office" as TableZone, label: "Market", short: "Market" }] : []),
     { zone: "board", label: "Pegboard", short: "Board" },
@@ -1323,6 +1328,7 @@ export function SubwayGameView({ state, room, playerId, isHost, dispatchAction, 
                 act("DRAFT_CARD", {deck, cardId, expectedPick:game.market.picks});
               }}
               onOpenDestination={(id) => setFocus({ family: "destination", id, slot: "row" })}
+              onDiscardDestination={(id) => { if (!busy && !veiled && me && game.phase === "DESTINATIONS") act("DISCARD_DESTINATION", {cardId:id}); }}
             />}
 
             <div

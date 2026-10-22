@@ -20,11 +20,11 @@ async function main() {
   assert.equal(state.data.room.players.length,2,"concurrent joins survive CAS");
   const started=await (await post({operation:"action",roomCode,type:"START_GAME",payload:{},requestId:"start",revision:state.data.revision},tablet)).json();
   assert.equal(started.ok,true,JSON.stringify(started));
-  assert.equal(started.data.view.game.phase,"PROCUREMENT");
+  assert.equal(started.data.view.game.phase,"DESTINATIONS","companies keep two of three Destinations first (DEC-067)");
   assert.equal(started.data.view.game.bendMode,"delayed");
   const phone=joined[0].data;
   const privateView=await (await GET(new NextRequest(`http://localhost/api/subway-companion?roomCode=${roomCode}`,{headers:{Authorization:`Bearer ${phone.token}`}}))).json();
-  assert.equal(privateView.data.game.players[phone.view.playerId].destinationHand.length,2);
+  assert.equal(privateView.data.game.players[phone.view.playerId].destinationHand.length,3,"three dealt, private to the phone");
   assert.equal(privateView.data.game.bendMode,"delayed");
   assert.equal(privateView.data.game.players[phone.view.playerId].bendTokens,0);
   assert.ok(Object.values(privateView.data.game.players).filter((p:any)=>p.id!==phone.view.playerId).every((p:any)=>p.destinationHand.length===0));

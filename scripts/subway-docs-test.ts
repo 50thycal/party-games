@@ -41,15 +41,15 @@ for (const [surface, text] of Object.entries({ ...docs, tutorial, intro })) {
   has(surface, text, new RegExp(`\\$${triple}(M| million)`), 'triple Destination cash');
 }
 for (const [surface, text] of Object.entries(docs)) if (surface !== 'quick') {
-  has(surface, text, new RegExp(`missions (award|pay) ${C.destinationVp} VP`), 'pair Destination VP');
-  has(surface, text, new RegExp(`missions (award|pay)? ?${C.threeStationDestinationVp} VP`), 'triple Destination VP');
+  has(surface, text, new RegExp(`missions (award|pay) ${C.destinationVp} VP|Two neighborhoods \\| \\$${pair} million \\| ${C.destinationVp} VP`), 'pair Destination VP');
+  has(surface, text, new RegExp(`missions (award|pay)? ?${C.threeStationDestinationVp} VP|Three neighborhoods \\| \\$${triple} million \\| ${C.threeStationDestinationVp} VP`), 'triple Destination VP');
 }
 
 // Optional card prices.
 for (const surface of ['rulebook', 'rules'] as const) {
   const d = cardPurchaseCost('destination'), e = cardPurchaseCost('engineering');
   has(surface, docs[surface], new RegExp(`extra random Destination for \\$${d}( million|M)|\\$${d}( million|M) for one extra random Destination`), 'Destination price');
-  has(surface, docs[surface], new RegExp(`extra Engineering goal for \\$${e}( million|M)|\\$${e}( million|M) for one extra Engineering`), 'Engineering price');
+  has(surface, docs[surface], new RegExp(`extra Engineering goal,? (each )?for \\$${e}( million|M)|\\$${e}( million|M) for one extra Engineering`), 'Engineering price');
 }
 
 // Contact toll and ending-cash spectrum.
@@ -92,11 +92,18 @@ const retired: [string, RegExp][] = [
   ['board locations called pegs (G3)', /grid of pegs|Each peg can hold only one station/],
   ['extension reach without the ±0.5 tolerance', /1–2 peg spaces/],
   ['bend-token or straight-only variant (DEC-065)', /bend tokens|straight-only|Optional bend/i],
+  ['one pair and one triple dealt (DEC-067)', /one two-neighborhood and one three-neighborhood|one pair and one triple|one naming two neighborhoods and one naming three/],
   ['one charge per owner at a point (DEC-066)', /once per owner|per distinct contact per owner|even after transfer access/],
 ];
 const everywhere = { ...docs, tutorial, intro, terminology: read('TERMINOLOGY.md'), table: read('table.tsx') };
 for (const [surface, text] of Object.entries(everywhere)) for (const [what, pattern] of retired) {
   assert.ok(!pattern.test(text), `${surface}: stale ${what} (${pattern})`);
+}
+
+// Dealt three, keep two, from one mixed deck (DEC-067).
+for (const [surface, text] of Object.entries({ ...docs, tutorial, intro })) {
+  has(surface, text, /(dealt|deal) three/i, 'three Destinations dealt');
+  has(surface, text, /keep(s|ing)? two/i, 'keep two Destinations');
 }
 
 // Free contacts at a shared transfer station are taught wherever tolls are (DEC-066).

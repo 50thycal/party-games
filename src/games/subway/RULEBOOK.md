@@ -41,9 +41,15 @@ To **serve a neighborhood**, one of your stations must occupy a hole inside that
 
 ## 3. Setup and drafting
 
-Each company begins the game with **$40 million** and two Destination missions: one naming two neighborhoods and one naming three.
+Each company begins the game with **$40 million**.
 
 Randomly determine the starting player. Play continues in the same order throughout drafting and construction. The order does not reverse between rounds.
+
+### Keep two Destinations
+
+Shuffle all 30 Destination cards into one deck and deal **three** to each company. Each company secretly discards one and keeps two. Discarded cards leave the game.
+
+Any mix is possible: you may be dealt three cards that each name two neighborhoods, three that each name three, or anything between. Companies choose at the same time, and the line draft begins once every company has kept two.
 
 ### Buy your lines
 
@@ -229,24 +235,30 @@ A bent segment pays for each leg as it is built. Payments may take your cash bel
 
 ## 8. Destination cards
 
-Serve every named neighborhood within **one connected company network**, in any
-order. None is a required start or finish. Several connected lines may contribute,
-and they need not be complete. Two-neighborhood missions award **4 VP**;
-three-neighborhood missions award **7 VP**. The first time your network connects a
-mission you hold, the bank also pays you **$2 million** (two neighborhoods) or
-**$3 million** (three) immediately; a bought mission that is already connected pays
-at once. Each mission pays once, and Undo reverses the payment with the placement.
-Unfulfilled missions score zero with no penalty. Cards are not assigned to individual lines; one network may fulfill
-several cards.
+A Destination card names two or three neighborhoods. You fulfill it when **one of your networks** (§6) serves every neighborhood on the card, meaning it has a station in each.
 
-Before hiring crews on your turn, you may buy one extra random Destination for
-**$3 million**, once per game, and one extra Engineering goal for **$3 million**,
-once per game. Choose one of the two face-up Engineering goals on your phone,
-then refill that space; or draw randomly on your phone or iPad. The iPad directs
-face-up choices to the phone. Purchases require available cash. Cards
-stay private: the iPad shows only the current company's cards, during its turn, and
-every hand is revealed at results. Enabling a highlight also marks that selected
-mission's neighborhoods on the iPad board during your turn.
+- The order doesn't matter, and no named neighborhood has to be the start or end of a line.
+- Several lines can combine if transfers join them. Unfinished lines count.
+- One network can fulfill several cards. Cards are not tied to particular lines.
+
+### Rewards
+
+| Card | Cash when first connected | Points at the end |
+|---|---:|---:|
+| Two neighborhoods | $2 million | 4 VP |
+| Three neighborhoods | $3 million | 7 VP |
+
+The bank pays the cash immediately, the first time your network connects a card you hold. Each card pays its cash only once, and Undo takes the cash back along with the placement. If you buy a card your network already connects, it pays at once. A card you don't fulfill scores nothing; there is no penalty.
+
+### The deck
+
+There are 30 Destination cards in one deck: 15 that name two neighborhoods and 15 that name three. Each company is dealt three and keeps two (§3); the discards leave the game, and the rest stay face down.
+
+Once per game, before hiring crews, you may buy one extra random Destination for **$3 million** in cash (§4). You draw it at random, so it may name two or three neighborhoods.
+
+### Keeping cards secret
+
+Your Destination cards are private. During your turn the iPad shows your cards, and only yours. Every hand is revealed at the end of the game. You can highlight a card's neighborhoods on the board; the iPad shows that highlight only during your turn.
 
 ## 9. Engineering cards
 

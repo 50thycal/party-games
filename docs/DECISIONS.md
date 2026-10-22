@@ -1649,7 +1649,7 @@ State v19 prevents old games from silently changing score values mid-session.
 
 ### DEC-045 — Physical transfers and goal-led neighborhood scoring
 
-Date: 2026-09-12. Status: owner-approved; implemented by PR #174.
+Date: 2026-09-12. Status: owner-approved; implemented by PR #174. Destination dealing superseded by DEC-067.
 
 Owner approved zero automatic area VP for the next playtest and replaced free
 area-wide transfers with overlapping or horizontally/vertically adjacent nodes
@@ -2245,3 +2245,40 @@ extensions share `routeContacts`, which now keys contacts by owner, line and poi
 filters free contacts with `sharedStationPegs`. Free contacts are not shown in the
 payment preview. Balance is unmeasured: toll income may fall where companies cluster and
 rise at multi-line crossings.
+
+### DEC-067 — Deal three Destinations from one mixed deck; keep two
+
+**Date:** 2026-10-22
+**Status:** Accepted by owner in chat (rulebook §8 approval).
+
+**Context:** DEC-045 dealt every company one two-neighborhood and one three-neighborhood
+Destination with no choice. While approving §8 the owner asked for a draft-style choice
+from a single deck.
+
+**Decision:** All 30 Destinations form one shuffled deck. START_GAME deals three to each
+company and opens a new `DESTINATIONS` phase before the line draft. Each company plays
+`DISCARD_DESTINATION` once, keeping two; companies may choose in any order, and
+`nextCompanyId` offers the first undecided seat to turn-based surfaces and bots. Any mix
+of two- and three-neighborhood cards is possible. Discards leave the game. When every
+company has kept two, PROCUREMENT opens as before. The bought extra Destination stays a
+random draw from the remaining deck. Knobs: `destinationsDealt: 3`,
+`destinationsPerPlayer: 2`.
+
+**Rationale:** A choice at the start lets companies shape a plan before buying lines, and
+one mixed deck adds variety: a company may chase two triples or play safe with pairs.
+
+**Alternatives considered:** Keeping one pair and one triple; dealing three while
+preserving at least one of each kind; returning discards to the deck. The owner chose
+one random mixed deal. Removing discards from the game was the implementer's default,
+because otherwise a bought card could be one you already rejected.
+
+**Consequences:** No state-version bump: rooms already past setup never enter the new
+phase. The config change alters the rules fingerprint, so old replays are refused as
+"rules differ". The phone chooses privately; the iPad shows no hand during the phase
+and a "still choosing" list instead. Companion projections replace other companies'
+`destinationDiscarded` with "hidden", so whether a company has chosen is public but
+its discard is not. The local table and mobile layouts show the
+current chooser's three cards. Bot policy v8 keeps the pair with the most VP per
+distinct neighborhood and never discards a focus card; Card Audit's Destination
+focus keeps the audited card. The deck available for purchases shrinks to
+30 − 3 × companies.

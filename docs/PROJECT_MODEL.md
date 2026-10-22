@@ -608,9 +608,13 @@ neighborhood membership. State version 20 and local-save key require restart for
 ### Destination and border objective balance
 
 The deck contains 30 unique missions: 15 pairs (4 VP) and 15 triples (7 VP).
-Pair appearances are three per neighborhood, triple appearances four/five. Start
-deals one of each without replacement; remaining cards shuffle together for the
-once-per-game $3M purchase. A mission checks the intersection of component sets
+Pair appearances are three per neighborhood, triple appearances four/five. Since
+DEC-067 START_GAME deals three from one mixed deck into each hand and opens a
+`DESTINATIONS` phase: each company plays DISCARD_DESTINATION once, in any order
+(`nextCompanyId` offers the first undecided seat to turn-based surfaces and bots),
+and the discard leaves the game. When all have kept two, PROCUREMENT opens. The
+iPad projection shows no hand during the phase; phones choose. The remaining deck
+serves the once-per-game $3M purchase. A mission checks the intersection of component sets
 serving each named area: repeated area visits cannot merge separated networks.
 
 Transfer groups collapse only orthogonal nodes from different lines.

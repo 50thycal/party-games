@@ -77,6 +77,8 @@ export function companionView(state: RoomState, device: CompanionDevice): Compan
       if (p.id !== owner && game.phase !== "RESULTS") {
         p.engineeringHand = [];
         p.destinationHand = [];
+        // Whether a company has chosen is public; which card it discarded is not (DEC-067).
+        if (p.destinationDiscarded) p.destinationDiscarded = "hidden";
         p.committedEngineering = [];
         p.destinationCommitments = [];
         p.schedulingHand = [];
@@ -89,6 +91,7 @@ export function companionView(state: RoomState, device: CompanionDevice): Compan
         const current = p.id === actor;
         p.engineeringHand = current ? [...(original!.players[p.id]?.engineeringHand ?? [])] : [];
         p.destinationHand = current ? [...(original!.players[p.id]?.destinationHand ?? [])] : [];
+        if (p.destinationDiscarded) p.destinationDiscarded = "hidden";
         p.committedEngineering = []; p.destinationCommitments = []; p.schedulingHand = [];
       }
     }
@@ -113,7 +116,7 @@ export function companionView(state: RoomState, device: CompanionDevice): Compan
     canUndo:device.role === "tablet" && !!original?.undo && store.seated?.playerId === original.undo.playerId};
 }
 
-const PHONE_ACTIONS = new Set(["PROCURE", "DRAFT_CARD", "BUY_DESTINATION", "BUY_ENGINEERING"]);
+const PHONE_ACTIONS = new Set(["DISCARD_DESTINATION", "PROCURE", "DRAFT_CARD", "BUY_DESTINATION", "BUY_ENGINEERING"]);
 // Extra card purchases are allowed from either device: the iPad's Buy a card
 // button acts for the acknowledged company (DGLE playtest follow-up).
 const TABLET_ACTIONS = new Set(["DRAFT_CARD","HIRE_CREWS", "PLACE_STARTER", "BUILD", "SKIP_ACTION", "UNDO_PLACEMENT", "ADVANCE_SCORING", "BUY_DESTINATION", "BUY_ENGINEERING"]);

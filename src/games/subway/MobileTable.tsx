@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { EngineeringCardFace } from "./CardArt";
+import { DestinationCardFace, EngineeringCardFace } from "./CardArt";
 import { VB_W, VB_H } from "./board";
 import { SUBWAY_CONFIG, extensionEligible, segmentsBuilt, extensionCount, activationCost, buildableLines, canAffordCrews, cardDraftBlocker, contractOf, contractById, destinationById, engineeringById, objectiveMet, type SubwayState } from "./config";
 
@@ -19,7 +19,8 @@ export function MobileTable({game, playerId, busy, veiled, board, actions, setti
   const viewport = useRef<HTMLDivElement>(null);
   const [mapWidth, setMapWidth] = useState(0);
   const p = game.players[playerId];
-  const drafting = game.phase === "PROCUREMENT" || (game.phase === "ENGINEERING" && game.engineeringStep === "CARD_DRAFT");
+  const choosing = game.phase === "DESTINATIONS" && !!p && !p.destinationDiscarded;
+  const drafting = choosing || game.phase === "PROCUREMENT" || (game.phase === "ENGINEERING" && game.engineeringStep === "CARD_DRAFT");
   const extending = !!p && extensionEligible(p);
   const available = p ? buildableLines(game, playerId) : [];
   const hiring = game.phase === "CONSTRUCTION" && game.resolveQueue[0] === playerId && !p?.crewsHired;
@@ -56,7 +57,7 @@ export function MobileTable({game, playerId, busy, veiled, board, actions, setti
         {p.lines.map((l,i)=><button key={l.contractId} className="rounded border px-2 py-2" style={{borderColor:contractOf(l)?.color}} onClick={()=>selectLine(i)}>{contractOf(l)?.code ?? contractOf(l)?.name} {segmentsBuilt(l)}/{contractOf(l)?.recipe.length}{extensionCount(l)>0?` +${extensionCount(l)} ext`:""}</button>)}
       </div>
       {(tray||drafting) && <div className="flex max-h-[38dvh] shrink-0 gap-2 overflow-auto px-2 pb-1 text-sm" aria-label="Cards on the table">
-        {game.phase === "PROCUREMENT" ? game.procurement.row.map(id=>{const c=contractById(id)!;return <article className={card} key={id} style={{borderColor:c.color}}><b>{c.name}</b><p>{c.recipe.join(" · ")} peg spaces</p><p>Finish +{c.completionVp} VP</p><button className={button} disabled={busy||game.procurement.offer?.activeId!==playerId||p.money<c.cost} onClick={()=>act("PROCURE",{choice:"buy",contractId:id})}>Sign · ${c.cost}M</button></article>;}) : game.engineeringStep === "CARD_DRAFT" && game.phase === "ENGINEERING" ? <div className="flex gap-2">{game.market.rows.engineering.map(id=>{const c=engineeringById(id)??destinationById(id);return <article className={card} key={id}><small>engineering</small><p className="font-bold">{c?.name}</p><p>{c?.description}</p><button className={button} disabled={busy||!!cardDraftBlocker(game,playerId,"engineering",id)} onClick={()=>act("DRAFT_CARD",{deck:"engineering",cardId:id,expectedPick:game.market.picks})}>Draft</button></article>;})}<button className={card} disabled={busy||!!cardDraftBlocker(game,playerId,"engineering")||!game.market.decks.engineering.length} onClick={()=>act("DRAFT_CARD",{deck:"engineering",expectedPick:game.market.picks})}>Blind draw<br/>engineering</button></div> : <>
+        {choosing ? p.destinationHand.map(id=><article className={card} key={id}><DestinationCardFace card={id} color={p.color}/><button className={`${button} mt-2 w-full`} disabled={busy} onClick={()=>act("DISCARD_DESTINATION",{cardId:id})}>Discard · keep the other two</button></article>) : game.phase === "PROCUREMENT" ? game.procurement.row.map(id=>{const c=contractById(id)!;return <article className={card} key={id} style={{borderColor:c.color}}><b>{c.name}</b><p>{c.recipe.join(" · ")} peg spaces</p><p>Finish +{c.completionVp} VP</p><button className={button} disabled={busy||game.procurement.offer?.activeId!==playerId||p.money<c.cost} onClick={()=>act("PROCURE",{choice:"buy",contractId:id})}>Sign · ${c.cost}M</button></article>;}) : game.engineeringStep === "CARD_DRAFT" && game.phase === "ENGINEERING" ? <div className="flex gap-2">{game.market.rows.engineering.map(id=>{const c=engineeringById(id)??destinationById(id);return <article className={card} key={id}><small>engineering</small><p className="font-bold">{c?.name}</p><p>{c?.description}</p><button className={button} disabled={busy||!!cardDraftBlocker(game,playerId,"engineering",id)} onClick={()=>act("DRAFT_CARD",{deck:"engineering",cardId:id,expectedPick:game.market.picks})}>Draft</button></article>;})}<button className={card} disabled={busy||!!cardDraftBlocker(game,playerId,"engineering")||!game.market.decks.engineering.length} onClick={()=>act("DRAFT_CARD",{deck:"engineering",expectedPick:game.market.picks})}>Blind draw<br/>engineering</button></div> : <>
           {p.lines.map((l,i)=><article className={card} key={l.contractId} style={{borderColor:contractOf(l)?.color}}><b>{contractOf(l)?.name}</b><p>{contractOf(l)?.recipe.map((n,j)=>j<l.route.length-1?`✓${n}`:n).join(" · ")}</p><button className={button} onClick={()=>previewLine(i)}>Preview remainder</button></article>)}
           {p.engineeringHand.map(id=><EngineeringCardFace key={id} card={id} color={p.color} state={objectiveMet(id,p,game.playerOrder.filter(id=>id!==playerId).map(id=>game.players[id]),game)?"met":"idle"} />)}
         </>}

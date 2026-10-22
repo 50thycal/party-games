@@ -58,15 +58,33 @@ assert.equal(distinctSides([pt(0,0),pt(26,0),pt(0,8)],3),true,"corners allow a d
   result=scoreGame(s,1);assert.equal(result.players[p.id].scoreBreakdown!.find(i=>i.label.startsWith("Longest network"))!.points,5);
   assert.ok(result.players[p.id].scoreBreakdown!.every(i=>!i.label.includes("special")&&!i.label.includes("major-station bonus")));
 }
-for(const count of [2,3,4]) {
-  const s=startPlaytest(count,42).state;
+// DEC-067: deal three from one mixed deck, discard one (out of the game), keep two.
+const kinds=new Set<string>();
+for(const count of [2,3,4]) for(const seed of [42,43,44,45]) {
+  let s=startPlaytest(count,seed).state;
+  const dealt=SUBWAY_CONFIG.destinationsDealt,kept=SUBWAY_CONFIG.destinationsPerPlayer;
+  assert.equal(s.phase,"DESTINATIONS");
   const hands=Object.values(s.players).flatMap(p=>p.destinationHand);
-  assert.equal(hands.length,count*2);
-  assert.equal(new Set(hands).size,count*2);
-  assert.ok(hands.every(id=>DESTINATION_CARDS.some(c=>c.id===id)));
-  assert.equal(s.destinationDeck.length,30-count*2);
-  assert.ok(s.telemetry[0].playersAfter[s.playerOrder[0]].destinationCards.length===2);
+  assert.equal(hands.length,count*dealt);
+  assert.equal(new Set([...hands,...s.destinationDeck]).size,DESTINATION_CARDS.length,"every card is dealt or in the deck, once");
+  assert.ok(s.telemetry[0].playersAfter[s.playerOrder[0]].destinationCards.length===dealt);
+  for(const p of Object.values(s.players)) kinds.add(p.destinationHand.map(id=>DESTINATION_CARDS.find(c=>c.id===id)!.stationIds.length).sort().join(""));
+  const [first,second]=s.playerOrder;
+  assert.equal(dispatch(s,first,"DISCARD_DESTINATION",{cardId:s.players[second].destinationHand[0]}),s,"cannot discard a card you do not hold");
+  assert.equal(dispatch(s,first,"PROCURE",{choice:"buy",contractId:s.procurement.deck[0]}),s,"no line draft before Destinations are kept");
+  const discards:string[]=[];
+  for(const id of [...s.playerOrder].reverse()) {
+    const discard=s.players[id].destinationHand[1];discards.push(discard);
+    s=dispatch(s,id,"DISCARD_DESTINATION",{cardId:discard});
+    assert.equal(s.players[id].destinationHand.length,kept);
+    assert.equal(dispatch(s,id,"DISCARD_DESTINATION",{cardId:s.players[id].destinationHand[0]}),s,"one discard per company");
+  }
+  assert.equal(s.phase,"PROCUREMENT","any order; the draft opens once every company has kept two");
+  assert.ok(s.procurement.offer);
+  assert.ok(discards.every(id=>!s.destinationDeck.includes(id)&&Object.values(s.players).every(p=>!p.destinationHand.includes(id))),"discards leave the game");
+  assert.equal(s.destinationDeck.length,DESTINATION_CARDS.length-count*dealt);
 }
+assert.ok(kinds.size>=2&&(kinds.has("222")||kinds.has("333")),`one mixed deck: deals mix two- and three-neighborhood cards freely (${Array.from(kinds)})`);
 {
   let s=runPlaytest(2,7,"CONSTRUCTION").state;
   const id=s.resolveQueue[0], other=s.playerOrder.find(p=>p!==id)!;

@@ -42,6 +42,11 @@ export function runAuditPair(settings:AuditSettings,task:AuditTask,capture=true)
       const random=seededRandom(seed);
       const step=(a:SubwayAction)=>{const next=recordedReducer(s,a,{room,playerId:a.playerId,random,now:()=>prefix.actions.length+1},prefix,'bot');if(next===s) throw new Error(`Rejected acquisition action ${a.type}`);s=next;};
       step({type:'START_GAME',playerId:room.hostId});
+      // Each company keeps two of three dealt Destinations; an audited Destination is kept by the focal company (DEC-067).
+      while(s.phase==='DESTINATIONS') {
+        const actor=nextCompanyId(s)!,a=chooseBotAction(s,seededRandom(seedFor([seed,actor,prefix.actions.length])),profiles[room.players.findIndex(p=>p.id===actor)],actor===id&&card.family==='Destination'?card.id:undefined);
+        if(!a) throw new Error('No Destination choice available');step(a);
+      }
       if(card.family==='Destination'&&!held(s,id,card.id)) continue;
       if(card.family==='Engineering') {
         // Only public opening offers; never inspect the hidden deck to steer a bot.

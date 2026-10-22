@@ -648,6 +648,7 @@ export function ContractOffice({
   onBuyContract,
   onOpenMarket,
   onOpenDestination,
+  onDiscardDestination,
   children,
 }: {
   game: SubwayState;
@@ -657,13 +658,28 @@ export function ContractOffice({
   onBuyContract: (contractId: string) => void;
   onOpenMarket: (deck: CardDeckId, cardId?: string) => void;
   onOpenDestination: (id: string) => void;
+  onDiscardDestination?: (id: string) => void;
   /** Phase controls that belong on this piece (buy/pass, and so on). */
   children?: ReactNode;
 }) {
   const offer = game.procurement.offer;
+  const choosing = game.phase === "DESTINATIONS";
+  const waitingFor = game.playerOrder.filter((id) => !game.players[id].destinationDiscarded).map((id) => game.players[id].name);
   const drafting = game.phase === "ENGINEERING" && game.engineeringStep === "DESTINATION_DRAFT";
   return (
     <Printed zone="office" title="Contract office" className="w-full" style={{ width: TABLE.side }}>
+      {choosing && (
+        <div className="space-y-[14px]">
+          <p className="text-[20px] font-bold">Destinations · keep two of three</p>
+          <p className="text-[18px]">Discard one card. It leaves the game. Still choosing: {waitingFor.join(", ")}.</p>
+          {!veiled && me && !me.destinationDiscarded ? me.destinationHand.map((id) => (
+            <div key={id} className="rounded-[14px] border-2 border-purple-800/40 bg-[#fffaf0] p-[8px] shadow-lg [&_strong]:text-[20px] [&_p]:text-[18px]">
+              <DestinationCardFace card={id} color={me.color} />
+              <button disabled={busy || !onDiscardDestination} onClick={() => onDiscardDestination?.(id)} className="mt-[10px] min-h-[74px] w-full rounded-lg bg-rose-800 p-[12px] text-[22px] font-bold text-white disabled:opacity-45">Discard this one</button>
+            </div>
+          )) : <p className="text-[18px] italic">{me?.destinationDiscarded ? "You kept two Destinations." : "Each company chooses privately."}</p>}
+        </div>
+      )}
       {game.phase === "PROCUREMENT" && (
         <div className="space-y-[12px]">
           <p className="text-[20px] font-bold">Line draft · {Math.floor(game.procurement.offerIndex / game.playerOrder.length) + 1}/3</p>

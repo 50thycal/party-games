@@ -121,8 +121,10 @@ export const SUBWAY_CONFIG = {
   ],
   /** Destination cards face up at the start of the Engineering draft. */
   destinationRow: 3,
-  /** Destination cards each company drafts. */
+  /** Destination cards each company keeps at the start (DEC-067). */
   destinationsPerPlayer: 2,
+  /** Destination cards dealt to each company from one mixed deck; it discards down to destinationsPerPlayer. */
+  destinationsDealt: 3,
   startingHands: {
     engineering: [] as string[],
     scheduling: [] as SchedulingCardId[],
@@ -354,6 +356,7 @@ export type CardDeckId = keyof typeof MARKET_DECKS;
 
 export type SubwayPhase =
   | "SETUP"
+  | "DESTINATIONS"
   | "PROCUREMENT"
   | "ENGINEERING"
   | "SCHEDULING"
@@ -422,6 +425,8 @@ export type SubwayPlayer = {
   engineeringPurchased?: boolean;
   /** Destination missions whose completion cash has already been paid. */
   destinationsPaid?: string[];
+  /** The starting Destination this company discarded; removed from the game (DEC-067). */
+  destinationDiscarded?: string;
   /** Destination cards locked to a line at Engineering plan lock. */
   destinationCommitments: DestinationCommitment[];
   schedulingHand: SchedulingCardId[];
@@ -602,6 +607,7 @@ export type SubwayActionType =
   | "BUY_SURVEYS"
   | "HIRE_CREWS"
   | "PICK_DESTINATION"
+  | "DISCARD_DESTINATION"
   | "LOCK_ENGINEERING_PLAN"
   | "PLACE_SURVEY"
   | "AUTO_SCHEDULE"
@@ -1729,7 +1735,7 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       fresh.bendMode='delayed';
       for(const p of Object.values(fresh.players))p.bendTokens=0;
       fresh.startedAt = ctx.now();
-      fresh.phase = "PROCUREMENT";
+      fresh.phase = "DESTINATIONS";
       fresh.market.rows = {engineering:[], scheduling:[]};
       fresh.market.decks = {engineering:[], scheduling:[]};
       fresh.market.picks = 0;
@@ -1741,13 +1747,25 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
         LINE_CONTRACTS.map((c) => c.id),
         ctx.random
       ).slice(0, fresh.playerOrder.length * 3 + 1);
-      // Deal one pair and one triple to each company, without replacement.
-      const pairs = shuffle(DESTINATION_CARDS.filter(c => c.stationIds.length === 2).map(c => c.id), ctx.random);
-      const triples = shuffle(DESTINATION_CARDS.filter(c => c.stationIds.length === 3).map(c => c.id), ctx.random);
-      for (const id of fresh.playerOrder) fresh.players[id].destinationHand = [pairs.shift()!, triples.shift()!];
-      fresh.destinationDeck = shuffle([...pairs, ...triples], ctx.random);
-      pushEvent(fresh, ctx.now(), "PHASE", "banner", `Subway begins — ${fresh.playerOrder.length * 3} Line Contracts for ${fresh.playerOrder.length} companies.`);
-      return nextOffer(fresh, ctx.now());
+      // One mixed deck: deal three at random, two- or three-neighborhood alike;
+      // each company then discards one (DEC-067).
+      const destinations = shuffle(DESTINATION_CARDS.map(c => c.id), ctx.random);
+      for (const id of fresh.playerOrder) fresh.players[id].destinationHand = destinations.splice(0, SUBWAY_CONFIG.destinationsDealt);
+      fresh.destinationDeck = destinations;
+      pushEvent(fresh, ctx.now(), "PHASE", "banner", `Subway begins. Each company keeps ${SUBWAY_CONFIG.destinationsPerPlayer} of ${SUBWAY_CONFIG.destinationsDealt} Destination cards.`);
+      return fresh;
+    }
+
+    case "DISCARD_DESTINATION": {
+      const cardId = action.payload?.cardId;
+      if (s.phase !== "DESTINATIONS" || !me || me.destinationDiscarded || !cardId || !me.destinationHand.includes(cardId)) return state;
+      me.destinationHand = me.destinationHand.filter(id => id !== cardId);
+      me.destinationDiscarded = cardId;
+      pushEvent(s, ctx.now(), "CARD", "notice", `${me.name} kept ${me.destinationHand.length} Destination cards.`, me.id);
+      if (s.playerOrder.some(id => !s.players[id].destinationDiscarded)) return s;
+      s.phase = "PROCUREMENT";
+      pushEvent(s, ctx.now(), "PHASE", "banner", `Destinations kept. ${s.playerOrder.length * 3} Line Contracts for ${s.playerOrder.length} companies.`);
+      return nextOffer(s, ctx.now());
     }
 
     case "PROCURE": {
@@ -2098,6 +2116,7 @@ export const subwayGame = defineGame<SubwayState, SubwayAction>({
 /** Next company with an outstanding decision, used by the hotseat handoff. */
 export function nextCompanyId(s: SubwayState): string | undefined {
   switch (s.phase) {
+    case "DESTINATIONS": return s.playerOrder.find((id) => !s.players[id].destinationDiscarded);
     case "PROCUREMENT": return s.procurement.offer?.activeId;
     case "ENGINEERING":
       if (s.engineeringStep === "CARD_DRAFT") return cardDraftTurnId(s);

@@ -14,8 +14,8 @@ adjacency; Largest Transfer Station also counts same-line adjacency.
 
 ## 1. Set up your company
 
-Each player starts with **$40 million** and two private Destination cards: one
-naming two neighborhoods and one naming three.
+Each player starts with **$40 million** and is dealt three private Destination
+cards from one mixed deck. Keep two and discard one; it leaves the game.
 
 Take turns buying **three line contracts each**. Each contract shows its price,
 the lengths of its segments, and its points for finishing—or penalty for leaving

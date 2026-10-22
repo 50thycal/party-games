@@ -52,6 +52,18 @@ async function main() {
     assert.equal((await post({roomCode:code,type:'BUILD',revision:joined.data.view.revision,requestId:crypto.randomUUID()},joined.data.token)).ok,false,'phone cannot build');
     assert.equal((await get(code,c.data.token)).data.room.roomCode,joined.data.view.room.roomCode);
     if(started) {
+      // DEC-067: every company keeps two of three Destinations first; bots by LAB_STEP, the human on the paired phone.
+      let choosing=(await get(code,c.data.token)).data;
+      assert.ok(Object.values(choosing.game.players).every((p:any)=>p.destinationHand.length===0),'iPad shows no hands while companies choose');
+      while(choosing.game.phase==='DESTINATIONS') {
+        const next=choosing.game.playerOrder.find((id:string)=>!choosing.game.players[id].destinationDiscarded);
+        if(choosing.lab.seats.find((s:{id:string})=>s.id===next).control==='bot') assert.equal((await post({roomCode:code,type:'LAB_STEP',revision:choosing.revision,requestId:crypto.randomUUID()},c.data.token)).ok,true);
+        else {
+          const sel=await post({roomCode:code,type:'LAB_SELECT',payload:{playerId:next},revision:choosing.revision,requestId:crypto.randomUUID()},joined.data.token);assert.equal(sel.ok,true,JSON.stringify(sel));
+          const kept=await post({roomCode:code,type:'DISCARD_DESTINATION',payload:{cardId:sel.data.view.game.players[next].destinationHand[0]},revision:sel.data.view.revision,requestId:crypto.randomUUID()},joined.data.token);assert.equal(kept.ok,true,JSON.stringify(kept));
+        }
+        choosing=(await get(code,c.data.token)).data;
+      }
       const padView=(await get(code,c.data.token)).data;
       const active=padView.game.procurement.offer.activeId;
       const human=await post({roomCode:code,type:'LAB_CONTROL',payload:{playerId:active,control:'human',bot:DEFAULT_BOT},revision:padView.revision,requestId:crypto.randomUUID()},c.data.token);
@@ -121,6 +133,10 @@ async function main() {
   const forbiddenSeat=await post({roomCode:code,type:'LAB_SELECT',payload:{playerId:friend.data.view.playerId},revision:friend.data.view.revision,requestId:'steal'},key);assert.equal(forbiddenSeat.ok,false);
   const current=(await get(code,pad)).data;
   const started=await post({roomCode:code,type:'START_GAME',revision:current.revision,requestId:'go'},pad);assert.equal(started.ok,true);
+  for(const token of [key,friend.data.token]) {
+    const view=(await get(code,token)).data;
+    assert.equal((await post({roomCode:code,type:'DISCARD_DESTINATION',payload:{cardId:view.game.players[view.playerId].destinationHand[0]},revision:view.revision,requestId:crypto.randomUUID()},token)).ok,true,'each phone keeps two privately');
+  }
   const own=await get(code,key);assert.equal(own.data.playerId,mixed.data.view.room.players[0].id);
   const activeToken=own.data.game.procurement.offer.activeId===own.data.playerId?key:friend.data.token;
   const purchase=await post({roomCode:code,type:'PROCURE',payload:{choice:'buy',contractId:own.data.game.procurement.row[0]},revision:own.data.revision,requestId:'human-buy'},activeToken);assert.equal(purchase.ok,true,JSON.stringify(purchase));

@@ -49,6 +49,8 @@ export function playtestAction(s: SubwayState, random: () => number): SubwayActi
   const me = s.players[playerId];
   const action = (type:SubwayAction["type"], payload?:SubwayAction["payload"]):SubwayAction => ({playerId,type,payload});
   switch(s.phase) {
+    case "DESTINATIONS":
+      return action("DISCARD_DESTINATION", {cardId: me.destinationHand.at(-1)});
     case "PROCUREMENT": {
       const offer = s.procurement.offer!;
       return action("PROCURE", {choice:"buy",contractId:offer.contractId});

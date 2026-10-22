@@ -7,7 +7,7 @@ import { auditPotential, completionGoals } from './auditPolicy';
 import { plannedBotRoute } from './botRoutes';
 import { stationAccessContacts } from './stationAccess';
 
-export const BOT_VERSION = '7';
+export const BOT_VERSION = '8';
 export const PERSONALITIES = ['balanced', 'destination', 'completion', 'cautious'] as const;
 export const SKILLS = ['casual', 'experienced'] as const;
 export type BotSettings = { personality: typeof PERSONALITIES[number]; skill: typeof SKILLS[number] };
@@ -67,6 +67,13 @@ export function chooseBotAction(state:SubwayState,random:()=>number,settings:Bot
   if(focus&&!me.engineeringHand.includes(focus)&&!me.destinationHand.includes(focus)) focus=undefined;
   const action=(type:SubwayAction['type'],payload?:SubwayAction['payload']):SubwayAction=>({playerId:id,type,payload});
   switch(s.phase) {
+    case 'DESTINATIONS': {
+      // Keep the pair worth most VP per distinct neighborhood (overlap is cheap); never discard a focus card.
+      const hand=me.destinationHand,cards=(ids:string[])=>ids.map(destinationById).filter((c):c is NonNullable<typeof c>=>!!c);
+      const keep=(ids:string[])=>cards(ids).reduce((n,c)=>n+c.vp,0)/Math.max(1,new Set(cards(ids).flatMap(c=>c.stationIds)).size);
+      const ranked=hand.map(cardId=>({cardId,v:cardId===focus?-Infinity:keep(hand.filter(id=>id!==cardId))+random()*.01})).sort((a,b)=>b.v-a.v);
+      return action('DISCARD_DESTINATION',{cardId:ranked[0].cardId});
+    }
     case 'PROCUREMENT': {
       const choices=s.procurement.row.map(contractById).filter((c):c is NonNullable<typeof c>=>!!c);
       const ranked=choices.map(c=>{
