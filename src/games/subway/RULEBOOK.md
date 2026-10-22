@@ -1,7 +1,6 @@
 # Subway — Full Rulebook
 
-> **DRAFT — NEEDS OWNER REVIEW.** Saved at the owner's request before a thorough
-> rules review. This is not final rules approval. Graphics will follow wording approval.
+> Rules approved by the owner: §1–3 on 2026-09-23, §4–13 on 2026-10-22. Diagrams will follow.
 
 [Quick-start guide](QUICK_START.md) · [Existing rules reference](RULES.md) · [Graphics plan](RULEBOOK_GRAPHICS.md)
 
@@ -393,8 +392,7 @@ The highest total wins. Break ties by:
 
 ## 13. Line-contract reference
 
-Build lengths in listed order. Every completed line also pays the immediate
-$3 million reward.
+Each Line Contract lists its segment lengths in the order you build them (§5), its price (§3), the points it scores when complete, and its penalty if it is unfinished at the end (§12). Every completed line also pays **$3 million** immediately. Each game uses 7, 10 or 13 of these 13 contracts, depending on the number of players (§3).
 
 | Line | Code | Segment recipe | Price | Complete VP | Unfinished VP |
 |---|---|---|---:|---:|---:|
