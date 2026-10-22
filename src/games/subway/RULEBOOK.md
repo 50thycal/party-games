@@ -339,20 +339,28 @@ Find the largest transfer station on the board (§6), counting every company's s
 
 ## 11. Planning, confirming and Undo
 
-Ghost previews and saved plans are proposals. They do not place pegs, spend money
-or reserve holes. Other construction may make a plan illegal; recheck on your turn.
-Select a placement and review its cost before Confirm.
+### Planning
 
-Undo reverses the latest eligible physical placement, its transfers and any
-completion reward. It restores the placement opportunity, not crew-hiring cost.
-Another accepted action can close the opportunity; this is not a rewind through
-earlier turns.
+You can sketch routes ahead of time (a "ghost" plan). Plans are private notes only: they don't place pegs, spend money or reserve holes, and other companies' building can make them impossible. Check them again on your turn.
 
-The iPad shows company cash, line colors and public standings. Your phone also
-shows your own construction progress. Destination highlight selections are saved
-per player. Only the current player's selected destinations appear on the shared
-board; your phone keeps your own choices visible even off-turn. With no active
-player, the shared board shows no destination highlights.
+### Confirming
+
+The game previews every placement before it happens: the hole, the route, and what you'll pay and receive. Nothing changes until you press **Confirm**.
+
+### Undo
+
+You can take back your most recent placement (a starter, a station, or the first leg of a bend) as long as nobody, including you, has done anything since.
+
+- Undo removes the placement, refunds any payments it made, and takes back any cash it earned from completing a line or connecting a Destination.
+- The crew can build again. The crew cost you paid when hiring is not refunded, and hiring itself can't be undone.
+- Undo still works if your placement ended the round, until the next company acts.
+- Undo goes back only one step.
+
+### What the iPad and your phone show
+
+- The iPad shows every company's cash, lines and the public standings (§10).
+- Your phone shows your own cards, lines and progress.
+- You can highlight a Destination's neighborhoods (§8). The iPad shows a company's highlights only during its turn; your phone always shows your own.
 
 ## 12. Ending and scoring
 
