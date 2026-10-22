@@ -1,8 +1,6 @@
 "use client";
 import { HowToPlay } from "@/games/subway/Intro";
 
-import {BendModeSelect} from "@/games/subway/BendModeSelect";
-import {type BendMode} from "@/games/subway/bends";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { PhoneStatus, PlayerPads, YourTurnBanner } from "@/games/subway/PlayerStatus";
@@ -33,7 +31,6 @@ const button = "min-h-12 rounded-xl bg-teal-700 px-4 py-3 font-bold text-white d
 const input = "w-full rounded-xl border border-slate-500 bg-slate-900 p-3 text-white";
 
 export default function SubwayMultiplayerPage() {
-  const [bendMode,setBendMode]=useState<BendMode>('delayed');
   const [identity,setIdentity] = useState<Identity|null>(null);
   const [auto,setAuto]=useState(true);
   const botRetryAfter=useRef(0);
@@ -200,7 +197,7 @@ export default function SubwayMultiplayerPage() {
   if(!view) return <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-5 p-6">
     <Link href="/" className="text-sm text-slate-400">← Party Games</Link>
     <h1 className="text-3xl font-black">Subway · Table & phones</h1>
-    <HowToPlay bendMode={bendMode}/>
+    <HowToPlay bendMode="delayed"/>
     <p>Create the shared board on your iPad, then join each company on a phone.</p>
     {identity ? <><p>{online?"Opening your company…":"Could not reconnect. Your game is saved."}</p><button className={button} onClick={leave}>Join with a recovery key</button></> : <>
       <button className={button} disabled={busy} onClick={()=>void enter("create")}>I am the iPad · Create game</button>
@@ -223,7 +220,7 @@ export default function SubwayMultiplayerPage() {
   const actor=game?.players[view.actorId??""];
   const tablet=view.role==="tablet";
   const controlsDisabled=busy||!online;
-  const onPhone=game?.phase==="PROCUREMENT"||(game?.phase==="ENGINEERING"&&game.engineeringStep==="CARD_DRAFT");
+  const onPhone=game?.phase==="DESTINATIONS"||game?.phase==="PROCUREMENT"||(game?.phase==="ENGINEERING"&&game.engineeringStep==="CARD_DRAFT");
   const needsHandoff=tablet&&!onPhone&&!!view.actorId&&(view.seatedId!==view.actorId||acknowledgedTurn!==view.turn);
   const header=<header className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#193640] p-2 text-white">
     {!game&&<strong>SUBWAY · Room {view.room.roomCode}</strong>}
@@ -239,16 +236,16 @@ export default function SubwayMultiplayerPage() {
   const settings=deviceSettings&&settingsContent;
   const reports=game?.phase==='RESULTS'&&<><ReportSaveControls report={generateAiPlaytestReport(game,{...view.reportContext,roomCode:view.room.roomCode,mode:view.room.mode})} roomCode={view.room.roomCode}/>{!view.lab&&<button className={button} onClick={()=>void exportRecord()}>Download replay JSON</button>}</>;
   const notices=<>{!online&&<p role="alert" className="rounded-lg bg-amber-950 p-3">Connection lost. Reconnecting… Board actions are paused.</p>}{error&&<p role="alert" className="rounded-lg bg-rose-950 p-3">{error}</p>}</>;
-  if(!game) return <main className="mx-auto max-w-xl space-y-5 p-4">{header}{settings}{notices}<HowToPlay bendMode={bendMode}/>
+  if(!game) return <main className="mx-auto max-w-xl space-y-5 p-4">{header}{settings}{notices}<HowToPlay bendMode="delayed"/>
     <h1 className="text-2xl font-bold">Companies at the table</h1>
     <div className="rounded-xl bg-slate-800 p-4"><p className="text-sm">Join on each phone at</p><p className="break-all font-bold">{typeof window!=="undefined"?window.location.host:""}/subway/multiplayer</p><p className="text-5xl font-black tracking-widest">{view.room.roomCode}</p>{view.lab&&<p className="mt-3">Choose <strong>My testing phone · Playtest Lab</strong> on your phone to control your managed companies. First connection needs only this room code. Friends with reserved seats choose My phone.</p>}</div>
     {view.room.players.map(p=><p key={p.id} className="rounded-xl bg-white/10 p-4">{p.name} · ready</p>)}
-    {tablet&&<BendModeSelect value={bendMode} onChange={setBendMode} disabled={controlsDisabled}/>}
-    {tablet?<button className={button} disabled={controlsDisabled||view.room.players.length<2} onClick={()=>run("START_GAME",{bendMode})}>Start with {view.room.players.length} companies</button>:<p>Keep this phone with you. The iPad starts the game.</p>}
+    {tablet?<button className={button} disabled={controlsDisabled||view.room.players.length<2} onClick={()=>run("START_GAME",{})}>Start with {view.room.players.length} companies</button>:<p>Keep this phone with you. The iPad starts the game.</p>}
   </main>;
 
   const flash=summary&&summary.turn===view.turn&&!needsHandoff?<TurnFlash name={game.players[summary.playerId]?.name??"You"} color={game.players[summary.playerId]?.color??"#0f766e"} summary={summary.summary} onClose={()=>setSummary(null)}/>:null;
   if(tablet) return <main className="space-y-2 p-2" style={{paddingBottom:padsHeight}}>{needsHandoff&&<>{header}{settings}</>}{notices}{reports}{flash}
+    {game.phase==="DESTINATIONS"&&<section className="rounded-xl bg-[#193640] p-4 text-white"><p className="text-lg font-bold">Each company: keep two of three Destination cards on your phone.</p><p>Still choosing: {game.playerOrder.filter(id=>!game.players[id].destinationDiscarded).map(id=>game.players[id].name).join(", ")}</p></section>}
     {game.phase==="ENGINEERING"&&game.engineeringStep==="CARD_DRAFT"&&<section className="rounded-xl bg-[#193640] p-4 text-white"><p className="text-lg font-bold">{actor?.name}: choose a face-up Engineering card on your phone.</p><p>Or draw a random goal here.</p><button className={`${button} mt-2`} disabled={controlsDisabled||!view.engineeringRemaining} onClick={()=>run("DRAFT_CARD",{deck:"engineering",expectedPick:game.market.picks})}>Draw random Engineering goal</button></section>}
     {view.canUndo&&!view.seatedId&&!needsHandoff&&<button className={button} disabled={controlsDisabled} onClick={()=>run("UNDO_PLACEMENT")}>Undo {game.undo?.label}</button>}
     {needsHandoff?<section className="flex min-h-[65dvh] flex-col items-center justify-center gap-6 rounded-3xl bg-[#193640] p-8 text-center">
@@ -269,7 +266,7 @@ export default function SubwayMultiplayerPage() {
     <div className="phone-portrait-prompt fixed inset-0 z-50 hidden flex-col items-center justify-center gap-3 bg-[#10252e] p-6 text-center"><span className="text-4xl" aria-hidden>↻</span><p className="text-xl font-bold">Turn your phone upright</p><p>Your cards are arranged for portrait play.</p></div>
     <section className="rounded-xl border border-teal-500 bg-[#193640] p-3 shadow-lg" aria-live="polite"><p className="text-sm">{guidance.text}</p>{tab!==guidance.tab&&<button className={`${button} mt-2 w-full`} onClick={()=>{setTab(guidance.tab);window.scrollTo({top:0});}}>{guidance.label}</button>}</section>
     <h1 className="text-xl font-bold">{tabs.find(t=>t.id===tab)?.label}</h1>
-{tab==="destinations"&&<>{me.destinationHand.map(id=>{const met=destinationMet(me,id);return <section key={id} className="space-y-2" data-destination-section={id}><DestinationCardFace paid={me.destinationsPaid?.includes(id)} card={id} color={me.color} state={met?"met":"idle"} footer={<p data-destination-status={met?"met":"open"} className={`mt-1.5 rounded-full px-2 py-1 text-center text-xs font-black ${met?"bg-emerald-600 text-white":"bg-rose-100 text-rose-900"}`}>{met?"✓ Connected":"Not yet connected"}</p>}/><button className={`${button} w-full`} aria-pressed={view.destinationHighlights.some(h=>h.cardId===id)} disabled={controlsDisabled} onClick={()=>run("SHOW_DESTINATION",{cardId:id,enabled:!view.destinationHighlights.some(h=>h.cardId===id)})}><span aria-hidden className="mr-2 inline-block h-3 w-3 rounded-full border border-white" style={{background:destinationColor(view.room.players.findIndex(p=>p.id===me.id),me.destinationHand.indexOf(id))}}/>Highlights: {view.destinationHighlights.some(h=>h.cardId===id)?"On":"Off"}</button></section>;})}<p className="text-xs text-slate-300">Your selections are saved. The shared board shows them only during your turn; your phone keeps your own selections visible.</p><button className={button} disabled={controlsDisabled} onClick={()=>run("SHOW_DESTINATION",{cardId:null})}>Clear my highlights</button>
+{tab==="destinations"&&<>{game.phase==="DESTINATIONS"&&<p className="rounded-xl bg-purple-200 p-3 font-bold text-slate-900">{me.destinationDiscarded?"You kept two Destinations. Waiting for the other companies.":"Keep two of these three Destinations. Discard one; it leaves the game."}</p>}{me.destinationHand.map(id=>{const met=destinationMet(me,id);return <section key={id} className="space-y-2" data-destination-section={id}>{game.phase==="DESTINATIONS"&&!me.destinationDiscarded&&<button className={`${button} w-full bg-rose-800`} disabled={controlsDisabled} onClick={()=>run("DISCARD_DESTINATION",{cardId:id})}>Discard this one</button>}<DestinationCardFace paid={me.destinationsPaid?.includes(id)} card={id} color={me.color} state={met?"met":"idle"} footer={<p data-destination-status={met?"met":"open"} className={`mt-1.5 rounded-full px-2 py-1 text-center text-xs font-black ${met?"bg-emerald-600 text-white":"bg-rose-100 text-rose-900"}`}>{met?"✓ Connected":"Not yet connected"}</p>}/><button className={`${button} w-full`} aria-pressed={view.destinationHighlights.some(h=>h.cardId===id)} disabled={controlsDisabled} onClick={()=>run("SHOW_DESTINATION",{cardId:id,enabled:!view.destinationHighlights.some(h=>h.cardId===id)})}><span aria-hidden className="mr-2 inline-block h-3 w-3 rounded-full border border-white" style={{background:destinationColor(view.room.players.findIndex(p=>p.id===me.id),me.destinationHand.indexOf(id))}}/>Highlights: {view.destinationHighlights.some(h=>h.cardId===id)?"On":"Off"}</button></section>;})}<p className="text-xs text-slate-300">Your selections are saved. The shared board shows them only during your turn; your phone keeps your own selections visible.</p><button className={button} disabled={controlsDisabled} onClick={()=>run("SHOW_DESTINATION",{cardId:null})}>Clear my highlights</button>
       <section aria-label="Destination draw" className="rounded-xl border border-purple-300/50 p-3"><h2 className="mb-2 rounded-lg bg-purple-200 p-2 font-bold text-slate-900">Draw more on your turn · $3M</h2><p className="mb-2 text-sm">Draw a random Destination. One extra per game, before hiring crews.</p><BuyCardButton game={game} playerId={me.id} busy={controlsDisabled} act={run} counts={view.drawPileCounts} deck="destination"/></section>
     </>}
     {tab==="lines"&&<>

@@ -3,7 +3,6 @@ import {BuildCostPreview} from "../src/games/subway/BuildCostPreview";
 import {SubwayGameView} from "../src/games/subway/GameView";
 import {phoneGuidance} from "../src/games/subway/guidance";
 import {Board, holePos} from '../src/games/subway/board';
-import {BendModeSelect} from '../src/games/subway/BendModeSelect';
 import { PhoneStatus, PlayerPads } from '../src/games/subway/PlayerStatus';
 import { DestinationCardFace } from '../src/games/subway/CardArt';
 import { GLYPH_COVERAGE, NEIGHBORHOOD_ABBREVIATIONS } from '../src/games/subway/CardGlyphs';
@@ -166,9 +165,7 @@ console.log('GZZF deadlines, completion economics, starter occupancy, segment re
  const work=renderToStaticMarkup(<Board {...props} drawn={[{...props.drawn[0],route:[{x:0,y:0}],work:[{x:1,y:0}]}]}/>);
  assert.equal((work.match(/data-peg-kind="built"/g)??[]).length,1);assert.match(work,/data-worksite="true"/);
  assert.match(renderToStaticMarkup(<PhoneStatus game={b} playerId={id} details/>),/2 bend tokens/);
- const options=renderToStaticMarkup(<BendModeSelect value="tokens" onChange={()=>{}}/>);
- assert.equal((options.match(/<option/g)??[]).length,2);assert.match(options,/value="tokens" selected/);assert.doesNotMatch(options,/value="straight"/);
- console.log('Bend UI: setup options, phone resources, physical legs, worksite and real-peg rendering passed.');
+ console.log('Bend UI: legacy token resources, physical legs, worksite and real-peg rendering passed.');
 }
 
 // QNHT: outstanding hired lines pulse; spent activations and other companies do not.

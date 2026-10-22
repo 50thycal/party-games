@@ -608,9 +608,13 @@ neighborhood membership. State version 20 and local-save key require restart for
 ### Destination and border objective balance
 
 The deck contains 30 unique missions: 15 pairs (4 VP) and 15 triples (7 VP).
-Pair appearances are three per neighborhood, triple appearances four/five. Start
-deals one of each without replacement; remaining cards shuffle together for the
-once-per-game $3M purchase. A mission checks the intersection of component sets
+Pair appearances are three per neighborhood, triple appearances four/five. Since
+DEC-067 START_GAME deals three from one mixed deck into each hand and opens a
+`DESTINATIONS` phase: each company plays DISCARD_DESTINATION once, in any order
+(`nextCompanyId` offers the first undecided seat to turn-based surfaces and bots),
+and the discard leaves the game. When all have kept two, PROCUREMENT opens. The
+iPad projection shows no hand during the phase; phones choose. The remaining deck
+serves the once-per-game $3M purchase. A mission checks the intersection of component sets
 serving each named area: repeated area visits cannot merge separated networks.
 
 Transfer groups collapse only orthogonal nodes from different lines.
@@ -660,7 +664,9 @@ restart and new plan/replay namespaces. Bot policy v4/audit policy v3 identify n
 
 `stationAccess.ts` returns no fees under DEC-060. Starter/build adjacency joins are
 free even with multiple opponents. Historical receipt shapes remain readable.
-`routeContacts` still charges distinct geometric contacts with opposing strings;
+`routeContacts` charges each opposing line once per contact point (DEC-066) and
+drops contacts within `contact.sharedStationFreeReach` of that line's station in a
+transfer station already shared with its owner (`network.ts` `sharedStationPegs`);
 BUILD transfers those payments and records public money events. Full-state Undo
 restores balances and appends a monotonic reversal.
 
@@ -796,6 +802,9 @@ Engineering descriptions identical to their requirements render only once.
 
 ### Largest Cluster and company-aware bot planning (DEC-054)
 
+Since DEC-069 the award, now named Largest Transfer Station, groups only §6 transfer
+stations: orthogonal neighbours join unless both holes hold the same single line, and
+groups of one are dropped, so no transfer station means no award.
 State v24 integrates the separate public Largest Cluster award with the later no-stacking/card/payment rules. The pure cluster helper
 groups route-node holes across companies with orthogonal adjacency, deduplicates
 each company's presence per hole, and ignores strings, diagonals and Survey Pins.
@@ -853,8 +862,9 @@ unreviewed; their Largest Cluster scoring text now reflects PR #183.
 
 ### Optional Subway bend modes (DEC-055)
 
-Setup on local, companion-host and Lab surfaces selects immutable `bendMode`:
-straight (default), tokens, or delayed. State v25 protects older persisted rooms.
+`bendMode` is immutable per game. Since DEC-065 every new game is `delayed`: setup
+offers no choice and START_GAME refuses `tokens` and `straight`, whose branches remain
+only for rooms started earlier. State v25 protects older persisted rooms.
 `paths.ts` separates physical legs from scoring nodes: endpoint `via` stores
 completed incoming bends; line `work` stores unfinished construction vertices.
 `bends.ts` owns shared path validation, actual contact projection and legal-move
@@ -963,7 +973,12 @@ component has no game state, reducer dispatch, persistence or network access.
 Closing restores focus and leaves the table mounted. The older `/subway/tutorial`
 practice table remains separately accessible. Compact phone status is unchanged.
 
-### Completed-company extensions (DEC-062, state v30)
+### Completed-company extensions (DEC-062, state v30) — retired by DEC-068
+
+`SUBWAY_CONFIG.extensionsEnabled` is false, so `extensionEligible` never holds: a
+finished company has no buildable line, takes a short turn to buy optional cards and
+hires no crews, and exhaustion ignores it. The mechanics below are dormant code kept
+for the legacy prune parked with K2/K3.
 
 Three completed contracts unlock one short extension on each subsequent company
 turn. `HIRE_CREWS` selects at most one extendable owned line and marks `extending`

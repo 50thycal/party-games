@@ -32,6 +32,9 @@ for(const count of [2,3,4]) for(const category of ["engineering"] as const) {
   assert.deepEqual(["minor","major","medium"].map(kind=>s.stations.filter(p=>p.kind===kind).length),[3,6,1]);
   assert.equal(s.market.rows.engineering.length+s.market.decks.engineering.length,21);
   assert.equal(new Set([...s.market.rows.engineering,...s.market.decks.engineering]).size,21);
+  // DEC-067: every company keeps two of three Destinations before the line draft opens.
+  for(const id of s.playerOrder) { assert.equal(nextCompanyId(s),id); s=dispatch(s,id,"DISCARD_DESTINATION",{cardId:s.players[id].destinationHand[0]}); }
+  assert.equal(s.phase,"PROCUREMENT");
   for(let pick=0;pick<count*3;pick++) {
     const id=nextCompanyId(s)!;
     assert.equal(id,draftTurnId(s,pick,0));

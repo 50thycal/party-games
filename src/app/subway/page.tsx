@@ -3,8 +3,6 @@ import { HowToPlay } from "@/games/subway/Intro";
 
 import { crewActivationText } from "@/games/subway/terminology";
 
-import {BendModeSelect} from "@/games/subway/BendModeSelect";
-import {type BendMode} from "@/games/subway/bends";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { Room } from "@/engine/types";
@@ -17,7 +15,6 @@ const SAVE_KEY = `subway-hotseat-v${SUBWAY_STATE_VERSION}`;
 export default function SubwayHotseat() {
   const [session, setSession] = useState<Session | null>(null);
   const latest = useRef<Session | null>(null);
-  const [bendMode,setBendMode]=useState<BendMode>('delayed');
   const [count, setCount] = useState(2);
   const [names, setNames] = useState(["", "", "", ""]);
   const [ready, setReady] = useState(false);
@@ -51,7 +48,7 @@ export default function SubwayHotseat() {
     const localId = typeof crypto.randomUUID === "function" ? crypto.randomUUID()
       : Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0")).join("");
     const room: Room = { roomCode: `LOCAL-${localId}`, gameId: "subway", hostId: players[0].id, players, createdAt: Date.now(), mode: "hotseat" };
-    const game = subwayGame.reducer(subwayGame.initialState(players), {type:"START_GAME", playerId:room.hostId,payload:{bendMode}}, {room, playerId:room.hostId, now:Date.now, random:Math.random});
+    const game = subwayGame.reducer(subwayGame.initialState(players), {type:"START_GAME", playerId:room.hostId,payload:{}}, {room, playerId:room.hostId, now:Date.now, random:Math.random});
     commit({room, game, seat:room.hostId});
     setNewGame(false);
   };
@@ -71,14 +68,13 @@ export default function SubwayHotseat() {
         <p className="mt-12 text-xs font-bold uppercase tracking-[.3em] text-teal-300">Metropolitan Transit Authority</p>
         <h1 className="mt-3 text-6xl font-black tracking-tight">SUBWAY<span className="text-orange-400">.</span></h1>
         <p className="mt-4 text-lg text-slate-300">Three lines. One growing city. Make the connections that count.</p>
-        <div className="mt-5"><HowToPlay bendMode={bendMode}/></div>
+        <div className="mt-5"><HowToPlay bendMode="delayed"/></div>
         <Link href="/subway/tutorial" className="mt-3 inline-block text-sm underline">Practice on a training table →</Link>
         <div className="mt-8 flex gap-2 border-y border-white/15 py-4 text-sm text-teal-100"><span>2–4 companies</span><span>·</span><span>Pass & play</span><span>·</span><span>Saves on this device</span></div>
         <h2 className="mt-7 text-sm font-bold uppercase tracking-widest">How many companies?</h2>
         <div className="mt-3 grid grid-cols-3 gap-3">{[2,3,4].map((n) => <button key={n} aria-pressed={count===n} onClick={()=>setCount(n)} className={`rounded-xl border-2 p-4 text-lg font-bold ${count===n ? "border-teal-300 bg-teal-800" : "border-white/20 bg-white/5"}`}>{n} players</button>)}</div>
         <div className="mt-5 grid gap-3 sm:grid-cols-2">{names.slice(0,count).map((name,i)=><label key={i} className="text-sm text-slate-300">Company {i+1}<input maxLength={24} value={name} placeholder={`Company ${i+1}`} onChange={(e)=>setNames(names.map((v,j)=>j===i?e.target.value:v))} className="mt-1 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-3 text-white" /></label>)}</div>
         <p className="mt-5 text-sm leading-relaxed text-slate-300">Draft lines and goals, then choose construction crews each round. Build from the city edge to fulfill your goals. Neighborhood visits award no automatic VP. Finished lines and goals earn points; unfinished work and debt lose points.</p>
-        <BendModeSelect value={bendMode} onChange={setBendMode}/>
         {session && <p className="mt-4 rounded-lg bg-amber-200 p-3 text-sm font-semibold text-amber-950">Starting replaces the game saved on this device.</p>}
         <button onClick={start} className="mt-6 w-full rounded-xl bg-[#ebac51] py-4 font-black text-[#10232d] hover:bg-amber-300">{session ? "Replace game & open the city" : "Open the city"} →</button>
         {session && <button onClick={()=>setNewGame(false)} className="mt-3 w-full p-3 text-teal-200">Return to current game</button>}
@@ -95,7 +91,7 @@ export default function SubwayHotseat() {
       <button onClick={()=>setNewGame(true)} className="rounded-lg bg-white/10 px-3 py-2 text-xs">New game</button></div></details>
     </header>
     {!saved && <p role="status" className="mb-2 rounded bg-amber-100 p-2 text-sm text-amber-950">Device storage is unavailable. Keep this tab open to finish your game.</p>}
-    {help && <aside className="mb-2 rounded-xl bg-[#f5f3e9] p-4 text-sm leading-relaxed text-slate-900"><b>Your first journey</b><ol className="ml-5 mt-2 list-decimal space-y-1"><li>Draft one line at list price each turn. Everyone ends with three lines; there is no pass.</li><li>Receive one two-neighborhood and one three-neighborhood Destination at start. Draft three Engineering goals from two face-up choices or a blind draw.</li><li>Each round, hire crews for different lines: $1M / $3M / $6M for 1 / 2 / 3 crews. {crewActivationText(session.game.bendMode)} Start with $40M; construction lasts at most nine rounds. Buy one extra Destination and one extra Engineering goal for $3M each before hiring, once per game each.</li><li>Place starter pegs on empty border holes; placement and joining stations are free. Follow each line’s printed segment lengths; turns may be up to 90°.</li><li>Tap a glowing peg, inspect the next step and toll, then Confirm. You can plan ahead without committing.</li><li>Score finished lines, connected missions and Engineering goals. Longest Network earns 5 VP (3 each if tied). Largest Transfer Station awards 6 VP to its leading company, 3 each to two tied leaders, 2 each to three, and none to four. Keep debt low. Most points wins!</li></ol><p className="mt-2">Use Board, Schedule, Lines and Cards to move around the table. Drag to pan; scroll or pinch to zoom. Pass the device before revealing the next company’s cards. Different lines of your company transfer at horizontally/vertically adjacent stations; one peg per hole. Joining an opponent station is free. Every new crossing still costs $1M. North is top, south bottom, west left and east right.</p></aside>}
+    {help && <aside className="mb-2 rounded-xl bg-[#f5f3e9] p-4 text-sm leading-relaxed text-slate-900"><b>Your first journey</b><ol className="ml-5 mt-2 list-decimal space-y-1"><li>Draft one line at list price each turn. Everyone ends with three lines; there is no pass.</li><li>Keep two of three random Destinations dealt at start. Draft three Engineering goals from two face-up choices or a blind draw.</li><li>Each round, hire crews for different lines: $1M / $3M / $6M for 1 / 2 / 3 crews. {crewActivationText(session.game.bendMode)} Start with $40M; construction lasts at most nine rounds. Buy one extra Destination and one extra Engineering goal for $3M each before hiring, once per game each.</li><li>Place starter pegs on empty border holes; placement and joining stations are free. Follow each line’s printed segment lengths; turns may be up to 90°.</li><li>Tap a glowing peg, inspect the next step and toll, then Confirm. You can plan ahead without committing.</li><li>Score finished lines, connected missions and Engineering goals. Longest Network earns 5 VP (3 each if tied). Largest Transfer Station awards 6 VP to its leading company, 3 each to two tied leaders, 2 each to three, and none to four. Keep debt low. Most points wins!</li></ol><p className="mt-2">Use Board, Schedule, Lines and Cards to move around the table. Drag to pan; scroll or pinch to zoom. Pass the device before revealing the next company’s cards. Different lines of your company transfer at horizontally/vertically adjacent stations; one peg per hole. Joining an opponent station is free. Every new crossing still costs $1M. North is top, south bottom, west left and east right.</p></aside>}
     <SubwayGameView room={session.room} state={session.game} playerId={session.seat} isHost={session.seat===session.room.hostId} dispatchAction={dispatchAction} />
   </main>;
 }

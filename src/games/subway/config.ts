@@ -1,10 +1,10 @@
 import {lineLegs, pathLegs} from './paths';
-import {isBendMode, validatePath, pathContacts, tokenCost, findBendMove, type BendMode} from './bends';
+import {validatePath, pathContacts, tokenCost, findBendMove, type BendMode} from './bends';
 import { largestCluster } from './clusters';
 import { stationAccessContacts, type StationAccess } from './stationAccess';
 import { ENGINEERING_CARDS, engineeringMet, type EngineeringCard } from './engineering';
 export { ENGINEERING_CARDS, type EngineeringCard } from './engineering';
-import { companyNetwork, networkNodeKey, longestNetwork } from "./network";
+import { companyNetwork, networkNodeKey, longestNetwork, sharedStationPegs } from "./network";
 export { longestNetwork } from "./network";
 import { defineGame } from "@/engine/defineGame";
 import type { BaseAction, GameContext, Player } from "@/engine/types";
@@ -45,6 +45,14 @@ export const SUBWAY_CONFIG = {
    */
   startingMoney: 40,
   completionReward: 3,
+  /**
+   * Paid extensions after all three lines finish (DEC-062) are retired (DEC-068):
+   * a finished company only takes a short turn to buy cards. The extension branches
+   * stay dormant until the legacy prune parked with K2/K3.
+   */
+  extensionsEnabled: false,
+  /** Printed length of a paid extension (DEC-064), with geometry.lengthTolerance; dormant. */
+  extensionReach: 2,
   /**
    * Cash paid the moment a held Destination mission is first connected: pair
    * and triple missions pay differently. Paid in the authoritative BUILD and
@@ -95,6 +103,11 @@ export const SUBWAY_CONFIG = {
   contact: {
     /** $M paid to the opponent per distinct contact with their normal route. */
     toll: 1,
+    /**
+     * Contacts with an opponent line within this many peg spaces of that line's own
+     * station in a transfer station you already share with them are free (DEC-066).
+     */
+    sharedStationFreeReach: 1,
     /** Uncapped VP penalty per $1M of ending debt. */
     debtVpPerMillion: 2,
   },
@@ -111,8 +124,10 @@ export const SUBWAY_CONFIG = {
   ],
   /** Destination cards face up at the start of the Engineering draft. */
   destinationRow: 3,
-  /** Destination cards each company drafts. */
+  /** Destination cards each company keeps at the start (DEC-067). */
   destinationsPerPlayer: 2,
+  /** Destination cards dealt to each company from one mixed deck; it discards down to destinationsPerPlayer. */
+  destinationsDealt: 3,
   startingHands: {
     engineering: [] as string[],
     scheduling: [] as SchedulingCardId[],
@@ -344,6 +359,7 @@ export type CardDeckId = keyof typeof MARKET_DECKS;
 
 export type SubwayPhase =
   | "SETUP"
+  | "DESTINATIONS"
   | "PROCUREMENT"
   | "ENGINEERING"
   | "SCHEDULING"
@@ -412,6 +428,8 @@ export type SubwayPlayer = {
   engineeringPurchased?: boolean;
   /** Destination missions whose completion cash has already been paid. */
   destinationsPaid?: string[];
+  /** The starting Destination this company discarded; removed from the game (DEC-067). */
+  destinationDiscarded?: string;
   /** Destination cards locked to a line at Engineering plan lock. */
   destinationCommitments: DestinationCommitment[];
   schedulingHand: SchedulingCardId[];
@@ -592,6 +610,7 @@ export type SubwayActionType =
   | "BUY_SURVEYS"
   | "HIRE_CREWS"
   | "PICK_DESTINATION"
+  | "DISCARD_DESTINATION"
   | "LOCK_ENGINEERING_PLAN"
   | "PLACE_SURVEY"
   | "AUTO_SCHEDULE"
@@ -654,7 +673,7 @@ export const allLinesComplete = (p: SubwayPlayer): boolean =>
   p.lines.length > 0 && p.lines.every(lineComplete);
 
 /** Extensions unlock only after the fixed three-contract portfolio is complete. */
-export const extensionEligible = (p: SubwayPlayer): boolean => p.lines.length === 3 && allLinesComplete(p);
+export const extensionEligible = (p: SubwayPlayer): boolean => SUBWAY_CONFIG.extensionsEnabled && p.lines.length === 3 && allLinesComplete(p);
 
 /** How many recipe segments this line has actually built. */
 export const segmentsBuilt = (line: PlayerLine): number => Math.min(contractOf(line)?.recipe.length ?? 0, Math.max(0, line.route.length - 1));
@@ -950,9 +969,10 @@ function intersectionOf(a: Point, b: Point, c: Point, d: Point): Point {
 
 /** One priced interaction between a new segment and the opposing network. */
 export type RouteContact = {
-  /** Coordinate key. One key is one charge, however many strings meet there. */
+  /** Owner, line and coordinate. One key is one charge: each opposing line at a point pays. */
   key: string;
   ownerId: string;
+  lineIndex?: number;
   kind: "peg" | "crossing" | "endpoint" | "station";
   stationAnchors?: string[];
   x: number;
@@ -963,10 +983,12 @@ const contactKey = (x: number, y: number) => `${x.toFixed(4)},${y.toFixed(4)}`;
 
 /**
  * Every distinct contact the segment from→to makes with the *opposing* normal
- * network. Contacts are counted per geometric event, keyed by coordinate, so
- * landing on an opposing peg is one charge rather than one per incident string.
- * A peg always wins its coordinate: a crossing that happens exactly at an
- * existing peg is a peg contact, and is not a proper crossing.
+ * network. Contacts are counted per opposing line and point (DEC-066): two of one
+ * opponent's lines meeting where you touch cost twice, while one line's own station,
+ * where its two strings meet, costs once. A peg always wins its coordinate: a
+ * crossing that happens exactly at an existing peg is a peg contact, and is not a
+ * proper crossing. Contacts near that line's station in a transfer station already
+ * shared with its owner are free.
  *
  * The company's own routes are deliberately absent — self-interaction is free.
  */
@@ -981,36 +1003,42 @@ export function routeContacts(
   const opposing = allLines(state).filter(({ playerId: owner }) => owner !== playerId);
 
   // Pegs first, so they own their coordinate before any crossing claims it.
-  for (const { line, playerId: ownerId } of opposing) {
+  for (const { line, playerId: ownerId, lineIndex: opposingLine } of opposing) {
     for (const n of line.route) {
       if (samePoint(n, from)) continue; // already ours, and already paid for
       if (!pointOnSegment(n, from, to)) continue;
-      const key = `${ownerId}:${contactKey(n.x, n.y)}`;
-      found.set(key, { key, ownerId, kind: "peg", x: n.x, y: n.y });
+      const key = `${ownerId}/${opposingLine}:${contactKey(n.x, n.y)}`;
+      found.set(key, { key, ownerId, lineIndex: opposingLine, kind: "peg", x: n.x, y: n.y });
     }
   }
 
-  for (const { line, playerId: ownerId } of opposing) {
+  for (const { line, playerId: ownerId, lineIndex: opposingLine } of opposing) {
     for (const [a,b] of lineLegs(line)) {
       // Physical bend/worksite vertices are not pegs, but touching or passing
       // through them still costs contact. Coordinate keys prevent double fees.
       for(const vertex of [a,b])if(!samePoint(vertex,from)&&pointOnSegment(vertex,from,to)) {
-        const key=`${ownerId}:${contactKey(vertex.x,vertex.y)}`;
-        if(!found.has(key))found.set(key,{key,ownerId,kind:'endpoint',x:vertex.x,y:vertex.y});
+        const key=`${ownerId}/${opposingLine}:${contactKey(vertex.x,vertex.y)}`;
+        if(!found.has(key))found.set(key,{key,ownerId,lineIndex:opposingLine,kind:'endpoint',x:vertex.x,y:vertex.y});
       }
       if (segmentsCross(from, to, a, b)) {
         const at = intersectionOf(from, to, a, b);
-        const key = `${ownerId}:${contactKey(at.x, at.y)}`;
-        if (!found.has(key)) found.set(key, { key, ownerId, kind: "crossing", x: at.x, y: at.y });
+        const key = `${ownerId}/${opposingLine}:${contactKey(at.x, at.y)}`;
+        if (!found.has(key)) found.set(key, { key, ownerId, lineIndex: opposingLine, kind: "crossing", x: at.x, y: at.y });
       } else if (!samePoint(to, a) && !samePoint(to, b) && pointOnSegment(to, a, b)) {
-        const key = `${ownerId}:${contactKey(to.x, to.y)}`;
-        if (!found.has(key)) found.set(key, { key, ownerId, kind: "endpoint", x: to.x, y: to.y });
+        const key = `${ownerId}/${opposingLine}:${contactKey(to.x, to.y)}`;
+        if (!found.has(key)) found.set(key, { key, ownerId, lineIndex: opposingLine, kind: "endpoint", x: to.x, y: to.y });
       }
     }
   }
 
+  // Free at a shared transfer station: priced against the board before this placement.
+  let paid = Array.from(found.values());
+  if (paid.length) {
+    const shared = sharedStationPegs(seats(state), playerId), reach = SUBWAY_CONFIG.contact.sharedStationFreeReach;
+    paid = paid.filter(c => !(shared.get(`${c.ownerId}/${c.lineIndex}`) ?? []).some(p => Math.hypot(p.x - c.x, p.y - c.y) <= reach + 1e-9));
+  }
   const index=lineIndex??state.players[playerId]?.lines.findIndex(l=>l.route.at(-1)?.x===from.x&&l.route.at(-1)?.y===from.y);
-  return [...Array.from(found.values()),...(index!==undefined&&index>=0?stationAccessContacts(state,playerId,index,to):[])];
+  return [...paid,...(index!==undefined&&index>=0?stationAccessContacts(state,playerId,index,to):[])];
 }
 
 /** $M owed to the opposition for a candidate segment. */
@@ -1699,16 +1727,18 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
       if (ctx.room.players.length < 2 || ctx.room.players.length > 4) return state;
       // Rebuild seats from the live room so lazily-initialized state can never
       // strand a player outside the game. First four joiners become companies.
-      if(action.payload?.bendMode!==undefined&&!isBendMode(action.payload.bendMode))return state;
+      // Delayed construction is the only bend rule for new games (DEC-065). Token and
+      // straight-only branches remain only for rooms started before that ruling.
+      if(action.payload?.bendMode!==undefined&&action.payload.bendMode!=='delayed')return state;
       const fresh = initialState(ctx.room.players);
       // Flexible (shortened) segments are retired for new games (DEC-063). The
       // validatePath branch remains only for rooms started before that ruling.
       if(action.payload?.segmentLengthMode!==undefined&&action.payload.segmentLengthMode!=='exact')return state;
       fresh.segmentLengthMode='exact';
-      fresh.bendMode=action.payload?.bendMode??'delayed';
-      for(const p of Object.values(fresh.players))p.bendTokens=fresh.bendMode==='tokens'?3:0;
+      fresh.bendMode='delayed';
+      for(const p of Object.values(fresh.players))p.bendTokens=0;
       fresh.startedAt = ctx.now();
-      fresh.phase = "PROCUREMENT";
+      fresh.phase = "DESTINATIONS";
       fresh.market.rows = {engineering:[], scheduling:[]};
       fresh.market.decks = {engineering:[], scheduling:[]};
       fresh.market.picks = 0;
@@ -1720,13 +1750,25 @@ function reduceAction(state: SubwayState, action: SubwayAction, ctx: GameContext
         LINE_CONTRACTS.map((c) => c.id),
         ctx.random
       ).slice(0, fresh.playerOrder.length * 3 + 1);
-      // Deal one pair and one triple to each company, without replacement.
-      const pairs = shuffle(DESTINATION_CARDS.filter(c => c.stationIds.length === 2).map(c => c.id), ctx.random);
-      const triples = shuffle(DESTINATION_CARDS.filter(c => c.stationIds.length === 3).map(c => c.id), ctx.random);
-      for (const id of fresh.playerOrder) fresh.players[id].destinationHand = [pairs.shift()!, triples.shift()!];
-      fresh.destinationDeck = shuffle([...pairs, ...triples], ctx.random);
-      pushEvent(fresh, ctx.now(), "PHASE", "banner", `Subway begins — ${fresh.playerOrder.length * 3} Line Contracts for ${fresh.playerOrder.length} companies.`);
-      return nextOffer(fresh, ctx.now());
+      // One mixed deck: deal three at random, two- or three-neighborhood alike;
+      // each company then discards one (DEC-067).
+      const destinations = shuffle(DESTINATION_CARDS.map(c => c.id), ctx.random);
+      for (const id of fresh.playerOrder) fresh.players[id].destinationHand = destinations.splice(0, SUBWAY_CONFIG.destinationsDealt);
+      fresh.destinationDeck = destinations;
+      pushEvent(fresh, ctx.now(), "PHASE", "banner", `Subway begins. Each company keeps ${SUBWAY_CONFIG.destinationsPerPlayer} of ${SUBWAY_CONFIG.destinationsDealt} Destination cards.`);
+      return fresh;
+    }
+
+    case "DISCARD_DESTINATION": {
+      const cardId = action.payload?.cardId;
+      if (s.phase !== "DESTINATIONS" || !me || me.destinationDiscarded || !cardId || !me.destinationHand.includes(cardId)) return state;
+      me.destinationHand = me.destinationHand.filter(id => id !== cardId);
+      me.destinationDiscarded = cardId;
+      pushEvent(s, ctx.now(), "CARD", "notice", `${me.name} kept ${me.destinationHand.length} Destination cards.`, me.id);
+      if (s.playerOrder.some(id => !s.players[id].destinationDiscarded)) return s;
+      s.phase = "PROCUREMENT";
+      pushEvent(s, ctx.now(), "PHASE", "banner", `Destinations kept. ${s.playerOrder.length * 3} Line Contracts for ${s.playerOrder.length} companies.`);
+      return nextOffer(s, ctx.now());
     }
 
     case "PROCURE": {
@@ -2077,6 +2119,7 @@ export const subwayGame = defineGame<SubwayState, SubwayAction>({
 /** Next company with an outstanding decision, used by the hotseat handoff. */
 export function nextCompanyId(s: SubwayState): string | undefined {
   switch (s.phase) {
+    case "DESTINATIONS": return s.playerOrder.find((id) => !s.players[id].destinationDiscarded);
     case "PROCUREMENT": return s.procurement.offer?.activeId;
     case "ENGINEERING":
       if (s.engineeringStep === "CARD_DRAFT") return cardDraftTurnId(s);

@@ -3,13 +3,13 @@
 <!-- The project's active-work control board. What are we working on and where is each
      effort? One line per workstream; anything needing a paragraph belongs in its file. -->
 
-**Updated:** 2026-09-25 · **Build OS v0.12**
+**Updated:** 2026-10-22 · **Build OS v0.12**
 
 | ID | Workstream | Phase | Status | Current Next Step | Related PR |
 |---|---|---|---|---|---|
-| [WS-007](WS-007-subway-strategy-telemetry.md) | Subway strategy telemetry | REVIEW | Active | Owner review of classifier 1.0.0 readings against real playtests; calibrate thresholds | Strategy telemetry PR open |
-| [WS-006](WS-006-subway-dgle-playtest.md) | Subway DGLE playtest follow-up | REVIEW | Active | Owner playtest of the ending-cash spectrum and restored borrowing; rule on D2–D4 | [#191](https://github.com/50thycal/party-games/pull/191) merged; spectrum/lookahead PR open |
-| [WS-005](WS-005-subway-finished-edition.md) | Subway 2–4 player finished edition | REVIEW | Active | Independent review of the peg-space wording follow-up PR | Peg-space follow-up open; [#200](https://github.com/50thycal/party-games/pull/200) rules audit merged |
+| [WS-007](WS-007-subway-strategy-telemetry.md) | Subway strategy telemetry | REVIEW | Active | Owner review of classifier 1.0.0 readings against real playtests; calibrate thresholds | [#193](https://github.com/50thycal/party-games/pull/193) (merged) |
+| [WS-006](WS-006-subway-dgle-playtest.md) | Subway DGLE playtest follow-up | REVIEW | Active | Owner playtest of the ending-cash spectrum and restored borrowing; rule on D2–D4 | [#191](https://github.com/50thycal/party-games/pull/191), [#192](https://github.com/50thycal/party-games/pull/192) (merged) |
+| [WS-005](WS-005-subway-finished-edition.md) | Subway 2–4 player finished edition | REVIEW | Active | Independent review of the rulebook PR; then owner playtest of DEC-066–069 | [#202](https://github.com/50thycal/party-games/pull/202) open (rulebook fully approved); [#200](https://github.com/50thycal/party-games/pull/200), [#201](https://github.com/50thycal/party-games/pull/201) (rules audit, merged) |
 | [WS-001](WS-001-subway-v0-3-redesign.md) | Subway v0.3 gameplay redesign | REVIEW | Active | Independent design review of merged v0.3 against the reconstructed Build Card; owner to rule on D1–D4 | [#137](https://github.com/50thycal/party-games/pull/137), [#139](https://github.com/50thycal/party-games/pull/139) (both merged) |
 | [WS-002](WS-002-subway-route-engineering.md) | Subway route engineering and playtest UX | REVIEW | Active | Record the merged closeout; playtest follow-ups moved to WS-003 | [#141](https://github.com/50thycal/party-games/pull/141), [#142](https://github.com/50thycal/party-games/pull/142) (merged) |
 | [WS-003](WS-003-subway-construction-access.md) | Subway construction access and route lookahead | REVIEW | Active | Owner's balance playtest of the merged toll/debt/recipe changes; browser debt case and hotseat still unexercised | [#143](https://github.com/50thycal/party-games/pull/143) (merged design-only), [#144](https://github.com/50thycal/party-games/pull/144) (implementation, merged), [#145](https://github.com/50thycal/party-games/pull/145) (Build OS v0.5) |
@@ -29,7 +29,7 @@ None yet. WS-001 is the first workstream on this board.
 - PARK — Alternate end trigger requires first/last-company clarification; no rule change authorized. Engineering card-face work admitted to current mission.
 - PARK — QNHT hands-on tablet/phone layout and payment-animation acceptance; browser access was blocked. Automated UI/API tests passed.
 
-- PARK — Rulebook owner review and graphics await wording approval. Bend modes are admitted to current implementation.
+- PARK — Rulebook graphics: wording fully approved 2026-10-22 (#202); diagrams not yet started.
 
 - PARK — Subway blocked-move explanations and scoring highlights: considered but not selected for the active-route guidance iteration; no separate tickets.
 - PARK — Subway station finder and crew completion preview: considered but not selected for the build-cost iteration; no separate tickets.

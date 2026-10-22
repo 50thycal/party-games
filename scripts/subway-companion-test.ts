@@ -31,11 +31,23 @@ for(const count of [2,3,4]) {
   assert.ok(!JSON.stringify(phoneView).includes(JSON.stringify(secret)),"opposing Destination never transmitted");
   assert.equal(phoneView.game!.destinationDeck.length,0);
   assert.ok(!JSON.stringify(phoneView).includes("tablet-secret"));
+  // DEC-067: companies keep two of three privately on their phones, in any order; the iPad shows no hand meanwhile.
+  assert.equal(first.phase,"DESTINATIONS");
+  assert.ok(Object.values(companionView(state,tablet).game!.players).every(p=>p.destinationHand.length===0),"no hand reaches the iPad during the Destination choice");
+  assert.throws(()=>send(tablet,"DISCARD_DESTINATION",{cardId:first.players[phones[0].playerId].destinationHand[0]}),"Destination choice belongs on the phone");
+  for(const phone of [...phones].reverse()) send(phone,"DISCARD_DESTINATION",{cardId:(state.gameState as SubwayState).players[phone.playerId].destinationHand[0]});
+  const drafted=state.gameState as SubwayState;
+  assert.equal(drafted.phase,"PROCUREMENT");
+  const rival=drafted.players[phones[1].playerId].destinationDiscarded!;
+  assert.ok(!JSON.stringify(companionView(state,phones[0])).includes(JSON.stringify(rival)),"an opponent's discard is never transmitted");
+  assert.ok(!JSON.stringify(companionView(state,tablet)).includes(JSON.stringify(rival)),"discards never reach the iPad");
+  assert.equal(companionView(state,phones[1]).game!.players[phones[1].playerId].destinationDiscarded,rival,"your own discard stays visible to you");
+  assert.ok(drafted.playerOrder.every(id=>drafted.players[id].destinationHand.length===SUBWAY_CONFIG.destinationsPerPlayer));
   // The shared iPad carries only the current company's cards (DEC-063), never the decks.
-  const current=first.procurement.offer!.activeId,waiting=first.playerOrder.find(id=>id!==current)!;
-  assert.deepEqual(companionView(state,tablet).game!.players[current].destinationHand,first.players[current].destinationHand);
+  const current=drafted.procurement.offer!.activeId,waiting=drafted.playerOrder.find(id=>id!==current)!;
+  assert.deepEqual(companionView(state,tablet).game!.players[current].destinationHand,drafted.players[current].destinationHand);
   assert.deepEqual(companionView(state,tablet).game!.players[waiting].destinationHand,[]);
-  assert.ok(!JSON.stringify(companionView(state,tablet)).includes(JSON.stringify(first.players[waiting].destinationHand[0])),"waiting company's Destination never reaches the tablet");
+  assert.ok(!JSON.stringify(companionView(state,tablet)).includes(JSON.stringify(drafted.players[waiting].destinationHand[0])),"waiting company's Destination never reaches the tablet");
   assert.equal(companionView(state,tablet).game!.destinationDeck.length,0);
   assert.equal(companionView(state,tablet).game!.market.decks.engineering.length,0);
   const rawBefore=JSON.stringify(state);
@@ -63,7 +75,7 @@ for(const count of [2,3,4]) {
       // Four-player deck audit plus both projected clients' actual availability.
       if(!supplyChecked){
         assert.equal(game.market.decks.engineering.length,21-count*3-2);
-        assert.equal(game.destinationDeck.length,30-count*2);
+        assert.equal(game.destinationDeck.length,30-count*SUBWAY_CONFIG.destinationsDealt,"discarded starting Destinations leave the game");
         supplyChecked=true;
       }
       const actor=companionActor(game)!,phone=phones.find(p=>p.playerId===actor)!;
@@ -89,7 +101,7 @@ for(const count of [2,3,4]) {
       assert.equal(after.players[actor].engineeringHand.length,4);
       assert.equal(after.players[actor].destinationHand.length,3);
       assert.equal(after.market.decks.engineering.length,21-count*3-2-buyers.size-1);
-      assert.equal(after.destinationDeck.length,30-count*2-buyers.size-1);
+      assert.equal(after.destinationDeck.length,30-count*SUBWAY_CONFIG.destinationsDealt-buyers.size-1);
       assert.throws(()=>send(phone,'BUY_DESTINATION',{period:game.currentPeriod}),'Destination cap is also enforced');
       buyers.add(actor);continue;
     }

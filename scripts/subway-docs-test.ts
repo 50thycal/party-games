@@ -41,15 +41,15 @@ for (const [surface, text] of Object.entries({ ...docs, tutorial, intro })) {
   has(surface, text, new RegExp(`\\$${triple}(M| million)`), 'triple Destination cash');
 }
 for (const [surface, text] of Object.entries(docs)) if (surface !== 'quick') {
-  has(surface, text, new RegExp(`missions (award|pay) ${C.destinationVp} VP`), 'pair Destination VP');
-  has(surface, text, new RegExp(`missions (award|pay)? ?${C.threeStationDestinationVp} VP`), 'triple Destination VP');
+  has(surface, text, new RegExp(`missions (award|pay) ${C.destinationVp} VP|Two neighborhoods \\| \\$${pair} million \\| ${C.destinationVp} VP`), 'pair Destination VP');
+  has(surface, text, new RegExp(`missions (award|pay)? ?${C.threeStationDestinationVp} VP|Three neighborhoods \\| \\$${triple} million \\| ${C.threeStationDestinationVp} VP`), 'triple Destination VP');
 }
 
 // Optional card prices.
 for (const surface of ['rulebook', 'rules'] as const) {
   const d = cardPurchaseCost('destination'), e = cardPurchaseCost('engineering');
   has(surface, docs[surface], new RegExp(`extra random Destination for \\$${d}( million|M)|\\$${d}( million|M) for one extra random Destination`), 'Destination price');
-  has(surface, docs[surface], new RegExp(`extra Engineering goal for \\$${e}( million|M)|\\$${e}( million|M) for one extra Engineering`), 'Engineering price');
+  has(surface, docs[surface], new RegExp(`extra Engineering goal,? (each )?for \\$${e}( million|M)|\\$${e}( million|M) for one extra Engineering`), 'Engineering price');
 }
 
 // Contact toll and ending-cash spectrum.
@@ -85,20 +85,31 @@ for (const surface of ['rulebook', 'rules'] as const) for (const card of ENGINEE
 const retired: [string, RegExp][] = [
   ['card privacy', /private until results/],
   ['flexible length', /[Ss]hortening is enabled|Optional shortening|Flexible length/],
-  ['end condition ignoring extensions', /no incomplete line has a legal next segment|legal next segment on any incomplete line|legal next segment\s+left\./],
   ['drafted Destinations', /[Dd]raft three Engineering goals and two Destinations/],
   ['paid station access', /\$1M once per line, opponent/],
   ['diagonal step counted as one peg space (G2)', /neighboring peg, either orthogonally or diagonally/],
   ['board locations called pegs (G3)', /grid of pegs|Each peg can hold only one station/],
+  ['paid extensions (DEC-068)', /1–2(\.5)? peg spaces|paid extension\b(?! ?\(?DEC)|[Ee]xtend (any )?one (of your )?lines?/],
+  ['bend-token or straight-only variant (DEC-065)', /bend tokens|straight-only|Optional bend/i],
+  ['one pair and one triple dealt (DEC-067)', /one two-neighborhood and one three-neighborhood|one pair and one triple|one naming two neighborhoods and one naming three/],
+  ['same-line or lone-station award groups (DEC-069)', /including (pegs on )?the same line|counts same-line adjacency|includes same-line adjacency|size-one group|singleton occupied holes count/],
+  ['one charge per owner at a point (DEC-066)', /once per owner|per distinct contact per owner|even after transfer access/],
 ];
 const everywhere = { ...docs, tutorial, intro, terminology: read('TERMINOLOGY.md'), table: read('table.tsx') };
 for (const [surface, text] of Object.entries(everywhere)) for (const [what, pattern] of retired) {
   assert.ok(!pattern.test(text), `${surface}: stale ${what} (${pattern})`);
 }
 
-// Extensions are taught wherever play is summarised (G6, G7).
+// Dealt three, keep two, from one mixed deck (DEC-067).
 for (const [surface, text] of Object.entries({ ...docs, tutorial, intro })) {
-  has(surface, text, /1–2 peg spaces/, 'extension reach');
+  has(surface, text, /(dealt|deal) three/i, 'three Destinations dealt');
+  has(surface, text, /keep(s|ing)? two/i, 'keep two Destinations');
 }
+
+// Free contacts at a shared transfer station are taught wherever tolls are (DEC-066).
+for (const [surface, text] of Object.entries({ ...docs, tutorial, intro })) {
+  has(surface, text, new RegExp(`within ${C.contact.sharedStationFreeReach} (peg )?space`), 'shared-station free contacts');
+}
+
 
 console.log('Rules text: numbers, contract and card tables match the reducer; no retired rules remain.');

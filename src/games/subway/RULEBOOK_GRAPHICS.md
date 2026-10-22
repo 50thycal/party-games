@@ -10,11 +10,11 @@ on color alone. Quick-start needs the first, third and fifth graphics below.
 | Legal placements | Correct length, allowed 90° turn, illegal sharper turn and no stacking. |
 | What connects? | Adjacent different-line pegs versus diagonals, crossings and shared neighborhoods. |
 | Serving a neighborhood | Peg inside qualifies; string passing through does not. |
-| Payment sequence | First transfer-station join −$1M/+$1M; same-line expansion free; later crossing charged. |
+| Payment sequence | Free join beside an opponent; later crossing beside that shared station free; same line crossed elsewhere charged. |
 | Fulfilled Destination | Connected unfinished lines serving named neighborhoods without travel order. |
 | Line end examples | Starter and completed final qualify; intermediate peg and unfinished tip do not. |
 | Network versus transfer station | Counted continuous trail versus a local group of adjacent stations. |
 | Card-symbol legend | Single Line, Connected Network, Company-wide, Line Ends Only, Consecutive Stations. |
 
-Optional bend modes are implemented. Future diagrams should distinguish scoring
-stations from bend/worksite markers and match the selected mode’s rules.
+Delayed construction is the only bend rule. Future diagrams should distinguish scoring
+stations from bend/worksite markers.

@@ -3,11 +3,73 @@
 Build OS: v0.12
 Phase: REVIEW
 Status: Active
-Updated: 2026-09-25
-Implementation State: Rules audit fixes merged by PR #200 (current-company iPad cards, exact-only lengths, text fixes, drift test). Follow-up peg-space wording PR on branch claude/game-mechanics-audit-83ieqx: approved rulebook §1–3 corrected per the owner's tight-string ruling; no mechanics change. Build, lint and full Subway suite pass.
-Related PRs: Peg-space follow-up PR (open); [#200](https://github.com/50thycal/party-games/pull/200) (rules audit, merged); [#198](https://github.com/50thycal/party-games/pull/198) (merged intro); [#197](https://github.com/50thycal/party-games/pull/197) (paid extensions); [#196](https://github.com/50thycal/party-games/pull/196) (merged verification); [#195](https://github.com/50thycal/party-games/pull/195) (second YMIF economy/card bundle); [#194](https://github.com/50thycal/party-games/pull/194) (YMIF bundle); [#188](https://github.com/50thycal/party-games/pull/188) (terminology audit); [#187](https://github.com/50thycal/party-games/pull/187) (optional bend modes); [#186](https://github.com/50thycal/party-games/pull/186) (draft rules/highlights); [#185](https://github.com/50thycal/party-games/pull/185) (public status/payments/draft); [#184](https://github.com/50thycal/party-games/pull/184) (JNCG cards/surveys/labels); [#177](https://github.com/50thycal/party-games/pull/177) (PRWK feedback); [#176](https://github.com/50thycal/party-games/pull/176) (phone joining; merged); [#175](https://github.com/50thycal/party-games/pull/175) (Playtest Lab); [#174](https://github.com/50thycal/party-games/pull/174) (transfer/objective continuation); [#173](https://github.com/50thycal/party-games/pull/173) (larger neighborhoods/reversed VP; merged); [#172](https://github.com/50thycal/party-games/pull/172) (guided turns, neighborhoods and tiers; merged); [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; merged); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
+Updated: 2026-10-22
+Implementation State: Rulebook section approval in progress on branch claude/subway-rulebook-s4 (PR #202). Rulebook fully approved (§4–§13 applied, banner removed); contact pricing changed (DEC-066); Destinations dealt three, keep two (DEC-067); §9 approved; paid extensions retired (DEC-068); §10 approved, award uses §6 transfer stations (DEC-069). Extensions take the ±0.5 tolerance (DEC-064); delayed construction is the only bend rule, setup selector removed (DEC-065). Build, lint and full Subway suite pass.
+Related PRs: [#202](https://github.com/50thycal/party-games/pull/202) (rulebook §4–5, open); [#201](https://github.com/50thycal/party-games/pull/201) (peg-space wording, merged); [#200](https://github.com/50thycal/party-games/pull/200) (rules audit, merged); [#198](https://github.com/50thycal/party-games/pull/198) (merged intro); [#197](https://github.com/50thycal/party-games/pull/197) (paid extensions); [#196](https://github.com/50thycal/party-games/pull/196) (merged verification); [#195](https://github.com/50thycal/party-games/pull/195) (second YMIF economy/card bundle); [#194](https://github.com/50thycal/party-games/pull/194) (YMIF bundle); [#188](https://github.com/50thycal/party-games/pull/188) (terminology audit); [#187](https://github.com/50thycal/party-games/pull/187) (optional bend modes); [#186](https://github.com/50thycal/party-games/pull/186) (draft rules/highlights); [#185](https://github.com/50thycal/party-games/pull/185) (public status/payments/draft); [#184](https://github.com/50thycal/party-games/pull/184) (JNCG cards/surveys/labels); [#177](https://github.com/50thycal/party-games/pull/177) (PRWK feedback); [#176](https://github.com/50thycal/party-games/pull/176) (phone joining; merged); [#175](https://github.com/50thycal/party-games/pull/175) (Playtest Lab); [#174](https://github.com/50thycal/party-games/pull/174) (transfer/objective continuation); [#173](https://github.com/50thycal/party-games/pull/173) (larger neighborhoods/reversed VP; merged); [#172](https://github.com/50thycal/party-games/pull/172) (guided turns, neighborhoods and tiers; merged); [#171](https://github.com/50thycal/party-games/pull/171) (completion cash and companions; merged); [#170](https://github.com/50thycal/party-games/pull/170) (network objectives/economy and Construction removal; merged); [#169](https://github.com/50thycal/party-games/pull/169) (Plan-panel viewport; merged); [#168](https://github.com/50thycal/party-games/pull/168) (saved-plan opt-in; merged); [#167](https://github.com/50thycal/party-games/pull/167) (Undo/pan; merged); [#166](https://github.com/50thycal/party-games/pull/166) (tap-and-plan; merged); [#165](https://github.com/50thycal/party-games/pull/165) (build-cost preview; merged); [#164](https://github.com/50thycal/party-games/pull/164) (active-route guidance; merged); [#163](https://github.com/50thycal/party-games/pull/163) (direct-piece mobile fixes; merged); [#162](https://github.com/50thycal/party-games/pull/162) (saved planning; merged); [#161](https://github.com/50thycal/party-games/pull/161) (merged); [#160](https://github.com/50thycal/party-games/pull/160) (touch tabletop correction; merged); [#159](https://github.com/50thycal/party-games/pull/159) (mobile tabletop; merged); [#154](https://github.com/50thycal/party-games/pull/154), [#155](https://github.com/50thycal/party-games/pull/155), [#156](https://github.com/50thycal/party-games/pull/156), [#157](https://github.com/50thycal/party-games/pull/157) (merged); [#158](https://github.com/50thycal/party-games/pull/158) (construction clarity and playtest export)
 
-## Current continuation — rules-vs-code audit
+## Current continuation — rulebook section approval (§4 onward)
+
+Owner asked to finish the rules on 2026-10-22, continuing the section-by-section approval
+that covered §1–3 on 2026-09-23 (#199).
+
+Goal: every RULEBOOK section owner-approved in the style of §1–3, each matching the reducer.
+Non-goals: rulebook graphics (follow wording approval), new mechanics beyond rulings the owner
+makes while approving a section, the parked knob consolidation (K2/K3) and tutorial lesson.
+Acceptance: each section approved in chat and applied verbatim; the drift test passes; any
+ruling that changes play has a DEC entry, reducer change and test.
+
+Owner rulings (2026-10-22):
+- §4 approved as proposed: three-step turn (buy cards from cash, hire, build), crew table,
+  borrowing, and a new subsection "After your three lines are finished".
+- Extension rules move from §11 into §4.
+- Extensions take the usual ±0.5 tolerance: 1–2.5 peg spaces (DEC-064). Reducer
+  (`SUBWAY_CONFIG.extensionReach` + `geometry.lengthTolerance`), UI copy, quick start, rules
+  reference, tutorial, intro and drift test updated; extension tests cover 2.24 legal, 2.83 not.
+- §5 approved with all recommendations: no straight-only mention; delayed construction explained
+  as the bend rule; first-leg limit stated as "printed length minus ½"; blocked worksites explained.
+- No variants: delayed construction is the only bend rule (DEC-065). Setup selector removed;
+  START_GAME refuses `tokens`/`straight`; legacy branches kept for rooms already started.
+  Bend tokens removed from rulebook, rules reference and quick start; drift test guards it.
+- §6 approved: transfers, transfer stations (shared with opponents for Station cards, never
+  bridging networks), networks including unfinished lines, and the three card scopes. The
+  Largest Transfer Station naming mismatch is deferred to §10.
+- §7 approved with two owner rulings (DEC-066): contacts pay $1M per opposing line at a
+  point; contacts within 1 space of an opponent line's station in an already shared
+  transfer station are free, both ways, only for lines in that station. Implemented in
+  `routeContacts` + `sharedStationPegs`; rules surfaces and drift test updated; tests cover
+  $2M two-line points, one-line stations, 0.3/1/1.5-space distances, other lines, both
+  directions and the creating placement.
+- §8 approved with an owner ruling (DEC-067): deal three Destinations from one mixed deck,
+  keep two, discard leaves the game; new `DESTINATIONS` phase before the line draft.
+  Bought Destination stays a random draw. Approved §3 setup text updated to match.
+  Reducer, bots (v8), card audit, playtest driver, phone/iPad/local/mobile UI, rules
+  surfaces and drift test updated; tests cover the deal, discard validation, any-order
+  choice, phase gate, discards leaving the game, mixed hands, companion privacy and labs.
+  Assumption (implementer default, owner may override): discards leave the game.
+- §9 approved (Engineering cards: scoring, buying one more, label legend). The extension
+  sentence was dropped because of the ruling below.
+- Owner ruling (DEC-068): paid extensions retired; a finished or blocked company keeps a
+  short turn to buy optional cards, then hires no crews (owner chose this over auto-skip).
+  `extensionsEnabled: false`; approved §4 extension subsection replaced; rules surfaces,
+  intro slide and drift test updated; extension test rewritten as a retirement test.
+- §10 approved with owner ruling (DEC-069): Largest Transfer Station uses the §6 transfer
+  station; most stations in the largest (tied-largest) transfer station wins 6/3/2/0; no
+  transfer station, no award. `largestCluster` rewritten; tests, rules surfaces, report text
+  and drift test updated.
+- §11 approved as proposed (planning, confirming, Undo, device displays). Text only.
+- §12 approved: end conditions, scoring table, tie-breaks; the stale "no points for leftover
+  positive cash" sentence removed. Text only.
+- §13 approved (intro only; the contract table is data-checked). DRAFT banner replaced: the
+  whole rulebook is owner-approved (§1–3 on 2026-09-23, §4–13 on 2026-10-22). Rulebook
+  diagrams (RULEBOOK_GRAPHICS.md) are now unblocked.
+- PARK — Prune dormant extension, bend-token, straight-only and flexible-length code with K2/K3.
+
+Open for later sections: the §11 extension text said "original recipe endpoints remain
+qualified" for endpoint Engineering cards; approved §4 does not, so §9 (Line cards) must say it.
+Review State: PR #202 — awaiting independent review.
+Next Step: Independent review of PR #202; then an owner playtest of DEC-066–069 (Destination choice, tolls, waiting turns, transfer-station award). Rulebook diagrams can start.
+
+## Previous continuation — rules-vs-code audit
 
 Owner asked for an audit of where the rules, tutorial and intro disagree with the coded
 mechanics, and a decision on each gap. Register: [rules audit](../subway-rules-audit.md).
@@ -25,8 +87,9 @@ straight from peg to peg, which is the straight-line measurement the code alread
 Approved §2 is reworded to match (holes are locations, pegs are stations, a diagonal step ≈ 1.4
 spaces); §1 fragment and §3 pair/triple wording fixed in the same PR.
 Review State: PR #200 merged by the owner before an independent review or finalization commit; this
-checkpoint records that. Peg-space follow-up PR: awaiting independent review.
-Next Step: Independent review of the peg-space follow-up PR.
+checkpoint records that. PR #201 (peg-space follow-up) was likewise merged by the owner on 2026-09-25
+without an independent review or finalization commit. No approval is inferred for either.
+Next Step: None for the audit mission. K2/K3 and the tutorial extension lesson stay parked.
 
 ## Previous continuation — paid extensions; configurable draft parked
 

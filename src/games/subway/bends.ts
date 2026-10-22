@@ -10,7 +10,7 @@ const on=(p:Point,a:Point,b:Point)=>Math.abs((b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-
 const valid=(p:Point)=>p&&Number.isInteger(p.x)&&Number.isInteger(p.y)&&p.x>=0&&p.y>=0&&p.x<27&&p.y<9;
 export const tokenCost=(s:SubwayState,id:string,count:number)=>Math.max(0,count-(s.players[id].bendTokens??0))*3;
 export function remainingLength(s:SubwayState,id:string,index:number) {
- const l=s.players[id].lines[index],required=lineComplete(l)?2:contractOf(l)?.recipe[segmentsBuilt(l)]??0;
+ const l=s.players[id].lines[index],required=lineComplete(l)?SUBWAY_CONFIG.extensionReach:contractOf(l)?.recipe[segmentsBuilt(l)]??0;
  return required-(l.work?.length?pathLength([l.route.at(-1)!,...l.work]):0);
 }
 
@@ -19,7 +19,7 @@ export function validatePath(s:SubwayState,id:string,index:number,points:Point[]
  const me=s.players[id],l=me?.lines[index],mode=s.bendMode??'straight';
  if(!l||!l.route.length||lineComplete(l)&&!extensionEligible(me))return 'Finish all three lines before extending.';
  const extension=lineComplete(l);
- if(extension&&(pause||points.length!==1))return 'An extension is one straight placement of 1–2 peg spaces.';
+ if(extension&&(pause||points.length!==1))return 'An extension is one straight placement of 1–2.5 peg spaces.';
  if(!Array.isArray(points)||!points.length||points.length>8||points.some(p=>!valid(p)))return 'Choose valid board holes.';
  if(mode==='straight'&&(points.length!==1||pause||l.work?.length))return 'This game uses straight segments.';
  if(mode==='delayed'&&points.length!==1)return 'Build one leg per activation in delayed mode.';
@@ -35,8 +35,8 @@ export function validatePath(s:SubwayState,id:string,index:number,points:Point[]
   for(const [c,d] of prior.slice(0,-1))if(segmentsCross(a,b,c,d)||on(b,c,d)||on(c,a,b)||on(d,a,b))return 'A line cannot cross or rejoin its own color.';
  }
  const length=pathLength([l.route.at(-1)!,...(l.work??[]),...points]);
- const required=extension?2:contractOf(l)!.recipe[segmentsBuilt(l)],tol=extension?0:SUBWAY_CONFIG.geometry.lengthTolerance;
- if(pause?length>required+tol-1+1e-8:(extension||s.segmentLengthMode==='flexible')?(length<1-1e-8||length>required+tol+1e-8):Math.abs(length-required)>tol+1e-8)return pause?'Leave at least one peg space to finish this segment.':`Segment must span ${(extension||s.segmentLengthMode==='flexible')?'1–':''}${required} spaces in total (path ${length.toFixed(1)}).`;
+ const required=extension?SUBWAY_CONFIG.extensionReach:contractOf(l)!.recipe[segmentsBuilt(l)],tol=SUBWAY_CONFIG.geometry.lengthTolerance;
+ if(pause?length>required+tol-1+1e-8:(extension||s.segmentLengthMode==='flexible')?(length<1-1e-8||length>required+tol+1e-8):Math.abs(length-required)>tol+1e-8)return pause?'Leave at least one peg space to finish this segment.':extension?`An extension must span 1–${required+tol} spaces (path ${length.toFixed(1)}).`:`Segment must span ${s.segmentLengthMode==='flexible'?'1–':''}${required} spaces in total (path ${length.toFixed(1)}).`;
  for(let i=0;i<newLegs.length;i++) {
   const [a,b]=newLegs[i];
   if(same(a,b))return 'Each leg must have positive length.';

@@ -9,13 +9,13 @@ Build a subway company across the city. Complete lines, connect neighborhoods,
 and create transfer stations to earn victory points. Most points wins.
 
 A **station** is one placed peg. A **transfer station** is a group of
-horizontally/vertically adjacent stations. Card transfers require different-line
-adjacency; Largest Transfer Station also counts same-line adjacency.
+horizontally/vertically adjacent stations on different lines or companies. Cards
+and the Largest Transfer Station award use this one definition.
 
 ## 1. Set up your company
 
-Each player starts with **$40 million** and two private Destination cards: one
-naming two neighborhoods and one naming three.
+Each player starts with **$40 million** and is dealt three private Destination
+cards from one mixed deck. Keep two and discard one; it leaves the game.
 
 Take turns buying **three line contracts each**. Each contract shows its price,
 the lengths of its segments, and its points for finishing—or penalty for leaving
@@ -48,9 +48,8 @@ previews your selection before you confirm.
 Finishing a line immediately earns **$3 million**, plus its printed victory
 points at the end.
 
-Once all three of your lines are finished, from your next turn you may instead
-extend any one line by a single straight placement of 1–2 peg spaces for $1 million
-plus crossing tolls, or skip for free.
+Once all three of your lines are finished, you only buy any extra cards you
+still want on your turn, then end it.
 
 ## 4. Connect and serve
 
@@ -64,8 +63,9 @@ cannot connect your network for you.
 
 ## 5. Watch your payments
 
-Joining an opponent’s station is free. Crossing or touching an opponent’s string
-costs $1 million per distinct contact per owner. Check the payment preview before
+Joining an opponent’s station is free. Crossing or touching an opponent’s line
+costs $1 million per line at each contact point, except within 1 space of that
+line's station in a shared transfer station that already exists. Check the payment preview before
 confirming. Player panels show who pays and who receives the money.
 
 ## 6. Complete your cards
@@ -81,7 +81,7 @@ others allow a connected network or any of your lines.
 ## 7. Score
 
 The game ends after round nine, or earlier when no player has a legal next segment
-or paid extension left. Add completed-line points, fulfilled Engineering and Destination cards, and
+left. Add completed-line points, fulfilled Engineering and Destination cards, and
 any longest-network and Largest Transfer Station awards. Subtract unfinished-line penalties, then
 score your **ending cash**: +3 VP at $5M or more, +2 VP at $4M, +1 VP at $2M to $3M,
 and zero at $0M to $1M. Debt costs 2 VP per $1M owed, without a cap. Neighborhood visits do not earn
@@ -90,12 +90,10 @@ points by themselves.
 **Remember:** One peg per hole. Adjacent pegs connect different lines. Crossings
 cost money. Finish what you start.
 
-## Optional bends — choose before starting
+## Bends
 
-**Delayed construction** is the default: stop at a bend now, hire that line again
-later to finish. Other hired lines can still build. Only one bend per segment.
-Alternatively, choose **Bend tokens**: three per company, one per bend; extra
-tokens cost $3M from available cash. Finish the bent segment in one activation.
+A bend takes two turns: stop at a bend now, then hire that line again later to
+finish. Other hired lines can still build. Only one bend per segment.
 
 Curves stay within 90 degrees, and the combined leg lengths must match the printed
 segment. Bend/worksite markers are not scoring pegs. Crossings cost money as each

@@ -9,13 +9,13 @@ A light-strategy line-building game for **2–4 companies**. Most victory points
 
 ## Game flow
 
-1. Start with **$40M and one two-neighborhood and one three-neighborhood private Destination mission**. Completing each line immediately pays **$3M**, and connecting a held Destination mission pays **$2M (pair) or $3M (triple)** the first time it is met; Undo reverses those rewards along with the placement.
+1. Start with **$40M**. You are dealt **three random private Destination missions from one mixed deck and keep two**; the discard leaves the game. Completing each line immediately pays **$3M**, and connecting a held Destination mission pays **$2M (pair) or $3M (triple)** the first time it is met; Undo reverses those rewards along with the placement.
 2. Draft three line contracts each, at list price, from a replenishing row of
    two/three/four choices for two/three/four players. No passing or discounts.
 3. Draft **three Engineering goals each**, choosing between two face-up cards or a blind draw.
 4. Place one free starter for each line on an **empty**, non-neighborhood outer-border hole. A starter cannot overlap any company's existing peg including your own. Adjacent empty holes are allowed. No placement may stack pegs. Joining an opponent station is also free.
 5. Play up to **9 construction rounds**, choosing crews anew each turn. End
-   immediately if no company has a legal next segment or paid extension.
+   immediately if no company has a legal next segment.
 6. Score all held goals and lines; subtract unfinished-line
    penalties and the **ending-cash band** below.
 
@@ -147,14 +147,16 @@ Unless a card requires completion or a final station, incomplete lines may quali
 
 ## Largest Transfer Station — public goal
 
-Group occupied peg holes across all companies, including pegs on the same line,
-using horizontal/vertical adjacency. One hole holds one peg. Diagonals, strings,
-bends and worksites do not join or enlarge transfer stations. Size is the number of occupied holes.
+Use the transfer stations defined for cards: stations chained by horizontal/vertical
+adjacency between different lines or companies, across all companies. Two neighbouring
+stations on the same line do not form one, and a lone station is not one. Diagonals,
+strings, bends and worksites do not join or enlarge transfer stations. Size is the number
+of stations.
 
 Find all transfer stations tied for largest and total each company's stations across those
 transfer stations. Award the bonus once to the leaders: **6 VP** alone, **3 VP each** for
 two tied leaders, **2 VP each** for three, and **0 VP** for four. Empty boards
-award nothing; singleton occupied holes count as transfer stations. This does not change
+award nothing, and so does a board with no transfer station. This does not change
 the company transfer or Longest Network rules.
 
 ## Longest network — public goal
@@ -169,10 +171,9 @@ never wins the award. Unfinished lines can contribute.
 ## Public standings and player status
 
 The iPad and phone show current longest-network length and Largest Transfer Station
-standings using the same occupied-hole grouping and tied-largest aggregation as
-scoring. Same-line adjacent pegs count for this public award, unlike the different-
-line transfers required for Station cards. The phone shows your station total across
-all equally largest transfer stations. Empty boards have no leader.
+standings using the same transfer stations and tied-largest aggregation as scoring.
+The phone shows your station total across all equally largest transfer stations. With
+no transfer station on the board there is no leader.
 
 Bottom iPad player pads show names, cash and line colors/codes. Confirmed payments
 show corresponding debits/credits beside these pads, with reversed signs on Undo.
@@ -202,21 +203,14 @@ The displayed bill previews remaining cash and the final penalty at that balance
 
 Every company gets a turn each round, including a company choosing no crews.
 Construction ends after round 9, or immediately after a placement leaves no
-company a legal next segment or paid extension. Empty rounds are never played. A
+company a legal next segment. A finished or blocked company still takes a short
+turn to buy optional cards, then hires no crews. Empty rounds are never played. A
 blocked or skipped placement does not refund its hired crew. Normal placement
 legality remains unchanged.
 
-### Optional bend modes
+### Bends (delayed construction)
 
-The host chooses one mode before starting; it cannot change during the game.
-**Delayed construction** is the default. The old straight-only option is hidden.
-**Bend tokens** gives each company three
-tokens. Each bend costs one token; missing tokens cost **$3M each**, automatically
-purchased on Confirm using available cash (no borrowing). Preview one bend
-and finish the whole segment in one activation. Cancel is free; Undo restores
-spent tokens and purchases.
-
-**Delayed construction** has no token cost. Choose “Stop at a bend” and confirm
+Delayed construction is the only bend rule; there are no setup variants. Choose “Stop at a bend” and confirm
 to build one leg and end that line’s activation. Other hired lines still act.
 Hire that line again on a later turn to finish its remaining length.
 Only one bend is allowed per segment; a second stop is not allowed. A worksite does not reserve future
@@ -224,7 +218,7 @@ holes or strings; later construction may block its continuation.
 
 Each leg joins board holes and curves by at most **90 degrees**.
 Add the actual leg lengths; apply the existing ±0.5-space tolerance once to the
-whole printed segment. A stop must leave at least one space available to finish.
+whole printed segment. The first leg can be at most the printed length minus ½ space.
 Bends and worksites are **not pegs or stations**: they do not serve neighborhoods,
 create transfers, satisfy station objectives or count as line ends. Partial strings
 are physical: crossings cost money when built and overlaps remain forbidden.
@@ -245,7 +239,7 @@ each other but never the outer border. 51 interior holes remain outside areas.
 
 Place a peg on any hole inside an area to serve it. String merely passing through
 is not service. There are **no dock limits**. Multiple companies and lines may
-serve the same area. Visits matter for destinations and Engineering objectives. Exact peg positions and optional bend vertices
+serve the same area. Visits matter for destinations and Engineering objectives. Exact peg positions and bend vertices
 determine segment lengths, curves and physical contacts.
 
 Different company lines transfer only at horizontally/vertically
@@ -257,16 +251,17 @@ pass through pegs. Only collinear **string overlap** is prohibited. Stations nev
 block strings passing over them. The current line glows during construction; a
 selected next station draws a translucent line-colored segment until Confirm.
 
-Each distinct contact with another company's network costs **$1M to that
-owner**. Multiple incident strings at one vertex cost once per owner. If several
-companies share a contacted point, pay each. Contacts with your own lines are
-free. Departing a previously contacted point is not charged again. Construction can incur debt: the
+Each contact with another company's line costs **$1M to that owner**, counted per
+line and point: two of one opponent's lines meeting where you touch cost $2M, while
+one line's own station costs $1M. If several companies share a contacted point, pay
+each for each line. Contacts with your own lines are free, and so are contacts within
+1 space of an opponent line's station in a shared transfer station that already
+exists (both ways); that line elsewhere still pays. Departing a previously contacted point is not charged again. Construction can incur debt: the
 balance you finish on scores on the ending-cash spectrum below, so borrowing is a priced choice
 rather than a flat fine. Money the opposition pays you moves your band before scoring.
 
 Joining stations is free, including starters and stations with several opponents.
-Crossing or touching opponents' strings still costs $1M per distinct contact per
-owner. Preview shows recipients/reasons before Confirm; Undo restores transfers.
+The placement that creates a shared transfer station still pays for its contacts. Preview shows recipients/reasons before Confirm; Undo restores transfers.
 
 Each Confirm consumes one hired action. Undo restores the latest physical placement,
 its toll transfers and pending action, until another accepted action occurs.
@@ -305,25 +300,13 @@ complete accepted-action ledger: setup, cards, lines, placements, crew and toll
 economy, Undo actions, scoring, timing, and the construction end reason. Rejected
 actions are not tracked because they never change reducer state.
 
-State version **29** requires a fresh game for the optional bend modes;
+State version **29** requires a fresh game for the bend rules;
 old saves are not migrated. Neighborhood names and size labels fit wholly inside
 their actual footprints, with wrapped text and camera-adaptive font sizes.
 Automated games test termination and rule behavior, not human enjoyment or
 statistically proven balance. Physical iPad acceptance remains a human playtest task.
 
-## Paid extensions (state v30)
+## Paid extensions (retired)
 
-After all three of your lines are complete, starting on your next turn you may
-extend any one line, or skip. Select a line and preview one straight placement
-1–2 peg spaces from its current end (diagonal placements within that distance
-are allowed). Turn at most 90°, use an empty hole and obey normal self-crossing,
-overlap and contact rules. No intermediate bend/worksite is added to this short
-placement. Confirm to pay $1M plus crossing tolls; there is no extra crew bill.
-You may borrow under the normal construction rule. Skipping pays nothing.
-
-The original recipe stays complete and its final station still qualifies for
-endpoint Engineering cards. Extensions add network length and real stations,
-including destination service and transfer opportunities, without repeating
-completion cash. Undo reverses the extension and its payments. Buy optional cards
-before selecting your extension. One extension per turn; play still ends by round
-nine. Drafting remains three lines per player. Existing rooms must restart for v30.
+Paid extensions (DEC-062) are retired (DEC-068). A company whose lines are all
+finished takes a short turn each round to buy optional cards, then hires no crews.

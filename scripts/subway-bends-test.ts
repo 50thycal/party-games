@@ -15,11 +15,12 @@ const base=(mode:SubwayState['bendMode']='tokens')=>{
  s.players[id].lines=[{contractId:'short',paid:5,route:[{x:0,y:0}]},{contractId:'branch',paid:6,route:[{x:15,y:0}]}];
  s.players[other].lines=[{contractId:'long',paid:8,route:[{x:25,y:8}]}];return s;
 };
-for(const mode of ['straight','tokens','delayed'] as const){
- const start=subwayGame.reducer(subwayGame.initialState(room.players),{type:'START_GAME',playerId:room.hostId,payload:{bendMode:mode}},{room,playerId:room.hostId,now:()=>1,random:()=>.4});
- assert.equal(start.bendMode,mode);assert.equal(start.players[id].bendTokens,mode==='tokens'?3:0);
- assert.equal(subwayGame.reducer(start,{type:'START_GAME',playerId:room.hostId,payload:{bendMode:'straight'}},{room,playerId:room.hostId,now:()=>1,random:()=>.4}),start);
- assert.equal(JSON.parse(JSON.stringify(start)).bendMode,mode);
+// Delayed construction is the only bend rule for new games (DEC-065); token and
+// straight-only branches below are kept for rooms started before that ruling.
+{
+ const setup=subwayGame.initialState(room.players),go=(payload:SubwayAction['payload'])=>subwayGame.reducer(setup,{type:'START_GAME',playerId:room.hostId,payload},{room,playerId:room.hostId,now:()=>1,random:()=>.4});
+ for(const payload of [{},{bendMode:'delayed' as const}]){const start=go(payload);assert.equal(start.bendMode,'delayed');assert.equal(start.players[id].bendTokens,0);assert.equal(JSON.parse(JSON.stringify(start)).bendMode,'delayed');}
+ for(const bendMode of ['straight','tokens'] as const)assert.equal(go({bendMode}),setup,`new games reject ${bendMode}`);
 }
 {
  const s=base(),payload={lineIndex:0,x:1,y:1,bends:[{x:1,y:0}]};
@@ -27,7 +28,8 @@ for(const mode of ['straight','tokens','delayed'] as const){
  assert.equal(segmentsBuilt(b.players[id].lines[0]),1);assert.equal(b.players[id].lines[0].route.length,2);
  assert.equal(longestNetwork(b.players[id]),2);assert.equal(lineLegs(b.players[id].lines[0]).length,2);
  assert.equal(b.players[id].lines[0].route[1].stationId,undefined);
- assert.equal(largestCluster(b.players).size,1,'bend is not occupied peg');
+ const beside=structuredClone(b);beside.players[other].lines[0].route.push({x:2,y:0});
+ assert.equal(largestCluster(beside.players).size,0,'a bend is not a station: no transfer station with the neighbouring peg');
  const u=act(b,'UNDO_PLACEMENT');assert.deepEqual(u.players[id],s.players[id]);
  const straight=base('straight');assert.equal(act(straight,'BUILD',payload),straight);
  assert.match(validatePath(s,id,0,[{x:1,y:0},{x:0,y:1}])!,/90/);
@@ -99,7 +101,8 @@ for(const mode of ['tokens','delayed'] as const) {
  const s=base();s.stations=[{id:'bend-only',name:'Bend Only',kind:'minor',x:1,y:0,cells:[{x:1,y:0}]}];
  const b=act(s,'BUILD',{lineIndex:0,x:1,y:1,bends:[{x:1,y:0}]});
  assert.equal(b.players[id].lines[0].route.some(n=>n.stationId==='bend-only'),false);
- assert.equal(largestCluster(b.players).size,1);
+ const beside=structuredClone(b);beside.players[other].lines[0].route.push({x:2,y:0});
+ assert.equal(largestCluster(beside.players).size,0);
 }
 // Completion pays once, only after the unfinished final segment reaches a peg.
 {
@@ -115,7 +118,7 @@ for(const mode of ['tokens','delayed'] as const) {
  assert.deepEqual(act(finished,'UNDO_PLACEMENT').players[id],partial.players[id]);
 }
 // Each experiment completes/replays a full game under the real reducer.
-for(const mode of ['tokens','delayed'] as const)for(const count of [2,3,4]){
+for(const mode of ['delayed'] as const)for(const count of [2,3,4]){
  const r=testRoom(count),random=seededRandom(310+count),record=newRecord(r,subwayGame.initialState(r.players),'simulation');let s=record.initial;
  const step=(action:SubwayAction)=>{const next=recordedReducer(s,action,{room:r,playerId:action.playerId,random,now:()=>record.actions.length+1},record,'bot');assert.notEqual(next,s);s=next;};
  step({type:'START_GAME',playerId:r.hostId,payload:{bendMode:mode}});

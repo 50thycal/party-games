@@ -785,7 +785,7 @@ debt keeps payments received meaningful and makes the rule readable from the fin
 ### DEC-018 — Normal Subway routes may interact freely; opposing contacts are paid
 
 **Date:** 2026-08-27
-**Status:** Accepted · **Supersedes:** DEC-017
+**Status:** Accepted · **Supersedes:** DEC-017. Once-per-point contact counting superseded by DEC-066.
 
 **Context**
 DEC-017 removed the opposing-node spacing rule and priced reuse of an opponent's exact peg, while
@@ -1649,7 +1649,7 @@ State v19 prevents old games from silently changing score values mid-session.
 
 ### DEC-045 — Physical transfers and goal-led neighborhood scoring
 
-Date: 2026-09-12. Status: owner-approved; implemented by PR #174.
+Date: 2026-09-12. Status: owner-approved; implemented by PR #174. Destination dealing superseded by DEC-067.
 
 Owner approved zero automatic area VP for the next playtest and replaced free
 area-wide transfers with overlapping or horizontally/vertically adjacent nodes
@@ -1760,7 +1760,7 @@ manual card testing rejected by the owner; automatic rule retuning excluded.
 
 ### DEC-054 — Shared Largest Cluster and bounded algorithmic planning
 
-Date: 2026-09-15. Status: owner-authorized implementation; independent review pending.
+Date: 2026-09-15. Status: owner-authorized implementation; independent review pending. Cluster grouping superseded by DEC-069.
 
 Calvin approved a second global goal: the company with the most route nodes in
 the largest shared orthogonal cluster earns 6 VP. Aggregate company counts across
@@ -1865,7 +1865,7 @@ sets. No bending rule is implemented by this conflict resolution.
 ### DEC-055 — Game-start bend experiments share physical geometry
 
 **Date:** 2026-09-16
-**Status:** Accepted by owner; wording and balance remain draft.
+**Status:** Accepted by owner; wording and balance remain draft. Setup choice of bend mode superseded by DEC-065.
 
 **Context:** The owner approved building token and delayed-construction experiments
 as alternatives chosen at game setup, preserving straight play by default.
@@ -2092,7 +2092,7 @@ line counts remain parked. No state-version change or gameplay rebalance.
 ### DEC-062 — Paid extensions after the third completed line
 
 **Date:** 2026-09-20
-**Status:** Accepted by owner in chat.
+**Status:** Superseded by DEC-068.
 
 **Context:** Early finishers in the four-player test ran out of meaningful actions.
 
@@ -2148,3 +2148,197 @@ fingerprint is unchanged by these rulings; the separate `engineeringPurchaseCost
 added in the same PR changes it without changing any price. Rules text is now checked
 against `SUBWAY_CONFIG`, the contract data and the card data by
 `scripts/subway-docs-test.ts`.
+
+### DEC-064 — Extensions take the normal ±0.5 length tolerance
+
+**Date:** 2026-10-22
+**Status:** Superseded by DEC-068.
+
+**Context:** While approving rulebook §4, the owner was shown that a paid extension
+(DEC-062) accepted exactly 1 to 2 peg spaces with no tolerance, stricter than every
+other segment, which accepts ±0.5 around its printed length. A knight's-move step
+(≈2.24) was therefore illegal for an extension but legal for a printed length-2 segment.
+
+**Decision:** An extension is a printed 2-space segment with the usual ±0.5 tolerance:
+any straight placement from 1 to 2.5 peg spaces fits. The minimum stays 1, the
+shortest distance between holes. `SUBWAY_CONFIG.extensionReach` (2) carries the printed
+length; `geometry.lengthTolerance` supplies the allowance. Everything else in DEC-062
+stands. Approved rulebook §4 now holds the extension rules, moved from §11.
+
+**Rationale:** One length rule for every segment is simpler to teach and matches how the
+physical string is measured (§2). The change only adds legal placements.
+
+**Alternatives considered:** Keeping exact 1–2 spaces and documenting the exception.
+
+**Consequences:** No state-version bump: the state shape is unchanged and the new rule is
+a superset, so a game recorded before it never made a now-illegal move. The new config
+key changes the rules fingerprint, so replays recorded under the old fingerprint are
+refused as "rules differ", as for any config change. Reducer, preview, lookahead, bots
+and every rules surface share `validatePath`, and the drift test now rejects "1–2 peg
+spaces".
+
+### DEC-065 — Delayed construction is the only bend rule
+
+**Date:** 2026-10-22
+**Status:** Accepted by owner in chat (rulebook §5 approval).
+
+**Context:** DEC-055 made bends a setup experiment: straight-only, bend tokens or delayed
+construction. Delayed construction became the default and straight-only was hidden
+(DEC-060), but the host could still pick bend tokens, and the rulebook described two
+modes. While approving §5 the owner ruled there should be no variants.
+
+**Decision:** Every new game uses delayed construction: a segment may have one bend, built
+over two turns (first leg, then the finishing leg on a later hire). The setup selector is
+removed from the local, companion-host and in-room setup surfaces; START_GAME accepts only
+`delayed` (or no mode) and refuses `tokens` and `straight`. The token and straight-only
+validation branches remain only so rooms started before this ruling can finish.
+
+**Rationale:** One bend rule is simpler to teach and leaves no setup decision for the host.
+Delayed construction makes a bend cost tempo rather than money, which is the trade the
+owner wants.
+
+**Alternatives considered:** Keeping bend tokens as a documented variant; removing the token
+and straight-only code outright with a state-version bump. The owner chose no variants;
+the legacy code stays, matching the DEC-063 precedent for flexible length.
+
+**Consequences:** No state-version bump: the state shape is unchanged. Rules text describes
+only delayed construction, and the drift test rejects bend-token, straight-only and
+"optional bend" wording. Full-game bot simulations now run in delayed mode only; token
+behavior keeps its unit coverage for legacy rooms. Pruning the legacy flexible, token and
+straight branches is parked with the K2/K3 knob consolidation.
+
+### DEC-066 — Contacts pay per opposing line; free beside a shared transfer station
+
+**Date:** 2026-10-22
+**Status:** Accepted by owner in chat (rulebook §7 approval).
+
+**Context:** DEC-018 counted a contact once per owner and point, so touching a point where
+two of one opponent's lines meet cost $1M. DEC-060 made station joins free but kept every
+crossing toll, so two companies sharing a transfer station still paid each other to
+untangle their lines right beside it. While approving §7 the owner changed both.
+
+**Decision:** A contact is charged $1M per opposing line at that point: two of one
+opponent's lines meeting where you touch cost $2M; one line's own station, where its two
+strings meet, still costs $1M. A contact with an opponent line is free when it lies within
+1 peg space (`contact.sharedStationFreeReach`) of that line's own station in a transfer
+station that already holds stations of both companies. Transfer stations chain
+orthogonally adjacent stations of different lines or companies, as Station cards do. The
+waiver works both ways. It covers only lines with a station in the shared transfer
+station, and only near that station: the same line elsewhere still pays. Sharing is
+judged on the board before the placement, so the placement that creates a shared
+station pays its contacts.
+
+**Rationale:** Companies that build a station together should be able to route through it
+without paying each other, but sharing should not switch off tolls across the board.
+Charging per line makes a busier crossing cost more.
+
+**Alternatives considered:** Free crossings of all the opponent's lines anywhere; free
+crossings of the station's lines anywhere; only between the two lines that share the
+station; free only exactly on the station peg; a free zone covering the station's
+bounding box; counting the placement that creates the sharing. The owner chose the
+local, line-specific waiver from the next placement.
+
+**Consequences:** No state-version bump: the state shape is unchanged; rooms in progress
+switch to the new pricing on their next placement. The new config key changes the rules
+fingerprint, so old replays are refused as "rules differ". Preview, BUILD, bots and
+extensions share `routeContacts`, which now keys contacts by owner, line and point and
+filters free contacts with `sharedStationPegs`. Free contacts are not shown in the
+payment preview. Balance is unmeasured: toll income may fall where companies cluster and
+rise at multi-line crossings.
+
+### DEC-067 — Deal three Destinations from one mixed deck; keep two
+
+**Date:** 2026-10-22
+**Status:** Accepted by owner in chat (rulebook §8 approval).
+
+**Context:** DEC-045 dealt every company one two-neighborhood and one three-neighborhood
+Destination with no choice. While approving §8 the owner asked for a draft-style choice
+from a single deck.
+
+**Decision:** All 30 Destinations form one shuffled deck. START_GAME deals three to each
+company and opens a new `DESTINATIONS` phase before the line draft. Each company plays
+`DISCARD_DESTINATION` once, keeping two; companies may choose in any order, and
+`nextCompanyId` offers the first undecided seat to turn-based surfaces and bots. Any mix
+of two- and three-neighborhood cards is possible. Discards leave the game. When every
+company has kept two, PROCUREMENT opens as before. The bought extra Destination stays a
+random draw from the remaining deck. Knobs: `destinationsDealt: 3`,
+`destinationsPerPlayer: 2`.
+
+**Rationale:** A choice at the start lets companies shape a plan before buying lines, and
+one mixed deck adds variety: a company may chase two triples or play safe with pairs.
+
+**Alternatives considered:** Keeping one pair and one triple; dealing three while
+preserving at least one of each kind; returning discards to the deck. The owner chose
+one random mixed deal. Removing discards from the game was the implementer's default,
+because otherwise a bought card could be one you already rejected.
+
+**Consequences:** No state-version bump: rooms already past setup never enter the new
+phase. The config change alters the rules fingerprint, so old replays are refused as
+"rules differ". The phone chooses privately; the iPad shows no hand during the phase
+and a "still choosing" list instead. Companion projections replace other companies'
+`destinationDiscarded` with "hidden", so whether a company has chosen is public but
+its discard is not. The local table and mobile layouts show the
+current chooser's three cards. Bot policy v8 keeps the pair with the most VP per
+distinct neighborhood and never discards a focus card; Card Audit's Destination
+focus keeps the audited card. The deck available for purchases shrinks to
+30 − 3 × companies.
+
+### DEC-068 — Retire paid extensions; finished companies take a short turn
+
+**Date:** 2026-10-22
+**Status:** Accepted by owner in chat (rulebook §9 approval).
+
+**Context:** DEC-062 let a company that had finished all three lines pay $1M a turn to add a
+short straight placement to any line; DEC-064 gave it the ±0.5 tolerance. While approving
+§9 the owner asked for extensions to be removed: finished players simply wait for the game
+to end.
+
+**Decision:** Paid extensions are retired for every game, including rooms in progress.
+`SUBWAY_CONFIG.extensionsEnabled` is false, so `extensionEligible` never holds. A company
+whose lines are all finished, or whose unfinished lines have no legal placement, still
+takes its turn each round: it may buy its optional cards, then hires no crews. Construction
+ends after round nine or when no company can build. The owner chose this short turn over
+skipping finished companies automatically, which would have removed late card purchases.
+
+**Rationale:** Extensions added a late-game rule players had to learn for a small effect;
+waiting keeps the end of the game simple while still allowing late card purchases.
+
+**Alternatives considered:** Keeping extensions; skipping finished companies automatically;
+skipping them only once they have bought both extra cards. The owner chose the short turn.
+
+**Consequences:** No state-version bump. The config change alters the rules fingerprint, so
+old replays are refused as "rules differ". The extension branches in the reducer, path
+validation, bots and UI are dormant and join the legacy prune parked with K2/K3. Rules text
+no longer mentions extensions, and the drift test rejects extension wording. Approved §4
+replaces its extension subsection with "When you have nothing left to build". Games may end
+a little earlier, because finished companies no longer keep construction alive.
+
+### DEC-069 — Largest Transfer Station scores the §6 transfer stations
+
+**Date:** 2026-10-22
+**Status:** Accepted by owner in chat (rulebook §10 approval).
+
+**Context:** DEC-054's award grouped every occupied hole by orthogonal adjacency, including two
+stations of the same line, and counted a lone station as a group of one. So the award named
+"Largest Transfer Station" did not use the transfer stations defined in §6, and on a board
+with no transfers it went to whichever company simply had the most stations.
+
+**Decision:** The award uses the §6 transfer station: stations chained by orthogonal adjacency
+between different lines or different companies, across all companies. Same-line neighbours do
+not join and lone stations are not transfer stations. The largest transfer station (all of
+them if tied) is found; each company counts its own stations in it, and the leaders score
+6 VP alone, 3 VP each for two, 2 VP each for three, and nothing for four. With no transfer
+station on the board nobody scores the award. In the owner's words: whoever has the most
+stations in the largest single transfer station gets the points, split if tied.
+
+**Rationale:** One meaning of "transfer station" across cards, networks and awards; the award
+rewards building real interchanges rather than station count.
+
+**Alternatives considered:** Renaming the award and keeping occupied-hole grouping; keeping
+both definitions with an explanatory note. The owner chose one definition.
+
+**Consequences:** No state-version bump. `clusters.ts` `largestCluster` keeps its result shape,
+so scoring, public standings, badges, bots and reports follow automatically; grouping is
+linear in occupied holes. This change alone does not alter the rules fingerprint, but the
+same PR's config changes do, so replays recorded before it are refused rather than rescored. Rules text and the drift test reject
+same-line or lone-station wording.

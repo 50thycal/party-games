@@ -1,7 +1,6 @@
 # Subway — Full Rulebook
 
-> **DRAFT — NEEDS OWNER REVIEW.** Saved at the owner's request before a thorough
-> rules review. This is not final rules approval. Graphics will follow wording approval.
+> Rules approved by the owner: §1–3 on 2026-09-23, §4–13 on 2026-10-22. Diagrams will follow.
 
 [Quick-start guide](QUICK_START.md) · [Existing rules reference](RULES.md) · [Graphics plan](RULEBOOK_GRAPHICS.md)
 
@@ -41,9 +40,15 @@ To **serve a neighborhood**, one of your stations must occupy a hole inside that
 
 ## 3. Setup and drafting
 
-Each company begins the game with **$40 million** and two Destination missions: one naming two neighborhoods and one naming three.
+Each company begins the game with **$40 million**.
 
 Randomly determine the starting player. Play continues in the same order throughout drafting and construction. The order does not reverse between rounds.
+
+### Keep two Destinations
+
+Shuffle all 30 Destination cards into one deck and deal **three** to each company. Each company secretly discards one and keeps two. Discarded cards leave the game.
+
+Any mix is possible: you may be dealt three cards that each name two neighborhoods, three that each name three, or anything between. Companies choose at the same time, and the line draft begins once every company has kept two.
 
 ### Buy your lines
 
@@ -85,167 +90,197 @@ A starter station may be placed next to another station, including an opponent�
 
 ## 4. Construction rounds
 
-Play up to nine rounds, with one turn per company per round. At the beginning of
-your turn, you may buy your optional extra Destination card. Then select the
-lines to activate and pay for their crews.
+Construction lasts up to **nine rounds**. In each round, every company takes one turn, in the same player order used during setup. The game can end earlier; see §12.
 
-| Different lines activated | Total cost |
+### Your turn
+
+Your turn has three steps, in this order:
+
+1. **Buy extra cards (optional).** You may buy one extra Destination mission and one extra Engineering goal, each for **$3 million**. Each can be bought only once per game, and you must pay from cash on hand. You cannot borrow to buy a card. See §8 and §9.
+2. **Hire crews.** Choose which of your lines will build this turn and pay for all their crews at once.
+3. **Build.** Each hired crew builds the next segment of its line (see §5). Build your hired lines in any order.
+
+### Hiring crews
+
+| Crews hired | Total cost |
 |---|---:|
-| Zero | $0 million |
+| None | $0 |
 | One | $1 million |
 | Two | $3 million |
 | Three | $6 million |
 
-For ordinary crew hiring, only unfinished lines with legal next placements can be activated. Each selected
-line receives **one construction activation** (normally one segment placement). Hiring two crews means extending two
-different lines, not extending one line twice.
+Each crew works on a different line. You cannot hire two crews for the same line.
 
-Hire once per turn. You cannot change your selection after paying. Hiring zero
-crews ends your turn. Crew costs and contact payments may both take cash below
-zero on the turn you build: borrowing is allowed, and what it costs depends on
-the band you finish the game in. Skipping or blocking a placement does
-not refund its crew cost.
+You may hire a crew only for an unfinished line that has at least one legal place for its next segment.
+
+You hire once per turn. After you pay, you cannot add or change crews. Hiring no crews ends your turn.
+
+If a hired crew does not build, whether because you skip it or because it has no legal placement left, that line does nothing this turn. Crew costs are never refunded.
+
+### Borrowing
+
+Crew costs and payments to other companies may take your cash below zero, and you may keep building while in debt. Debt costs victory points at the end of the game (§12). Extra cards cannot be bought with borrowed money.
+
+### When you have nothing left to build
+
+When all your lines are finished, or none of your unfinished lines has a legal placement, you still take your turn each round. You may buy your extra cards if you haven't yet (step 1), then hire no crews to end your turn. Play continues until round nine ends or no company can build (§12).
 
 ## 5. Building a line
 
-Begin at the starter and follow the contract's lengths in printed order. Extend
-from the current last peg, choose an empty hole, meet the next length and curve
-rules, review the preview, and confirm.
+Each line starts at its starter station and follows its Line Contract: build the printed segments in order, one segment per hired crew. Each new segment starts at the line's last station and ends at a new station in an empty hole. The game shows every legal hole and previews your choice before you confirm.
 
-### Lengths and curves
+### Length and direction
 
-Measure straight-line distance in peg spaces. Every segment must match its printed
-length; shortened segments are not allowed. The digital game allows half a peg
-space above or below the printed length: a length-four segment may measure 3.5
-to 4.5 spaces. Diagonals qualify when their measured length fits. Use the legal
-placement indicators rather than adding horizontal and vertical steps.
+Each segment must match its printed length, measured as a tight string from station to station (see §2). Segments cannot be shortened.
 
-Your line may curve by **at most 90 degrees** at a peg. Continuing
-straight is allowed; curving back more sharply is not. The first segment has no
-previous direction. Straight mode connects pegs directly. In an optional bend
-mode, measure each straight leg and add the lengths.
+A line may curve by **at most 90°** wherever it changes direction, both at a station and at a bend. The first segment of a line can go in any direction.
 
-### Optional bend modes
+### Bends
 
-The host chooses one mode before starting; it cannot change during the game.
-**Delayed construction** is the default. The old straight-only option is hidden.
-**Bend tokens** gives each company three
-tokens. Each bend costs one token; missing tokens cost **$3M each**, automatically
-purchased on Confirm using available cash (no borrowing). Preview one bend
-and finish the whole segment in one activation. Cancel is free; Undo restores
-spent tokens and purchases.
+A segment may contain **one bend**: a corner between its two stations. A bent segment's length is the sum of its two legs, and the half-space allowance applies once to the whole segment.
 
-**Delayed construction** has no token cost. Choose “Stop at a bend” and confirm
-to build one leg and end that line’s activation. Other hired lines still act.
-Hire that line again on a later turn to finish its remaining length.
-Only one bend is allowed per segment; a second stop is not allowed. A worksite does not reserve future
-holes or strings; later construction may block its continuation.
+A bend takes two turns. Build the segment's first leg and stop at the bend. This uses that line's crew for the turn and leaves a **worksite** at the bend. On a later turn, hire that line again to build the second leg and finish the segment. Your other hired lines still build normally.
 
-Each leg joins board holes and curves by at most **90 degrees**.
-Add the actual leg lengths; apply the existing ±0.5-space tolerance once to the
-whole printed segment. A stop must leave at least one space available to finish.
-Bends and worksites are **not pegs or stations**: they do not serve neighborhoods,
-create transfers, satisfy station objectives or count as line ends. Partial strings
-are physical: crossings cost money when built and overlaps remain forbidden.
-Only completed segments contribute network length, using their full bent path.
-No completion reward is paid until all printed segments are finished. The game
-still lasts at most nine rounds; unfinished lines retain their normal penalty.
+- The first leg can be at most the printed length minus ½ peg space, so there is always room to finish.
+- A worksite does not reserve anything. If other construction blocks every way to finish the segment, that line cannot be hired again and stays unfinished.
 
-### Contacts and overlaps
+A bend is not a station. It does not serve a neighborhood, create a transfer, count toward an Engineering goal, or count as the end of a line.
 
-A line cannot cross or rejoin an earlier part of itself. Different lines may
-cross, including your own. Strings may pass through existing pegs, and a new peg
-may occupy an empty hole crossed by another line's string.
+A partly built segment is real track: crossing it costs money (§7), and nothing may overlap it. Only finished segments count toward network length.
 
-Two strings cannot lie along the same stretch. Crossing at a point is allowed;
-overlapping along a length is not. Your own different lines charge no money;
-opponent contacts may require payment.
+### Crossing and overlapping
+
+A line cannot cross itself or touch an earlier part of itself.
+
+Different lines may cross each other, including two of your own lines. A string may pass over a station, and a new station may go in an empty hole that another line's string passes over.
+
+Two strings may never run along the same stretch. Crossing at a single point is fine; lying on top of each other is not.
+
+Contact with your own lines is free. Contact with another company's line or station may cost money (§7).
 
 ### Completing a line
 
-Build every printed segment to complete a line. Receive **$3 million immediately**
-and its contract's completion points at scoring. An unfinished line receives its
-printed penalty instead; there are no partial completion points.
+A line is complete when every printed segment is built. You immediately receive **$3 million**, and the line scores its completion points at the end of the game. A line left unfinished scores its printed penalty instead; partly built lines earn nothing.
 
 ## 6. Transfers, stations and networks
 
-Two different lines belonging to you connect when their pegs occupy immediately
-neighboring holes horizontally or vertically. This creates a transfer.
+### Transfers
 
-Diagonal adjacency, crossing strings, visiting the same neighborhood without
-adjacent pegs, and lines through an opponent's line do **not** connect your lines.
-An opponent may share a local transfer station, but never bridges your company network.
+A **transfer** joins two of your lines. It happens when a station on one of your lines sits in the hole directly next to a station on a different one of your lines: north, south, east or west.
 
-A **transfer station** is a local group of horizontally/vertically adjacent
-stations. For Station cards and company-network connections, group stations only
-through adjacency between different lines; same-line adjacency alone does not
-create a qualifying transfer. Transfer stations may contain several lines and companies and cross
-neighborhood boundaries. Strings between distant locations do not make one
-transfer station. Two local transfer stations that grow together become one transfer station.
+None of these create a transfer:
 
-**Single Line:** One line supplies the entire requirement.
+- stations that touch only diagonally;
+- strings that cross;
+- two stations in the same neighborhood that are not next to each other;
+- two neighboring stations on the same line;
+- your station next to an opponent's station.
 
-**Connected Network:** Your physically connected lines may contribute together.
-Disconnected sections cannot be combined.
+### Transfer stations
 
-**Company-wide:** Any of your lines may contribute, connected or not.
+A **transfer station** is a group of stations joined by transfers. It grows as more stations on different lines are built next to it, and two transfer stations that grow together become one. A transfer station can hold any number of lines and can cross neighborhood boundaries.
+
+When your stations sit next to an opponent's, you share a transfer station with that company. Some Engineering cards reward this (§9), but it never connects your lines to theirs.
+
+The Largest Transfer Station award (§10) counts differently; see that section.
+
+### Your network
+
+Your **network** is a set of your lines joined by transfers. Every station you have built counts, including those on unfinished lines. Lines with no transfer between them are separate networks, even if they cross or serve the same neighborhood.
+
+### How cards count your lines
+
+Each Engineering and Destination card uses one of three scopes:
+
+- **Single Line:** one line must meet the whole requirement.
+- **Connected Network:** lines in one network may combine.
+- **Company-wide:** any of your lines may combine, connected or not.
 
 ## 7. Paying other companies
 
-### Joining stations
+Building next to other companies is free. Building **through** their track costs money, except right at a transfer station you share with them.
 
-Joining a transfer station is free, including starters and stations shared by
-multiple opponents. Crossing and touching strings is still priced separately.
+### What is free
 
-### Crossing and touching strings
+- Placing a station next to an opponent's station, including their starters. You now share a transfer station with them (§6).
+- Crossing or touching your own lines.
+- Crossing or touching an opponent's line within **1 peg space** of that line's station in a transfer station you already share with them. This works both ways. The same line anywhere else still costs money, and so do their lines that have no station in the shared transfer station.
 
-Each distinct contact with an opponent's existing infrastructure costs
-**$1 million to that owner**. Two separate crossing points with the same opponent
-cost $2 million. Several strings belonging to that opponent at one contacted
-point cost $1 million at that point. Pay each owner when several opponents share
-a contacted point.
+### What costs money
 
-Extending away from an already contacted starting point does not charge for that
-same departure again. **Joining stations never grants free crossings.** The preview
-identifies recipients, amounts and reasons before confirmation.
+Each time your new string makes contact with one of an opponent's lines, pay that company **$1 million**. A contact is any of these:
+
+- your string crosses their string;
+- your string passes over one of their stations;
+- your string passes through one of their bends or worksites;
+- your new station sits in an empty hole that their string passes over.
+
+Contacts are counted by line and point:
+
+- Each separate point costs $1 million, so crossing the same opponent at two points costs $2 million.
+- If two of one opponent's lines meet at a point you contact, that point costs $2 million: $1 million for each line. One line's own station, where its two strings meet, costs $1 million.
+- If several opponents meet at that point, pay each of them for each of their lines.
+- The station your segment starts from is never charged again.
+
+A shared transfer station counts only if it exists before you confirm. The placement that creates one still pays for its contacts.
+
+A bent segment pays for each leg as it is built. Payments may take your cash below zero (§4). Before you confirm, the preview shows whom you will pay, how much and why. Undo refunds the payments.
 
 ## 8. Destination cards
 
-Serve every named neighborhood within **one connected company network**, in any
-order. None is a required start or finish. Several connected lines may contribute,
-and they need not be complete. Two-neighborhood missions award **4 VP**;
-three-neighborhood missions award **7 VP**. The first time your network connects a
-mission you hold, the bank also pays you **$2 million** (two neighborhoods) or
-**$3 million** (three) immediately; a bought mission that is already connected pays
-at once. Each mission pays once, and Undo reverses the payment with the placement.
-Unfulfilled missions score zero with no penalty. Cards are not assigned to individual lines; one network may fulfill
-several cards.
+A Destination card names two or three neighborhoods. You fulfill it when **one of your networks** (§6) serves every neighborhood on the card, meaning it has a station in each.
 
-Before hiring crews on your turn, you may buy one extra random Destination for
-**$3 million**, once per game, and one extra Engineering goal for **$3 million**,
-once per game. Choose one of the two face-up Engineering goals on your phone,
-then refill that space; or draw randomly on your phone or iPad. The iPad directs
-face-up choices to the phone. Purchases require available cash. Cards
-stay private: the iPad shows only the current company's cards, during its turn, and
-every hand is revealed at results. Enabling a highlight also marks that selected
-mission's neighborhoods on the iPad board during your turn.
+- The order doesn't matter, and no named neighborhood has to be the start or end of a line.
+- Several lines can combine if transfers join them. Unfinished lines count.
+- One network can fulfill several cards. Cards are not tied to particular lines.
+
+### Rewards
+
+| Card | Cash when first connected | Points at the end |
+|---|---:|---:|
+| Two neighborhoods | $2 million | 4 VP |
+| Three neighborhoods | $3 million | 7 VP |
+
+The bank pays the cash immediately, the first time your network connects a card you hold. Each card pays its cash only once, and Undo takes the cash back along with the placement. If you buy a card your network already connects, it pays at once. A card you don't fulfill scores nothing; there is no penalty.
+
+### The deck
+
+There are 30 Destination cards in one deck: 15 that name two neighborhoods and 15 that name three. Each company is dealt three and keeps two (§3); the discards leave the game, and the rest stay face down.
+
+Once per game, before hiring crews, you may buy one extra random Destination for **$3 million** in cash (§4). You draw it at random, so it may name two or three neighborhoods.
+
+### Keeping cards secret
+
+Your Destination cards are private. During your turn the iPad shows your cards, and only yours. Every hand is revealed at the end of the game. You can highlight a card's neighborhoods on the board; the iPad shows that highlight only during your turn.
 
 ## 9. Engineering cards
 
-Score each Engineering card you hold — your three drafted cards plus any you
-bought — once at game end, for its full printed value or zero. One construction may satisfy several cards. Live “Currently met” indicators
-are provisional: later actions can change fulfillment.
+Engineering cards are goals that score at the end of the game. Each company drafts three during setup (§3) and may buy one more.
 
-A **qualifying line end** is a starter or the final station of a completed line. The
-growing tip of an unfinished line does not count as a completed final station.
-**Consecutive stations** are successive stations joined by one segment on a line.
-**Distinct transfer stations** are separate transfer stations; merged transfer stations count once.
+### Scoring
 
-A corner belongs to two border sides, but distinct-side requirements need a
-different peg for each side. Opposite corners are northwest–southeast or
-northeast–southwest. Unless completion or final stations are required, unfinished lines
-may contribute. Station-card transfers use your own different lines unless the
-card explicitly includes opponents.
+- Every Engineering card you hold scores once at the end: its full printed VP if it is met, otherwise nothing. There is no penalty.
+- One piece of construction can meet several cards.
+- Your phone shows "Currently met" while you build. That is a live check, not a guarantee. A card can stop being met, for example when two transfer stations grow together and count as one.
+
+### Buying one more
+
+Once per game, before hiring crews, you may buy one extra Engineering goal for **$3 million** in cash (§4). Take one of the two face-up goals, which is then replaced from the deck, or draw one at random. Pick face-up goals on your phone; you can draw at random on your phone or the iPad.
+
+### Reading a card
+
+Each card shows its scope (§6) and may carry these labels:
+
+- **Complete Line:** every segment of the line must be built.
+- **Line Ends Only:** only qualifying line ends count. A **qualifying line end** is a line's starter, or the final station of its contract once the line is complete. The tip of an unfinished line is not one.
+- **Consecutive Stations:** two stations next to each other on one line, joined by a single segment.
+- **One Transfer Station:** the stations involved are in a single transfer station (§6).
+- **Distinct Transfer Stations:** separate transfer stations. Two that grow together count as one.
+- **One Neighborhood:** the stations forming the transfer are inside the same neighborhood.
+- **Your Lines:** transfers must be between your own different lines.
+- **Opponent Contact:** this card counts transfer stations shared with opponents.
+
+A corner hole lies on two borders, but a card that asks for different border sides needs a different station for each side. Opposite corners means northwest with southeast, or northeast with southwest.
 
 ### Line cards
 
@@ -285,75 +320,79 @@ card explicitly includes opponents.
 
 ## 10. Public standings
 
-### Longest network
+Two awards are scored at the end of the game. The iPad shows the current leaders throughout.
 
-Find your longest continuous trail through built segments, measured by actual
-length in peg spaces. Transfers add zero length; unfinished lines may contribute.
-You may revisit a peg, but cannot use a segment twice. Do not simply add every
-branch or disconnected section together.
+### Longest Network
 
-The longest company receives **5 VP**, or **3 VP each** when tied. Empty networks
-cannot win.
+Your longest network is the longest single route you could travel through your own built track without using any segment twice.
+
+- Measure each segment's actual length in peg spaces. A bent segment counts both legs; a partly built segment doesn't count.
+- You may pass through a station more than once, and you may change lines at a transfer for free (it adds no length).
+- Unfinished lines count. Branches and separate networks don't add together.
+
+The company with the longest scores **5 VP**. If companies tie, each scores **3 VP**. A company with no built segments can't score it.
 
 ### Largest Transfer Station
 
-Group all occupied peg holes by horizontal/vertical adjacency across every
-company, including pegs on the same line. Diagonals and strings do not join
-transfer stations. A single occupied hole is a size-one group for this award.
-
-Find all equally largest transfer stations, then add each company's pegs across those
-transfer stations. Award once to the company or companies with the greatest total:
-**6 VP** for one leader, **3 each** for two, **2 each** for three, and **zero**
-for four. An empty board awards nothing. The public display uses this same rule.
-
-This occupied-hole award is distinct from Station-card transfers, which require
-different-line adjacency. Opponents still never bridge your company network.
+Find the largest transfer station on the board (§6), counting every company's stations in it. If several tie for largest, use all of them. Each company counts its own stations in those transfer stations. The company with the most scores **6 VP**. Two tied leaders score **3 VP** each, three score **2 VP** each, and four score nothing. If no transfer station exists, nobody scores this award.
 
 ## 11. Planning, confirming and Undo
 
-Ghost previews and saved plans are proposals. They do not place pegs, spend money
-or reserve holes. Other construction may make a plan illegal; recheck on your turn.
-Select a placement and review its cost before Confirm.
+### Planning
 
-Undo reverses the latest eligible physical placement, its transfers and any
-completion reward. It restores the placement opportunity, not crew-hiring cost.
-Another accepted action can close the opportunity; this is not a rewind through
-earlier turns.
+You can sketch routes ahead of time (a "ghost" plan). Plans are private notes only: they don't place pegs, spend money or reserve holes, and other companies' building can make them impossible. Check them again on your turn.
 
-The iPad shows company cash, line colors and public standings. Your phone also
-shows your own construction progress. Destination highlight selections are saved
-per player. Only the current player's selected destinations appear on the shared
-board; your phone keeps your own choices visible even off-turn. With no active
-player, the shared board shows no destination highlights.
+### Confirming
 
-After all three lines finish, starting on your next turn you may instead extend
-any one line with a single straight placement of 1–2 peg spaces for $1 million
-plus crossing tolls, or skip for free. Normal heading and placement rules apply.
-Pay on confirmation; borrowing and Undo apply, with no extra crew bill or repeated
-completion reward. Buy optional cards before selecting the extension. Original
-recipe endpoints remain qualified; new track and stations count toward goals.
+The game previews every placement before it happens: the hole, the route, and what you'll pay and receive. Nothing changes until you press **Confirm**.
+
+### Undo
+
+You can take back your most recent placement (a starter, a station, or the first leg of a bend) as long as nobody, including you, has done anything since.
+
+- Undo removes the placement, refunds any payments it made, and takes back any cash it earned from completing a line or connecting a Destination.
+- The crew can build again. The crew cost you paid when hiring is not refunded, and hiring itself can't be undone.
+- Undo still works if your placement ended the round, until the next company acts.
+- Undo goes back only one step.
+
+### What the iPad and your phone show
+
+- The iPad shows every company's cash, lines and the public standings (§10).
+- Your phone shows your own cards, lines and progress.
+- You can highlight a Destination's neighborhoods (§8). The iPad shows a company's highlights only during its turn; your phone always shows your own.
 
 ## 12. Ending and scoring
 
-End after round nine, or earlier when no company has a legal next segment or
-paid extension. One blocked company does not end play while another can still build.
+### When the game ends
 
-1. Add completed-line points.
-2. Apply unfinished-line penalties.
-3. Add fulfilled Engineering cards.
-4. Add fulfilled Destination cards.
-5. Add any longest-network and Largest Transfer Station awards.
-6. Score your **ending cash** on the spectrum: $5M or more +3 VP, $4M +2 VP, $2M to $3M +1 VP,
-   $0M to $1M 0 VP. Debt costs **2 VP per $1M owed**, with no cap.
+Construction ends after round nine, or earlier as soon as no company can build. A company that is finished or blocked doesn't end the game while another can still build (§4). The host then reveals every hand and the final scores.
 
-There are no automatic points for neighborhood visits or leftover
-positive cash. Highest total wins. Break ties by number of different large
-neighborhoods served, then remaining cash, then shared victory.
+### Scoring
+
+| Item | Points |
+|---|---|
+| Each completed line | its printed completion VP (§13) |
+| Each unfinished line | its printed penalty (§13) |
+| Each fulfilled Engineering card | its printed VP (§9) |
+| Each fulfilled Destination | 4 VP for two neighborhoods, 7 VP for three (§8) |
+| Ending cash | $5M or more +3 VP, $4M +2 VP, $2M to $3M +1 VP, $0M to $1M 0 VP |
+| Debt | −2 VP per $1M owed, with no cap |
+| Longest Network | 5 VP, or 3 VP each if tied (§10) |
+| Largest Transfer Station | 6 / 3 / 2 / 0 VP (§10) |
+
+Serving a neighborhood scores nothing by itself; it only counts toward cards.
+
+### Winning
+
+The highest total wins. Break ties by:
+
+1. the number of different large neighborhoods with at least one of your stations;
+2. then the most cash left;
+3. then the tied companies share the win.
 
 ## 13. Line-contract reference
 
-Build lengths in listed order. Every completed line also pays the immediate
-$3 million reward.
+Each Line Contract lists its segment lengths in the order you build them (§5), its price (§3), the points it scores when complete, and its penalty if it is unfinished at the end (§12). Every completed line also pays **$3 million** immediately. Each game uses 7, 10 or 13 of these 13 contracts, depending on the number of players (§3).
 
 | Line | Code | Segment recipe | Price | Complete VP | Unfinished VP |
 |---|---|---|---:|---:|---:|

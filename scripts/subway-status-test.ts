@@ -27,6 +27,29 @@ const access=(s:SubwayState,x:number,y:number,index=0)=>stationAccessContacts(s,
  assert.equal(u.players['seat-1'].money,s.players['seat-1'].money);
  assert.deepEqual(moneyChanges(u.moneyEvents!.at(-1)!).map(c=>c.amount),[1,-1]);
 }
+// DEC-066: each opposing line at a contact point pays; one line's own station pays once.
+{
+ const s=base();s.players['seat-1'].lines=[line([{x:0,y:5}])];
+ s.players['seat-2'].lines=[line([{x:2,y:3},{x:2,y:7}]),line([{x:1,y:4},{x:3,y:6}],'branch')];
+ const both=routeContacts(s,'seat-1',{x:0,y:5},{x:4,y:5},0);
+ assert.equal(both.length,2,'two of one opponent\'s lines at one point cost $2M');
+ assert.deepEqual(both.map(c=>c.lineIndex).sort(),[0,1]);
+ s.players['seat-2'].lines=[line([{x:2,y:3},{x:2,y:5},{x:2,y:7}])];
+ assert.equal(routeContacts(s,'seat-1',{x:0,y:5},{x:4,y:5},0).length,1,'passing one line\'s station costs once');
+}
+// DEC-066: contacts within 1 space of that line's station in an already shared transfer station are free.
+{
+ const s=base();s.players['seat-1'].lines=[line([{x:0,y:5},{x:3,y:5}]),line([{x:2,y:8}],'tram')];
+ s.players['seat-2'].lines=[line([{x:4,y:3},{x:4,y:5},{x:4,y:8}]),line([{x:2,y:6},{x:6,y:6}],'branch')];
+ const at=(from:{x:number,y:number},to:{x:number,y:number},id='seat-1')=>routeContacts(s,id,from,to);
+ assert.deepEqual(at({x:3,y:5},{x:6,y:4}),[],'crossing 0.3 from the shared station is free');
+ assert.deepEqual(at({x:3,y:5},{x:6,y:8}).map(c=>c.lineIndex),[1],'1 space away is free for the station line; their other line still pays');
+ assert.equal(at({x:3,y:5},{x:5,y:8}).filter(c=>c.lineIndex===0).length,1,'1.5 spaces away pays');
+ assert.equal(at({x:2,y:8},{x:6,y:7}).filter(c=>c.lineIndex===0).length,1,'the same line elsewhere pays');
+ assert.deepEqual(routeContacts(s,'seat-2',{x:1,y:4},{x:3,y:6}).filter(c=>c.ownerId==='seat-1'),[],'free both ways: their crossing beside your shared station');
+ const apart=structuredClone(s);apart.players['seat-2'].lines[0].route[1]={x:5,y:5};
+ assert.equal(routeContacts(apart,'seat-1',{x:3,y:5},{x:6,y:4}).length,1,'without a shared station the crossing pays');
+}
 {
  const s=base();s.players['seat-1'].lines=[line([{x:0,y:2}]),line([{x:2,y:2}],'tram')];
  assert.match(validateNode(s,'seat-1',0,{x:2,y:2})!,/occupied/);
