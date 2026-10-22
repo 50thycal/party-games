@@ -46,9 +46,12 @@ export const SUBWAY_CONFIG = {
   startingMoney: 40,
   completionReward: 3,
   /**
-   * Printed length of a paid extension after all three lines finish. Like any
-   * segment it accepts geometry.lengthTolerance, so 1 to 2.5 peg spaces fit.
+   * Paid extensions after all three lines finish (DEC-062) are retired (DEC-068):
+   * a finished company only takes a short turn to buy cards. The extension branches
+   * stay dormant until the legacy prune parked with K2/K3.
    */
+  extensionsEnabled: false,
+  /** Printed length of a paid extension (DEC-064), with geometry.lengthTolerance; dormant. */
   extensionReach: 2,
   /**
    * Cash paid the moment a held Destination mission is first connected: pair
@@ -670,7 +673,7 @@ export const allLinesComplete = (p: SubwayPlayer): boolean =>
   p.lines.length > 0 && p.lines.every(lineComplete);
 
 /** Extensions unlock only after the fixed three-contract portfolio is complete. */
-export const extensionEligible = (p: SubwayPlayer): boolean => p.lines.length === 3 && allLinesComplete(p);
+export const extensionEligible = (p: SubwayPlayer): boolean => SUBWAY_CONFIG.extensionsEnabled && p.lines.length === 3 && allLinesComplete(p);
 
 /** How many recipe segments this line has actually built. */
 export const segmentsBuilt = (line: PlayerLine): number => Math.min(contractOf(line)?.recipe.length ?? 0, Math.max(0, line.route.length - 1));

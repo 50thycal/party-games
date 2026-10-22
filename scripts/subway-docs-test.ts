@@ -85,12 +85,11 @@ for (const surface of ['rulebook', 'rules'] as const) for (const card of ENGINEE
 const retired: [string, RegExp][] = [
   ['card privacy', /private until results/],
   ['flexible length', /[Ss]hortening is enabled|Optional shortening|Flexible length/],
-  ['end condition ignoring extensions', /no incomplete line has a legal next segment|legal next segment on any incomplete line|legal next segment\s+left\./],
   ['drafted Destinations', /[Dd]raft three Engineering goals and two Destinations/],
   ['paid station access', /\$1M once per line, opponent/],
   ['diagonal step counted as one peg space (G2)', /neighboring peg, either orthogonally or diagonally/],
   ['board locations called pegs (G3)', /grid of pegs|Each peg can hold only one station/],
-  ['extension reach without the ±0.5 tolerance', /1–2 peg spaces/],
+  ['paid extensions (DEC-068)', /1–2(\.5)? peg spaces|paid extension\b(?! ?\(?DEC)|[Ee]xtend (any )?one (of your )?lines?/],
   ['bend-token or straight-only variant (DEC-065)', /bend tokens|straight-only|Optional bend/i],
   ['one pair and one triple dealt (DEC-067)', /one two-neighborhood and one three-neighborhood|one pair and one triple|one naming two neighborhoods and one naming three/],
   ['one charge per owner at a point (DEC-066)', /once per owner|per distinct contact per owner|even after transfer access/],
@@ -111,9 +110,5 @@ for (const [surface, text] of Object.entries({ ...docs, tutorial, intro })) {
   has(surface, text, new RegExp(`within ${C.contact.sharedStationFreeReach} (peg )?space`), 'shared-station free contacts');
 }
 
-// Extensions are taught wherever play is summarised (G6, G7).
-for (const [surface, text] of Object.entries({ ...docs, tutorial, intro })) {
-  has(surface, text, /1–2\.5 peg spaces/, 'extension reach');
-}
 
 console.log('Rules text: numbers, contract and card tables match the reducer; no retired rules remain.');

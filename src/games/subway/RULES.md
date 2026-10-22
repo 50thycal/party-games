@@ -15,7 +15,7 @@ A light-strategy line-building game for **2–4 companies**. Most victory points
 3. Draft **three Engineering goals each**, choosing between two face-up cards or a blind draw.
 4. Place one free starter for each line on an **empty**, non-neighborhood outer-border hole. A starter cannot overlap any company's existing peg including your own. Adjacent empty holes are allowed. No placement may stack pegs. Joining an opponent station is also free.
 5. Play up to **9 construction rounds**, choosing crews anew each turn. End
-   immediately if no company has a legal next segment or paid extension.
+   immediately if no company has a legal next segment.
 6. Score all held goals and lines; subtract unfinished-line
    penalties and the **ending-cash band** below.
 
@@ -202,7 +202,8 @@ The displayed bill previews remaining cash and the final penalty at that balance
 
 Every company gets a turn each round, including a company choosing no crews.
 Construction ends after round 9, or immediately after a placement leaves no
-company a legal next segment or paid extension. Empty rounds are never played. A
+company a legal next segment. A finished or blocked company still takes a short
+turn to buy optional cards, then hires no crews. Empty rounds are never played. A
 blocked or skipped placement does not refund its hired crew. Normal placement
 legality remains unchanged.
 
@@ -304,19 +305,7 @@ their actual footprints, with wrapped text and camera-adaptive font sizes.
 Automated games test termination and rule behavior, not human enjoyment or
 statistically proven balance. Physical iPad acceptance remains a human playtest task.
 
-## Paid extensions (state v30)
+## Paid extensions (retired)
 
-After all three of your lines are complete, starting on your next turn you may
-extend any one line, or skip. Select a line and preview one straight placement
-1–2.5 peg spaces from its current end: two spaces with the usual ±0.5 tolerance, so
-a diagonal step (≈1.4) or a knight's step (≈2.2) fits, two diagonal steps (≈2.8) do not. Turn at most 90°, use an empty hole and obey normal self-crossing,
-overlap and contact rules. No intermediate bend/worksite is added to this short
-placement. Confirm to pay $1M plus crossing tolls; there is no extra crew bill.
-You may borrow under the normal construction rule. Skipping pays nothing.
-
-The original recipe stays complete and its final station still qualifies for
-endpoint Engineering cards. Extensions add network length and real stations,
-including destination service and transfer opportunities, without repeating
-completion cash. Undo reverses the extension and its payments. Buy optional cards
-before selecting your extension. One extension per turn; play still ends by round
-nine. Drafting remains three lines per player. Existing rooms must restart for v30.
+Paid extensions (DEC-062) are retired (DEC-068). A company whose lines are all
+finished takes a short turn each round to buy optional cards, then hires no crews.

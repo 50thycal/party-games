@@ -122,15 +122,9 @@ If a hired crew does not build, whether because you skip it or because it has no
 
 Crew costs and payments to other companies may take your cash below zero, and you may keep building while in debt. Debt costs victory points at the end of the game (§12). Extra cards cannot be bought with borrowed money.
 
-### After your three lines are finished
+### When you have nothing left to build
 
-Once all three of your lines are complete, you stop hiring crews. Starting on your next turn, you may instead **extend** one of your lines:
-
-- Pay **$1 million** to add one new station to the end of any one of your completed lines.
-- The new segment must be straight, with no bends. Its printed length is 2 peg spaces with the usual half-space allowance, so it may measure **1–2.5 peg spaces**. One diagonal step (about 1.4) or a knight's-move step (about 2.2) fits; two diagonal steps (about 2.8) do not.
-- The normal placement rules apply: the 90° curve limit, one peg per hole, no overlaps, and payments to other companies.
-- You may extend once per turn, or skip for free. Borrowing and Undo work as usual.
-- Extending does not pay the line's completion reward again. New stations and track count toward your Engineering goals, Destinations, Longest Network and Largest Transfer Station.
+When all your lines are finished, or none of your unfinished lines has a legal placement, you still take your turn each round. You may buy your extra cards if you haven't yet (step 1), then hire no crews to end your turn. Play continues until round nine ends or no company can build (§12).
 
 ## 5. Building a line
 
@@ -262,20 +256,32 @@ Your Destination cards are private. During your turn the iPad shows your cards, 
 
 ## 9. Engineering cards
 
-Score each Engineering card you hold — your three drafted cards plus any you
-bought — once at game end, for its full printed value or zero. One construction may satisfy several cards. Live “Currently met” indicators
-are provisional: later actions can change fulfillment.
+Engineering cards are goals that score at the end of the game. Each company drafts three during setup (§3) and may buy one more.
 
-A **qualifying line end** is a starter or the final station of a completed line. The
-growing tip of an unfinished line does not count as a completed final station.
-**Consecutive stations** are successive stations joined by one segment on a line.
-**Distinct transfer stations** are separate transfer stations; merged transfer stations count once.
+### Scoring
 
-A corner belongs to two border sides, but distinct-side requirements need a
-different peg for each side. Opposite corners are northwest–southeast or
-northeast–southwest. Unless completion or final stations are required, unfinished lines
-may contribute. Station-card transfers use your own different lines unless the
-card explicitly includes opponents.
+- Every Engineering card you hold scores once at the end: its full printed VP if it is met, otherwise nothing. There is no penalty.
+- One piece of construction can meet several cards.
+- Your phone shows "Currently met" while you build. That is a live check, not a guarantee. A card can stop being met, for example when two transfer stations grow together and count as one.
+
+### Buying one more
+
+Once per game, before hiring crews, you may buy one extra Engineering goal for **$3 million** in cash (§4). Take one of the two face-up goals, which is then replaced from the deck, or draw one at random. Pick face-up goals on your phone; you can draw at random on your phone or the iPad.
+
+### Reading a card
+
+Each card shows its scope (§6) and may carry these labels:
+
+- **Complete Line:** every segment of the line must be built.
+- **Line Ends Only:** only qualifying line ends count. A **qualifying line end** is a line's starter, or the final station of its contract once the line is complete. The tip of an unfinished line is not one.
+- **Consecutive Stations:** two stations next to each other on one line, joined by a single segment.
+- **One Transfer Station:** the stations involved are in a single transfer station (§6).
+- **Distinct Transfer Stations:** separate transfer stations. Two that grow together count as one.
+- **One Neighborhood:** the stations forming the transfer are inside the same neighborhood.
+- **Your Lines:** transfers must be between your own different lines.
+- **Opponent Contact:** this card counts transfer stations shared with opponents.
+
+A corner hole lies on two borders, but a card that asks for different border sides needs a different station for each side. Opposite corners means northwest with southeast, or northeast with southwest.
 
 ### Line cards
 
@@ -358,8 +364,8 @@ player, the shared board shows no destination highlights.
 
 ## 12. Ending and scoring
 
-End after round nine, or earlier when no company has a legal next segment or
-paid extension. One blocked company does not end play while another can still build.
+End after round nine, or earlier when no company has a legal next segment.
+One blocked or finished company does not end play while another can still build.
 
 1. Add completed-line points.
 2. Apply unfinished-line penalties.

@@ -2092,7 +2092,7 @@ line counts remain parked. No state-version change or gameplay rebalance.
 ### DEC-062 — Paid extensions after the third completed line
 
 **Date:** 2026-09-20
-**Status:** Accepted by owner in chat. Extension length clause superseded by DEC-064.
+**Status:** Superseded by DEC-068.
 
 **Context:** Early finishers in the four-player test ran out of meaningful actions.
 
@@ -2152,7 +2152,7 @@ against `SUBWAY_CONFIG`, the contract data and the card data by
 ### DEC-064 — Extensions take the normal ±0.5 length tolerance
 
 **Date:** 2026-10-22
-**Status:** Accepted by owner in chat (rulebook §4 approval).
+**Status:** Superseded by DEC-068.
 
 **Context:** While approving rulebook §4, the owner was shown that a paid extension
 (DEC-062) accepted exactly 1 to 2 peg spaces with no tolerance, stricter than every
@@ -2282,3 +2282,33 @@ current chooser's three cards. Bot policy v8 keeps the pair with the most VP per
 distinct neighborhood and never discards a focus card; Card Audit's Destination
 focus keeps the audited card. The deck available for purchases shrinks to
 30 − 3 × companies.
+
+### DEC-068 — Retire paid extensions; finished companies take a short turn
+
+**Date:** 2026-10-22
+**Status:** Accepted by owner in chat (rulebook §9 approval).
+
+**Context:** DEC-062 let a company that had finished all three lines pay $1M a turn to add a
+short straight placement to any line; DEC-064 gave it the ±0.5 tolerance. While approving
+§9 the owner asked for extensions to be removed: finished players simply wait for the game
+to end.
+
+**Decision:** Paid extensions are retired for every game, including rooms in progress.
+`SUBWAY_CONFIG.extensionsEnabled` is false, so `extensionEligible` never holds. A company
+whose lines are all finished, or whose unfinished lines have no legal placement, still
+takes its turn each round: it may buy its optional cards, then hires no crews. Construction
+ends after round nine or when no company can build. The owner chose this short turn over
+skipping finished companies automatically, which would have removed late card purchases.
+
+**Rationale:** Extensions added a late-game rule players had to learn for a small effect;
+waiting keeps the end of the game simple while still allowing late card purchases.
+
+**Alternatives considered:** Keeping extensions; skipping finished companies automatically;
+skipping them only once they have bought both extra cards. The owner chose the short turn.
+
+**Consequences:** No state-version bump. The config change alters the rules fingerprint, so
+old replays are refused as "rules differ". The extension branches in the reducer, path
+validation, bots and UI are dormant and join the legacy prune parked with K2/K3. Rules text
+no longer mentions extensions, and the drift test rejects extension wording. Approved §4
+replaces its extension subsection with "When you have nothing left to build". Games may end
+a little earlier, because finished companies no longer keep construction alive.

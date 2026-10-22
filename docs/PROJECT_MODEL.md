@@ -970,7 +970,12 @@ component has no game state, reducer dispatch, persistence or network access.
 Closing restores focus and leaves the table mounted. The older `/subway/tutorial`
 practice table remains separately accessible. Compact phone status is unchanged.
 
-### Completed-company extensions (DEC-062, state v30)
+### Completed-company extensions (DEC-062, state v30) — retired by DEC-068
+
+`SUBWAY_CONFIG.extensionsEnabled` is false, so `extensionEligible` never holds: a
+finished company has no buildable line, takes a short turn to buy optional cards and
+hires no crews, and exhaustion ignores it. The mechanics below are dormant code kept
+for the legacy prune parked with K2/K3.
 
 Three completed contracts unlock one short extension on each subsequent company
 turn. `HIRE_CREWS` selects at most one extendable owned line and marks `extending`

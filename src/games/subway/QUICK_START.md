@@ -48,9 +48,8 @@ previews your selection before you confirm.
 Finishing a line immediately earns **$3 million**, plus its printed victory
 points at the end.
 
-Once all three of your lines are finished, from your next turn you may instead
-extend any one line by a single straight placement of 1–2.5 peg spaces (2 spaces with
-the usual half-space allowance) for $1 million plus crossing tolls, or skip for free.
+Once all three of your lines are finished, you only buy any extra cards you
+still want on your turn, then end it.
 
 ## 4. Connect and serve
 
@@ -82,7 +81,7 @@ others allow a connected network or any of your lines.
 ## 7. Score
 
 The game ends after round nine, or earlier when no player has a legal next segment
-or paid extension left. Add completed-line points, fulfilled Engineering and Destination cards, and
+left. Add completed-line points, fulfilled Engineering and Destination cards, and
 any longest-network and Largest Transfer Station awards. Subtract unfinished-line penalties, then
 score your **ending cash**: +3 VP at $5M or more, +2 VP at $4M, +1 VP at $2M to $3M,
 and zero at $0M to $1M. Debt costs 2 VP per $1M owed, without a cap. Neighborhood visits do not earn
