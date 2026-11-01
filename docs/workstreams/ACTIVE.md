@@ -7,7 +7,6 @@
 
 | ID | Workstream | Phase | Status | Current Next Step | Related PR |
 |---|---|---|---|---|---|
-| [WS-008](WS-008-landmark-bearings.md) | Landmark Bearings | REVIEW | Active | Obtain independent review of the new game option | [#203](https://github.com/50thycal/party-games/pull/203) |
 | [WS-007](WS-007-subway-strategy-telemetry.md) | Subway strategy telemetry | REVIEW | Active | Owner review of classifier 1.0.0 readings against real playtests; calibrate thresholds | [#193](https://github.com/50thycal/party-games/pull/193) (merged) |
 | [WS-006](WS-006-subway-dgle-playtest.md) | Subway DGLE playtest follow-up | REVIEW | Active | Owner playtest of the ending-cash spectrum and restored borrowing; rule on D2–D4 | [#191](https://github.com/50thycal/party-games/pull/191), [#192](https://github.com/50thycal/party-games/pull/192) (merged) |
 | [WS-005](WS-005-subway-finished-edition.md) | Subway 2–4 player finished edition | REVIEW | Active | Independent review of the rulebook PR; then owner playtest of DEC-066–069 | [#202](https://github.com/50thycal/party-games/pull/202) open (rulebook fully approved); [#200](https://github.com/50thycal/party-games/pull/200), [#201](https://github.com/50thycal/party-games/pull/201) (rules audit, merged) |
@@ -22,7 +21,10 @@
 
 ## Recently completed
 
-None yet. WS-001 is the first workstream on this board.
+- [WS-008 — Landmark Bearings](WS-008-landmark-bearings.md): game implementation,
+  focused/API checks and responsive playtests completed in
+  [#203](https://github.com/50thycal/party-games/pull/203). Independent code review
+  approved; documentation-only finalization describes the state upon merge.
 
 ## Parking lot
 

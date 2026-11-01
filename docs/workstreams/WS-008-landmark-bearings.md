@@ -1,6 +1,6 @@
 # WS-008 — Landmark Bearings
 
-**Phase:** REVIEW
+**Phase:** COMPLETE
 **Status:** Active
 **Created:** 2026-10-31
 **Updated:** 2026-10-31
@@ -52,8 +52,8 @@ multiplayer/hotseat, responsive presentation and required validation.
 
 ## Implementation State
 
-Implemented in [PR #203](https://github.com/50thycal/party-games/pull/203)
-on `codex/landmark-bearings`: pure plugin, dual registration, 24-place
+Complete in [PR #203](https://github.com/50thycal/party-games/pull/203): pure plugin,
+dual registration, 24-place
 catalog, setup/guess/reveal/standings/history UI, isolated responsive lab and
 focused math/rules/render/API persistence tests.
 
@@ -64,17 +64,27 @@ replay, custom-origin, missing-guess and layout checks recorded in
 creation is unverified due to the existing HTTP preview randomUUID restriction;
 production HTTPS/Turso were not exercised.
 
+Final browser smoke after the review correction completed start → one-round
+reveal → replay → fresh-match start. Match identifiers are sent correctly by the
+setup UI. This documentation-only finalization records the completed state that
+takes effect when PR #203 lands; it does not claim production deployment.
+
 ## Review State
 
-**Verdict:** Changes required
-**Reviewed head:** 20af6a97a8790ebb33b368fdb85096511bb53942
+**Verdict:** Approved
+**Reviewed head:** 5083224dacd53175673735d76a666ca2204b0e8f
 **Reviewed PR:** #203
-**Finalization:** —
+**Finalization:** pushed
 
 Independent reviewer identified stale previous-match lobby mutations in PR
-comment 6551549881. START_GAME and UPDATE_SETTINGS now validate match/round;
-Setup includes them, API tests match the contract, and the replay regression
-is added. Awaiting independent re-review of the correction.
+comment 6551549881 on head 20af6a97a8790ebb33b368fdb85096511bb53942.
+START_GAME and UPDATE_SETTINGS now validate match/round; Setup includes them,
+API tests match the contract, and the replay regression is added. Independent
+reviewer `codex-bearings-independent-review-20261031` approved the corrected head
+in original PR comment 6551566729, independently rerunning all 26 checks and both
+API/local-database flows. No Blocking or Should-fix finding remains open.
+The reviewer records finalization-head verification on the PR after this commit
+exists; this file does not attempt to name its own future SHA.
 
 ## Framework
 
@@ -92,4 +102,4 @@ state disclosure limitation remains; this feature does not change transport.
 
 ## Next Step
 
-Obtain independent review of PR #203's current head.
+None.
