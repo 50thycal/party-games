@@ -52,7 +52,8 @@ multiplayer/hotseat, responsive presentation and required validation.
 
 ## Implementation State
 
-Implemented on `codex/landmark-bearings`: pure plugin, dual registration, 24-place
+Implemented in [PR #203](https://github.com/50thycal/party-games/pull/203)
+on `codex/landmark-bearings`: pure plugin, dual registration, 24-place
 catalog, setup/guess/reveal/standings/history UI, isolated responsive lab and
 focused math/rules/render/API persistence tests.
 
@@ -65,9 +66,9 @@ production HTTPS/Turso were not exercised.
 
 ## Review State
 
-**Verdict:** Not started
+**Verdict:** In review
 **Reviewed head:** —
-**Reviewed PR:** —
+**Reviewed PR:** #203
 **Finalization:** —
 
 ## Framework
@@ -82,8 +83,8 @@ state disclosure limitation remains; this feature does not change transport.
 
 ## Related PRs
 
-None yet.
+[PR #203](https://github.com/50thycal/party-games/pull/203)
 
 ## Next Step
 
-Open the implementation PR and obtain independent review of its current head.
+Obtain independent review of PR #203's current head.
