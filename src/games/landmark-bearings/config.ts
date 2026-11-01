@@ -71,9 +71,9 @@ function isAllowed(state: BearingsState, action: BearingsAction, ctx: GameContex
   const currentRound = action.payload?.round === state.round && action.payload?.match === state.match;
   switch (action.type) {
     case "UPDATE_SETTINGS":
-      return host && state.phase === "lobby" && validSettings(action.payload?.settings);
+      return host && state.phase === "lobby" && currentRound && validSettings(action.payload?.settings);
     case "START_GAME":
-      return host && state.phase === "lobby" && ctx.room.players.length >= 2 &&
+      return host && state.phase === "lobby" && currentRound && ctx.room.players.length >= 2 &&
         ctx.room.players.length <= 12 && validSettings(action.payload?.settings ?? state.settings);
     case "SUBMIT_GUESS":
       return state.phase === "guessing" && currentRound &&

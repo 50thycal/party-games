@@ -173,6 +173,24 @@ test("reducer never mutates input and remains JSON serializable", () => {
   act(state, "SUBMIT_GUESS", "calvin", { value: 50 });
   assert.equal(JSON.stringify(state), serialized);
 });
+test("prior-match start/settings retries cannot mutate the replay lobby", () => {
+  const lobby = initialState();
+  const settings = { ...lobby.settings, rounds: 1, firstLandmarkId: "alamo" };
+  const oldStart = { type: "START_GAME", playerId: "calvin", payload: { round: 0, match: 0, settings } };
+  const oldUpdate = { type: "UPDATE_SETTINGS", playerId: "calvin", payload: { round: 0, match: 0, settings } };
+  let state = game.reducer(lobby, oldStart, context("calvin"));
+  state = act(state, "SUBMIT_GUESS", "calvin", { value: 130 });
+  state = act(state, "REVEAL_RESULTS");
+  state = act(state, "PLAY_AGAIN");
+  assert.equal(state.match, 1); assert.equal(state.phase, "lobby");
+  for (const action of [oldStart, oldUpdate]) {
+    assert.equal(game.isActionAllowed!(state, action, context("calvin")), false);
+    assert.equal(game.reducer(state, action, context("calvin")), state);
+  }
+  assert.equal(act(state, "START_GAME", "calvin", { round: 99 }), state);
+  assert.equal(act(state, "UPDATE_SETTINGS", "calvin", { settings, match: 0 }), state);
+  assert.equal(act(state, "START_GAME").phase, "guessing", "fresh-match setup can start normally");
+});
 test("guessing UI conceals answer and other players' guesses", () => {
   let state = start({ firstLandmarkId: "bourbon-street" });
   state = act(state, "SUBMIT_GUESS", "zoe", { value: 123 });

@@ -16,8 +16,8 @@ const secondary = "min-h-11 rounded-xl border border-slate-600 px-4 py-2 text-sm
 
 type Send = (type: string, payload?: Record<string, unknown>) => Promise<void>;
 
-function Setup({ settings: saved, playerCount, send }: {
-  settings: BearingsSettings; playerCount: number; send: Send;
+function Setup({ settings: saved, match, playerCount, send }: {
+  settings: BearingsSettings; match: number; playerCount: number; send: Send;
 }) {
   const [settings, setSettings] = useState(saved);
   const [originChoice, setOriginChoice] = useState(() => {
@@ -111,7 +111,7 @@ function Setup({ settings: saved, playerCount, send }: {
     <p className="text-sm leading-relaxed text-slate-300">Everyone guesses an angle. Closest wins the round.
       Lowest total degrees off wins the game. Ties share the win.</p>
     <button type="button" className={primary} disabled={!valid || busy || playerCount < 2 || playerCount > 12}
-      onClick={async () => { setBusy(true); try { await send("START_GAME", { settings: draft }); } finally { setBusy(false); } }}>
+      onClick={async () => { setBusy(true); try { await send("START_GAME", { round: 0, match, settings: draft }); } finally { setBusy(false); } }}>
       {busy ? "Starting…" : playerCount < 2 ? "Waiting for at least 2 players" : "Start the expedition"}
     </button>
   </section>;
@@ -214,7 +214,7 @@ export function LandmarkBearingsGameView({ state: raw, room, playerId, isHost, d
     {error && <p role="alert" className="text-sm text-rose-300">{error}</p>}
 
     {!playing && <>
-      {isHost ? <Setup settings={state.settings} playerCount={room.players.length} send={send} /> :
+      {isHost ? <Setup settings={state.settings} match={state.match} playerCount={room.players.length} send={send} /> :
         <section className={panel}><h2 className="font-semibold">Ready for an expedition?</h2>
           <p className="mt-3 text-sm text-slate-300">The host is choosing the starting point. Guess the direction to each landmark;
             the lowest total degrees off wins.</p></section>}

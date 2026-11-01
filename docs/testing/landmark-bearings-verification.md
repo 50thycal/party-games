@@ -9,12 +9,16 @@ the true bearing and follow cumulative scores through the final round and replay
 
 ## Automated evidence
 
-- `npm run test:bearings`: 25 rules/math/rendering checks passed. Includes the
+- `npm run test:bearings`: 26 rules/math/rendering checks passed. Includes the
   five chat-coordinate regressions (12.3073°, 68.8406°, 132.8451°, 108.7718°,
   62.1197°), cardinal/dateline bearings, undefined bearings, shortest angular
   error, zero/360°, ties, missing guesses, host/membership/phase/round/match guards,
   no-repeat decks, frozen rosters, serialization, replay, UI concealment and
   final/history rendering.
+- Independent review found that old START_GAME/UPDATE_SETTINGS requests could
+  mutate a replay lobby. Both now require the current match/round, Setup sends
+  those identifiers, and a regression preserves old actions through replay and
+  verifies they are rejected. API starts use the same guards.
 - Two API integration flows passed: multiplayer and hotseat each create a room,
   submit concurrent guesses, complete three rounds, re-read results from the
   database, and replay. These invoke the **real Next route handlers**, room action

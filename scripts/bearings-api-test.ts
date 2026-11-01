@@ -36,7 +36,7 @@ async function main() {
     assert.equal(stored.room.players.length, 2); assert.equal(stored.gameState, null);
     const host = stored.room.hostId;
     const other = stored.room.players.find((p) => p.id !== host)!.id;
-    let state = await send(roomCode, host, "START_GAME", { settings: {
+    let state = await send(roomCode, host, "START_GAME", { round: 0, match: 0, settings: {
       ...initialState().settings, rounds: 3, firstLandmarkId: "bourbon-street",
     } });
     for (let round = 1; round <= 3; round++) {

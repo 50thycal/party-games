@@ -57,7 +57,7 @@ on `codex/landmark-bearings`: pure plugin, dual registration, 24-place
 catalog, setup/guess/reveal/standings/history UI, isolated responsive lab and
 focused math/rules/render/API persistence tests.
 
-Validation: 25 focused checks and two real-API/local-libSQL three-round flows
+Validation: 26 focused checks and two real-API/local-libSQL three-round flows
 passed; build/lint passed. Phone six-player three-round game and desktop tie,
 replay, custom-origin, missing-guess and layout checks recorded in
 [verification](../testing/landmark-bearings-verification.md). Full browser room
@@ -66,10 +66,15 @@ production HTTPS/Turso were not exercised.
 
 ## Review State
 
-**Verdict:** In review
-**Reviewed head:** —
+**Verdict:** Changes required
+**Reviewed head:** 20af6a97a8790ebb33b368fdb85096511bb53942
 **Reviewed PR:** #203
 **Finalization:** —
+
+Independent reviewer identified stale previous-match lobby mutations in PR
+comment 6551549881. START_GAME and UPDATE_SETTINGS now validate match/round;
+Setup includes them, API tests match the contract, and the replay regression
+is added. Awaiting independent re-review of the correction.
 
 ## Framework
 
