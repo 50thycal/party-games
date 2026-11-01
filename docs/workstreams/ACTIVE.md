@@ -3,10 +3,11 @@
 <!-- The project's active-work control board. What are we working on and where is each
      effort? One line per workstream; anything needing a paragraph belongs in its file. -->
 
-**Updated:** 2026-10-22 · **Build OS v0.12**
+**Updated:** 2026-10-31 · **Build OS v0.12**
 
 | ID | Workstream | Phase | Status | Current Next Step | Related PR |
 |---|---|---|---|---|---|
+| [WS-008](WS-008-landmark-bearings.md) | Landmark Bearings | REVIEW | Active | Obtain independent review of the new game option | — |
 | [WS-007](WS-007-subway-strategy-telemetry.md) | Subway strategy telemetry | REVIEW | Active | Owner review of classifier 1.0.0 readings against real playtests; calibrate thresholds | [#193](https://github.com/50thycal/party-games/pull/193) (merged) |
 | [WS-006](WS-006-subway-dgle-playtest.md) | Subway DGLE playtest follow-up | REVIEW | Active | Owner playtest of the ending-cash spectrum and restored borrowing; rule on D2–D4 | [#191](https://github.com/50thycal/party-games/pull/191), [#192](https://github.com/50thycal/party-games/pull/192) (merged) |
 | [WS-005](WS-005-subway-finished-edition.md) | Subway 2–4 player finished edition | REVIEW | Active | Independent review of the rulebook PR; then owner playtest of DEC-066–069 | [#202](https://github.com/50thycal/party-games/pull/202) open (rulebook fully approved); [#200](https://github.com/50thycal/party-games/pull/200), [#201](https://github.com/50thycal/party-games/pull/201) (rules audit, merged) |
@@ -24,6 +25,8 @@
 None yet. WS-001 is the first workstream on this board.
 
 ## Parking lot
+
+- PARK — Existing room creation calls secure-context `crypto.randomUUID()` on HTTP previews; Landmark Bearings rules/UI and API persistence were checked separately (WS-008).
 
 - PARK — Engineering card live phone/tablet layout and Rules & symbols touch acceptance; browser local access blocked, static diagrams/SSR reviewed.
 - PARK — Alternate end trigger requires first/last-company clarification; no rule change authorized. Engineering card-face work admitted to current mission.

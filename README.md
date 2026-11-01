@@ -303,3 +303,15 @@ Subway room for 2–4 players. Read `src/games/subway/RULES.md` for the current 
 `/test/subway` is an isolated visual lab with seven game phases and desktop/phone
 viewports. `./scripts/test-subway.sh` runs the geometry regressions, multiplayer and
 card checks, every three-route affordability check, and full seeded games.
+
+## Landmark Bearings: 2–12 players
+
+Choose **Landmark Bearings** in Create Room for multiplayer or hotseat. Pick your
+starting point (Santa Fe by default), then guess the compass bearing toward each
+landmark. North is 0°, east 90°, south 180°, west 270°. Closest wins each round;
+the lowest cumulative degrees off wins the game. Includes 24 US/world landmarks,
+custom or device-location origins, shared wins and 1–10 rounds.
+
+See `src/games/landmark-bearings/RULES.md`. `npm run test:bearings` checks the game
+and API persistence with an isolated database. `/test/bearings` is a phone/desktop
+playtest lab; it uses the real reducer and view but saves no shared room.
