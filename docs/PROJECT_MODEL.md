@@ -282,6 +282,7 @@ the room shell reads `state.phase` directly.
 | Game | Id | Phases |
 |---|---|---|
 | Number Guess | `number-guess` | `lobby → guessing → results` (→ `guessing` via PLAY_AGAIN) |
+| Landmark Bearings | `landmark-bearings` | `lobby → guessing → round_results → guessing … → finished`; replay returns to lobby. Pure plugin with curated coordinates, initial true bearings, frozen match roster, round/match guards and cumulative shortest-angle error scoring. `/test/bearings` is an isolated responsive lab, not a persisted room. |
 | Comet Rush | `comet-rush` | `lobby → initialDraft → playing → gameOver` |
 | Cafe | `cafe` | `lobby → planning → investment → customerDraft → customerResolution → shopClosed → cleanup → planning …→ gameOver` |
 | Open House | `real-estate` | `lobby → playing → round_results → … → results` |

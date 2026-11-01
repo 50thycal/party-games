@@ -3,7 +3,7 @@
 <!-- The project's active-work control board. What are we working on and where is each
      effort? One line per workstream; anything needing a paragraph belongs in its file. -->
 
-**Updated:** 2026-10-22 · **Build OS v0.12**
+**Updated:** 2026-10-31 · **Build OS v0.12**
 
 | ID | Workstream | Phase | Status | Current Next Step | Related PR |
 |---|---|---|---|---|---|
@@ -21,9 +21,14 @@
 
 ## Recently completed
 
-None yet. WS-001 is the first workstream on this board.
+- [WS-008 — Landmark Bearings](WS-008-landmark-bearings.md): game implementation,
+  focused/API checks and responsive playtests completed in
+  [#203](https://github.com/50thycal/party-games/pull/203). Independent code review
+  approved; documentation-only finalization describes the state upon merge.
 
 ## Parking lot
+
+- PARK — Existing room creation calls secure-context `crypto.randomUUID()` on HTTP previews; Landmark Bearings rules/UI and API persistence were checked separately (WS-008).
 
 - PARK — Engineering card live phone/tablet layout and Rules & symbols touch acceptance; browser local access blocked, static diagrams/SSR reviewed.
 - PARK — Alternate end trigger requires first/last-company clarification; no rule change authorized. Engineering card-face work admitted to current mission.

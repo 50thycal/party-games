@@ -6,7 +6,8 @@
     "dev": "node scripts/next-dev.mjs",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:bearings": "bash scripts/test-bearings.sh"
   },
   "dependencies": {
     "@libsql/client": "^0.15.15",

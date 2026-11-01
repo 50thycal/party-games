@@ -8,6 +8,7 @@ import { RealEstateGameView } from "./real-estate/GameView";
 import { PerformanceReviewGameView } from "./performance-review/GameView";
 import { TheDeskGameView } from "./the-desk/GameView";
 import { SubwayGameView } from "./subway/GameView";
+import { LandmarkBearingsGameView } from "./landmark-bearings/GameView";
 
 // Props passed to game views
 export type GameViewProps<S = unknown> = {
@@ -38,6 +39,13 @@ export const gameOptions: GameOption[] = [
     description: "Bid for transit contracts, schedule the build, and race for stations.",
     minPlayers: 2,
     maxPlayers: 4,
+  },
+  {
+    id: "landmark-bearings",
+    name: "Landmark Bearings",
+    description: "Which way is the landmark? Guess its compass bearing. Closest wins.",
+    minPlayers: 2,
+    maxPlayers: 12,
   },
   {
     id: "number-guess",
@@ -101,6 +109,7 @@ export function getGameplayWidth(gameId: string): string {
 
 // Registry of game view components
 const gameViews: Record<string, GameViewComponent> = {
+  "landmark-bearings": LandmarkBearingsGameView as GameViewComponent,
   "number-guess": NumberGuessGameView as GameViewComponent,
   "comet-rush": CometRushGameView as GameViewComponent,
   "cafe": CafeGameView as GameViewComponent,
