@@ -308,7 +308,8 @@ multiplayer and reject new seats once setup begins. An existing seat can rejoin.
 A kick publishes one trajectory, a start time and a settlement time. The table read includes the
 server time so the browser can estimate the offset and play the trajectory smoothly in its own
 phone coordinates. During an incoming shot, the defender moves the goalie locally and submits
-coalesced positions. The reducer checks the defender and cutoff, then settles exactly once for
+coalesced, sequenced positions. The reducer checks the defender and cutoff, gives eligible writes
+time to complete and settles exactly once for
 the current match and turn. Any seated client can settle after the cutoff so a disconnected
 shooter cannot freeze a shot. See DEC-070.
 

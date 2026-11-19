@@ -18,6 +18,7 @@ export async function applyActionToRoom(params: {
   action: BaseAction;
 }): Promise<ApplyActionResult> {
   const roomCode = params.roomCode.toUpperCase();
+  const receivedAt = Date.now();
 
   // Retry loop for handling version conflicts
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -47,7 +48,8 @@ export async function applyActionToRoom(params: {
     }
 
     const ctx: GameContext = {
-      now: () => Date.now(),
+      // Validation, reduction and conflict retries use the same action receipt time.
+      now: () => receivedAt,
       random: () => Math.random(),
       room,
       playerId: params.action.playerId,

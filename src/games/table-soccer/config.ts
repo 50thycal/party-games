@@ -11,9 +11,16 @@ export const TABLE_SOCCER_VERSION = 1;
 export const MAX_PLAYERS = 4;
 export const WINNING_SCORE = 3;
 const KICK_LEAD_MS = 900;
-const SAVE_RECEIPT_MS = 150;
+const SAVE_RECEIPT_MS = 250;
+const SETTLEMENT_DRAIN_MS = 90;
 
-export type Shot = Flight & { startsAt: number; settlesAt: number; goalieX: number };
+export type Shot = Flight & {
+  startsAt: number;
+  settlesAt: number;
+  goalieX: number;
+  goalieUntil?: number;
+  goalieSequence?: number;
+};
 type Result = { kind: "goal" | "save" | "miss"; shooterId: string; defenderId?: string };
 
 export type TableSoccerState = {
@@ -42,6 +49,7 @@ export interface TableSoccerAction extends BaseAction {
     placement?: "initial" | "bonus";
     pull?: Point;
     x?: number;
+    sequence?: number;
   };
 }
 
@@ -102,7 +110,8 @@ function allowed(state: TableSoccerState, action: TableSoccerAction, ctx: GameCo
     }
     case "SOCCER_GOALIE":
       return state.phase === "flight" && !!shot && shot.crossing?.playerId === action.playerId &&
-        now < shot.settlesAt && isFiniteNumber(payload.x) && Math.abs(payload.x) <= GOALIE_LIMIT;
+        now < (shot.goalieUntil ?? shot.settlesAt) && isFiniteNumber(payload.x) && Math.abs(payload.x) <= GOALIE_LIMIT &&
+        isFiniteNumber(payload.sequence) && Number.isSafeInteger(payload.sequence) && payload.sequence > (shot.goalieSequence ?? 0);
     case "SOCCER_SETTLE":
       return state.phase === "flight" && !!shot && now >= shot.settlesAt &&
         state.players.some((player) => player.id === action.playerId);
@@ -169,15 +178,16 @@ function reducer(before: TableSoccerState, action: TableSoccerAction, ctx: GameC
     case "SOCCER_KICK": {
       const flight = simulateShot(state.table, state.phones, state.bumpers, state.phones[state.shooterIndex], payload.pull!);
       const startsAt = now + KICK_LEAD_MS;
+      const goalieUntil = startsAt + flight.duration + SAVE_RECEIPT_MS;
       return {
         ...state,
         phase: "flight",
         lastResult: null,
-        shot: { ...flight, startsAt, settlesAt: startsAt + flight.duration + SAVE_RECEIPT_MS, goalieX: 0 },
+        shot: { ...flight, startsAt, goalieUntil, settlesAt: goalieUntil + SETTLEMENT_DRAIN_MS, goalieX: 0, goalieSequence: 0 },
       };
     }
     case "SOCCER_GOALIE":
-      return { ...state, shot: { ...state.shot!, goalieX: payload.x! } };
+      return { ...state, shot: { ...state.shot!, goalieX: payload.x!, goalieSequence: payload.sequence! } };
     case "SOCCER_SETTLE":
       return settle(state, state.shot!);
     case "SOCCER_PLAY_AGAIN":

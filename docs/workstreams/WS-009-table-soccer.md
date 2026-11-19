@@ -26,15 +26,15 @@ Compared the adopted v0.12 against canonical `50thycal/build-os` on 2026-11-18. 
 
 The implementation is on `codex/table-soccer-mvp`. The game uses the regular create and join pages and a first-to-three match.
 
-`npm run test:table-soccer`, `npm run test:bearings`, the standalone type check, lint and `npm run build` passed. Chromium touch sessions at iPhone 13 and iPhone SE viewports completed a full match with a straight shot, off-center bank, live save, bonus placement, disconnect settlement, rejoin and replay. The full two-player match also passed with 120 ms added to each game request. A separate four-player room accepted parallel starting placements and rejected a fifth seat. Screens were visually checked at setup, aim, incoming shot and bonus placement. Physical iPhone playtesting and deployment access remain to be verified.
+`npm run test:table-soccer`, `npm run test:bearings`, the standalone type check, lint and `npm run build` passed. Chromium touch sessions at iPhone 13 and iPhone SE viewports completed a full match with a straight shot, off-center bank, live save, bonus placement, disconnect settlement, rejoin and replay. The full two-player match also passed with 120 ms added to each game request. A separate four-player room accepted parallel starting placements and rejected a fifth seat. Screens were visually checked at setup, aim, incoming shot and bonus placement. Independent review reproduced a late on-screen save that became a goal when a prior goalie request was in flight. The input sequence, receipt timing and settlement fixes passed a browser replay of that case with 225 ms of goalie delay and a move about 110 ms before contact. The rules suite also covers a bank near a rail and stale goalkeeping writes. Physical iPhone playtesting and deployment access remain to be verified.
 
 ## Review State
 
-Pending independent review.
+Independent review reproduced and reported goalie timing and rail clearance findings. Corrections are validated locally and the current head is pending independent verification.
 
 ## Related PRs
 
-[Implementation pull request for this branch](https://github.com/50thycal/party-games/pulls?q=is%3Apr+head%3Acodex%2Ftable-soccer-mvp).
+[PR #204](https://github.com/50thycal/party-games/pull/204).
 
 ## Next Step
 

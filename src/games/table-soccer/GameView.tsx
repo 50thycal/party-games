@@ -14,7 +14,8 @@ import {
 const GOALIE_SEND_MS = 95;
 const SETTLE_RETRY_MS = 650;
 
-type LiveSend = (type: "SOCCER_GOALIE" | "SOCCER_SETTLE", extra?: { x: number }) => Promise<boolean>;
+type GoalieUpdate = { x: number; sequence: number };
+type LiveSend = (type: "SOCCER_GOALIE" | "SOCCER_SETTLE", extra?: GoalieUpdate) => Promise<boolean>;
 
 function useWakeLock(active: boolean) {
   useEffect(() => {
@@ -72,27 +73,40 @@ function useSettleFlight(shot: Shot | null, fallbackDelay: number, clockOffsetMs
 
 function useGoalie(shot: Shot | null, defend: boolean, send: LiveSend) {
   const [localX, setLocalX] = useState<number | null>(null);
-  const queue = useRef<{ x: number } | null>(null);
+  const queue = useRef<GoalieUpdate | null>(null);
+  const sequence = useRef(0);
   const flushNow = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (!defend) return;
     let live = true;
-    let sending = false;
     let nextSendAt = 0;
-    async function flush() {
-      if (sending || Date.now() < nextSendAt || !queue.current) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    function flush() {
+      if (!live || timer || !queue.current) return;
+      const wait = nextSendAt - Date.now();
+      if (wait > 0) {
+        timer = setTimeout(() => { timer = null; flush(); }, wait);
+        return;
+      }
       const update = queue.current;
       queue.current = null;
-      sending = true;
       nextSendAt = Date.now() + GOALIE_SEND_MS;
-      const success = await send("SOCCER_GOALIE", update);
-      sending = false;
-      if (live && !success && !queue.current) queue.current = update;
+      // A slow earlier request must not hold up a new save. The reducer ignores older sequences.
+      void send("SOCCER_GOALIE", update).then((success) => {
+        if (live && !success && update.sequence === sequence.current && !queue.current) {
+          queue.current = update;
+          flush();
+        }
+      });
     }
     flushNow.current = flush;
-    const timer = setInterval(flush, GOALIE_SEND_MS);
-    return () => { live = false; clearInterval(timer); flushNow.current = null; };
+    flush();
+    return () => {
+      live = false;
+      if (timer) clearTimeout(timer);
+      flushNow.current = null;
+    };
   }, [defend, send]);
 
   const x = localX ?? shot?.goalieX ?? 0;
@@ -100,7 +114,8 @@ function useGoalie(shot: Shot | null, defend: boolean, send: LiveSend) {
     const position = clamp(next, -GOALIE_LIMIT, GOALIE_LIMIT);
     if (Math.abs(x - position) < 0.025) return;
     setLocalX(position);
-    queue.current = { x: position };
+    sequence.current = Math.max(sequence.current, shot?.goalieSequence ?? 0) + 1;
+    queue.current = { x: position, sequence: sequence.current };
     flushNow.current?.();
   }
   return { x, move };
@@ -159,7 +174,7 @@ function PlayField({ state, room, playerId, dispatchAction, clockOffsetMs = 0 }:
     }
   }, [roomCode, playerId, match, turn]);
   useSettleFlight(shot, shooter.id === playerId ? 0 : 360 + Math.max(0, seat) * 70, clockOffsetMs, send);
-  const goalie = useGoalie(shot, defending && !!shot && now < shot.settlesAt, send);
+  const goalie = useGoalie(shot, defending && !!shot && now < (shot.goalieUntil ?? shot.settlesAt), send);
   const gesture = useRef<{ id: number; anchor: Point; kind: "aim" | "save" } | null>(null);
   const [pull, setPull] = useState<Point | null>(null);
   const [keyboardAngle, setKeyboardAngle] = useState(0);

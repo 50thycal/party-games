@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import type { GameContext, Player, Room } from "../src/engine/types";
 import { tableSoccerGame, type TableSoccerAction } from "../src/games/table-soccer/config";
 import {
-  ballAt, canPlaceBumper, DEFAULT_TABLE, defaultPhones, fitPhone, GOALIE_LIMIT, goalieSaves,
+  BALL_RADIUS, ballAt, canPlaceBumper, DEFAULT_TABLE, defaultPhones, fitPhone, GOALIE_LIMIT, goalieSaves,
   limitedPull, simulateShot, toPhone, toWorld, validLayout,
 } from "../src/games/table-soccer/physics";
 
@@ -24,6 +24,15 @@ assert(canPlaceBumper(bumperA, table, [a, b], []));
 assert(!canPlaceBumper(bumperA, table, [a, b], [bumperA]));
 assert(!canPlaceBumper(a, table, [a, b], []));
 assert(!canPlaceBumper({ x: 0, y: 0 }, table, [a, b], []));
+const railPhone = { ...a, x: 9 };
+const legacyRailBumper = { playerId: "a", x: 4.65, y: 55 };
+assert(!canPlaceBumper(legacyRailBumper, table, [railPhone, b], []));
+assert(canPlaceBumper({ x: 5.81, y: 55 }, table, [railPhone, b], []));
+const railAngle = Math.PI / 9;
+const railFlight = simulateShot(table, [railPhone, b], [legacyRailBumper], railPhone, {
+  x: 5 * Math.sin(railAngle), y: 5 * Math.cos(railAngle),
+});
+assert(railFlight.frames.every((frame) => frame.x >= BALL_RADIUS));
 console.log("PASS table bounds, rotated phone transforms, and bumper clearance");
 
 const direct = simulateShot(table, [a, b], [], a, straight);
@@ -68,17 +77,21 @@ act("SOCCER_KICK", "b", { pull: straight }, false);
 act("SOCCER_KICK", "a", { pull: { x: NaN, y: 3 } }, false);
 act("SOCCER_KICK", "a", { pull: bankPull });
 act("SOCCER_SETTLE", "a", {}, false);
-act("SOCCER_GOALIE", "a", { x: -GOALIE_LIMIT }, false);
-act("SOCCER_GOALIE", "b", { x: GOALIE_LIMIT + 1 }, false);
-act("SOCCER_GOALIE", "b", { x: -GOALIE_LIMIT, turn: 99 }, false);
-act("SOCCER_GOALIE", "b", { x: -GOALIE_LIMIT });
+act("SOCCER_GOALIE", "a", { x: -GOALIE_LIMIT, sequence: 1 }, false);
+act("SOCCER_GOALIE", "b", { x: GOALIE_LIMIT + 1, sequence: 1 }, false);
+act("SOCCER_GOALIE", "b", { x: -GOALIE_LIMIT, sequence: 1, turn: 99 }, false);
+act("SOCCER_GOALIE", "b", { x: -GOALIE_LIMIT, sequence: 2 });
+act("SOCCER_GOALIE", "b", { x: GOALIE_LIMIT, sequence: 1 }, false);
+act("SOCCER_GOALIE", "b", { x: GOALIE_LIMIT, sequence: 2 }, false);
+now = state.shot!.goalieUntil!;
+act("SOCCER_GOALIE", "b", { x: 0, sequence: 3 }, false);
+act("SOCCER_SETTLE", "a", {}, false);
 now = state.shot!.settlesAt;
-act("SOCCER_GOALIE", "b", { x: 0 }, false);
 act("SOCCER_SETTLE", "b");
 assert.equal(state.lastResult?.kind, "save");
 assert.deepEqual(state.scores, [0, 0]);
 assert.equal(state.shooterIndex, 1);
-console.log("PASS server-authoritative live save, turn validation and late input rejection");
+console.log("PASS server-authoritative live save, turn validation and out-of-order or late input rejection");
 
 for (let score = 1; score <= 3; score += 1) {
   act("SOCCER_KICK", "b", { pull: { x: 0, y: 1 } });

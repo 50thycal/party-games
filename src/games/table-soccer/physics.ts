@@ -119,8 +119,9 @@ export function validLayout(table: Table, phones: Phone[]): boolean {
 
 export function canPlaceBumper(point: Point, table: Table, phones: Phone[], bumpers: Bumper[]): boolean {
   const clearance = BUMPER_RADIUS + BALL_RADIUS;
-  if (point.x < clearance || point.x > table.width - clearance ||
-    point.y < clearance || point.y > table.length - clearance) return false;
+  const railClearance = clearance + BALL_RADIUS;
+  if (point.x < railClearance || point.x > table.width - railClearance ||
+    point.y < railClearance || point.y > table.length - railClearance) return false;
 
   return phones.every((phone) => {
     const local = toPhone(point, phone);
@@ -197,6 +198,9 @@ export function simulateShot(table: Table, phones: Phone[], bumpers: Bumper[], s
         velocity.y -= 1.84 * approach * normal.y;
       }
     }
+    // Older layouts can contain bumpers within the current rail clearance.
+    next.x = clamp(next.x, BALL_RADIUS, table.width - BALL_RADIUS);
+    next.y = clamp(next.y, BALL_RADIUS, table.length - BALL_RADIUS);
     const goal = firstCrossing(position, next, opponents);
     if (goal) {
       const duration = ms - STEP_MS + goal.fraction * STEP_MS;
