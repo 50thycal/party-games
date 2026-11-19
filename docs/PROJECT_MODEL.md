@@ -2,7 +2,7 @@
 
 <!-- How does this system work TODAY? Present tense. Not a roadmap, not a history. -->
 
-**Last updated:** 2026-09-15 · **Build OS v0.12** (see [50thycal/build-os](https://github.com/50thycal/build-os))
+**Last updated:** 2026-11-18 · **Build OS v0.12** (see [50thycal/build-os](https://github.com/50thycal/build-os))
 
 Project memory has three layers: this file (how the system works today),
 [`DECISIONS.md`](DECISIONS.md) (why), and [`workstreams/`](workstreams/ACTIVE.md) (what is being
@@ -94,7 +94,7 @@ their phone. No installs, no accounts.
 
 The project exists as much to make *building* those games cheap as to play them. The engine is
 game-agnostic: a new game is a folder with a pure reducer and a React view, plus two registry
-lines. Engine, routing, lobby, persistence, and syncing are never touched when a game is added.
+lines. Games ordinarily reuse the lobby and transport. Table Soccer adds seat and polling policies at those entry points while reusing the same action pipeline and store.
 
 Scale is deliberately small — an owner-operated project, a handful of concurrent rooms, party
 group sizes of roughly 2–8 players.
@@ -111,7 +111,7 @@ rules running server-side and all durable state in a hosted Turso (libSQL) datab
    ┌───────────────┬───────────────┐
    │  host client  │ player client │      React client components
    └───────┬───────┴───────┬───────┘
-           │  POST action  │  GET room state (polled every 1s)
+           │  POST action  │  GET room state (polled)
            ▼               ▼
    ┌─────────────────────────────────────────────┐
    │  Next.js API routes (runtime = "nodejs")    │
@@ -138,8 +138,8 @@ Two properties define the shape of everything else:
 
 1. **The server owns the rules.** Clients dispatch *intents* (`{type, playerId, payload}`).
    The reducer for the room's game decides what that means. A client cannot write state.
-2. **Sync is polling, not push.** Every client re-reads the whole room state once per second.
-   There are no sockets, no server-side timers, and no background jobs.
+2. **Sync is polling.** The generic client reads the full room once a second. Table Soccer
+   reads every 230 ms during aim and flight. There are no sockets or server-side timers.
 
 ---
 
@@ -168,9 +168,9 @@ Two properties define the shape of everything else:
 ### How they relate
 
 The engine knows nothing about any game beyond the `GameTemplate` contract; games know nothing
-about transport, persistence, or each other. The room shell knows nothing about any game beyond
-"look up a component by id and hand it props". Adding a game touches only `src/games/<game>/`
-plus one line in each registry.
+about transport, persistence, or each other. The room shell looks up the view by game ID and hands it the room state. Table Soccer
+adds clock-offset estimation, faster polling during play and freshness checks on arriving snapshots.
+A standard game plugin lives in `src/games/<game>/` and the two registries.
 
 **A game is registered in two places.** `gameRegistry.ts` carries the logic; `views.ts` carries
 the UI component *and* the player-facing metadata (name, description, min/max players) used by
@@ -191,7 +191,7 @@ the create-room page. These are independent lists and are kept in sync by hand.
 /join ───POST /api/join-room───────┤ (adds player to room.players, CAS retry loop)
                                    │
                                    ▼
-                        room page polls GET /api/get-room every 1s
+                        room page polls GET /api/get-room
                                    │
         host presses Start ──► POST /api/game-action {type: "START_GAME"}
                                    │
@@ -283,6 +283,7 @@ the room shell reads `state.phase` directly.
 |---|---|---|
 | Number Guess | `number-guess` | `lobby → guessing → results` (→ `guessing` via PLAY_AGAIN) |
 | Landmark Bearings | `landmark-bearings` | `lobby → guessing → round_results → guessing … → finished`; replay returns to lobby. Pure plugin with curated coordinates, initial true bearings, frozen match roster, round/match guards and cumulative shortest-angle error scoring. `/test/bearings` is an isolated responsive lab, not a persisted room. |
+| Table Soccer | `table-soccer` | `lobby → setup → initial-bumpers → aim → flight → aim / bonus-bumper / finished`; replay returns to setup. The host maps 2–4 phone positions in table coordinates. A timestamped flight renders locally and the reducer settles one server result from the live goalie position. Each scorer adds a bumper before the next turn unless the third goal ends the match. |
 | Comet Rush | `comet-rush` | `lobby → initialDraft → playing → gameOver` |
 | Cafe | `cafe` | `lobby → planning → investment → customerDraft → customerResolution → shopClosed → cleanup → planning …→ gameOver` |
 | Open House | `real-estate` | `lobby → playing → round_results → … → results` |
@@ -297,6 +298,19 @@ gameplay from its first action onward and provides its own pre-game chrome. `get
 gives a game a wider gameplay container than the phone-first default; Subway takes the full
 window, because it fills what is left of the screen with one tabletop the player pans and zooms
 rather than a page that scrolls.
+
+### Table Soccer playback and settlement
+
+The reducer freezes two to four seats at setup, validates the rectangular table and rotated
+phone footprints, and persists each bumper in centimeters. The create and join routes enforce
+multiplayer and reject new seats once setup begins. An existing seat can rejoin.
+
+A kick publishes one trajectory, a start time and a settlement time. The table read includes the
+server time so the browser can estimate the offset and play the trajectory smoothly in its own
+phone coordinates. During an incoming shot, the defender moves the goalie locally and submits
+coalesced positions. The reducer checks the defender and cutoff, then settles exactly once for
+the current match and turn. Any seated client can settle after the cutoff so a disconnected
+shooter cannot freeze a shot. See DEC-070.
 
 ### Turn timing without a server clock
 
@@ -407,9 +421,9 @@ These should remain true across implementations:
 
 - **Node.js runtime is mandatory** on every API route touching the database
   (`export const runtime = "nodejs"`). Edge runtime is not compatible with the current client.
-- **Polling at 1 Hz is the only sync mechanism.** Worst-case observed latency for other players
-  is ~1 second, and every connected client costs one row read per second. Game designs that need
-  sub-second shared timing will fight this.
+- **Polling is the room sync mechanism.** Most rooms read one row per connected client per
+  second. Table Soccer reads up to about 4.3 per second per client while aiming or flying. Its
+  precomputed path, scheduled launch and local animations keep rendering independent of snapshots.
 - **Whole-blob writes.** Room state size is a real budget: it is serialised and written on every
   action. Comet Rush accumulates a per-action `actionLog` inside game state, which grows for the
   life of a game.

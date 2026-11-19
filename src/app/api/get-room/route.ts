@@ -3,6 +3,7 @@ import { getRoomState } from "@/engine/stateStore";
 
 // Force Node.js runtime (required for SQLite/better-sqlite3)
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
@@ -34,6 +35,7 @@ export async function GET(req: NextRequest) {
         data: {
           room: state.room,
           gameState: state.gameState,
+          serverTime: Date.now(),
         },
       },
       { status: 200 }

@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { getVersionedRoomState, updateRoomState } from "@/engine/stateStore";
+import { MAX_PLAYERS, TABLE_SOCCER_ID, type TableSoccerState } from "@/games/table-soccer/config";
 import type { Player, RoomState } from "@/engine/types";
 
 // Force Node.js runtime (required for SQLite/better-sqlite3)
@@ -58,6 +59,15 @@ export async function POST(req: NextRequest) {
           name,
         };
       } else {
+        if (room.gameId === TABLE_SOCCER_ID) {
+          const soccer = current.gameState as TableSoccerState | null;
+          if ((soccer && soccer.phase !== "lobby") || room.players.length >= MAX_PLAYERS) {
+            return Response.json(
+              { ok: false, errorCode: "ROOM_CLOSED", message: "This Table Soccer match is full or already setting up." },
+              { status: 409 }
+            );
+          }
+        }
         const newPlayer: Player = {
           id: playerId,
           name,

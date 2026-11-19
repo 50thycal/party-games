@@ -140,7 +140,11 @@ export default function CreatePage() {
           <select
             id="game-select"
             value={selectedGameId}
-            onChange={(e) => setSelectedGameId(e.target.value)}
+            onChange={(e) => {
+              const game = gameOptions.find((option) => option.id === e.target.value);
+              if (game?.multiplayerOnly) setMode("multiplayer");
+              setSelectedGameId(e.target.value);
+            }}
             className="w-full bg-gray-800 border border-gray-700 rounded-lg py-3 px-4 focus:outline-none focus:border-blue-500"
           >
             {gameOptions.map((game) => (
@@ -157,7 +161,7 @@ export default function CreatePage() {
         </div>
 
         {/* Mode Selection */}
-        <div>
+        {!selectedGame?.multiplayerOnly && <div>
           <label className="block text-sm text-gray-400 mb-2">
             2. Select Mode
           </label>
@@ -189,13 +193,13 @@ export default function CreatePage() {
             {mode === "multiplayer" && "Play online with friends by sharing a room code"}
             {mode === "hotseat" && "Pass and play on one device"}
           </p>
-        </div>
+        </div>}
 
         {/* Multiplayer: Name Input */}
         {mode === "multiplayer" && selectedGameId !== "subway" && (
           <div>
             <label htmlFor="name-input" className="block text-sm text-gray-400 mb-2">
-              3. Your Name
+              {selectedGame?.multiplayerOnly ? "2. Your Name" : "3. Your Name"}
             </label>
             <input
               id="name-input"

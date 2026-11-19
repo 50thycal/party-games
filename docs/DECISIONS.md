@@ -2342,3 +2342,26 @@ so scoring, public standings, badges, bots and reports follow automatically; gro
 linear in occupied holes. This change alone does not alter the rules fingerprint, but the
 same PR's config changes do, so replays recorded before it are refused rather than rescored. Rules text and the drift test reject
 same-line or lone-station wording.
+
+### DEC-070 — Table Soccer uses one table map and timestamped shots
+
+**Date:** 2026-11-18
+**Status:** Accepted
+
+**Context.** Calvin approved a browser MVP with manual phone placement, spatial bank shots,
+live goalie saves and a scorer-owned extra bumper. The shared room normally polls once per second.
+
+**Decision.** The host maps phone positions and orientations in centimeters. The server precomputes
+each shot against that shared map. Clients use a scheduled start to animate it in their own screen
+coordinates. The existing reducer and room store accept the defending position and settle the result.
+Only the aim and flight phases increase the polling frequency.
+
+**Rationale.** The shot path needs to match the physical setup and the goalie needs immediate local
+feedback. A shared path plus one authoritative result achieves both using the existing room flow.
+
+**Alternatives considered.** Fixed phone spots simplify setup. Camera and native iPhone ranging
+are potential later setup paths. They were left out of the MVP at the owner's direction.
+
+**Consequences.** The shared table is rectangular and the early release depends on network timing.
+Phone-width browser tests can verify the sync path. Physical iPhone playtesting is required to judge
+how closely the modeled arrival feels like the real tabletop.

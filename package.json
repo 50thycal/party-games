@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test:bearings": "bash scripts/test-bearings.sh"
+    "test:bearings": "bash scripts/test-bearings.sh",
+    "test:table-soccer": "bash scripts/test-table-soccer.sh"
   },
   "dependencies": {
     "@libsql/client": "^0.15.15",
