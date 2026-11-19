@@ -27,7 +27,6 @@ type Props = {
   phones: Phone[];
   bumpers: Bumper[];
   ball?: Point | null;
-  indicator?: { from: Point; to: Point } | null;
   placement?: Point | null;
   placementValid?: boolean;
   highlightedId?: string;
@@ -41,7 +40,7 @@ type Props = {
 };
 
 export function TableMap({
-  table, phones, bumpers, ball, indicator, placement, placementValid, highlightedId, mini,
+  table, phones, bumpers, ball, placement, placementValid, highlightedId, mini,
   onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onKeyDown, label,
 }: Props) {
   const { width, length } = table;
@@ -83,7 +82,6 @@ export function TableMap({
         />
       ))}
       {placement && <circle cx={placement.x} cy={placement.y} r={BUMPER_RADIUS} fill={placementValid ? "#bdf87a" : "#ff8b8b"} fillOpacity=".32" stroke={placementValid ? "#d6ffa3" : "#ff8b8b"} strokeWidth="1.2" strokeDasharray="1.8 1" />}
-      {indicator && <line x1={indicator.from.x} y1={indicator.from.y} x2={indicator.to.x} y2={indicator.to.y} stroke="#eafcc0" strokeWidth=".7" strokeDasharray="2 2" />}
       {ball && <circle data-testid="map-ball" cx={ball.x} cy={ball.y} r={mini ? Math.max(2.2, Math.max(width, length) / 55) : 1.45} fill="#fffde3" stroke="#0a2116" strokeWidth=".65" />}
     </svg>
   );

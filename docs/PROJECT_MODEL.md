@@ -315,7 +315,8 @@ shooter cannot freeze a shot. See DEC-070.
 
 Solo Playtest uses the same table editor, view, physics and reducer in a browser-only
 simulation at `/table-soccer/solo`. One person chooses one to three CPU seats. The browser
-schedules their legal bumper, kick and goalie actions. The local player can reset the
+schedules their legal bumper, kick and goalie actions. A human kick starts on release. The aim
+guide appears on the full playfield and the mini-map shows the current ball position. The local player can reset the
 simulation or replay with the existing calibration. Solo matches use no room API or store.
 
 ### Turn timing without a server clock

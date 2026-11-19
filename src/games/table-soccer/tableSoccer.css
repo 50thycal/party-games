@@ -100,7 +100,17 @@
 .soccer-seat-dot { border-radius: 50%; flex: 0 0 .43rem; height: .43rem; }
 .soccer-score strong { font-size: 1.04rem; }
 
+/* Keep iOS long-press selection and callouts off the active touch controls. */
+.soccer-in-play,
+.soccer-in-play * {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 .soccer-play {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
   background: #0d241e;
   border: 1px solid var(--line);
   border-radius: 1.1rem;
@@ -125,7 +135,6 @@
   height: min(57dvh, 34rem);
   min-height: 15rem;
   touch-action: none;
-  user-select: none;
   width: 100%;
 }
 .soccer-pitch:focus-visible { outline-offset: -3px; }

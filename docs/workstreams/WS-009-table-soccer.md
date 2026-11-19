@@ -45,3 +45,7 @@ Independent review reproduced and reported goalie timing and rail clearance find
 ## Next Step
 
 Verify the Solo Playtest route on the Vercel preview and get an independent review of the updated head.
+
+## Solo release feedback
+
+The first phone playtest found that the ball paused after release and the mini-map showed an aim line. Human solo kicks now start on release, and the main playfield is the sole location for the aim guide. The mini-map keeps the ball marker. Solo CPU and multiplayer shots retain their scheduled notice for defenders. The gameplay surface also blocks native text selection and long-press menus. Aim and goalie movement use the latest touch sample each animation frame. The changes are scoped to the playtest follow-up PR from `codex/table-soccer-release`.

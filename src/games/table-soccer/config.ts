@@ -177,7 +177,8 @@ function reducer(before: TableSoccerState, action: TableSoccerAction, ctx: GameC
     }
     case "SOCCER_KICK": {
       const flight = simulateShot(state.table, state.phones, state.bumpers, state.phones[state.shooterIndex], payload.pull!);
-      const startsAt = now + KICK_LEAD_MS;
+      const localPlayerKick = ctx.room.mode === "simulation" && action.playerId === ctx.room.hostId;
+      const startsAt = localPlayerKick ? now : now + KICK_LEAD_MS;
       const goalieUntil = startsAt + flight.duration + SAVE_RECEIPT_MS;
       return {
         ...state,

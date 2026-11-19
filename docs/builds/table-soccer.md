@@ -35,3 +35,7 @@ Two to four people lay their phones flat and turn a real table into a shared soc
 Calvin authorized a one-phone mode and a multi-phone end-to-end playtest. The Create a Room screen offers Solo Playtest for Table Soccer. Choose one to three CPU opponents, then use the regular layout editor, playfield and first-to-three rules. A solo match runs in the browser. CPU opponents place their own bumpers, take turns and defend using the shared game rules and physics.
 
 Verify a complete touch-control solo match and separate-browser multiplayer matches through the ordinary create, join, calibration and match flow at two, three and four seats. Check the direct solo entry on the Vercel preview.
+
+### Solo release playtest feedback
+
+A human shot in Solo Playtest launches on release. The aim guide appears only on the main playfield. CPU kicks and multiplayer flights use the scheduled lead so incoming shots provide time to react. During play, the game surface suppresses native selection and callouts. Aim and goalie drags display the latest input at the next animation frame, and release uses the final pointer position.
