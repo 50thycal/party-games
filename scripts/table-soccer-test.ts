@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import type { GameContext, Player, Room } from "../src/engine/types";
 import { tableSoccerGame, type TableSoccerAction } from "../src/games/table-soccer/config";
+import { applySoloAction, nextBotAction, soloRoom, SOLO_PLAYER_ID } from "../src/games/table-soccer/solo";
 import {
   BALL_RADIUS, ballAt, canPlaceBumper, DEFAULT_TABLE, defaultPhones, fitPhone, GOALIE_LIMIT, goalieSaves,
   limitedPull, simulateShot, toPhone, toWorld, validLayout,
@@ -122,3 +123,40 @@ assert.deepEqual(state.phones, [a, b]);
 assert.deepEqual(state.bumpers, []);
 act("SOCCER_CONFIRM_LAYOUT", "a", { match: 1, table, phones: [a, b] }, false);
 console.log("PASS scorer-only extra bumpers, first to three, rematch and stale request rejection");
+
+for (const count of [1, 3]) {
+  const solo = soloRoom(count);
+  let simulated = tableSoccerGame.initialState(solo.players);
+  let clock = 1000;
+  const local = (type: string, fields: TableSoccerAction["payload"] = {}) => {
+    simulated = applySoloAction(simulated, solo, {
+      type, playerId: SOLO_PLAYER_ID, payload: { match: simulated.match, turn: simulated.turn, ...fields },
+    }, clock);
+  };
+  const bot = () => {
+    const plan = nextBotAction(simulated, clock);
+    assert(plan);
+    const previous = simulated;
+    clock += plan.waitMs;
+    simulated = applySoloAction(simulated, solo, plan.action, clock);
+    assert.notEqual(simulated, previous);
+  };
+  local("SOCCER_OPEN_SETUP");
+  local("SOCCER_CONFIRM_LAYOUT", { table, phones: simulated.phones });
+  for (let i = 0; i < count; i += 1) bot();
+  assert.equal(nextBotAction(simulated, clock), null);
+  local("SOCCER_PLACE_BUMPER", { placement: "initial", point: { x: 120, y: 55 } });
+  assert.equal(simulated.phase, "aim");
+  local("SOCCER_KICK", { pull: { x: 0, y: 1 } });
+  clock = simulated.shot!.settlesAt;
+  local("SOCCER_SETTLE");
+  bot();
+  assert.equal(simulated.phase, "flight");
+  const shot = simulated.shot!;
+  assert.equal(shot.crossing?.playerId, SOLO_PLAYER_ID);
+  local("SOCCER_GOALIE", { x: shot.crossing!.x, sequence: 1 });
+  clock = shot.settlesAt;
+  local("SOCCER_SETTLE");
+  assert.equal(simulated.lastResult?.kind, "save");
+}
+console.log("PASS solo match setup, automatic placement, CPU shots and human saves");

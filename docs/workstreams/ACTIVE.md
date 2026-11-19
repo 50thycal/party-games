@@ -7,7 +7,7 @@
 
 | ID | Workstream | Phase | Status | Current Next Step | Related PR |
 |---|---|---|---|---|---|
-| [WS-009](WS-009-table-soccer.md) | Table Soccer | REVIEW | Active | Verify the Vercel preview and review the implementation head | [#204](https://github.com/50thycal/party-games/pull/204) |
+| [WS-009](WS-009-table-soccer.md) | Table Soccer | REVIEW | Active | Verify Solo Playtest on Vercel and review the updated head | [#204](https://github.com/50thycal/party-games/pull/204) |
 | [WS-007](WS-007-subway-strategy-telemetry.md) | Subway strategy telemetry | REVIEW | Active | Owner review of classifier 1.0.0 readings against real playtests; calibrate thresholds | [#193](https://github.com/50thycal/party-games/pull/193) (merged) |
 | [WS-006](WS-006-subway-dgle-playtest.md) | Subway DGLE playtest follow-up | REVIEW | Active | Owner playtest of the ending-cash spectrum and restored borrowing; rule on D2–D4 | [#191](https://github.com/50thycal/party-games/pull/191), [#192](https://github.com/50thycal/party-games/pull/192) (merged) |
 | [WS-005](WS-005-subway-finished-edition.md) | Subway 2–4 player finished edition | REVIEW | Active | Independent review of the rulebook PR; then owner playtest of DEC-066–069 | [#202](https://github.com/50thycal/party-games/pull/202) open (rulebook fully approved); [#200](https://github.com/50thycal/party-games/pull/200), [#201](https://github.com/50thycal/party-games/pull/201) (rules audit, merged) |

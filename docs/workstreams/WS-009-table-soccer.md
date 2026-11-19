@@ -26,11 +26,17 @@ Compared the adopted v0.12 against canonical `50thycal/build-os` on 2026-11-18. 
 
 The implementation is on `codex/table-soccer-mvp`. The game uses the regular create and join pages and a first-to-three match.
 
-`npm run test:table-soccer`, `npm run test:bearings`, the standalone type check, lint and `npm run build` passed. Chromium touch sessions at iPhone 13 and iPhone SE viewports completed a full match with a straight shot, off-center bank, live save, bonus placement, disconnect settlement, rejoin and replay. The full two-player match also passed with 120 ms added to each game request. A separate four-player room accepted parallel starting placements and rejected a fifth seat. Screens were visually checked at setup, aim, incoming shot and bonus placement. Independent review reproduced a late on-screen save that became a goal when a prior goalie request was in flight. The input sequence, receipt timing and settlement fixes passed a browser replay of that case with 225 ms of goalie delay and a move about 110 ms before contact. The rules suite also covers a bank near a rail and stale goalkeeping writes. Physical iPhone playtesting and deployment access remain to be verified.
+`npm run test:table-soccer`, `npm run test:bearings`, the standalone type check, lint and `npm run build` passed. Chromium touch sessions at iPhone 13 and iPhone SE viewports completed a full match with a straight shot, off-center bank, live save, bonus placement, disconnect settlement, rejoin and replay. The full two-player match also passed with 120 ms added to each game request. A separate four-player room accepted parallel starting placements and rejected a fifth seat. Screens were visually checked at setup, aim, incoming shot and bonus placement. Independent review reproduced a late on-screen save that became a goal when a prior goalie request was in flight. The input sequence, receipt timing and settlement fixes passed a browser replay of that case with 225 ms of goalie delay and a move about 110 ms before contact. The rules suite also covers a bank near a rail and stale goalkeeping writes. The original preview Vercel smoke test created and joined a room and persisted a bank-shot save. Physical iPhone hardware playtesting remains open.
+
+### Solo Playtest and full multi-seat verification
+
+The owner authorized local practice and broader end-to-end testing. Solo Playtest is selectable from Create a Room and supports one to three CPU opponents. It uses the same table editor, rules, ball flight and goal controls, with browser-local state and bot actions. A fresh setup resets the solo match.
+
+A full mobile touch solo match covered a human goal, bonus placement, a live human save, CPU goals and automatic bonuses, the CPU win and replay. Three CPU seats also placed bumpers and kicked without room API calls. Separate touch browser sessions completed full multiplayer matches at two, three and four seats through the normal create and join screens. The larger layouts moved and rotated every phone on a 160 × 96 cm table, placed all starting bumpers, exercised a rotated side-goal save, rotated the turn across every player, scored to three and replayed with the same calibration. A two-phone run also reproduced and passed the late-save regression under 225 ms of defender request delay. The reducer, Bearings suite, lint and production build passed.
 
 ## Review State
 
-Independent review reproduced and reported goalie timing and rail clearance findings. Corrections are validated locally and the current head is pending independent verification.
+Independent review reproduced and reported goalie timing and rail clearance findings. The previous preview head passed independent recheck. The solo extension requires review on its own head.
 
 ## Related PRs
 
@@ -38,4 +44,4 @@ Independent review reproduced and reported goalie timing and rail clearance find
 
 ## Next Step
 
-Verify the Vercel preview and get independent review of the implementation head.
+Verify the Solo Playtest route on the Vercel preview and get an independent review of the updated head.

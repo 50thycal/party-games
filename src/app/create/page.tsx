@@ -160,6 +160,12 @@ export default function CreatePage() {
           )}
         </div>
 
+        {selectedGameId === "table-soccer" && (
+          <Link href="/table-soccer/solo" className="block rounded-lg border border-emerald-500/60 bg-emerald-950 px-4 py-3 text-center font-semibold text-emerald-100 hover:bg-emerald-900">
+            Solo Playtest
+          </Link>
+        )}
+
         {/* Mode Selection */}
         {!selectedGame?.multiplayerOnly && <div>
           <label className="block text-sm text-gray-400 mb-2">

@@ -16,6 +16,8 @@ const SETTLE_RETRY_MS = 650;
 
 type GoalieUpdate = { x: number; sequence: number };
 type LiveSend = (type: "SOCCER_GOALIE" | "SOCCER_SETTLE", extra?: GoalieUpdate) => Promise<boolean>;
+type LiveDispatch = (type: Parameters<LiveSend>[0], payload: { match: number; turn: number; x?: number; sequence?: number }) => Promise<boolean>;
+type TableSoccerViewProps = SoccerViewProps & { dispatchLiveAction?: LiveDispatch };
 
 function useWakeLock(active: boolean) {
   useEffect(() => {
@@ -148,7 +150,7 @@ function ShotResult({ state, playerId }: { state: TableSoccerState; playerId: st
   return <p className="soccer-result" role="status">{message}</p>;
 }
 
-function PlayField({ state, room, playerId, dispatchAction, clockOffsetMs = 0 }: SoccerViewProps) {
+function PlayField({ state, room, playerId, dispatchAction, dispatchLiveAction, clockOffsetMs = 0 }: TableSoccerViewProps) {
   const seat = state.players.findIndex((player) => player.id === playerId);
   const phone = state.phones[seat];
   const seatInk = seatColor(seat);
@@ -162,18 +164,20 @@ function PlayField({ state, room, playerId, dispatchAction, clockOffsetMs = 0 }:
   const { match, turn } = state;
   const roomCode = room.roomCode;
   const send = useCallback<LiveSend>(async (type, extra) => {
+    const payload = { match, turn, ...extra };
+    if (dispatchLiveAction) return dispatchLiveAction(type, payload);
     try {
       const res = await fetch("/api/game-action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roomCode, playerId, type, payload: { match, turn, ...extra } }),
+        body: JSON.stringify({ roomCode, playerId, type, payload }),
       });
       return res.ok;
     } catch {
       return false;
     }
-  }, [roomCode, playerId, match, turn]);
-  useSettleFlight(shot, shooter.id === playerId ? 0 : 360 + Math.max(0, seat) * 70, clockOffsetMs, send);
+  }, [roomCode, playerId, match, turn, dispatchLiveAction]);
+  useSettleFlight(shot, shooter.id === playerId || dispatchLiveAction ? 0 : 360 + Math.max(0, seat) * 70, clockOffsetMs, send);
   const goalie = useGoalie(shot, defending && !!shot && now < (shot.goalieUntil ?? shot.settlesAt), send);
   const gesture = useRef<{ id: number; anchor: Point; kind: "aim" | "save" } | null>(null);
   const [pull, setPull] = useState<Point | null>(null);
@@ -291,7 +295,7 @@ function PlayField({ state, room, playerId, dispatchAction, clockOffsetMs = 0 }:
   );
 }
 
-export function TableSoccerGameView(props: SoccerViewProps) {
+export function TableSoccerGameView(props: TableSoccerViewProps) {
   const { state, room, playerId, isHost, dispatchAction } = props;
   const phase = state?.phase ?? "lobby";
   useWakeLock(phase !== "lobby" && phase !== "finished");
@@ -322,7 +326,7 @@ export function TableSoccerGameView(props: SoccerViewProps) {
   return (
     <div className="soccer-shell">
       <header className="soccer-top">
-        <h1>Table Soccer</h1><span title="Room code">{room.roomCode}</span>
+        <h1>Table Soccer</h1><span title={room.mode === "simulation" ? undefined : "Room code"}>{room.mode === "simulation" ? "Solo Playtest" : room.roomCode}</span>
       </header>
       {!setup && <Scoreboard state={state} playerId={playerId} />}
       {setup && <TableSetup key={state.match} {...props} />}

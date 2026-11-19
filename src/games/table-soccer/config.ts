@@ -84,7 +84,7 @@ function validSetup(state: TableSoccerState, table: unknown, phones: unknown): b
 }
 
 function allowed(state: TableSoccerState, action: TableSoccerAction, ctx: GameContext, now: number): boolean {
-  if (state.version !== TABLE_SOCCER_VERSION || ctx.room.mode !== "multiplayer" ||
+  if (state.version !== TABLE_SOCCER_VERSION || (ctx.room.mode !== "multiplayer" && ctx.room.mode !== "simulation") ||
       !ctx.room.players.some((player) => player.id === action.playerId) || ctx.playerId !== action.playerId) return false;
 
   const host = ctx.room.hostId === action.playerId;

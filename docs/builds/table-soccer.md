@@ -29,3 +29,9 @@ Two to four people lay their phones flat and turn a real table into a shared soc
 - Run the game-specific rules tests, existing bearings regression tests, type check, lint and production build. Exercise live saves in phone-width browser sessions. Verify the Vercel preview and record physical iPhone playtesting separately if hardware is available.
 
 **After this change, the system should** let friends set up a game on their own table and react to the same virtual ball as it moves between their phones.
+
+## Solo Playtest extension
+
+Calvin authorized a one-phone mode and a multi-phone end-to-end playtest. The Create a Room screen offers Solo Playtest for Table Soccer. Choose one to three CPU opponents, then use the regular layout editor, playfield and first-to-three rules. A solo match runs in the browser. CPU opponents place their own bumpers, take turns and defend using the shared game rules and physics.
+
+Verify a complete touch-control solo match and separate-browser multiplayer matches through the ordinary create, join, calibration and match flow at two, three and four seats. Check the direct solo entry on the Vercel preview.

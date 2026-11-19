@@ -21,7 +21,7 @@ function displayLength(cm: number, unit: Unit) {
   return String(Math.round((unit === "in" ? cm / CM_PER_INCH : cm) * 10) / 10);
 }
 
-export function TableSetup({ state, isHost, dispatchAction }: SoccerViewProps) {
+export function TableSetup({ state, room, isHost, dispatchAction }: SoccerViewProps) {
   const [unit, setUnit] = useState<Unit>("cm");
   const [table, setTable] = useState(state.table);
   const [width, setWidth] = useState(displayLength(table.width, unit));
@@ -102,7 +102,9 @@ export function TableSetup({ state, isHost, dispatchAction }: SoccerViewProps) {
   return (
     <section className="soccer-card">
       <h2>Set up your table</h2>
-      <p>Enter its size, then drag each phone to its spot. Point the arrow toward the top edge of the real phone.</p>
+      <p>{room.mode === "simulation"
+        ? "Enter the table size and drag the virtual phones into position. The arrow shows each phone’s top edge."
+        : "Enter its size, then drag each phone to its spot. Point the arrow toward the top edge of the real phone."}</p>
       <div className="soccer-measurements">
         <label>Width<input inputMode="decimal" value={width} onChange={(e) => changeDimensions(e.target.value, length)} /></label>
         <label>Length<input inputMode="decimal" value={length} onChange={(e) => changeDimensions(width, e.target.value)} /></label>
