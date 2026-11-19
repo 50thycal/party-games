@@ -30,7 +30,7 @@ The implementation is on `codex/table-soccer-mvp`. The game uses the regular cre
 
 ### Solo Playtest and full multi-seat verification
 
-The owner authorized local practice and broader end-to-end testing. Solo Playtest is selectable from Create a Room and supports one to three CPU opponents. It uses the same table editor, rules, ball flight and goal controls, with browser-local state and bot actions. A fresh setup resets the solo match.
+The owner authorized local practice and broader end-to-end testing. Solo Playtest is selectable from Create a Room and supports one to three CPU opponents. It uses the same table editor, rules, ball flight and goal controls, with browser-local state and bot actions. A fresh setup resets the solo match. CPU placement uses a finer scan on crowded layouts and lets the user restart if it cannot find a clear spot. An independent review reproduced the original stall on a custom 65 × 50 cm table. The regression now finds the last starting bumper and advances to kickoff.
 
 A full mobile touch solo match covered a human goal, bonus placement, a live human save, CPU goals and automatic bonuses, the CPU win and replay. Three CPU seats also placed bumpers and kicked without room API calls. Separate touch browser sessions completed full multiplayer matches at two, three and four seats through the normal create and join screens. The larger layouts moved and rotated every phone on a 160 × 96 cm table, placed all starting bumpers, exercised a rotated side-goal save, rotated the turn across every player, scored to three and replayed with the same calibration. A two-phone run also reproduced and passed the late-save regression under 225 ms of defender request delay. The reducer, Bearings suite, lint and production build passed.
 

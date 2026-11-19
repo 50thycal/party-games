@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Room } from "@/engine/types";
 import { TableSoccerGameView } from "@/games/table-soccer/GameView";
 import { tableSoccerGame, type TableSoccerAction } from "@/games/table-soccer/config";
@@ -23,12 +23,13 @@ function SoloMatch({ room, onExit }: { room: Room; onExit: () => void }) {
     return run({ type, playerId: SOLO_PLAYER_ID, payload });
   }, [run]);
 
+  const plan = useMemo(() => nextBotAction(state, Date.now()), [state]);
+  const needsBumperSpace = plan && "needsBumperSpace" in plan;
   useEffect(() => {
-    const plan = nextBotAction(state, Date.now());
-    if (!plan) return;
+    if (!plan || "needsBumperSpace" in plan) return;
     const timer = setTimeout(() => run(plan.action), plan.waitMs);
     return () => clearTimeout(timer);
-  }, [state, run]);
+  }, [plan, run]);
 
   return (
     <div className="mx-auto max-w-lg">
@@ -37,6 +38,11 @@ function SoloMatch({ room, onExit }: { room: Room; onExit: () => void }) {
         dispatchAction={async (type, payload) => { await dispatch(type, payload); }}
         dispatchLiveAction={dispatch}
       />
+      {needsBumperSpace && (
+        <p role="status" className="mx-auto my-2 max-w-sm text-center text-sm text-amber-200">
+          There’s no clear spot for another CPU bumper. Start a new solo setup with more room between the phones.
+        </p>
+      )}
       <button type="button" className="mx-auto mt-3 block min-h-11 px-3 text-sm text-gray-300 underline" onClick={onExit}>New solo setup</button>
     </div>
   );

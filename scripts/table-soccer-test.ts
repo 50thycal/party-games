@@ -135,7 +135,7 @@ for (const count of [1, 3]) {
   };
   const bot = () => {
     const plan = nextBotAction(simulated, clock);
-    assert(plan);
+    assert(plan && "action" in plan);
     const previous = simulated;
     clock += plan.waitMs;
     simulated = applySoloAction(simulated, solo, plan.action, clock);
@@ -160,3 +160,32 @@ for (const count of [1, 3]) {
   assert.equal(simulated.lastResult?.kind, "save");
 }
 console.log("PASS solo match setup, automatic placement, CPU shots and human saves");
+
+const crampedRoom = soloRoom(3);
+const crampedTable = { width: 65, length: 50 };
+const crampedPositions = [
+  { x: 11.8929624, y: 14.2201239, angle: 97 },
+  { x: 42.3560905, y: 12.9909433, angle: 83 },
+  { x: 46.5126491, y: 36.4175115, angle: 213 },
+  { x: 15.9549492, y: 38.4618566, angle: 292 },
+];
+const crampedPhones = crampedPositions.map((point, index) => ({ ...point, playerId: crampedRoom.players[index].id }));
+assert(validLayout(crampedTable, crampedPhones));
+const crampedState = {
+  ...tableSoccerGame.initialState(crampedRoom.players),
+  phase: "initial-bumpers" as const,
+  table: crampedTable,
+  phones: crampedPhones,
+  players: crampedRoom.players,
+  bumpers: [
+    { playerId: SOLO_PLAYER_ID, x: 23.8, y: 27.8 },
+    { playerId: "cpu-1", x: 33, y: 30 },
+    { playerId: "cpu-2", x: 57, y: 24 },
+  ],
+};
+const crampedPlan = nextBotAction(crampedState, 1000);
+assert(crampedPlan && "action" in crampedPlan);
+const fromCramped = applySoloAction(crampedState, crampedRoom, crampedPlan.action, 1300);
+assert.equal(fromCramped.phase, "aim");
+assert.equal(fromCramped.bumpers.length, 4);
+console.log("PASS CPU finds a valid bumper on a cramped, rotated layout");

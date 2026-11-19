@@ -1,7 +1,7 @@
 import type { Room } from "../../engine/types";
 import { TABLE_SOCCER_ID, tableSoccerGame, type TableSoccerAction, type TableSoccerState } from "./config";
 import {
-  BALL_RADIUS, canPlaceBumper, clamp, GOALIE_LIMIT, GOAL_Y, LAUNCH_POINT, MAX_PULL,
+  BALL_RADIUS, BUMPER_RADIUS, canPlaceBumper, clamp, GOALIE_LIMIT, GOAL_Y, LAUNCH_POINT, MAX_PULL,
   simulateShot, toPhone, toWorld, type Point,
 } from "./physics";
 
@@ -33,10 +33,13 @@ function findBumperSpot(state: TableSoccerState): Point | undefined {
     const point = { x: x * table.width, y: y * table.length };
     if (canPlaceBumper(point, table, phones, bumpers)) return point;
   }
-  for (let x = 6; x < table.width - 5; x += 3) {
-    for (let y = 6; y < table.length - 5; y += 3) {
-      const point = { x, y };
-      if (canPlaceBumper(point, table, phones, bumpers)) return point;
+  const inset = BUMPER_RADIUS + 2 * BALL_RADIUS;
+  for (const step of [3, 0.25]) {
+    for (let x = inset; x <= table.width - inset; x += step) {
+      for (let y = inset; y <= table.length - inset; y += step) {
+        const point = { x, y };
+        if (canPlaceBumper(point, table, phones, bumpers)) return point;
+      }
     }
   }
 }
@@ -62,11 +65,12 @@ function choosePull(state: TableSoccerState): Point {
   return alternative ?? { x: side, y: 5.5 };
 }
 
-type BotPlan = { action: TableSoccerAction; waitMs: number };
+type BotAction = { action: TableSoccerAction; waitMs: number };
+type BotPlan = BotAction | { needsBumperSpace: true };
 
 export function nextBotAction(state: TableSoccerState, now: number): BotPlan | null {
   const { match, turn, phase, shot } = state;
-  const asBot = (type: string, playerId: string, payload: TableSoccerAction["payload"], waitMs: number): BotPlan => ({
+  const asBot = (type: string, playerId: string, payload: TableSoccerAction["payload"], waitMs: number): BotAction => ({
     action: { type, playerId, payload: { match, turn, ...payload } }, waitMs,
   });
   if (phase === "initial-bumpers" || phase === "bonus-bumper") {
@@ -75,7 +79,8 @@ export function nextBotAction(state: TableSoccerState, now: number): BotPlan | n
       : state.lastResult?.shooterId;
     if (playerId && playerId !== SOLO_PLAYER_ID) {
       const point = findBumperSpot(state);
-      if (point) return asBot("SOCCER_PLACE_BUMPER", playerId, { point, placement: phase === "initial-bumpers" ? "initial" : "bonus" }, 300);
+      if (!point) return { needsBumperSpace: true };
+      return asBot("SOCCER_PLACE_BUMPER", playerId, { point, placement: phase === "initial-bumpers" ? "initial" : "bonus" }, 300);
     }
   }
   if (phase === "aim") {
