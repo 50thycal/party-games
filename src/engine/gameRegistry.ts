@@ -6,6 +6,7 @@ import { realEstateGame } from "@/games/real-estate/config";
 import { performanceReviewGame } from "@/games/performance-review/config";
 import { theDeskGame } from "@/games/the-desk/config";
 import { subwayGame } from "@/games/subway/config";
+import { tableSoccerGame } from "@/games/table-soccer/config";
 import { landmarkBearingsGame } from "@/games/landmark-bearings/config";
 
 // Registry of all available games
@@ -22,6 +23,7 @@ games.set(performanceReviewGame.id, performanceReviewGame);
 games.set(theDeskGame.id, theDeskGame);
 games.set(subwayGame.id, subwayGame);
 games.set(landmarkBearingsGame.id, landmarkBearingsGame);
+games.set(tableSoccerGame.id, tableSoccerGame);
 
 /**
  * Register a game template with the engine

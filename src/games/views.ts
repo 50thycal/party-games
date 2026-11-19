@@ -8,6 +8,7 @@ import { RealEstateGameView } from "./real-estate/GameView";
 import { PerformanceReviewGameView } from "./performance-review/GameView";
 import { TheDeskGameView } from "./the-desk/GameView";
 import { SubwayGameView } from "./subway/GameView";
+import { TableSoccerGameView } from "./table-soccer/GameView";
 import { LandmarkBearingsGameView } from "./landmark-bearings/GameView";
 
 // Props passed to game views
@@ -16,6 +17,7 @@ export type GameViewProps<S = unknown> = {
   room: Room;
   playerId: string;
   isHost: boolean;
+  clockOffsetMs?: number;
   dispatchAction: (type: string, payload?: Record<string, unknown>) => Promise<void>;
 };
 
@@ -29,6 +31,7 @@ export type GameOption = {
   description: string;
   minPlayers: number;
   maxPlayers: number;
+  multiplayerOnly?: boolean;
 };
 
 // Available games for selection (client-side mirror of registry)
@@ -46,6 +49,14 @@ export const gameOptions: GameOption[] = [
     description: "Which way is the landmark? Guess its compass bearing. Closest wins.",
     minPlayers: 2,
     maxPlayers: 12,
+  },
+  {
+    id: "table-soccer",
+    name: "Table Soccer",
+    description: "Lay your phones flat, bank shots off bumpers, and defend your goal.",
+    minPlayers: 2,
+    maxPlayers: 4,
+    multiplayerOnly: true,
   },
   {
     id: "number-guess",
@@ -110,6 +121,7 @@ export function getGameplayWidth(gameId: string): string {
 // Registry of game view components
 const gameViews: Record<string, GameViewComponent> = {
   "landmark-bearings": LandmarkBearingsGameView as GameViewComponent,
+  "table-soccer": TableSoccerGameView as GameViewComponent,
   "number-guess": NumberGuessGameView as GameViewComponent,
   "comet-rush": CometRushGameView as GameViewComponent,
   "cafe": CafeGameView as GameViewComponent,

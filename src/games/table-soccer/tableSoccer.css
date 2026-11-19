@@ -1,0 +1,138 @@
+.soccer-shell {
+  --ink: #f0f8ea;
+  --muted: #afc6b7;
+  --line: #345449;
+  --accent: #c9fa70;
+  color: var(--ink);
+  font-family: system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  margin: 0 auto;
+  max-width: 31rem;
+}
+
+.soccer-top {
+  align-items: center;
+  background: #0d241e;
+  border: 1px solid var(--line);
+  border-radius: 1.1rem;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: .55rem;
+  padding: .55rem .9rem;
+}
+
+.soccer-top h1 { font-size: 1.35rem; font-weight: 850; letter-spacing: -.055em; }
+.soccer-top span { color: var(--muted); font-size: .75rem; font-weight: 700; letter-spacing: .13em; }
+
+.soccer-card {
+  background: #102721;
+  border: 1px solid var(--line);
+  border-radius: 1.15rem;
+  display: grid;
+  gap: .75rem;
+  margin-bottom: .6rem;
+  padding: 1rem;
+}
+
+.soccer-card h2, .soccer-play-bar h2 { font-size: 1.4rem; font-weight: 800; letter-spacing: -.045em; line-height: 1.1; }
+.soccer-card p, .soccer-play-bar p { color: var(--muted); font-size: .9rem; line-height: 1.4; }
+
+.soccer-primary, .soccer-secondary, .soccer-player-choices button {
+  border: 1px solid transparent;
+  border-radius: .62rem;
+  font-size: .88rem;
+  font-weight: 750;
+  line-height: 1.1;
+  min-height: 2.75rem;
+  padding: .6rem .75rem;
+}
+
+.soccer-primary { background: var(--accent); color: #16240b; }
+.soccer-primary:disabled { background: #233b2d; color: #9aaf9f; cursor: default; }
+.soccer-secondary, .soccer-player-choices button { background: #17352b; border-color: #34584b; color: var(--ink); }
+.soccer-player-choices button[aria-pressed="true"] { background: #27483a; border-color: #a3ce88; }
+
+.soccer-shell :is(button, a, input, select, svg):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.soccer-measurements, .soccer-rotation { align-items: end; display: grid; gap: .6rem; }
+.soccer-measurements { grid-template-columns: 1fr 1fr minmax(3.65rem, .65fr); }
+.soccer-rotation { grid-template-columns: 1fr auto; }
+.soccer-measurements label, .soccer-rotation label { color: var(--muted); display: block; font-size: .78rem; font-weight: 700; min-width: 0; }
+.soccer-measurements input, .soccer-measurements select {
+  background: #0a201a;
+  border: 1px solid var(--line);
+  border-radius: .6rem;
+  color: var(--ink);
+  display: block;
+  font-size: 1rem;
+  height: 2.75rem;
+  margin-top: .25rem;
+  padding: .4rem .6rem;
+  width: 100%;
+}
+
+.soccer-rotation output { color: var(--ink); margin-left: .2rem; }
+.soccer-rotation input { accent-color: var(--accent); display: block; height: 1.65rem; width: 100%; }
+.soccer-player-choices { display: flex; flex-wrap: wrap; gap: .35rem; }
+.soccer-player-choices button { max-width: 100%; overflow-wrap: anywhere; }
+.soccer-table-map { border-radius: .55rem; display: block; max-height: 21rem; touch-action: none; width: 100%; }
+.soccer-card .soccer-error { color: #ffafad; }
+.soccer-exit { color: var(--muted); padding: .3rem; text-align: center; text-decoration: underline; }
+
+.soccer-scores { display: flex; gap: .35rem; margin-bottom: .55rem; }
+.soccer-score {
+  align-items: center;
+  background: #102721;
+  border: 1px solid var(--line);
+  border-radius: .65rem;
+  display: flex;
+  flex: 1 1 0;
+  gap: .3rem;
+  justify-content: space-between;
+  min-width: 0;
+  padding: .27rem .48rem;
+}
+.soccer-score-name { align-items: center; display: flex; font-size: .73rem; gap: .3rem; min-width: 0; }
+.soccer-score-name span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.soccer-seat-dot { border-radius: 50%; flex: 0 0 .43rem; height: .43rem; }
+.soccer-score strong { font-size: 1.04rem; }
+
+.soccer-play {
+  background: #0d241e;
+  border: 1px solid var(--line);
+  border-radius: 1.1rem;
+  overflow: hidden;
+  position: relative;
+}
+.soccer-play-bar {
+  align-items: center;
+  display: grid;
+  gap: .65rem;
+  grid-template-columns: minmax(0, 1fr) minmax(6.3rem, 34%);
+  min-height: 6rem;
+  padding: .6rem .75rem;
+}
+.soccer-live-status { min-width: 0; overflow-wrap: anywhere; }
+.soccer-play-bar p { font-size: .79rem; margin-top: .18rem; }
+.soccer-play-bar .soccer-result { color: var(--accent); font-weight: 750; }
+.soccer-mini-map { display: block; height: 4.75rem; width: 100%; }
+.soccer-pitch {
+  background: #0d201a;
+  display: block;
+  height: min(57dvh, 34rem);
+  min-height: 15rem;
+  touch-action: none;
+  user-select: none;
+  width: 100%;
+}
+.soccer-pitch:focus-visible { outline-offset: -3px; }
+.soccer-power { accent-color: var(--accent); bottom: .3rem; left: 35%; position: absolute; width: 30%; }
+
+@media (max-width: 350px) {
+  .soccer-card { padding: .75rem; }
+  .soccer-score { padding-inline: .31rem; }
+  .soccer-play-bar { padding-inline: .55rem; }
+}

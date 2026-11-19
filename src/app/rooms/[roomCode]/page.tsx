@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { loadPlayerIdentity } from "@/lib/playerIdentity";
 import { getGameView, getGameplayWidth } from "@/games/views";
+import { TABLE_SOCCER_ID, type TableSoccerState } from "@/games/table-soccer/config";
 
 type PlayerDto = {
   id: string;
@@ -22,7 +23,7 @@ type RoomDto = {
 };
 
 type GetRoomResponse =
-  | { ok: true; data: { room: RoomDto; gameState: unknown } }
+  | { ok: true; data: { room: RoomDto; gameState: unknown; serverTime?: number } }
   | { ok: false; errorCode: string; message?: string };
 
 type GameActionResponse =
@@ -31,6 +32,13 @@ type GameActionResponse =
 
 const MAX_ACTION_RETRIES = 3;
 const INITIAL_RETRY_DELAY_MS = 100;
+
+function newerGameState(previous: unknown, incoming: unknown, gameId: string): unknown {
+  if (gameId !== TABLE_SOCCER_ID) return incoming;
+  const current = (previous as TableSoccerState | null)?.revision ?? -1;
+  const next = (incoming as TableSoccerState | null)?.revision ?? -1;
+  return next > current ? incoming : previous;
+}
 
 export default function RoomPage() {
   const params = useParams<{ roomCode: string }>();
@@ -43,6 +51,16 @@ export default function RoomPage() {
   const [activePlayerId, setActivePlayerId] = useState<string | null>(null); // For hotseat mode
   const [actionError, setActionError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [clockOffsetMs, setClockOffsetMs] = useState(0);
+  const clockSample = useRef<{ roundTrip: number; sampledAt: number } | null>(null);
+  const phase = (gameState as { phase?: string } | null)?.phase;
+  const pollMs = room?.gameId === TABLE_SOCCER_ID && (phase === "aim" || phase === "flight") ? 230 : 1000;
+
+  useEffect(() => {
+    clockSample.current = null;
+    setClockOffsetMs(0);
+    setGameState(null);
+  }, [roomCode]);
 
   // Load current player identity
   useEffect(() => {
@@ -80,8 +98,12 @@ export default function RoomPage() {
     if (!roomCode) return;
 
     let cancelled = false;
+    let reading = false;
 
     async function fetchRoom() {
+      if (reading) return;
+      reading = true;
+      const sentAt = Date.now();
       try {
         const res = await fetch(`/api/get-room?roomCode=${roomCode}`);
 
@@ -109,25 +131,37 @@ export default function RoomPage() {
           return;
         }
 
-        setRoom(json.data.room);
-        setGameState(json.data.gameState);
+        const { room: nextRoom, gameState: nextState, serverTime } = json.data;
+        if (nextRoom.gameId === TABLE_SOCCER_ID && typeof serverTime === "number") {
+          const receivedAt = Date.now();
+          const roundTrip = receivedAt - sentAt;
+          const last = clockSample.current;
+          if (!last || roundTrip < last.roundTrip || receivedAt - last.sampledAt > 30_000) {
+            clockSample.current = { roundTrip, sampledAt: receivedAt };
+            setClockOffsetMs(serverTime - (sentAt + receivedAt) / 2);
+          }
+        }
+        setRoom(nextRoom);
+        setGameState((previous: unknown) => newerGameState(previous, nextState, nextRoom.gameId));
         setError(null);
       } catch (err) {
         console.error(err);
         if (!cancelled) {
           setError("Error fetching room state.");
         }
+      } finally {
+        reading = false;
       }
     }
 
     fetchRoom();
-    const intervalId = setInterval(fetchRoom, 1000);
+    const intervalId = setInterval(fetchRoom, pollMs);
 
     return () => {
       cancelled = true;
       clearInterval(intervalId);
     };
-  }, [roomCode]);
+  }, [roomCode, pollMs]);
 
   // Auto-dismiss action errors after 5 seconds
   useEffect(() => {
@@ -193,8 +227,9 @@ export default function RoomPage() {
         }
 
         // Success! Update state and exit
-        setRoom(json.data.room);
-        setGameState(json.data.gameState);
+        const { room: nextRoom, gameState: nextState } = json.data;
+        setRoom(nextRoom);
+        setGameState((previous: unknown) => newerGameState(previous, nextState, nextRoom.gameId));
         setIsSubmitting(false);
         return;
       } catch (err) {
@@ -382,6 +417,7 @@ export default function RoomPage() {
             room={room}
             playerId={effectivePlayerId}
             isHost={isHost}
+            clockOffsetMs={clockOffsetMs}
             dispatchAction={dispatchAction}
           />
         ) : (

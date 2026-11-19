@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { generateRoomCode, setRoomState } from "@/engine/stateStore";
+import { TABLE_SOCCER_ID } from "@/games/table-soccer/config";
 import type { Player, Room, RoomState } from "@/engine/types";
 
 // Force Node.js runtime (required for SQLite/better-sqlite3)
@@ -21,6 +22,13 @@ export async function POST(req: NextRequest) {
     const mode = body.mode || "multiplayer";
     const gameId = body.gameId?.trim() || "number-guess";
     if (gameId === "subway" && mode === "multiplayer") return Response.json({ok:false,errorCode:"COMPANION_REQUIRED",message:"Create Subway with the iPad and phone option."},{status:400});
+
+    if (gameId === TABLE_SOCCER_ID && mode !== "multiplayer") {
+      return Response.json(
+        { ok: false, errorCode: "MULTIPLAYER_REQUIRED", message: "Table Soccer needs one phone per player." },
+        { status: 400 }
+      );
+    }
 
     // For multiplayer mode, require a player name
     if (mode === "multiplayer") {
