@@ -15,6 +15,13 @@ const GOALIE_SEND_MS = 95;
 const SETTLE_RETRY_MS = 650;
 
 type GoalieUpdate = { x: number; sequence: number };
+type PitchGesture = {
+  id: number;
+  kind: "aim" | "save";
+  anchor: Point;
+  latest: Point;
+  frame: number | null;
+};
 type LiveSend = (type: "SOCCER_GOALIE" | "SOCCER_SETTLE", extra?: GoalieUpdate) => Promise<boolean>;
 type LiveDispatch = (type: Parameters<LiveSend>[0], payload: { match: number; turn: number; x?: number; sequence?: number }) => Promise<boolean>;
 type TableSoccerViewProps = SoccerViewProps & { dispatchLiveAction?: LiveDispatch };
@@ -75,6 +82,7 @@ function useSettleFlight(shot: Shot | null, fallbackDelay: number, clockOffsetMs
 
 function useGoalie(shot: Shot | null, defend: boolean, send: LiveSend) {
   const [localX, setLocalX] = useState<number | null>(null);
+  const latestX = useRef<number | null>(null);
   const queue = useRef<GoalieUpdate | null>(null);
   const sequence = useRef(0);
   const flushNow = useRef<(() => void) | null>(null);
@@ -114,7 +122,8 @@ function useGoalie(shot: Shot | null, defend: boolean, send: LiveSend) {
   const x = localX ?? shot?.goalieX ?? 0;
   function move(next: number) {
     const position = clamp(next, -GOALIE_LIMIT, GOALIE_LIMIT);
-    if (Math.abs(x - position) < 0.025) return;
+    if (Math.abs((latestX.current ?? shot?.goalieX ?? 0) - position) < 0.025) return;
+    latestX.current = position;
     setLocalX(position);
     sequence.current = Math.max(sequence.current, shot?.goalieSequence ?? 0) + 1;
     queue.current = { x: position, sequence: sequence.current };
@@ -179,7 +188,11 @@ function PlayField({ state, room, playerId, dispatchAction, dispatchLiveAction, 
   }, [roomCode, playerId, match, turn, dispatchLiveAction]);
   useSettleFlight(shot, shooter.id === playerId || dispatchLiveAction ? 0 : 360 + Math.max(0, seat) * 70, clockOffsetMs, send);
   const goalie = useGoalie(shot, defending && !!shot && now < (shot.goalieUntil ?? shot.settlesAt), send);
-  const gesture = useRef<{ id: number; anchor: Point; kind: "aim" | "save" } | null>(null);
+  const gesture = useRef<PitchGesture | null>(null);
+  useEffect(() => () => {
+    const frame = gesture.current?.frame;
+    if (frame != null) cancelAnimationFrame(frame);
+  }, []);
   const [pull, setPull] = useState<Point | null>(null);
   const [keyboardAngle, setKeyboardAngle] = useState(0);
   const [kickPending, setKickPending] = useState(false);
@@ -191,10 +204,6 @@ function PlayField({ state, room, playerId, dispatchAction, dispatchLiveAction, 
   const pullLength = pull ? Math.hypot(pull.x, pull.y) : 0;
   const aimDirection = pullLength >= MIN_PULL && pull ? kickDirection(pull) : null;
   const aimAt = aimDirection ? { x: LAUNCH_POINT.x + aimDirection.x * 12, y: LAUNCH_POINT.y + aimDirection.y * 12 } : null;
-  const mapIndicator = aimDirection ? {
-    from: toWorld(LAUNCH_POINT, phone),
-    to: toWorld({ x: LAUNCH_POINT.x + aimDirection.x * 49, y: LAUNCH_POINT.y + aimDirection.y * 49 }, phone),
-  } : null;
   const goalieX = defending ? goalie.x : 0;
 
   function kick(vector: Point) {
@@ -208,7 +217,14 @@ function PlayField({ state, room, playerId, dispatchAction, dispatchLiveAction, 
     const point = screenPoint(event.currentTarget, event.clientX, event.clientY);
     if (!point) return;
     if (!canMoveGoalie && (!yourTurn || kickPending || Math.hypot(point.x - LAUNCH_POINT.x, point.y - LAUNCH_POINT.y) > 2.7)) return;
-    gesture.current = { id: event.pointerId, anchor: point, kind: canMoveGoalie ? "save" : "aim" };
+    event.preventDefault();
+    gesture.current = {
+      id: event.pointerId,
+      anchor: point,
+      kind: canMoveGoalie ? "save" : "aim",
+      latest: { x: event.clientX, y: event.clientY },
+      frame: null,
+    };
     if (canMoveGoalie) goalie.move(point.x);
     else setPull({ x: 0, y: 0 });
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -217,20 +233,27 @@ function PlayField({ state, room, playerId, dispatchAction, dispatchLiveAction, 
   function moveGesture(event: PointerEvent<SVGSVGElement>) {
     const current = gesture.current;
     if (!current || current.id !== event.pointerId) return;
-    const point = screenPoint(event.currentTarget, event.clientX, event.clientY);
-    if (!point) return;
-    if (current.kind === "save") {
-      if (canMoveGoalie) goalie.move(point.x);
-    } else if (yourTurn) {
-      setPull(limitedPull({ x: point.x - current.anchor.x, y: point.y - current.anchor.y }));
-    }
+    current.latest = { x: event.clientX, y: event.clientY };
+    if (current.frame !== null) return;
+    const pitch = event.currentTarget;
+    current.frame = requestAnimationFrame(() => {
+      current.frame = null;
+      const point = screenPoint(pitch, current.latest.x, current.latest.y);
+      if (!point) return;
+      if (current.kind === "save") {
+        if (canMoveGoalie) goalie.move(point.x);
+      } else if (yourTurn) {
+        setPull(limitedPull({ x: point.x - current.anchor.x, y: point.y - current.anchor.y }));
+      }
+    });
   }
 
   function endGesture(event: PointerEvent<SVGSVGElement>, cancelled = false) {
     const current = gesture.current;
     if (!current || current.id !== event.pointerId) return;
     gesture.current = null;
-    setPull(null);
+    if (current.frame !== null) cancelAnimationFrame(current.frame);
+    if (current.kind === "aim") setPull(null);
     if (cancelled) return;
     const point = screenPoint(event.currentTarget, event.clientX, event.clientY);
     if (!point) return;
@@ -264,7 +287,7 @@ function PlayField({ state, room, playerId, dispatchAction, dispatchLiveAction, 
           <p>{hint}</p>
           <ShotResult state={state} playerId={playerId} />
         </div>
-        <TableMap table={state.table} phones={state.phones} bumpers={state.bumpers} ball={worldBall} indicator={mapIndicator}
+        <TableMap table={state.table} phones={state.phones} bumpers={state.bumpers} ball={worldBall}
           highlightedId={playerId} mini label="Mini-map of the shared table and ball" />
       </div>
       <svg className="soccer-pitch" viewBox="-8 -11 16 22" role="group" aria-label="Your goal and ball controls" tabIndex={0}
@@ -323,15 +346,17 @@ export function TableSoccerGameView(props: TableSoccerViewProps) {
   const winner = state.players[state.scores.findIndex((score) => score === WINNING_SCORE)];
   const setup = phase === "setup";
   const bumpers = phase === "initial-bumpers" || phase === "bonus-bumper";
+  const inPlay = phase === "aim" || phase === "flight";
   return (
-    <div className="soccer-shell">
+    <div className={inPlay ? "soccer-shell soccer-in-play" : "soccer-shell"}
+      onContextMenu={inPlay ? (event) => event.preventDefault() : undefined}>
       <header className="soccer-top">
         <h1>Table Soccer</h1><span title={room.mode === "simulation" ? undefined : "Room code"}>{room.mode === "simulation" ? "Solo Playtest" : room.roomCode}</span>
       </header>
       {!setup && <Scoreboard state={state} playerId={playerId} />}
       {setup && <TableSetup key={state.match} {...props} />}
       {bumpers && <BumperSetup key={`${state.match}-${state.turn}-${phase}`} {...props} />}
-      {(phase === "aim" || phase === "flight") && <PlayField key={`${state.match}-${state.turn}`} {...props} />}
+      {inPlay && <PlayField key={`${state.match}-${state.turn}`} {...props} />}
       {phase === "finished" && <section className="soccer-card">
         <h2>{winner?.id === playerId ? "You win!" : `${winner?.name ?? "Match"} wins!`}</h2>
         <p>{WINNING_SCORE} goals to win.</p>
