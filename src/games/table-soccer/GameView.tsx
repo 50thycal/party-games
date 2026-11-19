@@ -217,7 +217,7 @@ function PlayField({ state, room, playerId, dispatchAction, dispatchLiveAction, 
     const point = screenPoint(event.currentTarget, event.clientX, event.clientY);
     if (!point) return;
     if (!canMoveGoalie && (!yourTurn || kickPending || Math.hypot(point.x - LAUNCH_POINT.x, point.y - LAUNCH_POINT.y) > 2.7)) return;
-    event.preventDefault();
+    if (event.pointerType === "touch") event.preventDefault();
     gesture.current = {
       id: event.pointerId,
       anchor: point,
